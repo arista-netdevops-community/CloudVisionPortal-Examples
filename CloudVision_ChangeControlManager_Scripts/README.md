@@ -2,6 +2,14 @@
 
 These scripts are to be used in the Change Management Workflow. They use various internal CVP libraries to execute tests on either Arista switches or Linux devices. If the tests are successful the scripts will exit cleanly otherwise they will raise an exception or assert error.
 
+To test the scripts:
+
+`/cvpi/tools/script-util test -path <python file> -config <yaml file>`
+
+To upload the scripts:
+
+`/cvpi/tools/script-util upload -path <python file> -config <yaml file>`
+
 **check_switchType**
 
 Change Control script that uses the arguments provided by check_switchType.yaml to check the switch type (model). The script uses the model description returned by the show version command and compares this to the switchType provided in the script arguments yaml file. The arguments in the yaml file are as follows:
@@ -36,3 +44,7 @@ Change Control script that uses the arguments provided by page_check.yaml to che
    timeout    - how long to wait for a response from the web page
 
 The script uses paramiko to access each client using SSH and then executes a curl command to reach the web page.
+
+**clean-flash**
+
+Change Control script that removes all EOS images except the boot image from /mnt/flash/.
