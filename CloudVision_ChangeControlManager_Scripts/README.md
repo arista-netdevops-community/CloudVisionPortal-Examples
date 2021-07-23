@@ -61,3 +61,9 @@ If the installation is done over a none default VRF, change the VRF argument in 
 
 you need to define the name of the RPM file in the YAML file argument "extention"
 
+**Image_preload**
+
+This script downloads an EOS image on the selected switch flash.  This is usefull to save time during a maintenance window as the image will already be on the switch ready to be installed instead of copied to each switch during the maintenance window.
+
+Users must edit the YAML file to define the correct repository, vrf and EOS file name
+
