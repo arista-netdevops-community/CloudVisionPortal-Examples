@@ -1,8 +1,9 @@
-# Taken directly from CloudVision_ConfigGuide-2016.1.1
-# Section 8.2.4.3
+# RESTClient GET example for 2018.2.0+
 from cvplibrary import RestClient
+import os
 
-url='http://localhost:8080/web/inventory/getInventory.do?queryparam=&startIndex=0&endIndex=15';
+cvp_ip = os.environ['PRIMARY_HOSTNAME']
+url="https://" + cvp_ip + "/cvpservice/inventory/devices?provisioned=true"
 
 method= 'GET';
 client= RestClient(url,method);
