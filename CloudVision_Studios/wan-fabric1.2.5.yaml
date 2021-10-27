@@ -1,0 +1,3120 @@
+-
+    service: arista.studio.v1.StudioConfigService
+    method: Set
+    body:
+        value:
+            key:
+                studio_id: studio-wan-fabric
+                workspace_id: &workspace_id ws-wan-fabric
+            display_name: 'WAN Fabric'
+            description: 'ver. 1.2.5 Deploy and manage non-overlay networks with OSPF or ISIS or EVPN and L3VPN networks with MPLS or VXLAN.'
+
+-   service: arista.studio.v1.StudioConfigService
+    method: Set
+    body:
+        value:
+            key:
+                studio_id: studio-wan-fabric
+                workspace_id: *workspace_id
+            input_schema:
+                fields:
+                    values:
+                        mlagLinkSubnet:
+                            id: mlagLinkSubnet
+                            name: mlagLinkSubnet
+                            label: 'Subnet of the MLAG peer link'
+                            description: 'IP Subnet of the MLAG peer link'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: 169.254.0.0/31
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        internalVlan:
+                            id: internalVlan
+                            name: internalVlan
+                            label: 'VLAN to use for the MLAG peer link'
+                            description: 'VLAN to use for the MLAG peer link'
+                            required: false
+                            type: INPUT_FIELD_TYPE_INTEGER
+                            integer_props:
+                                default_value: '4094'
+                                range: null
+                                static_options: null
+                                dynamic_options: null
+                        mlagPortChannelId:
+                            id: mlagPortChannelId
+                            name: mlagPortChannelId
+                            label: 'MLAG Port-Channel ID'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_INTEGER
+                            integer_props:
+                                default_value: '2000'
+                                range: null
+                                static_options: null
+                                dynamic_options: null
+                        virtualRouterMac:
+                            id: virtualRouterMac
+                            name: virtualRouterMac
+                            label: 'Virtual Router MAC'
+                            description: 'Virtual MAC for other hosts or switches to connect to for redundancy'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '00:1c:73:00:00:99'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        lacpMode:
+                            id: lacpMode
+                            name: lacpMode
+                            label: 'LACP Mode'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: ACTIVE
+                                static_options:
+                                    values:
+                                        - ACTIVE
+                                        - ON
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        commonMlagConfig:
+                            id: commonMlagConfig
+                            name: commonMlagConfig
+                            label: 'MLAG Configuration'
+                            description: 'This configuration is only used when the MLAG Interface field is populated for the devices in a Edge-Router-Domain'
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - mlagLinkSubnet
+                                        - internalVlan
+                                        - mlagPortChannelId
+                                        - virtualRouterMac
+                                        - lacpMode
+                        rrAS:
+                            id: rrAS
+                            name: rrAS
+                            label: ASN
+                            description: 'BGP ASN for the RRs'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rrBGPDynamicNeighbors:
+                            id: rrBGPDynamicNeighbors
+                            name: rrBGPDynamicNeighbors
+                            label: 'RR BGP Dynamic Neighbors'
+                            description: 'Only YES is currently supported'
+                            required: false
+                            type: INPUT_FIELD_TYPE_BOOLEAN
+                            boolean_props:
+                                default_value: true
+                        evpnEnabled:
+                            id: evpnEnabled
+                            name: evpnEnabled
+                            label: 'BGP EVPN Enabled'
+                            description: 'Only YES is currently supported'
+                            required: false
+                            type: INPUT_FIELD_TYPE_BOOLEAN
+                            boolean_props:
+                                default_value: false
+                        l3vpnEnabled:
+                            id: l3vpnEnabled
+                            name: l3vpnEnabled
+                            label: 'BGP L3VPN Enabled'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_BOOLEAN
+                            boolean_props:
+                                default_value: false
+                        bgpAuthKey:
+                            id: bgpAuthKey
+                            name: bgpAuthKey
+                            label: 'BGP Auth Key'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        commonBGPConfig:
+                            id: commonBGPConfig
+                            name: commonBGPConfig
+                            label: 'Common iBGP Configuration'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - rrAS
+                                        - rrBGPDynamicNeighbors
+                                        - evpnEnabled
+                                        - l3vpnEnabled
+                                        - bgpAuthKey
+                        rrLinkPeer:
+                            id: rrLinkPeer
+                            name: rrLinkPeer
+                            label: 'Neighbor Hostname'
+                            description: 'Hostname of the P or PE Router directly connected to this RR'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rrLinkPeerInterface:
+                            id: rrLinkPeerInterface
+                            name: rrLinkPeerInterface
+                            label: 'Neighbor Interface'
+                            description: 'This field is only used for interface descriptions'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rripAddress:
+                            id: rripAddress
+                            name: rripAddress
+                            label: 'Local IP Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rsubnetMask:
+                            id: rsubnetMask
+                            name: rrsubnetMask
+                            label: 'Local Subnet Mask'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '31'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rrNeighborParams:
+                            id: rrNeighborParams
+                            name: rrNeighborParams
+                            label: 'Neighbor Parameters'
+                            description: null
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - rrLinkPeer
+                                        - rrLinkPeerInterface
+                                        - rripAddress
+                                        - rsubnetMask
+                        rrDownlink:
+                            id: rrDownlink
+                            name: rrDownlink
+                            label: 'RR Downlink interface'
+                            description: 'To directly connected P or PE routers'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: rrNeighborParams
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                                input_tag_label: interface
+                                tag_filter_query: null
+                        loopback0Address:
+                            id: loopback0Address
+                            name: loopback0Address
+                            label: 'Loopback0 Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rrInterfaceParams:
+                            id: rrInterfaceParams
+                            name: rrInterfaceParams
+                            label: 'Fabric link Interface Parameters'
+                            description: null
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - rrDownlink
+                                        - loopback0Address
+                        rrs:
+                            id: rrs
+                            name: rrs
+                            label: 'RR Devices'
+                            description: 'Used for overlay networks'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: rrInterfaceParams
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                                input_tag_label: device
+                                tag_filter_query: 'Role:RR'
+                        asNumber:
+                            id: asNumber
+                            name: asNumber
+                            label: 'AS Number'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_INTEGER
+                            integer_props:
+                                default_value: '65100'
+                                range: null
+                                static_options: null
+                                dynamic_options: null
+                        peMLAGInterface1:
+                            id: peMLAGInterface1
+                            name: peMLAGInterface1
+                            label: 'MLAG Interface #1'
+                            description: 'Populating these fields enables MLAG. ISIS or OSPF between the MLAG peers will also be configured.'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        peMLAGInterface2:
+                            id: peMLAGInterface2
+                            name: peMLAGInterface2
+                            label: 'MLAG Interface#2'
+                            description: 'Populating these fields enables MLAG'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pehostName:
+                            id: pehostName
+                            name: pehostName
+                            label: 'Neighbor Host Name'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        peinterface:
+                            id: peinterface
+                            name: peinterface
+                            label: 'Neighbors''s Interface'
+                            description: 'This field is only used for interface descriptions'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        peipAddress:
+                            id: peipAddress
+                            name: peipAddress
+                            label: 'Local IP Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pesubnetMask:
+                            id: pesubnetMask
+                            name: pesubnetMask
+                            label: 'Subnet Mask'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '31'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        peneighborDetails:
+                            id: peneighborDetails
+                            name: peneighborDetails
+                            label: 'Neighbor Details'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - pehostName
+                                        - peinterface
+                                        - peipAddress
+                                        - pesubnetMask
+                        peneighbors:
+                            id: peneighbors
+                            name: peneighbors
+                            label: Neighbors
+                            description: 'Add Interface details if a Edge or Core router is directly connected'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: peneighborDetails
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                                input_tag_label: interface
+                                tag_filter_query: null
+                        peloopback0Address:
+                            id: peloopback0Address
+                            name: loopback0Address
+                            label: 'Loopback0 Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        loopback1Address:
+                            id: loopback1Address
+                            name: loopback1Address
+                            label: 'Loopback1 Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value:
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        fpenodeSegmentIndex:
+                            id: fpenodeSegmentIndex
+                            name: penodeSegmentIndex
+                            label: 'Node Segment Index'
+                            description: 'Segment Routing Index'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        tename:
+                            id: tename
+                            name: name
+                            label: Name
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        tedescription:
+                            id: tedescription
+                            name: description
+                            label: Description
+                            description: 'Can contain spaces'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        color:
+                            id: color
+                            name: color
+                            label: Color
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rtValue:
+                            id: rtValue
+                            name: rtValue
+                            label: RT
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rt:
+                            id: rt
+                            name: rt
+                            label: RT
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - rtValue
+                        rTs:
+                            id: rTs
+                            name: rTs
+                            label: RTs
+                            description: 'Default is to match no routes. Add RTs to apply this policy.'
+                            required: false
+                            type: INPUT_FIELD_TYPE_COLLECTION
+                            collection_props:
+                                base_field_id: rt
+                                key: ""
+                        bindingId:
+                            id: bindingId
+                            name: bindingId
+                            label: 'Binding ID'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '1000000'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        preference:
+                            id: preference
+                            name: preference
+                            label: Preference
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '100'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        segmentList:
+                            id: segmentList
+                            name: segmentList
+                            label: 'Segment List'
+                            description: 'add space separated hostnames'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pgpvalue:
+                            id: pgpvalue
+                            name: value
+                            label: 'Path Preference Group'
+                            description: 'Group of members for Path Preference'
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - preference
+                                        - segmentList
+                        pathPreference:
+                            id: pathPreference
+                            name: pathPreference
+                            label: 'Path Preference'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_COLLECTION
+                            collection_props:
+                                base_field_id: pgpvalue
+                                key: preference
+                        matchAllRTs:
+                            id: matchAllRTs
+                            name: matchAllRTs
+                            label: 'Match all RTs'
+                            description: 'or specify RTs in the list below'
+                            required: false
+                            type: INPUT_FIELD_TYPE_BOOLEAN
+                            boolean_props:
+                                default_value: false
+                        polvalue:
+                            id: polvalue
+                            name: value
+                            label: 'Policy Group'
+                            description: 'Group of members for Policy'
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - tename
+                                        - tedescription
+                                        - color
+                                        - rTs
+                                        - bindingId
+                                        - pathPreference
+                                        - matchAllRTs
+                        tepol:
+                            id: tepol
+                            name: policy
+                            label: Policy
+                            description: 'Policy is applied "in" from routes sent by the RRs. Add Policy Name without spaces'
+                            required: false
+                            type: INPUT_FIELD_TYPE_COLLECTION
+                            collection_props:
+                                base_field_id: polvalue
+                                key: tename
+                        tepolname:
+                            id: tepolname
+                            name: name
+                            label: 'Host Name'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        endPoint:
+                            id: endPoint
+                            name: endPoint
+                            label: 'End Point'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - tepol
+                                        - tepolname
+                        teEndPoints:
+                            id: teEndPoints
+                            name: teEndPoints
+                            label: 'SR TE End Points'
+                            description: 'Add Hostname of TE End Point'
+                            required: false
+                            type: INPUT_FIELD_TYPE_COLLECTION
+                            collection_props:
+                                base_field_id: endPoint
+                                key: tepolname
+                        rrHostname:
+                            id: rrHostname
+                            name: rrHostname
+                            label: 'RR Hostname'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rrInterface:
+                            id: rrInterface
+                            name: rrInterface
+                            label: 'RR Interface'
+                            description: 'Interface description if directly to RR'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        localInterface:
+                            id: localInterface
+                            name: localInterface
+                            label: 'Local Interface'
+                            description: 'optional: used only if directly to RR'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        localIpAddress:
+                            id: localIpAddress
+                            name: localIpAddress
+                            label: 'Local IP  Address'
+                            description: 'optional: used only if directly to RR'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        localSubnetMask:
+                            id: localSubnetMask
+                            name: localSubnetMask
+                            label: 'Local Subnet Mask'
+                            description: 'optional: used only if directly to RR'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '31'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        rrHostnameGroup:
+                            id: rrHostnameGroup
+                            name: rrHostnameGroup
+                            label: 'RR Hostname Group'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - rrHostname
+                                        - rrInterface
+                                        - localInterface
+                                        - localIpAddress
+                                        - localSubnetMask
+                        rrHostnames:
+                            id: rrHostnames
+                            name: rrHostnames
+                            label: 'RR Hostnames'
+                            description: 'Only RR hostname required unless the RR is directly connected'
+                            required: false
+                            type: INPUT_FIELD_TYPE_COLLECTION
+                            collection_props:
+                                base_field_id: rrHostnameGroup
+                                key: rrHostname
+                        peLinkDetails:
+                            id: peLinkDetails
+                            name: peLinkDetails
+                            label: 'PE Link Details'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - peMLAGInterface1
+                                        - peMLAGInterface2
+                                        - peneighbors
+                                        - peloopback0Address
+                                        - loopback1Address
+                                        - fpenodeSegmentIndex
+                                        - teEndPoints
+                                        - rrHostnames
+                        peDetails:
+                            id: peDetails
+                            name: peDetails
+                            label: 'Edge Router Domain Members'
+                            description: 'Single Device or MLAG Pair'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: peLinkDetails
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                                input_tag_label: device
+                                tag_filter_query: null
+                        peDomain:
+                            id: peDomain
+                            name: peDomain
+                            label: 'Edge Router Domain'
+                            description: 'Single Device or MLAG Pair'
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - asNumber
+                                        - peDetails
+                        peDomains:
+                            id: peDomains
+                            name: peDomains
+                            label: 'Edge Router Domains'
+                            description: 'Single Device or MLAG Pair'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: peDomain
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                                input_tag_label: Edge-Router-Domain
+                                tag_filter_query: null
+                        prrhostName:
+                            id: prrhostName
+                            name: prrhostName
+                            label: 'RR Host Name'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        prrinterface:
+                            id: prrinterface
+                            name: prrinterface
+                            label: 'RR Interface'
+                            description: 'This field is only used for interface descriptions'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        prripAddress:
+                            id: prripAddress
+                            name: prripAddress
+                            label: 'Local IP Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        prrsubnetMask:
+                            id: prrsubnetMask
+                            name: prrsubnetMask
+                            label: 'Local Subnet Mask'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '31'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        prrDetails:
+                            id: prrDetails
+                            name: prrDetails
+                            label: 'RR Details'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - prrhostName
+                                        - prrinterface
+                                        - prripAddress
+                                        - prrsubnetMask
+                        rRs:
+                            id: rRs
+                            name: rRs
+                            label: RRs
+                            description: 'Only required if a RR is directly connected to this P Router'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: prrDetails
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                                input_tag_label: interface
+                                tag_filter_query: null
+                        phostName:
+                            id: phostName
+                            name: phostName
+                            label: 'Neighbor Host Name'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pinterface:
+                            id: pinterface
+                            name: pinterface
+                            label: 'Neighbor Interface'
+                            description: 'This field is only used for interface descriptions'
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        ipAddress:
+                            id: ipAddress
+                            name: pipAddress
+                            label: 'Local IP Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        psubnetMask:
+                            id: psubnetMask
+                            name: psubnetMask
+                            label: 'Subnet Mask'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: '31'
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pneighborDetails:
+                            id: pneighborDetails
+                            name: pneighborDetails
+                            label: 'Neighbor Details'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - phostName
+                                        - pinterface
+                                        - ipAddress
+                                        - psubnetMask
+                        pneighbor:
+                            id: pneighbor
+                            name: pneighbor
+                            label: Neighbors
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: pneighborDetails
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                                input_tag_label: interface
+                                tag_filter_query: null
+                        ploopback0Address:
+                            id: ploopback0Address
+                            name: loopback0Address
+                            label: 'Loopback0 Address'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pnodeSegmentIndex:
+                            id: pnodeSegmentIndex
+                            name: pnodeSegmentIndex
+                            label: 'Node Segment Index'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pLinkDetails:
+                            id: pLinkDetails
+                            name: pLinkDetails
+                            label: 'P Link Details'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - rRs
+                                        - pneighbor
+                                        - ploopback0Address
+                                        - pnodeSegmentIndex
+                        pRouters:
+                            id: pRouters
+                            name: pRouters
+                            label: 'Core Routers'
+                            description: 'These are P Routers if EVPN or L3VPN is enabled.'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: pLinkDetails
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                                input_tag_label: device
+                                tag_filter_query: 'Role:Core-Router'
+                        igp:
+                            id: igp
+                            name: igp
+                            label: IGP
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: ISIS
+                                static_options:
+                                    values:
+                                        - OSPF
+                                        - ISIS
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        mpls:
+                            id: mpls
+                            name: mpls
+                            label: 'MPLS Labeling Type or VXLAN'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: NONE
+                                static_options:
+                                    values:
+                                        - SR
+                                        - LDP
+                                        - RSVP
+                                        - VXLAN
+                                        - SR-TE
+                                        - NONE
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        srTiFla:
+                            id: srTiFla
+                            name: srTiFla
+                            label: 'SR TI-LFA'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: NOT-ENABLED
+                                static_options:
+                                    values:
+                                        - ENABLED
+                                        - NOT-ENABLED
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        isisAuthKey:
+                            id: isisAuthKey
+                            name: isisAuthKey
+                            label: 'ISIS Auth Key'
+                            description: optional
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        ospfAuthKey:
+                            id: ospfAuthKey
+                            name: ospfAuthKey
+                            label: 'OSPF Auth Key'
+                            description: optional
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: null
+                                static_options: null
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        redistributeConnected:
+                            id: redistributeConnected
+                            name: redistributeConnected
+                            label: 'Redistribute Connected'
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_STRING
+                            string_props:
+                                default_value: NOT-ENABLED
+                                static_options:
+                                    values:
+                                        - NOT-ENABLED
+                                        - ENABLED
+                                format: null
+                                length: null
+                                pattern: null
+                                dynamic_options: null
+                        pod:
+                            id: pod
+                            name: pod
+                            label: 'Network Name'
+                            description: 'A single pe-rr fabric instance'
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - commonMlagConfig
+                                        - commonBGPConfig
+                                        - rrs
+                                        - peDomains
+                                        - pRouters
+                                        - igp
+                                        - mpls
+                                        - srTiFla
+                                        - isisAuthKey
+                                        - ospfAuthKey
+                                        - redistributeConnected
+                        pods:
+                            id: pods
+                            name: pods
+                            label: 'Network Name'
+                            description: 'Tags to use:  device: hostname (these tags are created by the Topology Studio), Network: "name" , Role: "RR | Edge-Router | Core-Router", RR-Number, Edge-Router-Domain: , Edge-Router-Number:, Core-Router-Number: To use MLAG between 2 Edge Routers in the same Edge Router Domain the Edge-Router-Number tag must be consecutive odd and even numbers.'
+                            required: false
+                            type: INPUT_FIELD_TYPE_RESOLVER
+                            resolver_props:
+                                base_field_id: pod
+                                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                                input_tag_label: Network
+                                tag_filter_query: null
+                        root:
+                            id: root
+                            name: ""
+                            label: ""
+                            description: ""
+                            required: false
+                            type: INPUT_FIELD_TYPE_GROUP
+                            group_props:
+                                members:
+                                    values:
+                                        - pods
+                layout:
+                    value: |
+                      {
+                         "pod":{
+                            "key":"pod",
+                            "type":"INPUT",
+                            "order":[
+                               "rrs",
+                               "peDomains",
+                               "pRouters",
+                               "commonBGPConfig",
+                               "igp",
+                               "redistributeConnected",
+                               "isisAuthKey",
+                               "ospfAuthKey",
+                               "mpls",
+                               "srTiFla",
+                               "commonMlagConfig"
+                            ]
+                         },
+                         "pods":{
+                            "key":"pods",
+                            "isPageLayout":true,
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "rrInterfaceParams":{
+                            "key":"rrInterfaceParams",
+                            "type":"INPUT",
+                            "order":[
+                               "loopback0Address",
+                               "rrDownlink"
+                            ]
+                         },
+                         "peLinkDetails":{
+                            "key":"peLinkDetails",
+                            "type":"INPUT",
+                            "order":[
+                               "teEndPoints",
+                               "peloopback0Address",
+                               "fpenodeSegmentIndex",
+                               "loopback1Address",
+                               "rrHostnames",
+                               "peneighbors",
+                               "peMLAGInterface1",
+                               "peMLAGInterface2"
+                            ]
+                         },
+                         "asNumber":{
+                            "key":"asNumber",
+                            "type":"INPUT",
+                            "dependency":{
+                               "asNumber":{
+                                  "value":[
+                                     "65100"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "peDetails":{
+                            "key":"peDetails",
+                            "isPageLayout":true,
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "peMLAGInterface1":{
+                            "key":"peMLAGInterface1",
+                            "type":"INPUT",
+                            "dependency":{
+                               "peMLAGInterface2":{
+                                  "value":[
+                                     "dummy"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "peMLAGInterface2":{
+                            "key":"peMLAGInterface2",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "mlagLinkSubnet":{
+                            "key":"mlagLinkSubnet",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "internalVlan":{
+                            "key":"internalVlan",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "mlagPortChannelId":{
+                            "key":"mlagPortChannelId",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "virtualRouterMac":{
+                            "key":"virtualRouterMac",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "peASbase":{
+                            "key":"peASbase",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "pLinkDetails":{
+                            "key":"pLinkDetails",
+                            "type":"INPUT",
+                            "order":[
+                               "ploopback0Address",
+                               "pnodeSegmentIndex",
+                               "rRs",
+                               "pneighbor"
+                            ]
+                         },
+                         "fabricLinksSubnet":{
+                            "key":"fabricLinksSubnet",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "fabricSubnetMask":{
+                            "key":"fabricSubnetMask",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "peLoopback1Subnet":{
+                            "key":"peLoopback1Subnet",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "SR",
+                                     "LDP",
+                                     "NONE",
+                                     "SR-TE",
+                                     "RSVP"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "3bb4bb4d-3ffa-49ab-8318-e588edddf4ee":{
+                            "key":"3bb4bb4d-3ffa-49ab-8318-e588edddf4ee",
+                            "type":"INPUT",
+                            "dependency":{
+                               "igp":{
+                                  "value":[
+                                     "OSPF"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "4d1b8f45-0f26-4049-82d3-4dddd16480b4":{
+                            "key":"4d1b8f45-0f26-4049-82d3-4dddd16480b4",
+                            "type":"INPUT",
+                            "dependency":{
+                               "igp":{
+                                  "value":[
+                                     "OSPF"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "4e6cd56c-54c3-420c-bd74-96fbf3c8010a":{
+                            "key":"4e6cd56c-54c3-420c-bd74-96fbf3c8010a",
+                            "type":"INPUT",
+                            "dependency":{
+                               "igp":{
+                                  "value":[
+                                     "OSPF"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "rrs":{
+                            "key":"rrs",
+                            "isPageLayout":true,
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "peLoopback0Subnet":{
+                            "key":"peLoopback0Subnet",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "rrLoopback0Subnet":{
+                            "key":"rrLoopback0Subnet",
+                            "type":"INPUT",
+                            "dependency":{
+
+                            }
+                         },
+                         "loopback1Address":{
+                            "key":"loopback1Address",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN"
+                                  ],
+                                  "mode":"SHOW"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "fpenodeSegmentIndex":{
+                            "key":"fpenodeSegmentIndex",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "LDP",
+                                     "RSVP",
+                                     "NONE",
+                                     "VXLAN"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "pnodeSegmentIndex":{
+                            "key":"pnodeSegmentIndex",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "LDP",
+                                     "RSVP",
+                                     "NONE",
+                                     "VXLAN"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "srTiFla":{
+                            "key":"srTiFla",
+                            "valueToLabelMap":{
+                               "YES":"OK",
+                               "NO":"NO",
+                               "ENABLED":"ENABLED",
+                               "NOT-ENABLED":"NOT-ENABLED"
+                            },
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "NONE",
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "557303b1-6ee1-48cf-858a-254ee3c0f2c7":{
+                            "key":"557303b1-6ee1-48cf-858a-254ee3c0f2c7",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "2be1fb95-d687-47fd-8c26-e23068f12783":{
+                            "key":"2be1fb95-d687-47fd-8c26-e23068f12783",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "0d68c481-d05c-4068-9547-5706d2600697":{
+                            "key":"0d68c481-d05c-4068-9547-5706d2600697",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "15d6861b-c312-49bc-95a6-1cf0a68e5318":{
+                            "key":"15d6861b-c312-49bc-95a6-1cf0a68e5318",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "SR",
+                                     "LDP"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "d0ae26fb-34cd-4322-8775-4058b6b30d32":{
+                            "key":"d0ae26fb-34cd-4322-8775-4058b6b30d32",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "fe5eb0d2-6796-4487-b3be-e3914a66ae23":{
+                            "key":"fe5eb0d2-6796-4487-b3be-e3914a66ae23",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "3ee8cb8c-9693-44c5-88e5-06c6f6c2fb5e":{
+                            "key":"3ee8cb8c-9693-44c5-88e5-06c6f6c2fb5e",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "0d9e30e5-5032-44ec-ae17-03180f1c2244":{
+                            "key":"0d9e30e5-5032-44ec-ae17-03180f1c2244",
+                            "type":"INPUT",
+                            "order":[
+                               "557303b1-6ee1-48cf-858a-254ee3c0f2c7",
+                               "1b0abd50-9227-4ce5-a317-4012bbdfa0c0",
+                               "2be1fb95-d687-47fd-8c26-e23068f12783",
+                               "0d68c481-d05c-4068-9547-5706d2600697",
+                               "fe5eb0d2-6796-4487-b3be-e3914a66ae23",
+                               "d0ae26fb-34cd-4322-8775-4058b6b30d32",
+                               "15d6861b-c312-49bc-95a6-1cf0a68e5318",
+                               "3ee8cb8c-9693-44c5-88e5-06c6f6c2fb5e"
+                            ]
+                         },
+                         "1b0abd50-9227-4ce5-a317-4012bbdfa0c0":{
+                            "key":"1b0abd50-9227-4ce5-a317-4012bbdfa0c0",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "endPoint":{
+                            "key":"endPoint",
+                            "type":"INPUT",
+                            "order":[
+                               "tepolname",
+                               "tepol"
+                            ]
+                         },
+                         "tepol":{
+                            "key":"tepol",
+                            "type":"INPUT",
+                            "isPageLayout":true
+                         },
+                         "tepolname":{
+                            "key":"tepolname",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "SR-TE"
+                                  ],
+                                  "mode":"SHOW"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "tename":{
+                            "key":"tename",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "SR-TE"
+                                  ],
+                                  "mode":"SHOW"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "tedescription":{
+                            "key":"tedescription",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "SR-TE"
+                                  ],
+                                  "mode":"SHOW"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "color":{
+                            "key":"color",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "SR-TE"
+                                  ],
+                                  "mode":"SHOW"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "matchAllRTs":{
+                            "key":"matchAllRTs",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "NONE",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "5c1af054-423b-4fe7-9c6c-c8f4df405184":{
+                            "key":"5c1af054-423b-4fe7-9c6c-c8f4df405184",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "a0bb1533-b410-4c5f-8642-7e9c4b1bc28b":{
+                            "key":"a0bb1533-b410-4c5f-8642-7e9c4b1bc28b",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "rtValue":{
+                            "key":"rtValue",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "NONE",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "bindingId":{
+                            "key":"bindingId",
+                            "type":"INPUT",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "VXLAN",
+                                     "NONE",
+                                     "RSVP",
+                                     "LDP",
+                                     "SR"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "teEndPoints":{
+                            "key":"teEndPoints",
+                            "type":"INPUT",
+                            "isPageLayout":true
+                         },
+                         "polvalue":{
+                            "key":"polvalue",
+                            "type":"INPUT",
+                            "order":[
+                               "tename",
+                               "tedescription",
+                               "color",
+                               "pathPreference",
+                               "matchAllRTs",
+                               "rTs",
+                               "bindingId"
+                            ]
+                         },
+                         "preference":{
+                            "key":"preference",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "SR-TE"
+                                  ],
+                                  "mode":"SHOW"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "segmentList":{
+                            "key":"segmentList",
+                            "dependency":{
+                               "mpls":{
+                                  "value":[
+                                     "SR-TE"
+                                  ],
+                                  "mode":"SHOW"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "peDomains":{
+                            "key":"peDomains",
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "pRouters":{
+                            "key":"pRouters",
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "isisAuthKey":{
+                            "key":"isisAuthKey",
+                            "type":"INPUT",
+                            "dependency":{
+                               "igp":{
+                                  "value":[
+                                     "OSPF"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "ospfAuthKey":{
+                            "key":"ospfAuthKey",
+                            "type":"INPUT",
+                            "dependency":{
+                               "igp":{
+                                  "value":[
+                                     "ISIS"
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            }
+                         },
+                         "peneighbors":{
+                            "key":"peneighbors",
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "rRs":{
+                            "key":"rRs",
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "pneighbor":{
+                            "key":"pneighbor",
+                            "type":"INPUT",
+                            "showDefaultRow":false
+                         },
+                         "rrBGPDynamicNeighbors":{
+                            "key":"rrBGPDynamicNeighbors",
+                            "dependency":{
+                               "rrAS":{
+                                  "value":[
+
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "evpnEnabled":{
+                            "key":"evpnEnabled",
+                            "dependency":{
+                               "rrAS":{
+                                  "value":[
+
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "l3vpnEnabled":{
+                            "key":"l3vpnEnabled",
+                            "dependency":{
+                               "rrAS":{
+                                  "value":[
+
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         },
+                         "bgpAuthKey":{
+                            "key":"bgpAuthKey",
+                            "dependency":{
+                               "rrAS":{
+                                  "value":[
+
+                                  ],
+                                  "mode":"HIDE"
+                               }
+                            },
+                            "type":"INPUT"
+                         }
+                      }
+
+-   service: arista.studio.v1.StudioConfigService
+    method: Set
+    body:
+        value:
+            key:
+                studio_id: studio-wan-fabric
+                workspace_id: *workspace_id
+            template:
+                type: TEMPLATE_TYPE_MAKO
+                body: |
+                  <%
+                  import sys, os, json, ipaddress, re
+                  from typing import List
+                  import tagsearch_python.tagsearch_pb2_grpc as tsgr
+                  import tagsearch_python.tagsearch_pb2 as tspb
+                  from arista.tag.v2.services import TagServiceStub, TagAssignmentServiceStub, TagConfigServiceStub, TagAssignmentConfigServiceStub
+                  from arista.tag.v2.services.gen_pb2 import TagRequest, TagConfigSetRequest, TagStreamRequest, TagConfigStreamRequest, TagAssignmentStreamRequest, TagAssignmentConfigSetRequest, TagAssignmentConfigStreamRequest
+                  from arista.tag.v2.tag_pb2 import Tag, TagKey, TagAssignment, TagAssignmentKey, TagAssignmentConfig
+
+                  class InterfaceConfig:
+                    def __init__(self):
+                      self.Port= ""
+                      self.IPAddress= ""
+                      self.Mask= ""
+                      self.IPNetwork = ""
+                      self.Host= ""
+                      self.NeighborHostname = ""
+                      self.NeighborPort= ""
+                      self.ChannelGroup = ""
+
+                  class Mlag:
+                    def __init__(self):
+                      self.ID = ""
+                      self.PeerLink = False
+                      self.Interfaces = []
+                      self.MlagIPAddr = ""
+                      self.MlagNetmask = ""
+                      self.MlagNetwork = ""
+                      self.MlagIPPeerAddr = ""
+                      self.MlagPeerName = ""
+
+                  class NeighborIntf:
+                    def __init__(self):
+                      self.IPAddress= ""
+                      self.Port= ""
+                      self.Host= ""
+
+                  class TEPolicy:
+                    def __init__(self):
+                      self.Name = ""
+                      self.Description = ""
+                      self.Color = ""
+                      self.Preference = {}
+                      self.BindingID = ""
+                      self.AllRTs = ""
+                      self.RTs = []
+                      self.TEEndPointLoopback0 = ""
+
+                  class BGPPeerGroup:
+                    def __init__(self):
+                      self.Name= ""
+                      self.EVPN=False
+                      self.Peerpe=False
+                      self.NeighborASN= ""
+                      self.NeighborIntfs= []
+
+
+                  class SwitchConfig:
+                    def __init__(self):
+                      self.Model =     ""
+                      self.EOSVersion = ""
+                      self.Role=            ""
+                      self.Hostname = ""
+                      self.NodeNum = 0
+                      self.FabricNetwork = []
+                      self.FabricNetmask = ""
+                      self.Interfaces = []
+                      self.PortChannels = []
+                      self.MlagMembers =    Mlag()
+                      self.Loopback0IP = ""
+                      self.Loopback0Network= ""
+                      self.MlagIPAddr= ""
+                      self.MlagIPPeerAddr = ""
+                      self.MlagNetmask=""
+                      self.MlagNetwork= ""
+                      self.MlagPeerName= ""
+                      self.LogicalVTEP= ""
+                      self.VirtualVTEP= ""
+                      self.ASN= ""
+                      self.BGPPeerGroups =  []
+                      self.SegmentIndex = ""
+                      self.teEndPoints =  {}
+                      self.tePolicy = []
+                    def interfaces(self):
+                      return { i : self.Interfaces[i].data() for i in range(0, len(self.Interfaces) ) }
+
+                  def get_isis_addr(area_id, area_number, lo0):
+                      area_id_str = str(area_id)
+                      if len(area_id_str) != 2:
+                          area_id_str = '0'+area_id_str
+
+                      area_number_str = str(area_number)
+                      len_area_number_str = len(area_number_str)
+                      for i in range(0, 4 - len_area_number_str) :
+                          area_number_str = '0' + area_number_str
+
+                      octets = lo0.split('.')
+                      lo0_filled_with0 = ""
+                      for octet in octets :
+                          temp = octet
+                          for i in range(0, 3 - len(octet)):
+                              temp =  '0' + temp
+                          lo0_filled_with0 = lo0_filled_with0 + temp
+                      sys_id = lo0_filled_with0[0:4] +'.'+lo0_filled_with0[4:8]+'.'+lo0_filled_with0[8:12]
+                      return area_id_str+'.'+area_number_str+'.'+sys_id+'.00'
+
+
+
+
+                  tagValues = {}
+                  myPod = None
+                  myNodeNum = None
+                  myRole = None
+                  mlagTagged = False
+                  dcLabel = 'Network'
+                  dcPodLabel = 'Network'
+                  dcpeNumLabel = 'Edge-Router-Number'
+                  dcrrNumLabel = 'RR-Number'
+                  dcpNumLabel = 'Core-Router-Number'
+                  myDevice = ctx.getDevice()
+                  myDeviceID = ctx.getDevice().id
+                  hostnameLabel = 'hostname'
+                  peDomainLabel = 'Edge-Router-Domain'
+                  modelLabel = 'model'
+                  eosVersionLabel = 'eos'
+                  hostnameDeviceIDDict = {}
+                  deviceIDNodeNumDict = {}
+                  deviceIDSwitchConfigDict = {}
+                  mypeDomain = ""
+                  peDomainToDeviceIDDict = {}
+                  deviceIDHostnameDict = {}
+                  highestpeNumber = 0
+                  highestrrNumber = 0
+                  highestpNumber = 0
+
+                  tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+
+                  tvs = tspb.TagValueSearchRequest(label=dcPodLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      if match.device.device_id == myDeviceID:
+                        myPod = tag.value
+
+                  tvs = tspb.TagValueSearchRequest(label=dcpeNumLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      deviceIDNodeNumDict[match.device.device_id] = tag.value
+                      sc = deviceIDSwitchConfigDict.get(match.device.device_id, SwitchConfig())
+                      sc.Role = "pe"
+                      sc.NodeNum = int(tag.value)
+                      if highestpeNumber < sc.NodeNum:
+                        highestpeNumber = sc.NodeNum
+                      deviceIDSwitchConfigDict[match.device.device_id] = sc
+                      if match.device.device_id == myDeviceID:
+                        myNodeNum = int(tag.value)
+                        myRole = "pe"
+
+                  tvs = tspb.TagValueSearchRequest(label=dcpNumLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      deviceIDNodeNumDict[match.device.device_id] = tag.value
+                      sc = deviceIDSwitchConfigDict.get(match.device.device_id, SwitchConfig())
+                      sc.Role = "p"
+                      sc.NodeNum = int(tag.value)
+                      if highestpNumber < sc.NodeNum:
+                        highestpNumber = sc.NodeNum
+                      deviceIDSwitchConfigDict[match.device.device_id] = sc
+                      if match.device.device_id == myDeviceID:
+                        myNodeNum = int(tag.value)
+                        myRole = "p"
+
+                  tvs = tspb.TagValueSearchRequest(label=dcrrNumLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      deviceIDNodeNumDict[match.device.device_id] = tag.value
+                      sc = deviceIDSwitchConfigDict.get(match.device.device_id, SwitchConfig())
+                      sc.Role = "rr"
+                      sc.NodeNum = int(tag.value)
+                      if highestrrNumber < sc.NodeNum:
+                        highestrrNumber = sc.NodeNum
+                      deviceIDSwitchConfigDict[match.device.device_id] = sc
+                      if match.device.device_id == myDeviceID:
+                        myNodeNum = int(tag.value)
+                        myRole = "rr"
+
+                  tvs = tspb.TagValueSearchRequest(label=hostnameLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      sc = deviceIDSwitchConfigDict.get(match.device.device_id, SwitchConfig())
+                      sc.Hostname = tag.value
+                      deviceIDSwitchConfigDict[match.device.device_id] = sc
+                      hostnameDeviceIDDict[tag.value] = match.device.device_id
+                      deviceIDHostnameDict[match.device.device_id] = tag.value
+                      if match.device.device_id == myDeviceID:
+                        myHostname = tag.value
+
+                  tvs = tspb.TagValueSearchRequest(label=peDomainLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      peDomainList = peDomainToDeviceIDDict.get(tag.value)
+                      if peDomainList == None :
+                        peDomainList = []
+                      peDomainList.append(match.device.device_id)
+                      peDomainToDeviceIDDict[tag.value] = peDomainList
+                      if match.device.device_id == myDeviceID:
+                        mypeDomain = tag.value
+
+                  tvs = tspb.TagValueSearchRequest(label=eosVersionLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      sc = deviceIDSwitchConfigDict.get(match.device.device_id, SwitchConfig())
+                      sc.EOSVersion = tag.value
+                      deviceIDSwitchConfigDict[match.device.device_id] = sc
+                      if match.device.device_id == myDeviceID:
+                        myEOSVersion = tag.value
+
+                  tvs = tspb.TagValueSearchRequest(label=modelLabel, workspace_id=ctx.studio.workspaceId)
+                  tvsresp = tsclient.GetTagValueSuggestions(tvs)
+                  for tag in tvsresp.tags:
+                    tagtmr = tspb.TagMatchRequestV2(query="%s:%s" % (tag.label, tag.value), workspace_id=ctx.studio.workspaceId)
+                    tagresp = tsclient.GetTagMatchesV2(tagtmr)
+                    for match in tagresp.matches:
+                      sc = deviceIDSwitchConfigDict.get(match.device.device_id, SwitchConfig())
+                      sc.Model = tag.value
+                      deviceIDSwitchConfigDict[match.device.device_id] = sc
+                      if match.device.device_id == myDeviceID:
+                        myModel = tag.value
+
+                  if not myPod or not myNodeNum:
+                      return
+
+                  def create_tag(tag_key):
+                      '''
+                      tag_key is a TagKey
+                      '''
+                      tcsr = TagConfigSetRequest()
+                      tcsr.value.key.workspace_id.value = tag_key.workspace_id.value
+                      tcsr.value.key.element_type = tag_key.element_type
+                      tcsr.value.key.label.value = tag_key.label.value
+                      tcsr.value.key.value.value = tag_key.value.value
+                      client = ctx.getApiClient(TagConfigServiceStub)
+                      client.Set(tcsr)
+
+                  def apply_tag(tag_assignment_key):
+                      '''
+                      tag_assignment_key is a TagAssignmentKey
+                      '''
+                      tacsr = TagAssignmentConfigSetRequest()
+                      tacsr.value.key.workspace_id.value = tag_assignment_key.workspace_id.value
+                      tacsr.value.key.element_type = tag_assignment_key.element_type
+                      tacsr.value.key.label.value = tag_assignment_key.label.value
+                      tacsr.value.key.value.value = tag_assignment_key.value.value
+                      tacsr.value.key.device_id.value = tag_assignment_key.device_id.value
+                      tacsr.value.key.interface_id.value = tag_assignment_key.interface_id.value
+                      tacsr.value.remove.value = False
+                      client = ctx.getApiClient(TagAssignmentConfigServiceStub)
+                      client.Set(tacsr)
+
+                  def remove_tag(tag_assignment_key):
+                      '''
+                      tag_assignment_key is a TagAssignmentKey
+                      '''
+                      tacsr = TagAssignmentConfigSetRequest()
+                      tacsr.value.key.workspace_id.value = tag_assignment_key.workspace_id.value
+                      tacsr.value.key.element_type = tag_assignment_key.element_type
+                      tacsr.value.key.label.value = tag_assignment_key.label.value
+                      tacsr.value.key.value.value = tag_assignment_key.value.value
+                      tacsr.value.key.device_id.value = tag_assignment_key.device_id.value
+                      tacsr.value.key.interface_id.value = tag_assignment_key.interface_id.value
+                      tacsr.value.remove.value = True
+                      client = ctx.getApiClient(TagAssignmentConfigServiceStub)
+                      client.Set(tacsr)
+
+                  def get_tag_values_applied_to_device(tag_assignment_key):
+                      label = tag_assignment_key.label.value
+                      value = tag_assignment_key.value.value
+                      device_id = tag_assignment_key.device_id.value
+                      workspace_id = tag_assignment_key.workspace_id.value
+                      tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+                      matching_tags = []
+                      tvsr = tspb.TagValueSearchRequest(label=label, workspace_id=workspace_id, topology_studio_request=True)
+                      for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                        if not tag.value:
+                          continue
+                        query= "{}:\"{}\" AND device:{}".format(tag.label, tag.value, device_id)
+                        tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+                        tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+                        for match in tagmresp.matches:
+                          if match.device.device_id == device_id:
+                            matching_tags.append(tag)
+                      return matching_tags
+
+                  def set_bgp_tags(ASN, Lo0):
+                          tag_labels = {"router_bgp.as": ASN, "router_bgp.router_id": Lo0}
+                          for label, config_path in tag_labels.items():
+                              tag_key = TagKey()
+                              tag_key.workspace_id.value = workspace_id=ctx.studio.workspaceId
+                              tag_key.element_type = 1
+                              tag_key.label.value = label
+                              tag_key.value.value = str(config_path)
+                              create_tag(tag_key)
+
+                              tag_assignment_key = TagAssignmentKey()
+                              tag_assignment_key.workspace_id.value = workspace_id=ctx.studio.workspaceId
+                              tag_assignment_key.element_type = 1
+                              tag_assignment_key.label.value = label
+                              tag_assignment_key.value.value = str(config_path)
+                              tag_assignment_key.device_id.value = ctx.getDevice().id
+                              apply_tag(tag_assignment_key)
+
+                              tag_assignment_key = TagAssignmentKey()
+                              tag_assignment_key.workspace_id.value = workspace_id=ctx.studio.workspaceId
+                              tag_assignment_key.element_type = 1
+                              tag_assignment_key.label.value = label
+                              tag_assignment_key.device_id.value =  ctx.getDevice().id
+                              applied_tags = get_tag_values_applied_to_device(tag_assignment_key)
+                              for tag in applied_tags:
+                                  if tag.value != str(config_path):
+                                      tag_assignment_key.value.value = tag.value
+                                      remove_tag(tag_assignment_key)
+
+
+                  podsInputs = pods.resolve()
+                  igpOSPF = False
+                  igpIsis = False
+                  igp = podsInputs["pod"]["igp"]
+                  if igp == "OSPF":
+                    igpOSPF = True
+                  if igp == "ISIS":
+                    igpIsis = True
+                  redisConnected = False
+                  redCon = podsInputs["pod"]["redistributeConnected"]
+                  if redCon == "ENABLED":
+                    redisConnected = True
+                  isisAuthKey = podsInputs["pod"]["isisAuthKey"]
+                  ospfAuthKey = podsInputs["pod"]["ospfAuthKey"]
+                  mplsSegmentRouting = False
+                  mplsSRTE = False
+                  mplsLdp = False
+                  mplsRsvp = False
+                  vxlan = False
+                  mpls = podsInputs["pod"]["mpls"]
+                  if mpls == "SR":
+                    mplsSegmentRouting = True
+                  if mpls == "SR-TE":
+                    mplsSRTE = True
+                  if mpls == "LDP":
+                    mplsLdp = True
+                  if mpls == "RSVP":
+                    mplsRsvp = True
+                  if mpls == "VXLAN":
+                    vxlan = True
+
+                  srTiFla = ""
+                  tiFla = podsInputs["pod"]["srTiFla"]
+                  if tiFla == "ENABLED":
+                    srTiFla = "True"
+
+                  lacpmode = False
+                  lacp = mpls = podsInputs["pod"]["commonMlagConfig"]["lacpMode"]
+                  if lacp == "ACTIVE":
+                    lacpmode = True
+
+                  vlans = []
+
+                  evpnEnabled = podsInputs["pod"]["commonBGPConfig"]["evpnEnabled"]
+                  l3vpnEnabled = podsInputs["pod"]["commonBGPConfig"]["l3vpnEnabled"]
+                  bgpAuthKey = podsInputs["pod"]["commonBGPConfig"]["bgpAuthKey"]
+                  peDomains = podsInputs["pod"]["peDomains"].resolve()
+                  for key in deviceIDSwitchConfigDict:
+                    sc = deviceIDSwitchConfigDict[key]
+                    if sc.Role == "rr":
+                      sc.ASN = podsInputs["pod"]["commonBGPConfig"]["rrAS"]
+                      sc.Loopback0IP = podsInputs["pod"]["rrs"].resolve(sc.Hostname)["rrInterfaceParams"]["loopback0Address"]
+                    else :
+                      peASN = podsInputs["pod"]["commonBGPConfig"]["rrAS"]
+                      sc.ASN = str(peASN)
+                      if sc.Role == "pe":
+                        sc.Loopback0IP = peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["loopback0Address"]
+                        if vxlan == True:
+                          sc.LogicalVTEP = peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["loopback1Address"]
+                      if sc.Role == "p":
+                        sc.Loopback0IP =  podsInputs["pod"]["pRouters"].resolve()["pLinkDetails"]["loopback0Address"]
+
+
+                  rrs = podsInputs["pod"]["rrs"].resolve()
+                  rrInterface = rrs["rrInterfaceParams"]["rrDownlink"]
+
+                  mySC = deviceIDSwitchConfigDict[myDeviceID]
+
+                  rrBGPDynamicNeighbors = podsInputs["pod"]["commonBGPConfig"]["rrBGPDynamicNeighbors"]
+                  asnBGPPeerDict = {}
+                  mySCList = []
+
+
+                  if myRole == "rr":
+                    isisNet = get_isis_addr(49, 1, podsInputs["pod"]["rrs"].resolve()["rrInterfaceParams"]["loopback0Address"])
+                    if rrInterface:
+                      for intf in myDevice.getInterfaces():
+                        intfName = intf.name
+                        val = val = rrInterface.resolve(intfName, strict=True)
+                        if not val:
+                          continue
+                        intf = InterfaceConfig()
+                        intf.Port = intfName
+                        intf.NeighborHostname = val["rrNeighborParams"]["rrLinkPeer"]
+                        intf.NeighborPort = val["rrNeighborParams"]["rrLinkPeerInterface"]
+                        neighborDeviceID = hostnameDeviceIDDict[intf.NeighborHostname]
+                        neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
+                        assert neighborNodeNum, "neighbor missing: %s" % neighborDeviceID
+
+                        intf.IPAddress = val["rrNeighborParams"]["rripAddress"]
+                        intf.Mask = val["rrNeighborParams"]["rrsubnetMask"]
+                        mySC.Interfaces.append(intf)
+                        neighborSC = deviceIDSwitchConfigDict[neighborDeviceID]
+                        neighborIntf = InterfaceConfig()
+                        neighborIntf.Port = intf.NeighborPort
+                        neighborIntf.NeighborPort = intf.Port
+
+                        neighborSC.Interfaces.append(neighborIntf)
+                        if not rrBGPDynamicNeighbors:
+                          scList = asnBGPPeerDict.get(neighborSC.ASN)
+                          if scList == None:
+                            scList = []
+                          scList.append(neighborSC)
+                          asnBGPPeerDict[neighborSC.ASN] = scList
+                    for key in asnBGPPeerDict :
+                      scList = asnBGPPeerDict.get(key)
+                      peerGroup = BGPPeerGroup()
+                      vpnPeerGroup = BGPPeerGroup()
+                      vpnPeerGroup.EVPN  = True
+                      peerGroupNum = str(scList[0].NodeNum // 2 + scList[0].NodeNum%2)
+                      pes = len(scList)
+                      if pes == 2:
+                        peerGroup.Name = "PEPair" + peerGroupNum
+                        vpnPeerGroup.Name = "PEPair" + peerGroupNum
+                      else:
+                        peerGroup.Name = "PE" + peerGroupNum
+                        vpnPeerGroup.Name = "PE" + peerGroupNum
+                      peerGroup.NeighborASN = vpnPeerGroup.NeighborASN = key
+                      neighborLoopbacks = []
+                      neighborIntfs = []
+                      for sc in scList :
+                        bgpPeerIntf  = NeighborIntf()
+                        evpnPeerIntf = NeighborIntf()
+                        evpnPeerIntf.Host = sc.Hostname
+                        bgpPeerIntf.Host = sc.Hostname
+                        evpnPeerIntf.Port = "Loopback0"
+                        bgpPeerIntf.IPAddress = sc.Interfaces[0].IPAddress
+                        evpnPeerIntf.IPAddress = sc.Loopback0IP
+                        neighborIntfs.append(bgpPeerIntf)
+                        neighborLoopbacks.append(evpnPeerIntf)
+                      peerGroup.NeighborIntfs = neighborIntfs
+                      vpnPeerGroup.NeighborIntfs = neighborLoopbacks
+                      mySC.BGPPeerGroups.append(peerGroup)
+                      mySC.BGPPeerGroups.append(vpnPeerGroup)
+
+
+                  mlagEnabled = False
+                  mlagSubnetMask = 31
+                  commonMlagConfig = podsInputs["pod"]["commonMlagConfig"]
+
+                  if myRole == "pe":
+                    mlag = Mlag()
+                    mySC.MlagNetwork = ipaddress.ip_network(commonMlagConfig["mlagLinkSubnet"])
+                    mySC.MlagIPAddr = mySC.MlagNetwork[(myNodeNum % 2) - 1]
+                    mySC.MlagNetmask = mlagSubnetMask
+                    mySC.MlagIPPeerAddr = mySC.MlagNetwork[myNodeNum % 2]
+                    mlagIntf1 = InterfaceConfig()
+                    mlagIntf2 = InterfaceConfig()
+                    if podsInputs["pod"]["peDomains"].resolve()["peDomain"]["peDetails"].resolve()["peLinkDetails"]["peMLAGInterface1"]:
+                      mlagIntf1.Port = podsInputs["pod"]["peDomains"].resolve()["peDomain"]["peDetails"].resolve()["peLinkDetails"]["peMLAGInterface1"]
+                    if podsInputs["pod"]["peDomains"].resolve()["peDomain"]["peDetails"].resolve()["peLinkDetails"]["peMLAGInterface2"]:
+                      mlagIntf2.Port = podsInputs["pod"]["peDomains"].resolve()["peDomain"]["peDetails"].resolve()["peLinkDetails"]["peMLAGInterface2"]
+                    if mlagIntf1.Port != "" :
+                      mlag.Interfaces.append(mlagIntf1)
+                    if mlagIntf2.Port != "" :
+                      mlag.Interfaces.append(mlagIntf2)
+                    if mlagIntf1.Port !="" or mlagIntf2.Port != "":
+                      mySC.MlagMembers = mlag
+                      mlagEnabled = True
+                      mlagedDevices = peDomainToDeviceIDDict.get(mypeDomain)
+                      if mlagedDevices != None and len(mlagedDevices) == 2 :
+                        peerDeviceID = ""
+                        bgpPeerIntf  = NeighborIntf()
+                        if mlagedDevices[0] == myDeviceID:
+                          peerDeviceID = mlagedDevices[1]
+                        elif mlagedDevices[1] == myDeviceID:
+                          peerDeviceID = mlagedDevices[0]
+                        bgpPeerIntf.Host = deviceIDHostnameDict[peerDeviceID]
+                        mySC.MlagPeerName = deviceIDHostnameDict[peerDeviceID]
+                        bgpPeerIntf.Port = "MLAG"
+                        bgpPeerIntf.IPAddress = mySC.MlagIPPeerAddr
+                        bgpPeerGroup = BGPPeerGroup()
+                        bgpPeerGroup.Name = "Peer_PE"
+                        bgpPeerGroup.NeighborASN = mySC.ASN
+                        bgpPeerGroup.Peerpe = True
+                        bgpPeerGroup.NeighborIntfs.append(bgpPeerIntf)
+                        mySC.BGPPeerGroups.append(bgpPeerGroup)
+                    isisNet = get_isis_addr(49, 1, peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["loopback0Address"])
+                    nodesegmentindex = peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["penodeSegmentIndex"]
+                    mySC.SegmentIndex = nodesegmentindex
+                    for ep in peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["teEndPoints"]:
+                      epName = ep.name
+                      epDeviceId = hostnameDeviceIDDict[epName]
+                      epLoopback0 = podsInputs["pod"]["peDomains"].resolve(epDeviceId)["peDomain"]["peDetails"].resolve(epDeviceId)["peLinkDetails"]["loopback0Address"]
+                      epPolicies = []
+                      for policy in ep.policy:
+                        epPolicy = TEPolicy()
+                        epPolicy.Name = policy.name
+                        epPolicy.Description = policy.description
+                        epPolicy.Color = policy.color
+                        epPolicy.AllRTs = policy.matchAllRTs
+                        epPolicy.BindingID = policy.bindingId
+                        for pref in policy.pathPreference:
+                          segList = ""
+                          for hostname in pref.segmentList.strip().split():
+                            deviceId = hostnameDeviceIDDict[hostname]
+                            deviceSC =  deviceIDSwitchConfigDict[deviceId]
+                            if deviceSC.Role == "pe":
+                              segId = podsInputs["pod"]["peDomains"].resolve(deviceId)["peDomain"]["peDetails"].resolve(deviceId)["peLinkDetails"]["penodeSegmentIndex"]
+                              segId = int(segId) + 900000
+                            elif deviceSC.Role == "p":
+                              segId = podsInputs["pod"]["pRouters"].resolve(deviceId)["pLinkDetails"]["pnodeSegmentIndex"]
+                              segId = int(segId) + 900000
+                            else:
+                              raise Exception("Device [%s] is not PE or a P device" %hostname)
+                            segList = segList + " " + str(segId)
+                          epPolicy.Preference[pref.preference] = segList
+                        epPolicy.TEEndPointLoopback0 = epLoopback0
+
+                        for rt in policy.rTs:
+                          epPolicy.RTs.append(rt.rtValue)
+                        epPolicies.append(epPolicy)
+                      mySC.teEndPoints[epName] = epPolicies
+
+                    if peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["rrHostnames"]:
+                      for intf in myDevice.getInterfaces():
+                        intfName = intf.name
+                        val = []
+                        for rr in peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["rrHostnames"]:
+                          if intfName == rr.localInterface:
+                            val = rr
+                        if val:
+                          intf = InterfaceConfig()
+                          intf.Port = intfName
+                          intf.NeighborHostname = val.rrHostname
+                          intf.NeighborPort = val.localInterface
+                          neighborDeviceID = hostnameDeviceIDDict[intf.NeighborHostname]
+                          neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
+                          assert neighborNodeNum, "rr neighbor missing: %s" % neighborDeviceID
+
+                          intf.IPAddress = val.localIpAddress
+                          intf.Mask = val.localSubnetMask
+                          mySC.Interfaces.append(intf)
+                          neighborSC = deviceIDSwitchConfigDict[neighborDeviceID]
+                          neighborIntf = InterfaceConfig()
+                          neighborIntf.Port = intf.NeighborPort
+                          neighborIntf.NeighborPort = intf.Port
+                          neighborIntf.IPNetwork = intf.IPNetwork
+
+                          neighborIntf.Mask = fabricSubnetMask
+                          neighborSC.Interfaces.append(neighborIntf)
+                          scList = asnBGPPeerDict.get(neighborSC.ASN)
+                          if scList == None:
+                            scList = []
+                          scList.append(neighborSC)
+                          asnBGPPeerDict[neighborSC.ASN] = scList
+                      index = 0
+                      for rr in peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["rrHostnames"]:
+                        val = []
+                        if rr.localInterface == "":
+                          port = str(index)
+                          rr.localInterface = port
+                          val = rr
+                          index = index = 1
+                        if val:
+                          intf = InterfaceConfig()
+                          intf.Port = rr.localInterface
+                          intf.NeighborHostname = val.rrHostname
+                          intf.NeighborPort = val.localInterface
+                          neighborDeviceID = hostnameDeviceIDDict[intf.NeighborHostname]
+                          neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
+                          assert neighborNodeNum, "rr neighbor missing: %s" % neighborDeviceID
+
+                          intf.IPAddress = val.localIpAddress
+                          intf.Mask = val.localSubnetMask
+                          mySC.Interfaces.append(intf)
+                          neighborSC = deviceIDSwitchConfigDict[neighborDeviceID]
+                          neighborIntf = InterfaceConfig()
+                          neighborIntf.Port = intf.NeighborPort
+                          neighborIntf.NeighborPort = intf.Port
+                          neighborIntf.IPNetwork = intf.IPNetwork
+
+                          neighborIntf.Mask = fabricSubnetMask
+                          neighborSC.Interfaces.append(neighborIntf)
+                          scList = asnBGPPeerDict.get(neighborSC.ASN)
+                          if scList == None:
+                            scList = []
+                          scList.append(neighborSC)
+                          asnBGPPeerDict[neighborSC.ASN] = scList
+                    pe2peLink = peDomains["peDomain"]["peDetails"].resolve()["peLinkDetails"]["peneighbors"]
+                    if pe2peLink :
+                      for intf in myDevice.getInterfaces():
+                        intfName = intf.name
+                        val = pe2peLink.resolve(intfName, strict=True)
+                        if val:
+                          intf = InterfaceConfig()
+                          intf.Port = intfName
+                          intf.NeighborHostname = val["peneighborDetails"]["pehostName"]
+                          intf.NeighborPort = val["peneighborDetails"]["peinterface"]
+                          intf.IPAddress = val["peneighborDetails"]["peipAddress"]
+                          intf.Mask = val["peneighborDetails"]["pesubnetMask"]
+                          neighborDeviceID = hostnameDeviceIDDict[intf.NeighborHostname]
+                          neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
+                          assert neighborNodeNum, "neighbor missing: %s" % neighborDeviceID
+                          mySC.Interfaces.append(intf)
+                    for key in asnBGPPeerDict :
+                      scList = asnBGPPeerDict.get(key)
+                      peerGroup = BGPPeerGroup()
+                      vpnPeerGroup = BGPPeerGroup()
+                      vpnPeerGroup.EVPN  = True
+                      peerGroup.Name = "RR"
+                      vpnPeerGroup.Name = "RR"
+                      peerGroup.NeighborASN = key
+                      vpnPeerGroup.NeighborASN = key
+                      neighborLoopbacks = []
+                      neighborIntfs = []
+                      for sc in scList :
+                        bgpPeerIntf  = NeighborIntf()
+                        evpnPeerIntf = NeighborIntf()
+                        evpnPeerIntf.Host = sc.Hostname
+                        bgpPeerIntf.Host = sc.Hostname
+                        bgpPeerIntf.Port = sc.Interfaces[0].Port
+                        evpnPeerIntf.Port = "Loopback0"
+                        bgpPeerIntf.IPAddress = sc.Interfaces[0].IPAddress
+                        evpnPeerIntf.IPAddress = sc.Loopback0IP
+                        neighborIntfs.append(bgpPeerIntf)
+                        neighborLoopbacks.append(evpnPeerIntf)
+                      peerGroup.NeighborIntfs = neighborIntfs
+                      vpnPeerGroup.NeighborIntfs = neighborLoopbacks
+                      mySC.BGPPeerGroups.append(peerGroup)
+                      mySC.BGPPeerGroups.append(vpnPeerGroup)
+
+
+
+                  if myRole == "p":
+                    isisNet = get_isis_addr(49, 1, podsInputs["pod"]["pRouters"].resolve()["pLinkDetails"]["loopback0Address"])
+                    p2rrInterface = podsInputs["pod"]["pRouters"].resolve()["pLinkDetails"]["rRs"]
+                    nodesegmentindex = podsInputs["pod"]["pRouters"].resolve()["pLinkDetails"]["pnodeSegmentIndex"]
+                    if p2rrInterface:
+                      for intf in myDevice.getInterfaces():
+                        intfName = intf.name
+                        val = p2rrInterface.resolve(intfName, strict=True)
+                        if val:
+                          intf = InterfaceConfig()
+                          intf.Port = intfName
+                          intf.NeighborHostname = val["prrDetails"]["prrhostName"]
+                          intf.NeighborPort = val["prrDetails"]["prrinterface"]
+                          neighborDeviceID = hostnameDeviceIDDict[intf.NeighborHostname]
+                          neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
+                          assert neighborNodeNum, "rr neighbor missing: %s" % neighborDeviceID
+
+                          intf.IPAddress = val["prrDetails"]["prripAddress"]
+                          intf.Mask = val["prrDetails"]["prrsubnetMask"]
+                          mySC.Interfaces.append(intf)
+                          neighborSC = deviceIDSwitchConfigDict[neighborDeviceID]
+                          neighborIntf = InterfaceConfig()
+                          neighborIntf.Port = intf.NeighborPort
+                          neighborIntf.NeighborPort = intf.Port
+                          neighborIntf.IPNetwork = intf.IPNetwork
+
+                          neighborSC.Interfaces.append(neighborIntf)
+                          scList = asnBGPPeerDict.get(neighborSC.ASN)
+                          if scList == None:
+                            scList = []
+                          scList.append(neighborSC)
+                          asnBGPPeerDict[neighborSC.ASN] = scList
+                    p2peLink = podsInputs["pod"]["pRouters"].resolve()["pLinkDetails"]["pneighbor"]
+                    if p2peLink :
+                      for intf in myDevice.getInterfaces():
+                        intfName = intf.name
+                        val = p2peLink.resolve(intfName, strict=True)
+                        if val:
+                          intf = InterfaceConfig()
+                          intf.Port = intfName
+                          intf.NeighborHostname = val["pneighborDetails"]["phostName"]
+                          intf.NeighborPort = val["pneighborDetails"]["pinterface"]
+                          intf.IPAddress = val["pneighborDetails"]["pipAddress"]
+                          intf.Mask = val["pneighborDetails"]["psubnetMask"]
+                          neighborDeviceID = hostnameDeviceIDDict[intf.NeighborHostname]
+                          neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
+                          assert neighborNodeNum, "p neighbor missing: %s" % neighborDeviceID
+                          mySC.Interfaces.append(intf)
+                    for key in asnBGPPeerDict :
+                      scList = asnBGPPeerDict.get(key)
+                      peerGroup = BGPPeerGroup()
+                      vpnPeerGroup = BGPPeerGroup()
+                      vpnPeerGroup.EVPN  = True
+                      peerGroup.Name = "RR"
+                      vpnPeerGroup.Name = "RR"
+                      peerGroup.NeighborASN = key
+                      vpnPeerGroup.NeighborASN = key
+                      neighborLoopbacks = []
+                      neighborIntfs = []
+                      for sc in scList :
+                        bgpPeerIntf  = NeighborIntf()
+                        evpnPeerIntf = NeighborIntf()
+                        evpnPeerIntf.Host = sc.Hostname
+                        bgpPeerIntf.Host = sc.Hostname
+                        bgpPeerIntf.Port = sc.Interfaces[0].Port
+                        evpnPeerIntf.Port = "Loopback0"
+                        bgpPeerIntf.IPAddress = sc.Interfaces[0].IPAddress
+                        evpnPeerIntf.IPAddress = sc.Loopback0IP
+                        neighborIntfs.append(bgpPeerIntf)
+                        neighborLoopbacks.append(evpnPeerIntf)
+                      peerGroup.NeighborIntfs = neighborIntfs
+                      vpnPeerGroup.NeighborIntfs = neighborLoopbacks
+                      mySC.BGPPeerGroups.append(peerGroup)
+                      mySC.BGPPeerGroups.append(vpnPeerGroup)
+
+
+                  internalVlan = commonMlagConfig["internalVlan"]
+                  mlagPortChannelId = commonMlagConfig["mlagPortChannelId"]
+                  virtualRouterMac = commonMlagConfig["virtualRouterMac"]
+                  if mySC.ASN:
+                    if mySC.Loopback0IP:
+                      set_bgp_tags(mySC.ASN, mySC.Loopback0IP)
+                  %>
+
+                  !--  Configuration Section --!
+                  ! My Device
+                  banner motd
+                  Device: ${myDeviceID}
+                  Role: ${myRole} ${myNodeNum}
+                  Network: ${myPod}
+                  %if myRole == "pe" :
+                  PE-Domain: ${mypeDomain}
+                  %endif
+                  Access by authorized users only!
+                  EOF
+                  !
+                  %if evpnEnabled or l3vpnEnabled:
+                  service routing protocols model multi-agent
+                  %endif
+                  !
+                  !-- Fabric interfaces --!
+
+                  %for intf in mySC.Interfaces:
+                  %if  intf.Port != "0":
+                  %if  intf.Port != "1":
+                  %if  intf.Port != "2":
+                  %if  intf.Port != "3":
+                  interface ${intf.Port}
+                    description To ${intf.NeighborHostname}-${intf.NeighborPort}
+                  %if mySC.Model != "vEOS":
+                  %if mySC.Model != "cEOSLab":
+                    mtu 9214
+                  %endif
+                  %endif
+
+                    no switchport
+                    ip address ${intf.IPAddress}/${intf.Mask}
+                    %if igpOSPF:
+                    ip ospf network point-to-point
+                    ip ospf area 0
+                      %if ospfAuthKey:
+                    ip ospf authentication message-digest
+                    ip ospf message-digest-key 1 md5 0 ${ospfAuthKey}
+                      %endif
+                    %endif
+                    %if igpIsis:
+                    isis enable 1
+                    isis network point-to-point
+                      %if isisAuthKey:
+                    isis authentication mode sha key-id 1 level-2
+                    isis authentication key-id 1 algorithm sha-256 key 0 ${isisAuthKey} level-2
+                      %endif
+                    !
+                    %endif
+                  !
+                  %endif
+                  %endif
+                  %endif
+                  %endif
+                  %endfor
+                  ${igpConfig()}
+                  %if myRole == "pe":
+                    %if mlagEnabled:
+                  ${mlagConfig()}
+                    %endif
+                  !
+                  ${peBGPConfig()}
+                  !
+                  %endif
+                  %if myRole == "rr":
+                  ${rrBGPConfig()}
+                  !
+                  %endif
+
+                  !-- MLAG Section --!
+
+                  <%def name="mlagConfig()">
+
+                  no spanning-tree vlan-id ${internalVlan}
+                  %for mlag in mySC.MlagMembers.Interfaces:
+                  interface ${mlag.Port}
+                    description MLAG-PEER-LINK to ${mySC.MlagPeerName}
+                  % if lacpmode == False:
+                    channel-group ${mlagPortChannelId} mode on
+                  % else:
+                    channel-group ${mlagPortChannelId} mode active
+                  %endif
+                  !
+                  %endfor
+                  !-- MLAG configuration --!
+                  interface Port-Channel ${mlagPortChannelId}
+                    description MLAG-PEER-LINK
+                    switchport
+                    switchport mode trunk
+                    switchport trunk group MLAG-PEER
+                  !
+                  interface Vlan ${internalVlan}
+                    description MLAG to ${mySC.MlagPeerName}
+                    no autostate
+                    ip address ${mySC.MlagIPAddr}/${mySC.MlagNetmask}
+                    %if mySC.Model != "vEOS":
+                    %if mySC.Model != "cEOSLab":
+                    mtu 9214
+                    %endif
+                    %endif
+                    %if igpOSPF:
+                    ip ospf network point-to-point
+                    ip ospf area 0
+                    %endif
+                    %if igpIsis:
+                    isis enable 1
+                    isis network point-to-point
+                    !
+                    %endif
+                  !
+                  vlan ${internalVlan}
+                    name MLAG-PEER-VLAN
+                    trunk group MLAG-PEER
+                  !
+                  mlag configuration
+                    domain-id MLAG
+                    local-interface Vlan${internalVlan}
+                    peer-address ${mySC.MlagIPPeerAddr}
+                    peer-link Port-Channel${mlagPortChannelId}
+                    reload-delay mlag 300
+                    reload-delay non-mlag 360
+                  !
+                  </%def>
+
+                  !-- IGP Section --!
+
+                  <%def name="igpConfig()">
+                  %if mySC.Loopback0IP:
+                  interface Loopback0
+                    description Router ID
+                    ip address ${mySC.Loopback0IP}/32
+                    %if igpOSPF:
+                    ip ospf area 0
+                    %endif
+                    %if igpIsis:
+                    !
+                    isis enable 1
+                    isis passive
+                    !
+                      %if myRole != "rr":
+                        %if mplsSegmentRouting or mplsSRTE:
+                        node-segment ipv4 index ${nodesegmentindex}
+                        %endif
+                      %endif
+                    %endif
+                  !
+                  %endif
+                  ip routing
+                  !
+                  %if myRole != "rr":
+                  %if mplsSegmentRouting or mplsSRTE:
+                  mpls ip
+                  !
+                  %endif
+                  %if mplsLdp:
+                  mpls ip
+                  !
+                  mpls ldp
+                     router-id interface Loopback0
+                     no shutdown
+                  !
+                  %endif
+                  %if mplsRsvp:
+                  mpls ip
+                  !
+                  mpls rsvp
+                     no shutdown
+                  %endif
+                  %endif
+                  %if igpOSPF:
+                  router ospf 1
+                    %if mySC.Loopback0IP:
+                  router-id ${mySC.Loopback0IP}
+                    %endif
+                  bfd default
+                    %if redisConnected:
+                  redistribute connected
+                    %endif
+                  !
+                  %endif
+                  %if igpIsis:
+                  %if isisNet != "49.0001.000...00":
+                  router isis 1
+                    %if isisAuthKey:
+                      authentication mode md5
+                      authentication key ${isisAuthKey}
+                    %endif
+                     net ${isisNet}
+                     is-type level-2
+                     advertise passive-only
+                     %if redisConnected:
+                       redistribute connected
+                     %endif
+                     !
+                     address-family ipv4 unicast
+                     bfd all-interfaces
+                     !
+                     %if myRole != "rr":
+                       %if mplsSegmentRouting or mplsSRTE:
+                         %if srTiFla:
+                         timers local-convergence-delay protected-prefixes
+                         fast-reroute ti-lfa mode link-protection level-2
+                        !
+                        %endif
+                       segment-routing mpls
+                          router-id ${mySC.Loopback0IP}
+                          no shutdown
+                          !
+                        %if mplsSRTE:
+                         router traffic-engineering
+                           router-id ipv4 ${mySC.Loopback0IP}
+                           segment-routing
+                             rib system-colored-tunnel-rib
+                             %if mySC.teEndPoints:
+                              %for ep, policies in mySC.teEndPoints.items():
+                                %for policy in policies:
+                                  policy endpoint ${policy.TEEndPointLoopback0} color ${policy.Color}
+                                    name ${policy.Name}
+                                    description ${policy.Description} ${ep}
+                                    binding-sid ${policy.BindingID}
+                                    %for pref in policy.Preference:
+                                      <%segList = policy.Preference[pref]%>
+                                    path-group preference ${pref}
+                                      segment-list label-stack ${segList}
+                                    %endfor
+                                  %endfor
+                              %endfor
+                             %endif
+                         %endif
+                      %endif
+                      %endif
+                  !
+                  %endif
+                  %endif
+                  </%def>
+
+                  !-- BGP Section --!
+
+                  <%def name="peBGPConfig()">
+                  !-- BGP EVPN configuration
+                  %if vxlan:
+                  interface vxlan 1
+                    vxlan source-interface Loopback1
+                    vxlan udp-port 4789
+                    %if mlagEnabled:
+                    vxlan virtual-router encapsulation mac-address mlag-system-id
+                    %endif
+                  !
+                  %if mySC.LogicalVTEP:
+                  interface Loopback1
+                    description VXLAN Tunnel Source
+                    ip address ${mySC.LogicalVTEP}/32
+                    %if igpOSPF:
+                    ip ospf area 0
+                    %endif
+                    %if igpIsis:
+                    !
+                    isis enable 1
+                    isis passive
+                    !
+                    %endif
+                  !
+                  %endif
+                  %endif
+
+                  !
+                  %if mplsSRTE:
+                    %if mySC.teEndPoints:
+                      %for ep, policies in mySC.teEndPoints.items():
+                        <%policyNumber = 10%>
+                        %for policy in policies:
+                          %if policy.RTs:
+                            %for rt in policy.RTs:
+                            ip extcommunity-list ${policy.Name} permit rt ${rt}
+                            %endfor
+                          %endif
+                          !
+                          route-map EVPN-COLORING permit ${policyNumber}
+                          %if policy.AllRTs == False:
+                            match extcommunity ${policy.Name}
+                          %endif
+                            set extcommunity color ${policy.Color} additive
+                         !
+                          <%policyNumber = policyNumber + 10%>
+                        %endfor
+                       %endfor
+                       route-map EVPN-COLORING permit 1000
+                    %endif
+
+                  %endif
+                  !
+                  %if evpnEnabled or l3vpnEnabled:
+                  router bgp ${mySC.ASN}
+                  %if mySC.Loopback0IP:
+                    router-id ${mySC.Loopback0IP}
+                  %endif
+                    maximum-paths 4 ecmp 4
+                  %if mySC.Model != "vEOS":
+                    %if mySC.Model != "cEOSLab":
+                    update wait-for-convergence
+                    update wait-install
+                    %endif
+                  %endif
+                  %for peerGroup in mySC.BGPPeerGroups:
+                    %if peerGroup.EVPN:
+                      %if evpnEnabled or l3vpnEnabled:
+                    neighbor ${peerGroup.Name} peer group
+                    neighbor ${peerGroup.Name} remote-as ${peerGroup.NeighborASN }
+                    neighbor ${peerGroup.Name} update-source Loopback0
+                    neighbor ${peerGroup.Name} send-community extended
+                    neighbor ${peerGroup.Name} maximum-routes  0 warning-limit 12000
+                    %if bgpAuthKey:
+                    neighbor ${peerGroup.Name} password 0 ${bgpAuthKey}
+                    %endif
+                      %endif
+                    %endif
+                  %endfor
+                  %for peerGroup in mySC.BGPPeerGroups:
+                    %for intf in peerGroup.NeighborIntfs:
+                        %if peerGroup.EVPN:
+                        neighbor ${intf.IPAddress} peer group ${peerGroup.Name}
+                        neighbor ${intf.IPAddress} description ${intf.Host}
+                      %endif
+
+                    %endfor
+                  %endfor
+                  %if evpnEnabled:
+                    address-family evpn
+                    %if mplsSegmentRouting or mplsSRTE or mplsLdp or mplsRsvp:
+                      neighbor default encapsulation mpls next-hop-self source-interface Loopback0
+                    !
+                    %endif
+                    %for peerGroup in mySC.BGPPeerGroups:
+                      %if peerGroup.EVPN:
+                      neighbor ${peerGroup.Name} activate
+                        %if mplsSRTE:
+                          %if mySC.teEndPoints:
+                          neighbor ${peerGroup.Name} route-map EVPN-COLORING in
+                          %endif
+                        %endif
+                    !
+                      %endif
+                    %endfor
+                    address-family ipv4
+                    %for peerGroup in mySC.BGPPeerGroups:
+                      %if peerGroup.EVPN:
+                      no neighbor ${peerGroup.Name} activate
+                    !
+                      %endif
+                    %endfor
+                  %endif
+                  %if l3vpnEnabled:
+                    address-family vpn-ipv4
+                    %if mplsSegmentRouting or mplsSRTE or mplsLdp or mplsRsvp:
+                      neighbor default encapsulation mpls next-hop-self source-interface Loopback0
+                      !
+                    %endif
+                    %for peerGroup in mySC.BGPPeerGroups:
+                      %if peerGroup.EVPN:
+                      neighbor ${peerGroup.Name} activate
+                        %if mplsSRTE:
+                          %if mySC.teEndPoints:
+                          neighbor ${peerGroup.Name} route-map EVPN-COLORING in
+                          %endif
+                        %endif
+                    !
+                      %endif
+                    %endfor
+                    address-family ipv4
+                    %for peerGroup in mySC.BGPPeerGroups:
+                      %if peerGroup.EVPN:
+                      no neighbor ${peerGroup.Name} activate
+                    !
+                      %endif
+                    %endfor
+                  %endif
+                  %endif
+                  </%def>
+
+                  <%def name="rrBGPConfig()">
+                  !-- BGP EVPN configuration
+                  !
+                  %if evpnEnabled or l3vpnEnabled:
+                  %if rrBGPDynamicNeighbors:
+                  peer-filter PE-AS-Range
+                    10 match as-range 1-65535 result accept
+                  !
+                  router bgp ${mySC.ASN}
+                  %if mySC.Loopback0IP:
+                    router-id ${mySC.Loopback0IP}
+                    bgp cluster-id ${mySC.Loopback0IP}
+                  %endif
+                  %if mySC.Model != "vEOS":
+                  %if mySC.Model != "cEOSLab":
+                    update wait-for-convergence
+                    update wait-install
+                  %endif
+                  %endif
+
+                    bgp log-neighbor-changes
+                    %if evpnEnabled or l3vpnEnabled:
+                    neighbor iBGP-PE peer group
+                    neighbor iBGP-PE send-community extended
+                    neighbor iBGP-PE maximum-routes 0 warning-limit 12000
+                    neighbor iBGP-PE update-source Loopback0
+                    neighbor iBGP-PE route-reflector-client
+                    %if bgpAuthKey:
+                    neighbor iBGP-PE password 0 ${bgpAuthKey}
+                    %endif
+                    bgp route-reflector preserve-attributes always
+                    %endif
+                    %if evpnEnabled or l3vpnEnabled:
+                    bgp listen range 0.0.0.0/0 peer-group iBGP-PE peer-filter pe-AS-Range
+                    %endif
+                    %if evpnEnabled:
+                    address-family evpn
+                      neighbor iBGP-PE activate
+                      next-hop resolution disabled
+                    !
+                    address-family ipv4
+                      no neighbor iBGP-PE activate
+                    !
+                    %endif
+                    %if l3vpnEnabled:
+                    address-family vpn-ipv4
+                      neighbor iBGP-PE activate
+                      next-hop resolution disabled
+                    !
+                    address-family ipv4
+                      no neighbor iBGP-PE activate
+                    !
+                    %endif
+                  %else:
+                  router bgp ${mySC.ASN}
+                    router-id ${mySC.Loopback0IP}
+                    %if  evpnEnabled or l3vpnEnabled:
+                    neighbor iBGP-PE peer group
+                    neighbor iBGP-PE route-reflector-client
+                    neighbor iBGP-PE update-source Loopback0
+                    neighbor iBGP-PE send-community extended
+                    neighbor iBGP-PE maximum-routes 0 warning-limit 12000
+                    %endif
+                    %for peerGroup in mySC.BGPPeerGroups:
+                      %if peerGroup.EVPN:
+                        %if evpnEnabled or l3vpnEnabled:
+                    neighbor iBGP-PE remote-as ${peerGroup.NeighborASN}
+                          %for intf in peerGroup.NeighborIntfs:
+                    neighbor ${intf.IPAddress} peer group iBGP-PE
+                          %endfor
+                        %endif
+                      %endif
+                    %endfor
+                    %if evpnEnabled:
+                    address-family evpn
+                      neighbor iBGP-PE activate
+                          next-hop resolution disabled
+                    !
+                    address-family ipv4
+                      no neighbor iBGP-PE activate
+                    !
+                    %endif
+                    %if l3vpnEnabled:
+                    address-family vpn-ipv4
+                      neighbor iBGP-PE activate
+                          next-hop resolution disabled
+                    !
+                    address-family ipv4
+                      no neighbor iBGP-PE activate
+                    !
+                    %endif
+                  %endif
+                  %endif
+                  </%def>
