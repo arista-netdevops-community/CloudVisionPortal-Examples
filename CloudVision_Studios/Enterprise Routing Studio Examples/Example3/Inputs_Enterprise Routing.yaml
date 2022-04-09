@@ -1,0 +1,475 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: ENABLED
+            globalAS: '7'
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreexternalInterfaces: []
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 12.12.12.1
+                          corespeed: ''
+                          coresubnetMask: '31'
+                          description: ''
+                      tags:
+                        query: interface:Ethernet5@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 25.25.25.0
+                          corespeed: ''
+                          coresubnetMask: '31'
+                          description: ''
+                      tags:
+                        query: interface:Ethernet3@eos2
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  rRs: []
+              tags:
+                query: device:eos2
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  eripAddress: 12.12.12.0
+                                  erspeed: ''
+                                  ersubnetMask: '31'
+                              tags:
+                                query: interface:Ethernet1@eos1
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 113.113.113.1
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '31'
+                                  extvlanId: '113'
+                                  extvrf: CoreNet-L3EVPN
+                              tags:
+                                query: interface:Ethernet4@eos1
+                          loopback1Address: 1.1.1.11
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 113.113.113.0
+                                  peerAsn: '65001'
+                                  vrf: CoreNet-L3EVPN
+                              peerGroupName: DC14-6-8L3EVPN
+                              routeMapIn:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  localPref: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-in
+                                  seqNum: '10'
+                                  setCommunity: ''
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-out
+                                  seqNum: '10'
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: Allowed-prefixes-in
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 13.13.13.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                            - prefixListName: Allowed-prefixes-out
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 14.14.14.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                          rrHostnames:
+                            - description: ''
+                              localIpAddress: 171.171.171.0
+                              localSubnetMask: '31'
+                              rrHostname: eos17
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos1
+              tags:
+                query: Edge-Router-Domain:1
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  eripAddress: 25.25.25.1
+                                  erspeed: ''
+                                  ersubnetMask: '31'
+                              tags:
+                                query: interface:Ethernet3@eos5
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 114.114.114.1
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '31'
+                                  extvlanId: '114'
+                                  extvrf: CoreNet-L3EVPN
+                              tags:
+                                query: interface:Ethernet1@eos5
+                          loopback1Address: 5.5.5.55
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: d
+                              eBgcoreneighbors:
+                                - neighborIp: 114.114.114.0
+                                  peerAsn: '65014'
+                                  vrf: CoreNet-L3EVPN
+                              peerGroupName: DC9-4-3L3EVPN
+                              routeMapIn:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  localPref: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-in
+                                  seqNum: '10'
+                                  setCommunity: ''
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-out
+                                  seqNum: '10'
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: Allowed-prefixes-in
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 14.14.14.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                            - prefixListName: Allowed-prefixes-out
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 13.13.13.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                          rrHostnames:
+                            - description: ''
+                              localIpAddress: ''
+                              localSubnetMask: '31'
+                              rrHostname: eos17
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos5
+              tags:
+                query: Edge-Router-Domain:5
+          igp: OSPF
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs:
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink:
+                    - inputs:
+                        rrNeighborParams:
+                          description: ''
+                          rripAddress: 171.171.171.1
+                          rrspeed: ''
+                          rrsubnetMask: '31'
+                      tags:
+                        query: interface:Ethernet1@70A489918C1899B93D79CECE42175232
+              tags:
+                query: device:70A489918C1899B93D79CECE42175232
+      tags:
+        query: Network:CoreNet
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 13.13.13.2
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '24'
+                                  extvlanId: '13'
+                                  extvrf: ''
+                              tags:
+                                query: interface:Ethernet1@eos18
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes:
+                            - name: ''
+                              nextHop: 13.13.13.1
+                              prefix: 0.0.0.0/0
+                      tags:
+                        query: device:eos18
+              tags:
+                query: Edge-Router-Domain:18
+          igp: OSPF
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs: []
+      tags:
+        query: Network:DC14-6-8End-device
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 14.14.14.2
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '24'
+                                  extvlanId: '14'
+                                  extvrf: ''
+                              tags:
+                                query: interface:Ethernet1@eos20
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes:
+                            - name: ''
+                              nextHop: 14.14.14.1
+                              prefix: 0.0.0.0/0
+                      tags:
+                        query: device:eos20
+              tags:
+                query: Edge-Router-Domain:20
+          igp: OSPF
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs: []
+      tags:
+        query: Network:DC9-3-4End-device
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: port
+                                  extipPrefix: 113.113.113.0
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '31'
+                                  extvlanId: '113'
+                                  extvrf: DC14-6-8L3EVPN
+                              tags:
+                                query: interface:Ethernet4@eos6
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings:
+                                overrideGlobalAs: '65001'
+                              bgpOptions:
+                                bfd: NOT-ENABLED
+                                nextHopSelf: ENABLED
+                                ospfDefaultInformationOriginate: NOT-ENABLED
+                                redistributeRoutes: NOT-ENABLED
+                              description: b
+                              eBgcoreneighbors:
+                                - neighborIp: 113.113.113.1
+                                  peerAsn: '7'
+                                  vrf: DC14-6-8L3EVPN
+                              peerGroupName: DC14-6-8L3EVPN
+                              routeMapIn:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  localPref: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-in
+                                  seqNum: '10'
+                                  setCommunity: ''
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-out
+                                  seqNum: '10'
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: Allowed-prefixes-in
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 14.14.14.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                            - prefixListName: Allowed-prefixes-out
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 13.13.13.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos6
+              tags:
+                query: Edge-Router-Domain:6
+          igp: OSPF
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs: []
+      tags:
+        query: Network:DC14-6-8Border-Leaf
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 114.114.114.0
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '31'
+                                  extvlanId: '114'
+                                  extvrf: DC9-4-3L3EVPN
+                              tags:
+                                query: interface:Ethernet3@eos4
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings:
+                                overrideGlobalAs: '65014'
+                              bgpOptions:
+                                bfd: NOT-ENABLED
+                                nextHopSelf: ENABLED
+                                ospfDefaultInformationOriginate: NOT-ENABLED
+                                redistributeRoutes: NOT-ENABLED
+                              description: f
+                              eBgcoreneighbors:
+                                - neighborIp: 114.114.114.1
+                                  peerAsn: '7'
+                                  vrf: DC9-4-3L3EVPN
+                              peerGroupName: DC9-3-4L3EVPN
+                              routeMapIn:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  localPref: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-in
+                                  seqNum: '10'
+                                  setCommunity: ''
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: Allowed-prefixes-out
+                                  seqNum: '10'
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: Allowed-prefixes-in
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 13.13.13.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                            - prefixListName: Allowed-prefixes-out
+                              seqNums:
+                                - maskLength: ''
+                                  permitDeny: permit
+                                  prefix: 14.14.14.0/24
+                                  prefixLength: exact-route
+                                  seqNum: '10'
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos4
+              tags:
+                query: Edge-Router-Domain:4
+          igp: OSPF
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs: []
+      tags:
+        query: Network:DC9-3-4Border-Leaf
