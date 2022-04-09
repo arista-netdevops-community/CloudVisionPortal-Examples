@@ -1,0 +1,206 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: NOT-ENABLED
+            globalAS: '7'
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreexternalInterfaces: []
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 12.12.12.1
+                          corespeed: ''
+                          coresubnetMask: '31'
+                          description: ''
+                      tags:
+                        query: interface:Ethernet5@A4A500F1BEFF8C1C20F38D909000E85D
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 25.25.25.0
+                          corespeed: ''
+                          coresubnetMask: '31'
+                          description: ''
+                      tags:
+                        query: interface:Ethernet3@A4A500F1BEFF8C1C20F38D909000E85D
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  rRs: []
+              tags:
+                query: device:eos2
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  eripAddress: 12.12.12.0
+                                  erspeed: ''
+                                  ersubnetMask: '31'
+                              tags:
+                                query: >-
+                                  interface:Ethernet1@9CE609D7A3B7F69147CAC1618770ABD7
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 13.13.13.1
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '24'
+                                  extvlanId: '13'
+                                  extvrf: ''
+                              tags:
+                                query: >-
+                                  interface:Ethernet4@9CE609D7A3B7F69147CAC1618770ABD7
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos1
+              tags:
+                query: Edge-Router-Domain:1
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  eripAddress: 25.25.25.1
+                                  erspeed: ''
+                                  ersubnetMask: '31'
+                              tags:
+                                query: >-
+                                  interface:Ethernet3@720AA07C91F23A7097711AB1BC2BC5C8
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 14.14.14.1
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '24'
+                                  extvlanId: '14'
+                                  extvrf: ''
+                              tags:
+                                query: >-
+                                  interface:Ethernet1@720AA07C91F23A7097711AB1BC2BC5C8
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos5
+              tags:
+                query: Edge-Router-Domain:5
+          igp: OSPF
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs: []
+      tags:
+        query: Network:CoreNet
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 13.13.13.2
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '24'
+                                  extvlanId: '13'
+                                  extvrf: ''
+                              tags:
+                                query: interface:Ethernet1@eos18
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes:
+                            - name: ''
+                              nextHop: 13.13.13.1
+                              prefix: 0.0.0.0/0
+                      tags:
+                        query: device:eos18
+              tags:
+                query: Edge-Router-Domain:18
+          igp: ISIS
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs: []
+      tags:
+        query: Network:DC14-6-8End-device
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extipPrefix: 14.14.14.2
+                                  extmtu: ''
+                                  extspeed: ''
+                                  extsubnetMask: '24'
+                                  extvlanId: '14'
+                                  extvrf: ''
+                              tags:
+                                query: interface:Ethernet1@eos20
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes:
+                            - name: ''
+                              nextHop: 14.14.14.1
+                              prefix: 0.0.0.0/0
+                      tags:
+                        query: device:eos20
+              tags:
+                query: Edge-Router-Domain:20
+          igp: ISIS
+          redistributeConnected: ENABLED
+          redistributeStatic: ENABLED
+          rrs: []
+      tags:
+        query: Network:DC9-3-4End-device
