@@ -825,10 +825,12 @@
                                 switch_facts["mlag_l3"] = False
 
                             switch_facts["mlag_peer_vlan"] =  pod["commonMlagConfig"]["mlagVlan"]
-                            switch_facts["mlag_peer_l3_vlan"] = switch_facts["mlag_peer_vlan"]
+                            switch_facts["mlag_peer_l3_vlan"] = pod["commonMlagConfig"]["mlagPeerL3Vlan"] if pod["commonMlagConfig"]["mlagPeerL3Vlan"] is not None else switch_facts["mlag_peer_vlan"]
                             switch_facts["mlag_port_channel_id"] = pod["commonMlagConfig"]["mlagPortChannelId"]
                             switch_facts["mlag_peer_ipv4_pool"] = pod["commonMlagConfig"]["mlagPeerLinkSubnet"]
+                            switch_facts["mlag_peer_l3_ipv4_pool"] = pod["commonMlagConfig"]["mlagPeerL3Subnet"] if pod["commonMlagConfig"]["mlagPeerL3Subnet"].strip() != "" else switch_facts["mlag_peer_ipv4_pool"]
                             switch_facts["mlag_subnet_mask"] = pod["commonMlagConfig"]["mlagSubnetMask"]
+                            switch_facts["mlag_l3_subnet_mask"] = pod["commonMlagConfig"]["mlagPeerL3SubnetMask"] if pod["commonMlagConfig"]["mlagPeerL3SubnetMask"] is not None else switch_facts["mlag_subnet_mask"]
                             switch_facts["mlag_lacp_mode"] = pod["commonMlagConfig"]["lacpMode"]
                             switch_facts["reload_delay_mlag"] = switch_facts["platform_settings"]["reload_delay"]["mlag"]
                             switch_facts["reload_delay_non_mlag"] = switch_facts["platform_settings"]["reload_delay"]["non_mlag"]
@@ -843,19 +845,23 @@
                                 switch_facts["mlag_role"] = "primary"
                                 switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
                                     switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "primary"))
-                                switch_facts["mlag_l3_ip"] = switch_facts["mlag_ip"]
+                                switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts,
+                                    switch_facts["mlag_peer_l3_ipv4_pool"], switch_facts["mlag_l3_subnet_mask"], "primary"))
                                 switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts,
                                     switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "secondary"))
-                                switch_facts["mlag_peer_l3_ip"] = switch_facts["mlag_peer_ip"]
+                                switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts,
+                                    switch_facts["mlag_peer_l3_ipv4_pool"], switch_facts["mlag_l3_subnet_mask"], "secondary"))
                             else:
                                 switch_facts["mlag_primary_id"] = int(mlag_peer_switch_facts["id"])
                                 switch_facts["mlag_role"] = "secondary"
                                 switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
                                     switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "secondary"))
-                                switch_facts["mlag_l3_ip"] = switch_facts["mlag_ip"]
+                                switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts,
+                                    switch_facts["mlag_peer_l3_ipv4_pool"], switch_facts["mlag_l3_subnet_mask"], "secondary"))
                                 switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts,
                                     switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "primary"))
-                                switch_facts["mlag_peer_l3_ip"] = switch_facts["mlag_peer_ip"]
+                                switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts,
+                                    switch_facts["mlag_peer_l3_ipv4_pool"], switch_facts["mlag_l3_subnet_mask"], "primary"))
 
                 if switch_facts["underlay_router"] == True:
                     # Parse user inputs to get transit ip pools
@@ -1050,9 +1056,18 @@
             def set_mlag_config(config, switch_facts):
                 if switch_facts.get("mlag"):
                     # Set spanning tree relevant config
-                    config["spanning_tree"]["no_spanning_tree_vlan"] = switch_facts["mlag_peer_vlan"]
+                    if switch_facts["mlag_l3"] == True and switch_facts["mlag_peer_l3_vlan"] != switch_facts["mlag_peer_vlan"]:
+                        config["spanning_tree"]["no_spanning_tree_vlan"] = ",".join([str(switch_facts["mlag_peer_l3_vlan"]), str(switch_facts["mlag_peer_vlan"])]) 
+                    else:
+                        config["spanning_tree"]["no_spanning_tree_vlan"] = switch_facts["mlag_peer_vlan"]
 
                     # Set mlag vlan
+                    if switch_facts["mlag_l3"] == True and switch_facts["mlag_peer_l3_vlan"] != switch_facts["mlag_peer_vlan"]:
+                        config["vlans"][switch_facts["mlag_peer_l3_vlan"]] = {
+                            "tenant": "system",
+                            "name": "LEAF_PEER_L3",
+                            "trunk_groups": ["LEAF_PEER_L3"]
+                        }
                     config["vlans"][switch_facts["mlag_peer_vlan"]] = {
                         "tenant": "system",
                         "name": "MLAG_PEER",
@@ -1060,6 +1075,14 @@
                     }
 
                     # Set mlag svi
+                    if switch_facts["mlag_l3"] == True and switch_facts["mlag_peer_l3_vlan"] != switch_facts["mlag_peer_vlan"]:
+                        config["vlan_interfaces"]["Vlan{}".format(switch_facts["mlag_peer_l3_vlan"])] = {
+                            "description": "MLAG_PEER_L3_PEERING",
+                            "shutdown": False,
+                            "ip_address": "{}/{}".format(switch_facts["mlag_l3_ip"], switch_facts["mlag_l3_subnet_mask"]),
+                            "no_autostate": True,
+                            "mtu": switch_facts["p2p_uplinks_mtu"]
+                        }
                     config["vlan_interfaces"]["Vlan{}".format(switch_facts["mlag_peer_vlan"])] = {
                         "description": "MLAG_PEER",
                         "shutdown": False,
@@ -1068,10 +1091,11 @@
                         "mtu": switch_facts["p2p_uplinks_mtu"]
                     }
                     if switch_facts["mlag_l3"] == True and switch_facts["underlay_routing_protocol"] == "ospf":
-                        config["vlan_interfaces"]["Vlan{}".format(switch_facts["mlag_peer_vlan"])]\
+                        config["vlan_interfaces"]["Vlan{}".format(switch_facts["mlag_peer_l3_vlan"])]\
                             ["ospf_network_point_to_point"] = True
-                        config["vlan_interfaces"]["Vlan{}".format(switch_facts["mlag_peer_vlan"])]\
+                        config["vlan_interfaces"]["Vlan{}".format(switch_facts["mlag_peer_l3_vlan"])]\
                             ["ospf_area"] = switch_facts["underlay_ospf_area"]
+
 
                     # Set port-channel interfaces
                     config["port_channel_interfaces"]["Port-Channel{}".format(switch_facts["mlag_port_channel_id"])] = {
@@ -1081,6 +1105,8 @@
                         "mode": "trunk",
                         "trunk_groups": ["MLAG"]
                     }
+                    if switch_facts["mlag_l3"] == True and switch_facts["mlag_peer_l3_vlan"] != switch_facts["mlag_peer_vlan"]:
+                        config["port_channel_interfaces"]["Port-Channel{}".format(switch_facts["mlag_port_channel_id"])]["trunk_groups"].append("LEAF_PEER_L3")
 
                     # Set ethernet interfaces
                     for i, iface in enumerate(switch_facts["mlag_interfaces"]):
@@ -2869,7 +2895,7 @@
               id: internalVlan
               name: mlagVlan
               label: MLAG Peer Link VLAN
-              description: Define the VLAN ID to use for MLAG peer communication
+              description: Define the MLAG Peer Link (control link) SVI interface ID
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -2936,6 +2962,47 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            mlagPeerL3Vlan:
+              id: mlagPeerL3Vlan
+              name: mlagPeerL3Vlan
+              label: MLAG Peer L3 VLAN
+              description: Underlay L3 peering SVI interface ID. If left blank, the MLAG Peer Link VLAN will be used for the L3 peering.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            mlagPeerL3Subnet:
+              id: mlagPeerL3Subnet
+              name: mlagPeerL3Subnet
+              label: MLAG Peer L3 Subnet
+              description: IP address pool used for MLAG underlay L3 peering. If left blank, the MLAG Peer Link Subnet will be used for the L3 peering.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            mlagPeerL3SubnetMask:
+              id: mlagPeerL3SubnetMask
+              name: mlagPeerL3SubnetMask
+              label: MLAG Peer L3 Subnet Mask
+              description: Set the subnet mask for the MLAG L3 peering IP addresses.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '30'
+                    - '31'
+                dynamic_options: null
             commonMlagConfig:
               id: commonMlagConfig
               name: commonMlagConfig
@@ -2952,6 +3019,9 @@
                     - virtualRouterMac
                     - mlagSubnetMask
                     - lacpMode
+                    - mlagPeerL3Vlan
+                    - mlagPeerL3Subnet
+                    - mlagPeerL3SubnetMask
             spineAS:
               id: spineAS
               name: spineAsn
@@ -3807,6 +3877,9 @@
                         "internalVlan",
                         "mlagLinkSubnet",
                         "mlagSubnetMask",
+                        "mlagPeerL3Vlan",
+                        "mlagPeerL3Subnet",
+                        "mlagPeerL3SubnetMask",
                         "mlagPortChannelId",
                         "virtualRouterMac",
                         "lacpMode"
@@ -3829,7 +3902,7 @@
                     "dependency":{
                         "vxlanOverlay":{
                             "value":[
-                            false
+                                false
                             ],
                             "mode":"HIDE"
                         }
@@ -3841,7 +3914,7 @@
                     "dependency":{
                         "vxlanOverlay":{
                             "value":[
-                            false
+                                false
                             ],
                             "mode":"HIDE"
                         }
@@ -3882,7 +3955,7 @@
                         {
                             "tagLabel":"node_id",
                             "suggestedValues":[
-                            
+                                
                             ]
                         }
                     ]
@@ -3901,7 +3974,7 @@
                         {
                             "tagLabel":"node_id",
                             "suggestedValues":[
-                            
+                                
                             ]
                         }
                     ]
@@ -3926,7 +3999,7 @@
                         {
                             "tagLabel":"node_id",
                             "suggestedValues":[
-                            
+                                
                             ]
                         }
                     ]
@@ -3945,7 +4018,7 @@
                         {
                             "tagLabel":"node_id",
                             "suggestedValues":[
-                            
+                                
                             ]
                         }
                     ]
@@ -3998,7 +4071,7 @@
                     "dependency":{
                         "underlayRoutingProtocol":{
                             "value":[
-                            "ospf"
+                                "ospf"
                             ],
                             "mode":"SHOW"
                         }
@@ -4010,7 +4083,7 @@
                     "dependency":{
                         "underlayRoutingProtocol":{
                             "value":[
-                            "ospf"
+                                "ospf"
                             ],
                             "mode":"SHOW"
                         }
@@ -4022,7 +4095,7 @@
                     "dependency":{
                         "underlayRoutingProtocol":{
                             "value":[
-                            "ospf"
+                                "ospf"
                             ],
                             "mode":"SHOW"
                         }
@@ -4034,7 +4107,7 @@
                     "dependency":{
                         "underlayRoutingProtocol":{
                             "value":[
-                            "ospf"
+                                "ospf"
                             ],
                             "mode":"SHOW"
                         }
@@ -4046,7 +4119,7 @@
                     "dependency":{
                         "underlayRoutingProtocol":{
                             "value":[
-                            "ospf"
+                                "ospf"
                             ],
                             "mode":"SHOW"
                         }
@@ -4065,10 +4138,10 @@
                         {
                             "tagLabel":"Role",
                             "suggestedValues":[
-                            "L2-Leaf",
-                            "Spine",
-                            "Leaf",
-                            "Super-Spine"
+                                "L2-Leaf",
+                                "Spine",
+                                "Leaf",
+                                "Super-Spine"
                             ]
                         }
                     ]
@@ -4108,7 +4181,7 @@
                     "dependency":{
                         "underlayRoutingProtocol":{
                             "value":[
-                            "ospf"
+                                "ospf"
                             ],
                             "mode":"SHOW"
                         }
@@ -4120,7 +4193,7 @@
                     "dependency":{
                         "underlayRoutingProtocol":{
                             "value":[
-                            "ospf"
+                                "ospf"
                             ],
                             "mode":"SHOW"
                         }
