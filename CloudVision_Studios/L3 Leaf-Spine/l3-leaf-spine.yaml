@@ -610,7 +610,7 @@
                 switch_id = switch_facts["group_index"]
                 return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[switch_id]
 
-            def get_p2p_uplinks_ip(switch_facts, uplink_switch_facts):
+            def get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
                 if switch_facts.get("type") not in ["l3leaf", "spine"] or \
                     switch_facts["uplink_ipv4_pool"] is None or \
                     switch_facts["uplink_ipv4_subnet_mask"] is None:
@@ -626,21 +626,23 @@
                     uplink_ipv4_pool = uplink_ipv4_pool[uplink_switch_id - 1]
                     uplink_switch_id = 1
                     max_uplink_switches = 1
+                    uplink_switches_seen_previously = switch_facts["uplink_switches_ids"][:uplink_switch_index]
+                    uplink_switch_index = uplink_switches_seen_previously.count(uplink_switch_facts["serial_number"])
                 else:
                     uplink_ipv4_pool = uplink_ipv4_pool[0]
                 # Valid subnet checks
                 assert uplink_subnet_mask >= ipaddress.ip_network(uplink_ipv4_pool).prefixlen, \
                         "Uplink subnet {} has prefix len {} greater than Underlay Fabric Subnet Mask {}".format(uplink_ipv4_pool, \
                         ipaddress.ip_network(uplink_ipv4_pool).prefixlen, uplink_subnet_mask)
-                max_leafs_possible =  (len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) - (uplink_switch_id - 1) + uplink_offset) / ( max_uplink_switches * max_parallel_uplinks + (uplink_switch_id - 1) + uplink_offset ) + 1
-                assert len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) > (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_id - 1) + uplink_offset, \
+                max_leafs_possible =  (len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) - (uplink_switch_index) + uplink_offset) / ( max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset ) + 1
+                assert len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) > (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset, \
                         "Not enough subnets in uplink pool {} to allocate addresses for more than " \
                             "{} leafs with {} parallel uplinks".format(uplink_ipv4_pool, int(max_leafs_possible), max_parallel_uplinks)
                 child_subnet = list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask)) \
-                    [ (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_id - 1) + uplink_offset ]
+                    [ (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset ]
                 return list(child_subnet.hosts())[1]
 
-            def get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts):
+            def get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
                 if switch_facts.get("type") not in ["l3leaf", "spine"] or \
                     switch_facts["uplink_ipv4_pool"] is None or \
                     switch_facts["uplink_ipv4_subnet_mask"] is None:
@@ -656,18 +658,20 @@
                     uplink_ipv4_pool = uplink_ipv4_pool[uplink_switch_id - 1]
                     uplink_switch_id = 1
                     max_uplink_switches = 1
+                    uplink_switches_seen_previously = switch_facts["uplink_switches_ids"][:uplink_switch_index]
+                    uplink_switch_index = uplink_switches_seen_previously.count(uplink_switch_facts["serial_number"])
                 else:
                     uplink_ipv4_pool = uplink_ipv4_pool[0]
                 # Valid subnet checks
                 assert uplink_subnet_mask >= ipaddress.ip_network(uplink_ipv4_pool).prefixlen, \
                         "Uplink subnet {} has prefix len {} greater than Underlay Fabric Subnet Mask {}".format(uplink_ipv4_pool, \
                         ipaddress.ip_network(uplink_ipv4_pool).prefixlen, uplink_subnet_mask)
-                max_leafs_possible =  (len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) - (uplink_switch_id - 1) + uplink_offset) / ( max_uplink_switches * max_parallel_uplinks + (uplink_switch_id - 1) + uplink_offset ) + 1
-                assert len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) > (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_id - 1) + uplink_offset, \
+                max_leafs_possible =  (len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) - (uplink_switch_index) + uplink_offset) / ( max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset ) + 1
+                assert len(list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))) > (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset, \
                         "Not enough subnets in uplink pool {} to allocate addresses for more than " \
                             "{} leafs with {} parallel uplinks".format(uplink_ipv4_pool, int(max_leafs_possible), max_parallel_uplinks)
                 child_subnet = list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask)) \
-                    [ (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_id - 1) + uplink_offset ]
+                    [ (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset ]
                 return list(child_subnet.hosts())[0]
 
             def set_topology_facts(switch_facts):
@@ -688,8 +692,8 @@
                             link_facts["peer_type"] = uplink_switch_facts["type"]
                             link_facts["peer_bgp_as"] = uplink_switch_facts.get("bgp_as")
                             link_facts["type"] = "underlay_p2p"
-                            link_facts["ip_address"] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts))
-                            link_facts["peer_ip_address"] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts))
+                            link_facts["ip_address"] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
+                            link_facts["peer_ip_address"] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
                             link_facts["subnet_mask"] = switch_facts["uplink_ipv4_subnet_mask"]
                             if switch_facts.get("underlay_multicast"):
                                 link_facts["pim_enabled"] = True
