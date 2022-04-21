@@ -371,10 +371,10 @@
                       "information_option": True
                   }
                   # Enable dhcp snooping
-                  config["ip_dhcp_snooping"] = {
-                      "information_option": True,
-                      "vlans": []
-                  }
+                  # config["ip_dhcp_snooping"] = {
+                  #     "information_option": True,
+                  #     "vlans": []
+                  # }
                   for tenant in switch_facts["tenants"].keys():
                       # Set l3 vlan config
                       for vrf in switch_facts["tenants"][tenant]["vrfs"].keys():
@@ -387,12 +387,12 @@
                               }
                               # Create L3 SVI with helper address pointing towards CVP
                               config["vlan_interfaces"]["Vlan{}".format(svi)] = {}
-                              if vrf == "default":
-                                  config["vlan_interfaces"]["Vlan{}".format(svi)]["ip_helpers"] = {
-                                      "127.0.0.1": {}
-                                  }
-                                  # enable snooping on that vlan
-                                  config["ip_dhcp_snooping"]["vlans"].append(svi)
+                              # if vrf == "default":
+                              #     config["vlan_interfaces"]["Vlan{}".format(svi)]["ip_helpers"] = {
+                              #         "127.0.0.1": {}
+                              #     }
+                              #     # enable snooping on that vlan
+                              #     config["ip_dhcp_snooping"]["vlans"].append(svi)
 
                           # Set vrf ibgp peering vlan params
                           if switch_facts.get("mlag") and switch_facts["network_services"].get("l3") \
@@ -410,12 +410,12 @@
                               "tenant": tenant,
                               "name": info["name"]
                           }
-                          # Create L2 SVI with helper address pointing towards CVP
-                          config["vlan_interfaces"]["Vlan{}".format(svi)]["ip_helpers"] = {
-                              "127.0.0.1": {}
-                          }
-                          # enable snooping on the vlan
-                          config["ip_dhcp_snooping"]["vlans"].append(vlan)
+                          # # Create L2 SVI with helper address pointing towards CVP
+                          # config["vlan_interfaces"]["Vlan{}".format(svi)]["ip_helpers"] = {
+                          #     "127.0.0.1": {}
+                          # }
+                          # # enable snooping on the vlan
+                          # config["ip_dhcp_snooping"]["vlans"].append(vlan)
 
               if switch_facts["network_services"].get("l3"):
                   for tenant in switch_facts["tenants"].keys():
