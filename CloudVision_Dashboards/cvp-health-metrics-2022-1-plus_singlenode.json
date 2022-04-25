@@ -1,0 +1,260 @@
+{
+  "dashboards": [
+    {
+      "key": "944f31bd-4930-42e8-92d4-5137c6868dbf",
+      "createdAt": [
+        413861310,
+        1536
+      ],
+      "createdBy": "cvpadmin",
+      "metaData": {
+        "schemaVersion": "3",
+        "legacyKey": "",
+        "legacyVersion": ""
+      },
+      "name": "CVP-Metrics",
+      "description": "",
+      "widgets": [
+        {
+          "id": "3ee1a1fa-c7c3-4ae0-bd9d-6d05568e3f97",
+          "name": "Component Overview",
+          "position": {
+            "x": 0,
+            "y": 8
+          },
+          "dimensions": {
+            "width": 8,
+            "height": 8
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data = (`analytics:/CvpMetrics/cvpi/status`)[-1]\nlet d = newDict()\nd[\"not running\"] = 0\nd[\"running\"] = 0\nd[\"disabled\"] = 0\nfor key, val in data {\n    let running_count = d[\"running\"]\n    let not_running_count = d[\"not running\"]\n    let disabled_count = d[\"disabled\"]\n\n        if val[\"status\"] == \"RUNNING\" {\n            let running_count = running_count + 1\n        }\n        if val[\"status\"] == \"DISABLED\" {\n            let disabled_count = disabled_count + 1\n        }\n        if val[\"status\"] == \"NOT RUNNING\" {\n            let not_running_count = not_running_count + 1\n        }\n\n    d[\"running\"] = running_count\n    d[\"not running\"] = not_running_count\n    d[\"disabled\"] = disabled_count\n}\nd",
+            "graphConfig": {
+              "colorOverrides": {
+                "not running": "red",
+                "running": "green",
+                "disabled": "yellow"
+              }
+            },
+            "visualization": "donutGraph"
+          },
+          "location": "main"
+        },
+        {
+          "id": "3242d300-f8ae-4e0c-9b0a-9ee0856ee03b",
+          "name": "Component Details",
+          "position": {
+            "x": 8,
+            "y": 8
+          },
+          "dimensions": {
+            "width": 16,
+            "height": 36
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data =`analytics:/CvpMetrics/cvpi/status`\nlet res = newDict()\nfor key, val in data[-1] {\n    res[key] = newDict()\n    if dictHasKey(val, \"error\") {\n        res[key][\"Error\"] = val[\"error\"]\n    }\n\n    if dictHasKey(val, \"node\") {\n        res[key][\"Node\"] = val[\"node\"]\n    }\n\n    if dictHasKey(val, \"status\") {\n        res[key][\"Status\"] = val[\"status\"]\n    }\n\n    if dictHasKey(val, \"details\") {\n        let total = 0\n        let totalRunning = 0\n        \n        for key_, val_ in val[\"details\"] {\n            let total = total + 1\n            if (val_[\"error\"] == \"-\" && val_[\"status\"] == \"RUNNING\") {\n                let totalRunning = totalRunning + 1\n            }                  \n        }\n        \n        res[key][\"Details\"] = total > totalRunning ? str(totalRunning) + \"/\" + str(total) : total\n        \n    }\n}\nres",
+            "graphConfig": {
+              "columns": {
+                "key": {
+                  "showDotIndicator": true,
+                  "columnTitle": "Name"
+                },
+                "Status": {
+                  "colorMappings": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "NOT RUNNING": {
+                          "color": "red",
+                          "index": 0
+                        },
+                        "RUNNING": {
+                          "color": "green",
+                          "index": 1
+                        },
+                        "DISABLED": {
+                          "color": "yellow",
+                          "index": 2
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "visualization": "table"
+          },
+          "location": "main"
+        },
+        {
+          "id": "13ceb11a-50d8-43ce-a29b-331e5b84e326",
+          "name": "Failed Components",
+          "position": {
+            "x": 0,
+            "y": 25
+          },
+          "dimensions": {
+            "width": 8,
+            "height": 11
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data =(`analytics:/CvpMetrics/cvpi/status`)[-1]\nlet res = newDict()\nfor key, val in data{\n   if val[\"status\"] == \"NOT RUNNING\" {\n       let temp = newDict()\n       if dictHasKey(val, \"error\") {\n           temp[\"error\"] = val[\"error\"]\n       } else {\n           if dictHasKey(val, \"details\") {\n                let status = \"\"\n                for key_, val_ in val[\"details\"] {\n                    let status = status + key_ + \" - \" + str(val_) + \"\\n\"\n\n                } \n                temp[\"error\"]= status\n           }\n       }\n       res[key] = temp\n   }\n}\nres",
+            "graphConfig": {
+              "columns": {
+                "error": {
+                  "showDotIndicator": true,
+                  "colorMappings": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "etcdserver: leader changed": {
+                          "color": "red",
+                          "index": 0
+                        },
+                        "Pods have not been started": {
+                          "color": "red",
+                          "index": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "key": {
+                  "columnTitle": "Name"
+                }
+              }
+            },
+            "visualization": "table"
+          },
+          "location": "main"
+        },
+        {
+          "id": "340bd14b-17e1-42c7-ac51-ea8b284f5cbf",
+          "name": "Node Details",
+          "position": {
+            "x": 6,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 18,
+            "height": 8
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let env = merge(`analytics:/CvpMetrics/cvpi/env`)\nlet memory = merge(`analytics:/CvpMetrics/prometheus/memory_usage`)\nlet disk = merge(`analytics:/CvpMetrics/prometheus/disk_usage`)\nlet cpu = merge(`analytics:/CvpMetrics/prometheus/cpu_usage`)\nlet result = newDict()\n\nlet p_dict = newDict()\np_dict[\"Host IP\"] = env[\"PRIMARY_HOST_IP\"]\nenv[\"primary\"] = p_dict\n\n\nfor key, val in memory {\n  if (env[\"primary\"][\"Host IP\"] == strSplit(key[\"instance\"], \":\")[0]) {\n      env[\"primary\"][\"Free Memory\"] = val / 1024 ^ 3\n  }\n}\n\nfor key, val in disk {\n  if (env[\"primary\"][\"Host IP\"] == strSplit(key[\"instance\"], \":\")[0] && key[\"mountpoint\"] == \"/data\") {\n      env[\"primary\"][\"Disk Usage /data\"] = val\n  }\n}\n\nfor key, val in disk {\n  if (env[\"primary\"][\"Host IP\"] == strSplit(key[\"instance\"], \":\")[0] && key[\"mountpoint\"] == \"/\") {\n      env[\"primary\"][\"Disk Usage /\"] = val\n  }\n}\n\nfor key, val in cpu {\n  if (env[\"primary\"][\"Host IP\"] == strSplit(key[\"instance\"], \":\")[0]) {\n      env[\"primary\"][\"5m CPU Avg\"] = val\n  }\n}\n\nresult[\"primary\"] = env[\"primary\"]\n\nif dictHasKey(result[\"primary\"], \"5m CPU Avg\") {\n    if result[\"primary\"][\"5m CPU Avg\"] > 0 {\n    result[\"primary\"][\"Status\"] = \"Up\"\n    }\n}\nresult",
+            "graphConfig": {
+              "columns": {
+                "5m CPU Avg": {
+                  "type": "number",
+                  "decimals": 1,
+                  "unit": "%"
+                },
+                "Disk Usage": {
+                  "type": "number",
+                  "decimals": 1,
+                  "unit": "%"
+                },
+                "Free Memory": {
+                  "type": "number",
+                  "decimals": 1,
+                  "unit": "GB"
+                },
+                "key": {
+                  "columnTitle": "Node"
+                },
+                "Status": {
+                  "colorMappings": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "Up": {
+                          "color": "green",
+                          "index": 0
+                        }
+                      }
+                    }
+                  ],
+                  "showDotIndicator": true
+                }
+              }
+            },
+            "visualization": "table"
+          },
+          "location": "main"
+        },
+        {
+          "id": "6ad12247-0d63-4d14-81b9-fa01a1895ea7",
+          "name": "Component Up Over Time",
+          "position": {
+            "x": 0,
+            "y": 16
+          },
+          "dimensions": {
+            "width": 8,
+            "height": 9
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data = `analytics:/CvpMetrics/cvpi/status`[30m]\nlet res = newDict()\nres[\"NOT RUNNING\"] = data \\\n    | map(length(_value | where(_value[\"status\"] == \"NOT RUNNING\")))\nres\n\n\n",
+            "visualization": "lineGraph",
+            "graphConfig": {
+              "showLegend": true,
+              "showPoints": true,
+              "stacked": false,
+              "min": 0,
+              "max": 10
+            }
+          },
+          "location": "main"
+        },
+        {
+          "id": "46ce7bd3-011a-4622-ab69-da298e87219b",
+          "name": "Ingest Notif Rate",
+          "position": {
+            "x": 0,
+            "y": 36
+          },
+          "dimensions": {
+            "width": 8,
+            "height": 8
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let ingest = (`analytics:/CvpMetrics/prometheus/ingest_notif_rate_per_node`)[-1]\nlet res = 0\nfor key, val in ingest {\n    let res = val\n}\n\nres",
+            "graphConfig": {
+              "unit": "/s",
+              "unitPlacement": "right",
+              "fontColor": "blue",
+              "type": "number",
+              "decimals": 1,
+              "fontSize": 85
+            },
+            "visualization": "singleValue"
+          },
+          "location": "main"
+        },
+        {
+          "id": "77048c9d-748f-4ce0-a606-869be31d314d",
+          "name": "Info",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 6,
+            "height": 8
+          },
+          "type": "text-widget",
+          "inputs": {
+            "textContent": "If the cluster is unstable, this visualization itself may be inaccurate. You can validate the cluster via logging into a node and running \n```\ncvpi status all\n```\n for further details."
+          },
+          "location": "main"
+        }
+      ],
+      "lastUpdated": 1650400013169,
+      "lastUpdatedBy": "cvpadmin"
+    }
+  ]
+}
