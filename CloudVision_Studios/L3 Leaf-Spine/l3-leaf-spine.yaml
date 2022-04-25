@@ -474,7 +474,7 @@
                             switch_max_parallel_links.append(Counter(downlink_neighbors).most_common(1)[0][1])
 
                 if len(switch_max_parallel_links) == 0:
-                    return 0
+                    return 1
 
                 return max(switch_max_parallel_links)
 
@@ -918,9 +918,11 @@
                                 switch_facts["bgp_as"] = asns[0]
                             switch_facts["bgp_defaults"] = pod["commonBGPConfig"]["spineBgpDefaults"]
                             switch_facts["bgp_maximum_paths"] = switch_facts["max_super_spines"] * switch_facts["max_parallel_uplinks_to_super_spines"] if \
-                                switch_facts["max_super_spines"] * switch_facts["max_parallel_uplinks_to_super_spines"] > 2 else 2
+                                switch_facts["max_super_spines"] * switch_facts["max_parallel_uplinks_to_super_spines"] > 2 * switch_facts["max_parallel_uplinks_to_spines"] \
+                                else 2 * switch_facts["max_parallel_uplinks_to_spines"]
                             switch_facts["bgp_ecmp"] = switch_facts["max_super_spines"] * switch_facts["max_parallel_uplinks_to_super_spines"] if \
-                                switch_facts["max_super_spines"] * switch_facts["max_parallel_uplinks_to_super_spines"] > 2 else 2
+                                switch_facts["max_super_spines"] * switch_facts["max_parallel_uplinks_to_super_spines"] > 2 * switch_facts["max_parallel_uplinks_to_spines"] \
+                                else 2 * switch_facts["max_parallel_uplinks_to_spines"]
                             # Set BGP peering 
                             switch_facts["dynamic_bgp_ipv4_peering"] = pod["commonBGPConfig"]["spineBGPDynamicNeighbors"]
                             switch_facts["dynamic_bgp_evpn_peering"] = switch_facts["dynamic_bgp_ipv4_peering"]
@@ -1884,7 +1886,7 @@
             trunk group ${ trunk_group }
             %               endfor
             %          endif
-            !   
+            !
             %    endfor %}
             %endif
             ## eos- Port-Channel Interfaces
