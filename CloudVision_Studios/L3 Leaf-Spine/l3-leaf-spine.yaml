@@ -535,7 +535,7 @@
                 mlag_peer_link_interfaces = {}
                 for i in ctx.topology.getDevices(deviceIds=[device_id])[0].getInterfaces():
                     peer_device, peer_interface = i.getPeerInfo()
-                    if peer_device is not None:
+                    if peer_device is not None and "Ethernet" in i.name:
                         if switches_in_my_data_center.get(peer_device.id):
                             neighbor = switches_in_my_data_center.get(peer_device.id)
                             # Spine case
@@ -1721,6 +1721,43 @@
                         del switches_in_data_center[switch_id]
                 return switches_in_data_center
 
+
+            def duplicate_node_id_check(switch_in_data_center_facts):
+                """
+                Checks to see if there is a duplicate node id value for node type in a Pod or DC
+                """
+                data_center = {
+                    "pods": {},
+                    "super_spine_planes": {}
+                }
+                # Sort node ids
+                for switch_facts in switch_in_data_center_facts.values():
+                    if switch_facts.get("pod"):
+                        pod_name = switch_facts["pod"]
+                        if not data_center["pods"].get(pod_name):
+                            # Create pod Dictionary
+                            data_center["pods"][pod_name] = {
+                                "l3leaf": [],
+                                "spine": [],
+                                "l2leaf": [],
+                            }
+                        # Update dictionary
+                        data_center["pods"][pod_name][switch_facts["type"]].append(switch_facts["id"])
+                    if switch_facts.get("super_spine_plane"):
+                        super_spine_plane_name = switch_facts["super_spine_plane"]
+                        if not data_center["super_spine_planes"].get(super_spine_plane_name):
+                            # Create ss_plane Dictionary
+                            data_center["super_spine_planes"][super_spine_plane_name] = []
+                        # Update dictionary
+                        data_center["super_spine_planes"][super_spine_plane_name].append(switch_facts["id"])
+                # Check for no duplicate ids
+                for pod, node_dict in data_center["pods"].items():
+                    for node_type, node_ids in node_dict.items():
+                        assert len(node_ids) == len(set(node_ids)), f"Duplicate {node_type} node IDs detected in pod {pod}"
+                for super_spine_plane, node_ids in data_center["super_spine_planes"].items():
+                    assert len(node_ids) == len(set(node_ids)), f"Duplicate super-spine node IDs detected in super-spine plane {super_spine_plane}"
+                    
+
             def clean_config(config):
                 return config
 
@@ -1741,6 +1778,9 @@
                     switches_in_my_data_center = get_switches_in_my_data_center_basics(my_switch_facts, pod_only=True)
                 else:    
                     switches_in_my_data_center = get_switches_in_my_data_center_basics(my_switch_facts)
+
+                # Check for duplicate node_id tags
+                duplicate_node_id_check(switches_in_my_data_center)
 
                 # get my switch's neighbors
                 uplink_interfaces, downlink_interfaces, mlag_peer_link_interfaces = get_interfaces_info(my_switch_facts)
