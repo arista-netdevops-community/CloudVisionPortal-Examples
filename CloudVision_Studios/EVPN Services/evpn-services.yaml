@@ -6,7 +6,7 @@
         studio_id: studio-evpn-services
         workspace_id: &workspace_id ws-evpn-services
       display_name: EVPN Services
-      description: Define and configure EVPN services for an L3 network fabric, including configuration of VRFs, VNIs, VLANs and associated IP addressing
+      description: Define and configure EVPN services for an L3 network fabric, including configuration of VRFs, VLANs, VNIs and associated IP addressing
       template:
         type: TEMPLATE_TYPE_MAKO
         body: |
@@ -162,7 +162,7 @@
                   # normalize static routes
                   for sr in info.get("static_routes"):
                       # if static route is to be configured on switch
-                      if sr["devices"].resolve(device=switch_facts["serial_number"])["devices"]["hostname"].resolve(device=switch_facts["serial_number"]).get("apply"):
+                      if device_matches_resolver_query(sr["devices"].resolve(device=switch_facts["serial_number"])["devices"]["hostname"], switch_facts["serial_number"]):
                           static_route = {}
                           static_route["destination_address_prefix"] = sr["routeDetails"].get("destinationAddressPrefix")
                           static_route["gateway"] = sr["routeDetails"].get("gateway")
@@ -180,7 +180,7 @@
                   # normalize external bgp peers
                   for bgp_peer in info.get("external_bgp_peers"):
                       # if bgp peer is to be configured on switch
-                      if bgp_peer["devices"].resolve(device=switch_facts["serial_number"])["devices"]["hostname"].resolve(device=switch_facts["serial_number"]).get("apply"):
+                      if device_matches_resolver_query(bgp_peer["devices"].resolve(device=switch_facts["serial_number"])["devices"]["hostname"], switch_facts["serial_number"]):
                           peer_info = {}
                           peer_info["remote_as"] = bgp_peer["remoteAs"]
                           if bgp_peer.get("description") and bgp_peer["description"].strip() != "":
@@ -223,7 +223,7 @@
                   # normalize additional route targets
                   for rt in info.get("additional_route_targets"):
                       # if additional route target is to be configured on switch
-                      if rt["devices"].resolve(device=switch_facts["serial_number"])["devices"]["hostname"].resolve(device=switch_facts["serial_number"]).get("apply"):
+                      if device_matches_resolver_query(rt["devices"].resolve(device=switch_facts["serial_number"])["devices"]["hostname"], switch_facts["serial_number"]):
                           route_target = {}
                           route_target["type"] = rt["type"]
                           route_target["address_family"] = rt["addressFamily"]
@@ -895,7 +895,7 @@
               interfaces = {}
               for i in ctx.topology.getDevices(deviceIds=[device_id])[0].getInterfaces():
                   peer_device, peer_interface = i.getPeerInfo()
-                  if peer_device is not None:
+                  if peer_device is not None and "Ethernet" in i.name:
                       interfaces[i.name] = {"neighborId": peer_device.id, "neighborHostname": peer_device.hostName, "neighborInterface": peer_interface.name}
               return interfaces
 
@@ -1252,7 +1252,7 @@
               # check if apply column resolves for any static routes
               for sr in info.get("static_routes"):
                   # if static route is to be configured on switch
-                  if sr["devices"].resolve(device=my_switch_facts["serial_number"])["devices"]["hostname"].resolve(device=my_switch_facts["serial_number"]).get("apply"):
+                  if device_matches_resolver_query(sr["devices"].resolve(device=my_switch_facts["serial_number"])["devices"]["hostname"], my_switch_facts["serial_number"]):
                       my_switch_vrfs[vrf] = info
                       break
               if my_switch_vrfs.get(vrf):
@@ -1260,7 +1260,7 @@
               # check if apply column resolves for external bgp neighbors
               for bgp_peer in info.get("external_bgp_peers"):
                   # if bgp peer is to be configured on switch
-                  if bgp_peer["devices"].resolve(device=my_switch_facts["serial_number"])["devices"]["hostname"].resolve(device=my_switch_facts["serial_number"]).get("apply"):
+                  if device_matches_resolver_query(bgp_peer["devices"].resolve(device=my_switch_facts["serial_number"])["devices"]["hostname"], my_switch_facts["serial_number"]):
                       my_switch_vrfs[vrf] = info
                       break
               if my_switch_vrfs.get(vrf):
@@ -1268,7 +1268,7 @@
               # check if apply column resolves for additional route targets
               for rt in info.get("additional_route_targets"):
                   # if additional route target is to be configured on switch
-                  if rt["devices"].resolve(device=my_switch_facts["serial_number"])["devices"]["hostname"].resolve(device=my_switch_facts["serial_number"]).get("apply"):
+                  if device_matches_resolver_query(rt["devices"].resolve(device=my_switch_facts["serial_number"])["devices"]["hostname"], my_switch_facts["serial_number"]):
                       my_switch_vrfs[vrf] = info
                       break
 
@@ -2699,7 +2699,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: null
+                default_value: true
             additionalRouteTargetsHostname:
               id: additionalRouteTargetsHostname
               name: hostname
@@ -3041,7 +3041,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: null
+                default_value: true
             externalBgpPeersHostname:
               id: externalBgpPeersHostname
               name: hostname
@@ -3091,6 +3091,20 @@
                 range: null
                 static_options: null
                 dynamic_options: null
+            externalBgpPeeringName:
+              id: externalBgpPeeringName
+              name: bgpPeeringName
+              label: Name
+              description: Name of the BGP peering
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             externalBgpPeersDetails:
               id: externalBgpPeersDetails
               name: bgpPeerDetails
@@ -3116,6 +3130,7 @@
                     - externalBgpPeersNextHopGroup
                     - externalBgpPeersDevicesResolver
                     - externalBgpPeersLocalAs
+                    - externalBgpPeeringName
             externalBgpPeers:
               id: externalBgpPeers
               name: externalBgpPeers
@@ -3125,7 +3140,7 @@
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
                 base_field_id: externalBgpPeersDetails
-                key: externalBgpPeersNeighborIpAddress
+                key: externalBgpPeeringName
             staticRoutesDescription:
               id: staticRoutesDescription
               name: description
@@ -3148,7 +3163,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: null
+                default_value: true
             staticRoutesHostname:
               id: staticRoutesHostname
               name: hostname
@@ -3311,7 +3326,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: null
+                default_value: true
             vrfAssignHostname:
               id: vrfAssignHostname
               name: hostname
@@ -4244,8 +4259,9 @@
                 "key":"externalBgpPeersDetails",
                 "type":"INPUT",
                 "order":[
-                  "externalBgpPeersNeighborIpAddress",
+                  "externalBgpPeeringName",
                   "externalBgpPeersDevicesResolver",
+                  "externalBgpPeersNeighborIpAddress",
                   "externalBgpPeersRemoteAs",
                   "externalBgpPeersDescription",
                   "externalBgpPeersPassword",
@@ -4305,7 +4321,7 @@
               },
               "VrfAssignmentBgpTagger":{
                 "type":"TAGGER",
-                "parentKey":"vrfAssignHostname",
+                "parentKey":"vrfAssignDevicesGroup",
                 "key":"VrfAssignmentBgpTagger",
                 "name":"BGP Tags",
                 "assignmentType":"SINGLE",
@@ -4332,7 +4348,8 @@
                 "key":"vrfAssignDevicesGroup",
                 "type":"INPUT",
                 "order":[
-                  "vrfAssignHostname"
+                  "vrfAssignHostname",
+                  "VrfAssignmentBgpTagger"
                 ]
               },
               "vlanMemberSwitch":{
@@ -4341,6 +4358,122 @@
                 "order":[
                   "vlanMemberSwitchHostname",
                   "VlanAssignmentBgpTagger"
+                ]
+              },
+              "additionalRouteTargetsApply":{
+                "key":"additionalRouteTargetsApply",
+                "dependency":{
+                  "additionalRouteTargetsApply":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "externalBgpPeersApply":{
+                "key":"externalBgpPeersApply",
+                "dependency":{
+                  "externalBgpPeersApply":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "staticRoutesApply":{
+                "key":"staticRoutesApply",
+                "dependency":{
+                  "staticRoutesApply":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "vrfAssignApply":{
+                "key":"vrfAssignApply",
+                "type":"INPUT",
+                "dependency":{
+                  "vrfAssignApply":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "additionalRouteTargetsBgpTagger":{
+                "type":"TAGGER",
+                "parentKey":"additionalRouteTargetsDevicesGroup",
+                "key":"additionalRouteTargetsBgpTagger",
+                "name":"BGP Tags",
+                "assignmentType":"SINGLE",
+                "prepopulate":true,
+                "tagFilterQuery":"network_services:L3 ",
+                "tagType":"DEVICE",
+                "description":"",
+                "columns":[
+                  {
+                    "tagLabel":"router_bgp.as",
+                    "suggestedValues":[
+                      
+                    ]
+                  },
+                  {
+                    "tagLabel":"router_bgp.router_id",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ]
+              },
+              "externalBgpPeersBgpTagger":{
+                "type":"TAGGER",
+                "parentKey":"externalBgpPeersDevicesGroup",
+                "key":"externalBgpPeersBgpTagger",
+                "name":"BGP Tags",
+                "assignmentType":"SINGLE",
+                "prepopulate":true,
+                "tagFilterQuery":"network_services:L3 ",
+                "tagType":"DEVICE",
+                "description":"",
+                "columns":[
+                  {
+                    "tagLabel":"router_bgp.as",
+                    "suggestedValues":[
+                      
+                    ]
+                  },
+                  {
+                    "tagLabel":"router_bgp.router_id",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ]
+              },
+              "staticRoutesNetworkServicesTagger":{
+                "type":"TAGGER",
+                "parentKey":"staticRoutesDevicesGroup",
+                "key":"staticRoutesNetworkServicesTagger",
+                "name":"Network Services",
+                "assignmentType":"MULTIPLE",
+                "prepopulate":true,
+                "tagType":"DEVICE",
+                "description":"",
+                "columns":[
+                  {
+                    "tagLabel":"network_services",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
                 ]
               }
             }
