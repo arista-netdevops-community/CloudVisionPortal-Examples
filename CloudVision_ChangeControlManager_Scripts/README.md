@@ -67,6 +67,10 @@ This script downloads an EOS image on the selected switch flash.  This is useful
 
 Users must edit the YAML file to define the correct repository, vrf and EOS file name
 
+**push_token**
+
+This script is an example on how to push an onboarding token to EOS devices (can be modified to create any file on EOS too).
+
 **Migrate to CVaaS**
 
 This script will migrage the selected node to a CVaaS instance.
