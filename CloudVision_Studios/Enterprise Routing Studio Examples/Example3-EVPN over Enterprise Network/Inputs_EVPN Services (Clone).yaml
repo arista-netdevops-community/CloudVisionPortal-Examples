@@ -1,0 +1,47 @@
+path: []
+inputs:
+  tenants:
+    - macVrfVniBase: 10000
+      name: CoreNet-L3EVPN1-eos1-eos2-eos5
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: v113
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos1
+              tags:
+                query: device:eos1
+          vlanId: 113
+          vrf: CoreNet-L3EVPN
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: v114
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos5
+              tags:
+                query: device:eos5
+          vlanId: 114
+          vrf: CoreNet-L3EVPN
+      vrfs:
+        - iBgpDetails: {}
+          name: CoreNet-L3EVPN
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5011
