@@ -1,0 +1,240 @@
+---
+inputs:
+  pods:
+    -
+      inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 7
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters:
+            -
+              inputs:
+                coreLinkDetails:
+                  coreexternalInterfaces: []
+                  coreneighbor:
+                    -
+                      inputs:
+                        coreneighborDetails:
+                          coreipAddress: "12.12.12.1"
+                          corespeed: ""
+                          coresubnetMask: 31
+                          description: ""
+                      tags:
+                        query: "interface:Ethernet5@eos2"
+                    -
+                      inputs:
+                        coreneighborDetails:
+                          coreipAddress: "25.25.25.0"
+                          corespeed: ""
+                          coresubnetMask: 31
+                          description: ""
+                      tags:
+                        query: "interface:Ethernet3@eos2"
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  rRs: []
+              tags:
+                query: "device:eos2"
+          erDomains:
+            -
+              inputs:
+                erDomain:
+                  erDetails:
+                    -
+                      inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            -
+                              inputs:
+                                erneighborDetails:
+                                  description: ""
+                                  eripAddress: "12.12.12.0"
+                                  erspeed: ""
+                                  ersubnetMask: 31
+                              tags:
+                                query: "interface:Ethernet1@eos1"
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ""
+                                  extmtu:
+                                  extspeed: ""
+                                  extvlans:
+                                    -
+                                      extipAddress: "13.13.13.1"
+                                      extospf: false
+                                      extsubnetMask: 24
+                                      extvlan: 13
+                                      extvlandescription: ""
+                                      extvrf: ""
+                              tags:
+                                query: "interface:Ethernet4@eos1"
+                          loopback1Address: ""
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: "device:eos1"
+              tags:
+                query: "Edge-Router-Domain:1"
+            -
+              inputs:
+                erDomain:
+                  erDetails:
+                    -
+                      inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            -
+                              inputs:
+                                erneighborDetails:
+                                  description: ""
+                                  eripAddress: "25.25.25.1"
+                                  erspeed: ""
+                                  ersubnetMask: 31
+                              tags:
+                                query: "interface:Ethernet3@eos5"
+                          externalInterfaces:
+                            -
+                              inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ""
+                                  extmtu:
+                                  extspeed: ""
+                                  extvlans:
+                                    -
+                                      extipAddress: "14.14.14.1"
+                                      extospf: false
+                                      extsubnetMask: 24
+                                      extvlan: 14
+                                      extvlandescription: ""
+                                      extvrf: ""
+                              tags:
+                                query: "interface:Ethernet1@eos5"
+                          loopback1Address: ""
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: "device:eos5"
+              tags:
+                query: "Edge-Router-Domain:5"
+          igp: OSPF
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: "Network:Ex1-CoreNet-eos1-eos2-eos5"
+    -
+      inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            -
+              inputs:
+                erDomain:
+                  erDetails:
+                    -
+                      inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            -
+                              inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ""
+                                  extmtu:
+                                  extspeed: ""
+                                  extvlans:
+                                    -
+                                      extipAddress: "13.13.13.2"
+                                      extospf: false
+                                      extsubnetMask: 24
+                                      extvlan: 13
+                                      extvlandescription: ""
+                                      extvrf: ""
+                              tags:
+                                query: "interface:Ethernet1@eos18"
+                          loopback1Address: ""
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes:
+                            -
+                              name: ""
+                              nextHop: "13.13.13.1"
+                              prefix: 0.0.0.0/0
+                      tags:
+                        query: "device:eos18"
+              tags:
+                query: "Edge-Router-Domain:18"
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: "Network:DC-End-device-eos18"
+    -
+      inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            -
+              inputs:
+                erDomain:
+                  erDetails:
+                    -
+                      inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            -
+                              inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ""
+                                  extmtu:
+                                  extspeed: ""
+                                  extvlans:
+                                    -
+                                      extipAddress: "14.14.14.2"
+                                      extospf: false
+                                      extsubnetMask: 24
+                                      extvlan: 14
+                                      extvlandescription: ""
+                                      extvrf: ""
+                              tags:
+                                query: "interface:Ethernet1@eos20"
+                          loopback1Address: ""
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes:
+                            -
+                              name: ""
+                              nextHop: "14.14.14.1"
+                              prefix: 0.0.0.0/0
+                      tags:
+                        query: "device:eos20"
+              tags:
+                query: "Edge-Router-Domain:20"
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: "Network:DC-End-device-eos20"
+path: []
