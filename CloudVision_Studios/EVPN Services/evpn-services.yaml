@@ -1202,20 +1202,12 @@
           vrf_attribute_formats = vrfAttributeFormats
 
           vrfs = {}
-          vrfs_seen = {}
           vlans = {}
-          vlans_seen = {}
           vlan_aware_bundles = {}
 
           # Get VLANs and VRFs from input
           for tenant in tenants:
               for vrf in tenant['vrfs']:
-                  # Check to see if vrf already exists in a previously traversed tenant
-                  assert vrfs_seen.get(vrf['name']) is None, f"{vrf['name']} found in multiple Tenants -> " \
-                                                            f"{vrfs_seen[vrf['name']]} and {tenant['name']}. " \
-                                                            f"Please remove the VRF {vrf['name']} definition " \
-                                                            f"from one of the previously listed tenants."
-                  vrfs_seen[vrf['name']] = tenant['name']
                   vrfs[vrf['name']] = {
                       "tenant": tenant['name'],  # Set for error asserting purposes
                       "nat_source_details": vrf['natSourceDetails'],
@@ -1238,12 +1230,6 @@
                       vrfs[vrf['name']]['route_target'] = vrf['overrideVariables']['routeTarget']
 
               for vlan in tenant['vlans']:
-                  # Check to see if vlan already exists in a previously traversed tenant
-                  assert vlans_seen.get(vlan['vlanId']) is None, f"{vlan['vlanId']} found in multiple Tenants -> " \
-                                                                f"{vlans_seen[vlan['vlanId']]} and {tenant['name']}. " \
-                                                                f"Please remove the VLAN {vlan['vlanId']} definition " \
-                                                                f"from one of the previously listed tenants."
-                  vlans_seen[vlan['vlanId']] = tenant['name']
                   # Format vrf as member of svi_address_details for backwards compatibility
                   # Fix once we can handle field change in upgrade script
                   svi_ip_info = vlan['sviIpAddresses']
