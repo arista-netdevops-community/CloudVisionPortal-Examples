@@ -1,0 +1,3517 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: studio-connected-endpoints
+        workspace_id: &workspace_id ws-connected-endpoints
+      display_name: Connected Endpoints
+      description: 'The connected endpoints variables, define endpoints that connect to the fabric on leaf interface(s). The connected endpoints are leveraged to define any device that connects to a leaf switch ports, i.e.: servers, firewalls, routers, load balancers, and storage arrays.'
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |
+          <%
+          import json
+          import re
+          def convert(text):
+              return int(text) if text.isdigit() else text.lower()
+
+          def alphanum_key(key):
+              return [convert(c) for c in re.split('([0-9]+)', str(key))]
+
+          def natural_sort(iterable):
+              if iterable is None:
+                  return list()
+              return sorted(iterable, key=alphanum_key)
+
+          # ESI generators
+          def generate_esi(esi_short, esi_prefix='0000:0000:'):
+              return esi_prefix + esi_short
+
+          def generate_lacp_id(esi_short):
+              return esi_short.replace(':', '.')
+
+          def generate_route_target(esi_short):
+              """
+              generate_route_target Transform 3 octets ESI like 0303:0202:0101 to route-target
+              Parameters
+              ----------
+              esi : str
+                  Short ESI value as per AVD definition in eos_designs
+              Returns
+              -------
+              str
+                  String based on route-target format like 03:03:02:02:01:01
+              """
+              delimiter = ':'
+              esi = esi_short.replace(delimiter, "")
+              esi_split = re.findall('..', esi)
+              rt = ""
+              loop_cpt = 0
+              for esi_section in esi_split:
+                  loop_cpt += 1
+                  rt = rt + str(esi_section)
+                  if loop_cpt < len(esi_split):
+                      rt = rt + str(delimiter)
+              return rt
+
+          # Default function for prioritizing iface level attribute over profile level
+          def get_attribute_value(attribute_name, adapter_value, profile_name):
+              '''
+              Summary:
+                  Returns the value for a given ethernet/port-channel attribute given the value from the adapter and profile
+              Args:
+                  attribute_name - str - name of the attribute to get value for
+                  adapter_value - type dependent - value for the attribute at the adapter level
+                  profile_name - str - name of the profile to get default attributes for
+              Returns
+                  value for the given attribute
+              '''
+              # Normalize adapter value
+              if type(adapter_value) == str:
+                  if adapter_value.strip() == '':
+                      adapter_value = None
+
+              if type(adapter_value) == dict:
+                  if adapter_value == {}:
+                      adapter_value = None
+
+              # If the attribute value is set at the ethernet/port-channel interface level, use that value
+              if adapter_value is not None:
+                  return adapter_value
+              
+              # Get the profile
+              if profile_name is not None and profile_name.strip() != '':
+                  profile = port_profiles.get(profile_name)
+                  assert profile is not None, "Could not find port profile {}".format(profile_name)
+                  return profile.get(attribute_name)
+
+
+          # Get Profiles and turn into dictionary
+          port_profiles = {}
+          if portProfiles:
+              for port_profile in portProfiles:
+                  # Get port profile attributes
+                  # Get profile's speed
+                  port_profile_speed = port_profile["portProfileSpeed"] \
+                      if port_profile["portProfileSpeed"] is not None and \
+                      port_profile["portProfileSpeed"].strip() != '' else None
+                  # Get profile's MTU
+                  port_profile_mtu = port_profile["portProfileMtu"]
+                  # Get profile's mode
+                  port_profile_mode = port_profile['vlanSettings']["portProfileMode"]
+                  # Get profile's allowed/access vlans
+                  port_profile_vlans = port_profile['vlanSettings']["portProfileVlans"] \
+                      if port_profile['vlanSettings']["portProfileVlans"] is not None and \
+                      port_profile['vlanSettings']["portProfileVlans"].strip() != '' else None
+                  # Get profile's native vlan
+                  port_profile_native_vlan = port_profile['vlanSettings']["portProfileNativeVlan"]
+
+                  # Get profile's spanning tree
+                  spanningTreeDetails = port_profile["portProfileSpanningTreeDetails"]
+                  
+                  port_profile_spanning_tree_portfast = spanningTreeDetails["portProfilePortfast"]
+                  port_profile_spanning_tree_bpdufilter = spanningTreeDetails["portProfileBpduFilter"]
+                  port_profile_spanning_tree_bpduguard  = spanningTreeDetails["portProfileBpduGuard"]
+                  # Get profile's storm control
+                  port_profile_storm_control = {}
+
+                  stormALL = port_profile["portProfileStormControlDetails"]["portProfileStormControlAll"]
+                  if stormALL["portProfileStormControlAllLevel"] is not None and \
+                      stormALL["portProfileStormControlAllLevel"].strip() != '':
+                      port_profile_storm_control["All"] = {"level": stormALL["portProfileStormControlAllLevel"]}
+                      port_profile_storm_control["All"]["unit"] = stormALL["portProfileStormControlAllUnit"] \
+                          if stormALL["portProfileStormControlAllUnit"] is not None and \
+                              stormALL["portProfileStormControlAllUnit"].strip() != '' else "percent"
+                  
+                  stormBCast = port_profile["portProfileStormControlDetails"]["portProfileStormControlBroadcast"]
+                  if stormBCast["portProfileStormControlBroadcastLevel"] is not None and \
+                      stormBCast["portProfileStormControlBroadcastLevel"].strip() != '':
+                      port_profile_storm_control["Broadcast"] = {"level": stormBCast["portProfileStormControlBroadcastLevel"]}
+                      port_profile_storm_control["Broadcast"]["unit"] = stormBCast["portProfileStormControlBroadcastUnit"] \
+                          if stormBCast["portProfileStormControlBroadcastUnit"] is not None and \
+                              stormBCast["portProfileStormControlBroadcastUnit"].strip() != '' else "percent"
+
+                  stormMCast = port_profile["portProfileStormControlDetails"]["portProfileStormControlMulticast"]
+                  if stormMCast["portProfileStormControlMulticastLevel"] is not None and \
+                      stormMCast["portProfileStormControlMulticastLevel"].strip() != '':
+                      port_profile_storm_control["Multicast"] = {"level": stormMCast["portProfileStormControlMulticastLevel"]}
+                      port_profile_storm_control["Multicast"]["unit"] = stormMCast["portProfileStormControlMulticastUnit"] \
+                          if stormMCast["portProfileStormControlMulticastUnit"] is not None and \
+                              stormMCast["portProfileStormControlMulticastUnit"].strip() != '' else "percent"
+
+                  stormUUCast = port_profile["portProfileStormControlDetails"]["portProfileStormControlUnknownUnicast"]
+                  if stormUUCast["portProfileStormControlUnknownUnicastLevel"] is not None and \
+                      stormUUCast["portProfileStormControlUnknownUnicastLevel"].strip() != '':
+                      port_profile_storm_control["UnknownUnicast"] = {"level": stormUUCast["portProfileStormControlUnknownUnicastLevel"]}
+                      port_profile_storm_control["UnknownUnicast"]["unit"] = stormUUCast["portProfileStormControlUnknownUnicastUnit"] \
+                          if stormUUCast["portProfileStormControlUnknownUnicastUnit"] is not None and \
+                              stormUUCast["portProfileStormControlUnknownUnicastUnit"].strip() != '' else "percent"
+                  
+                  # Get profile's Port-Channel
+                  port_profile_port_channel = {}
+                  channel_group_id = None
+                  port_profile_lacp_fallback_mode = None
+                  port_profile_lacp_fallback_timeout = None
+                  portChannelProfile = port_profile["portProfilePortChannel"]
+                  if portChannelProfile["portProfileEnablePortChannel"] == True:
+                      channel_group_id = portChannelProfile["portProfilePortChannelId"]
+                      port_profile_port_channel = {}
+                      if portChannelProfile["portProfilePortChannelMode"] is not None:
+                          port_profile_port_channel["mode"] = portChannelProfile["portProfilePortChannelMode"]
+                      
+                      if portChannelProfile["portProfilePortChannelDescription"] is not None and \
+                              portChannelProfile["portProfilePortChannelDescription"].strip() != '':
+                          port_profile_port_channel["description"] = portChannelProfile["portProfilePortChannelDescription"]
+                      
+                      if portChannelProfile["portProfilePortChannelShortEsi"] is not None and \
+                              portChannelProfile["portProfilePortChannelShortEsi"].strip() != '':
+                          port_profile_port_channel["short_esi"] = portChannelProfile["portProfilePortChannelShortEsi"]
+
+                      if portChannelProfile["portProfilePortChannelLacpFallback"] is not None:
+                          port_profile_lacp_fallback_mode = portChannelProfile["portProfilePortChannelLacpFallback"]["portProfilePortChannelLacpFallbackMode"]
+                          if portChannelProfile["portProfilePortChannelLacpFallback"]["portProfilePortChannelLacpFallbackTimeout"] is not None:
+                              port_profile_lacp_fallback_timeout = portChannelProfile["portProfilePortChannelLacpFallback"]["portProfilePortChannelLacpFallbackTimeout"]
+                          else:
+                              port_profile_lacp_fallback_timeout = 90
+
+                  # Get profile's Flow Control
+                  port_profile_flow_control = {}
+                  if port_profile["portProfileFlowControl"]["portProfileFlowControlReceived"] is not None and port_profile["portProfileFlowControl"]["portProfileFlowControlReceived"].strip() != '':
+                      port_profile_flow_control["received"] = port_profile["portProfileFlowControl"]["portProfileFlowControlReceived"]
+                  else:
+                      port_profile_flow_control["received"] = None
+                  # Get profile's QoS
+                  port_profile_qos_profile = port_profile["portProfileQosProfile"] if port_profile["portProfileQosProfile"] is not None and port_profile["portProfileQosProfile"].strip() != '' else None
+                  # Get profile's PTP
+                  port_profile_ptp_group = port_profile["ptpGroup"]
+                  port_profile_ptp = { 
+                      "enablePTP": port_profile_ptp_group["enablePTP"], 
+                          "enablePTP": port_profile_ptp_group["enablePTP"], 
+                      "enablePTP": port_profile_ptp_group["enablePTP"], 
+                      "master": port_profile_ptp_group["forceMaster"], 
+                          "master": port_profile_ptp_group["forceMaster"], 
+                      "master": port_profile_ptp_group["forceMaster"], 
+                      "announceInterval": port_profile_ptp_group["announceInterval"], 
+                          "announceInterval": port_profile_ptp_group["announceInterval"], 
+                      "announceInterval": port_profile_ptp_group["announceInterval"], 
+                      "announceTimeout": port_profile_ptp_group["announceTimeout"], 
+                          "announceTimeout": port_profile_ptp_group["announceTimeout"], 
+                      "announceTimeout": port_profile_ptp_group["announceTimeout"], 
+                      "delayRequestInterval": port_profile_ptp_group["delayRequestInterval"], 
+                          "delayRequestInterval": port_profile_ptp_group["delayRequestInterval"], 
+                      "delayRequestInterval": port_profile_ptp_group["delayRequestInterval"], 
+                      "syncMessageInterval": port_profile_ptp_group["syncMessageInterval"]}
+
+                  # Set port profile attributes
+                  profile = {}
+                  profile["CLI"] = []
+                  for line in port_profile["profileCliList"]:
+                      profile["CLI"].append(line["profileCli"])
+                  profile["speed"] = port_profile_speed
+                  profile["mtu"] = port_profile_mtu
+                  profile["type"] = "switched"
+                  profile["mode"] = port_profile_mode
+                  profile["dot1xEnable"] = port_profile["dot1XSettings"]["8021XEnabled"]
+                  profile["macBasedAuthentication"] = port_profile["dot1XSettings"]["macBasedAuthentication"]
+                  profile["hostMode"] = port_profile["dot1XSettings"]["hostMode"]
+                  profile["multiHostIndividualAuthentication"] = port_profile["dot1XSettings"]["multiHostIndividualAuthentication"]
+                  profile["authenticationFailureAction"] = port_profile["dot1XSettings"]["authenticationFailureAction"]
+                  profile["authenticationFailureVlan"] = port_profile["dot1XSettings"]["authenticationFailureVlan"]
+                  profile["reauthentication"] = port_profile["dot1XSettings"]["reauthentication"]
+                  profile["reauthenticationRequestLimit"] = port_profile["dot1XSettings"]["reauthenticationTimer"]
+                  profile["reauthenticationTimer"] = port_profile["dot1XSettings"]["reauthenticationRequestLimit"]
+                  profile["quietPeriodTimeout"] = port_profile["dot1XSettings"]["timeoutQuietPeriod"]
+                  profile["vlans"] = port_profile_vlans
+                  profile["native_vlan"] = port_profile_native_vlan
+                  profile["phone_enabled"] = port_profile["vlanSettings"]["portPhoneEnabled"]
+                  profile["phone_vlan"] = port_profile["vlanSettings"]["portPhoneVlan"]
+                  profile["phone_tagging"] = port_profile["vlanSettings"]["portPhoneTagging"]
+                  profile["spanning_tree_portfast"] = port_profile_spanning_tree_portfast
+                  profile["spanning_tree_bpdufilter"] = port_profile_spanning_tree_bpdufilter
+                  profile["spanning_tree_bpduguard"] = port_profile_spanning_tree_bpduguard
+                  profile["storm_control"] = port_profile_storm_control
+                  profile["channel_group_id"] = channel_group_id
+                  profile["channel_group"] = {}
+                  profile["port_channel_mode"] = port_profile_port_channel.get("mode")
+                  profile["port_channel_description"] = port_profile_port_channel.get("description")
+                  profile["port_channel_short_esi"] = port_profile_port_channel.get("short_esi")
+                  profile["port_channel_lacp_fallback_mode"] = port_profile_lacp_fallback_mode
+                  profile["port_channel_lacp_fallback_timeout"] = port_profile_lacp_fallback_timeout
+                  profile["flowcontrol"] = {}
+                  profile["flowcontrol"]["received"] = port_profile_flow_control.get("received")
+                  profile["service_profile"] = port_profile_qos_profile
+                  profile["enablePTP"] = port_profile_ptp["enablePTP"]
+                  profile["ptpMaster"] = port_profile_ptp["master"]
+                  profile["ptpAnnounceInterval"] = port_profile_ptp["announceInterval"]
+                  profile["ptpAnnounceTimeout"] = port_profile_ptp["announceTimeout"]
+                  profile["ptpDelayRequestInterval"] = port_profile_ptp["delayRequestInterval"]
+                  profile["ptpSyncMessageInterval"] = port_profile_ptp["syncMessageInterval"]
+                  port_profiles[port_profile["portProfileName"]] = profile
+          
+          # Create my_switch interface structured config dictionaries
+          my_switch_connected_interfaces = []  # For debugging
+          my_switch_ethernet_interfaces = {}  # For config generation
+          my_switch_port_channel_interfaces = {}  # For config generation
+          count = 0
+          # Get and Set my_switch config interfaces 
+          my_device = ctx.getDevice()
+          workspace_id = ctx.studio.workspaceId
+          my_switch_connected_interfaces.append(my_device.id)
+          if adapters:
+              for adapter in adapters:
+                  for ei_count, ei in enumerate(adapter["endpointInterfaces"]):
+                      for iface in my_device.getInterfaces():
+                          connected_switch_interface = ei["interfaces"].resolve(iface.name, strict=True)
+                          
+                          my_switch_connected_interfaces.append((iface.name, connected_switch_interface))
+                          count += 1
+
+                          if connected_switch_interface is not None:
+                              my_switch_connected_interfaces.append((iface.name, connected_switch_interface))
+                              ##Start working... 
+                              # Get ethernet interface attribute values
+                              adapter_profile = adapter["adapterPortProfile"]
+                              # Get interface speed
+                              adapter_speed = get_attribute_value("speed", adapter["adapterSpeed"], adapter_profile)
+                              # Get intereface MTU
+                              adapter_mtu = get_attribute_value("mtu", adapter["adapterMtu"], adapter_profile)
+                              # print(adapter_mtu)
+                              # Get interface administrative state
+                              # iface_status = connected_switch_interface["shutdown"]
+                              # Get interface mode
+                              adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
+                              # Get allowed/access vlans on interface 
+                              adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
+                              # Get native vlan
+                              adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
+                              # Get spanning tree details
+                              adapter_spanning_tree_portfast = get_attribute_value("spanning_tree_portfast", adapter["adapterSpanningTreeDetails"]["adapterPortfast"], adapter_profile)
+                              adapter_spanning_tree_bpdufilter = get_attribute_value("spanning_tree_bpdufilter", adapter["adapterSpanningTreeDetails"]["adapterBpduFilter"], adapter_profile)
+                              adapter_spanning_tree_bpduguard  = get_attribute_value("spanning_tree_bpduguard", adapter["adapterSpanningTreeDetails"]["adapterBpduGuard"], adapter_profile)
+                              # Get storm control details
+                              adapter_storm_control = {}
+
+                              adapterAll = adapter["adapterStormControlDetails"]["adapterStormControlAll"]
+                              if ["adapterStormControlAllLevel"] is not None and \
+                                  adapterAll["adapterStormControlAllLevel"].strip() != '':
+                                  adapter_storm_control["All"] = {"level": adapterAll["adapterStormControlAllLevel"]}
+                                  adapter_storm_control["All"]["unit"] = adapterAll["adapterStormControlAllUnit"] \
+                                      if adapterAll["adapterStormControlAllUnit"] is not None and \
+                                          adapterAll["adapterStormControlAllUnit"].strip() != '' else "percent"
+                              
+                              adapterBCast = adapter["adapterStormControlDetails"]["adapterStormControlBroadcast"]
+                              if adapterBCast["adapterStormControlBroadcastLevel"] is not None and \
+                                  adapterBCast["adapterStormControlBroadcastLevel"].strip() != '':
+                                  adapter_storm_control["Broadcast"] = {"level": adapterBCast["adapterStormControlBroadcastLevel"]}
+                                  adapter_storm_control["Broadcast"]["unit"] = adapterBCast["adapterStormControlBroadcastUnit"] \
+                                      if adapterBCast["adapterStormControlBroadcastUnit"] is not None and \
+                                          adapterBCast["adapterStormControlBroadcastUnit"].strip() != '' else "percent"
+                              
+                              
+                              adapterMCast = adapter["adapterStormControlDetails"]["adapterStormControlMulticast"]
+                              if adapterMCast["adapterStormControlMulticastLevel"] is not None and \
+                                  adapterMCast["adapterStormControlMulticastLevel"].strip() != '':
+                                  adapter_storm_control["Multicast"] = {"level": adapterMCast["adapterStormControlMulticastLevel"]}
+                                  adapter_storm_control["Multicast"]["unit"] = adapterMCast["adapterStormControlMulticastUnit"] \
+                                      if adapterMCast["adapterStormControlMulticastUnit"] is not None and \
+                                          adapterMCast["adapterStormControlMulticastUnit"].strip() != '' else "percent"
+                              
+                              
+                              adapterUUCast = adapter["adapterStormControlDetails"]["adapterStormControlUnknownUnicast"]
+                              if adapterUUCast["adapterStormControlUnknownUnicastLevel"] is not None and \
+                                  adapterUUCast["adapterStormControlUnknownUnicastLevel"].strip() != '':
+                                  adapter_storm_control["UnknownUnicast"] = {"level": adapterUUCast["adapterStormControlUnknownUnicastLevel"]}
+                                  adapter_storm_control["UnknownUnicast"]["unit"] = adapterUUCast["adapterStormControlUnknownUnicastUnit"] \
+                                      if adapterUUCast["adapterStormControlUnknownUnicastUnit"] is not None and \
+                                          adapterUUCast["adapterStormControlUnknownUnicastUnit"].strip() != '' else "percent"
+                              adapter_storm_control = get_attribute_value("storm_control", adapter_storm_control, adapter_profile)
+                              # Get port-channel details
+                              if adapter["adapterPortChannel"]["adapterEnablePortChannel"] == True:
+                                  adapter_channel_group_id = get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile)
+                                  adapter_port_channel_mode = get_attribute_value("port_channel_mode", adapter["adapterPortChannel"]["adapterPortChannelMode"], adapter_profile)
+                                  if adapter["adapterPortChannel"].get("adapterPortChannelLacpFallback") is not None:
+                                      adapter_lacp_fallback_mode = get_attribute_value("port_channel_lacp_fallback_mode", \
+                                                                                      adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackMode"), \
+                                                                                      adapter_profile)  
+                                  else:
+                                      adapter_lacp_fallback_mode = None
+                              else:
+                                  adapter_channel_group_id = None
+                                  adapter_lacp_fallback_mode = None
+                              # Get flow control details
+                              adapter_flow_control = {}
+                              if adapter["adapterFlowControl"]["adapterFlowControlReceived"] is not None and adapter["adapterFlowControl"]["adapterFlowControlReceived"].strip() != '':
+                                  adapter_flow_control["received"] = adapter["adapterFlowControl"]["adapterFlowControlReceived"]
+                              adapter_flow_control = get_attribute_value("flow_control", adapter_flow_control, adapter_profile)
+                              # Get QOS profile
+                              adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
+                              # Get PTP status
+                              adapter_ptp = {
+                                  "enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile), 
+                                  "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile), 
+                                  "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile), 
+                                  "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile), 
+                                  "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile), 
+                                  "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+
+                              connected_ethernet_interface_config = {}
+
+
+
+                              # Set interface attributes
+                              connected_ethernet_interface_config["CLI"] = []
+                              for line in adapter["cli"]:
+                                  connected_ethernet_interface_config["CLI"].append(line["portCli"])
+                              if connected_ethernet_interface_config["CLI"] == []:
+                                  connected_ethernet_interface_config["CLI"] = None
+                              
+                              connected_ethernet_interface_config["CLI"] = get_attribute_value("CLI", connected_ethernet_interface_config["CLI"], adapter_profile)
+                              connected_ethernet_interface_config["dot1xEnable"] = get_attribute_value("dot1xEnable", adapter["8021X"]["dot1xEnable"], adapter_profile)
+                              connected_ethernet_interface_config["macBasedAuthentication"] = get_attribute_value("macBasedAuthentication", adapter["8021X"]["macBasedAuthentication"], adapter_profile)
+                              connected_ethernet_interface_config["hostMode"] = get_attribute_value("hostMode", adapter["8021X"]["hostMode"], adapter_profile)
+                              connected_ethernet_interface_config["multiHostIndividualAuthentication"] = get_attribute_value("multiHostIndividualAuthentication", adapter["8021X"]["multiHostIndividualAuthentication"], adapter_profile)
+                              connected_ethernet_interface_config["authenticationFailureAction"] = get_attribute_value("authenticationFailureAction", adapter["8021X"]["authenticationFailureAction"], adapter_profile)
+                              connected_ethernet_interface_config["authenticationFailureVlan"] = get_attribute_value("authenticationFailureVlan", adapter["8021X"]["authenticationFailureVlan"], adapter_profile)
+                              connected_ethernet_interface_config["reauthentication"] = get_attribute_value("reauthentication", adapter["8021X"]["reauthentication"], adapter_profile)
+                              connected_ethernet_interface_config["reauthenticationRequestLimit"] = get_attribute_value("reauthenticationRequestLimit", adapter["8021X"]["reauthenticationRequestLimit"], adapter_profile)
+                              connected_ethernet_interface_config["reauthenticationTimer"] = get_attribute_value("reauthenticationTimer", adapter["8021X"]["reauthenticationTimer"], adapter_profile)
+                              connected_ethernet_interface_config["quietPeriodTimeout"] = get_attribute_value("quietPeriodTimeout", adapter["8021X"]["quietPeriodTimeout"], adapter_profile)
+                              connected_ethernet_interface_config["phone_enabled"] = get_attribute_value("phone_enabled", adapter["adapterVLANS"]["phoneEnabled"], adapter_profile)
+                              connected_ethernet_interface_config["phone_vlan"] = get_attribute_value("phone_vlan", adapter["adapterVLANS"]["phoneVLAN"], adapter_profile)
+                              connected_ethernet_interface_config["phone_tagging"] = get_attribute_value("phone_tagging", adapter["adapterVLANS"]["phoneTagging"], adapter_profile)
+                              
+                              ##connected_ethernet_interface_config["peer"] = ep["endpointName"]
+                              ##connected_ethernet_interface_config["peer_interface"] = ei["endpointInterfaceName"]
+                              connected_ethernet_interface_config["description"] = "{}_{}".format(adapter["adapterName"], ei["endpointInterfaceName"])
+                              connected_ethernet_interface_config["speed"] = adapter_speed
+                              connected_ethernet_interface_config["mtu"] = adapter_mtu
+                              connected_ethernet_interface_config["type"] = "switched"
+                              # connected_ethernet_interface_config["shutdown"] = iface_status
+                              connected_ethernet_interface_config["mode"] = adapter_mode
+                              connected_ethernet_interface_config["vlans"] = adapter_vlans
+                              connected_ethernet_interface_config["native_vlan"] = adapter_native_vlan
+                              connected_ethernet_interface_config["spanning_tree_portfast"] = adapter_spanning_tree_portfast
+                              connected_ethernet_interface_config["spanning_tree_bpdufilter"] = adapter_spanning_tree_bpdufilter
+                              connected_ethernet_interface_config["spanning_tree_bpduguard"] = adapter_spanning_tree_bpduguard
+
+
+                              assert (connected_ethernet_interface_config["authenticationFailureAction"] is None) or (connected_ethernet_interface_config["authenticationFailureAction"] in ["Disable", "Drop"]) or (connected_ethernet_interface_config["authenticationFailureAction"] == "Allow" and connected_ethernet_interface_config["authenticationFailureVlan"] is not None), "You need a Authentication Failure VLAN assigned!"
+                              if adapter_storm_control is not None:
+                                  connected_ethernet_interface_config["storm_control"] = adapter_storm_control
+                              # Get Port-Channel details
+                              if adapter_channel_group_id is not None:
+                                  connected_ethernet_interface_config["channel_group"] = {}
+                                  connected_ethernet_interface_config["channel_group"]["id"] = adapter_channel_group_id
+                                  connected_ethernet_interface_config["channel_group"]["mode"] = adapter_port_channel_mode
+                              # Set Flow Control
+                              if adapter_flow_control is not None:
+                                  connected_ethernet_interface_config["flowcontrol"] = {}
+                                  connected_ethernet_interface_config["flowcontrol"]["received"] = adapter_flow_control["received"]
+                              # Set QoS
+                              if adapter_qos_profile is not None:
+                                  connected_ethernet_interface_config["service_profile"] = adapter_qos_profile
+                              # Set PTP
+                              connected_ethernet_interface_config["ptp"] = adapter_ptp
+                              # Set LACP priority
+                              if adapter_lacp_fallback_mode is not None:
+                                  if ei_count == 0:
+                                      connected_ethernet_interface_config["lacp_port_priority"] = 8192
+                                  else:
+                                      connected_ethernet_interface_config["lacp_port_priority"] = 32768
+                              
+                              ## my_switch_connected_interfaces.append((iface.name, connected_ethernet_interface_config))
+                              
+
+                              # Add interface config to connected_ethernet_interface_config dictionary
+                              ## Split the interface down to allow for chassis
+                              
+                              ## assert False, connected_switch_interface
+                              if iface.name.find('/') >= 0:
+                                  splitIface = iface.name.split('/')
+
+                                  ## the starting port is the last segment in the split interface
+                                  
+                                  startingPort = int(splitIface[-1])
+                                  range_length = connected_switch_interface["rangeLength"]
+                                  ## iterate through each interface until we hit the end, starting at the start and going to iterface Start + Length - 1
+                                  for rangeInterator in range(startingPort, startingPort + range_length):
+                                      splitIface[-1] = str(rangeInterator)
+                                      my_switch_ethernet_interfaces['/'.join(splitIface)] = connected_ethernet_interface_config
+                              else:
+                                  startingPort = int(iface.name[8:])
+                                  range_length = connected_switch_interface["rangeLength"]
+                                  ## iterate through each interface until we hit the end, starting at the start and going to iterface Start + Length - 1
+                                  for rangeInterator in range(startingPort, startingPort + range_length):
+                                      my_switch_ethernet_interfaces['Ethernet' + str(rangeInterator)] = connected_ethernet_interface_config
+          if adapters:
+              for adapter in adapters:
+                  # Check if adapter is using port-channels
+                  if adapter["adapterPortChannel"]["adapterEnablePortChannel"] != True:
+                      continue
+                  for ei in adapter["endpointInterfaces"]:
+                      ## connected_switch = ei["switches"].resolve(device=my_device.id)
+                      for iface in my_device.getInterfaces():
+                          connected_switch_interface = ei["interfaces"].resolve(iface.name, strict=True)
+                          if connected_switch_interface is not None:
+                              # Get Port-Channel attribute values
+                              # Get adapter profile
+                              adapter_profile = adapter["adapterPortProfile"]
+                              assert get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile) is not None, \
+                                  "No port-channel ID has been given to {}'s adapter {}".format(ep["endpointName"], adapter["adapterName"])
+                              # Get port-channel MTU
+                              adapter_mtu = get_attribute_value("mtu", adapter["adapterMtu"], adapter_profile)
+                              # Get port-channel mode
+                              adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
+                              # Get allowed/access vlans on port-channel 
+                              adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
+                              # Get native vlan
+                              adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
+                              # Get spanning tree details
+                              adapter_spanning_tree_portfast = get_attribute_value("spanning_tree_portfast", adapter["adapterSpanningTreeDetails"]["adapterPortfast"], adapter_profile)
+                              adapter_spanning_tree_bpdufilter = get_attribute_value("spanning_tree_bpdufilter", adapter["adapterSpanningTreeDetails"]["adapterBpduFilter"], adapter_profile)
+                              adapter_spanning_tree_bpduguard  = get_attribute_value("spanning_tree_bpduguard", adapter["adapterSpanningTreeDetails"]["adapterBpduGuard"], adapter_profile)
+                              # Get storm control details
+                              adapter_storm_control = {}
+                              
+                              adapterAll = adapter["adapterStormControlDetails"]["adapterStormControlAll"]
+                              if adapterAll["adapterStormControlAllLevel"] is not None and \
+                                  adapterAll["adapterStormControlAllLevel"].strip() != '':
+                                  adapter_storm_control["All"] = {"level": adapterAll["adapterStormControlAllLevel"]}
+                                  adapter_storm_control["All"]["unit"] = adapterAll["adapterStormControlAllUnit"] \
+                                      if adapterAll["adapterStormControlAllUnit"] is not None and \
+                                          adapterAll["adapterStormControlAllUnit"].strip() != '' else "percent"
+                              
+                              adapterBCast = adapter["adapterStormControlDetails"]["adapterStormControlBroadcast"]
+                              if adapterBCast["adapterStormControlBroadcastLevel"] is not None and \
+                                  adapterBCast["adapterStormControlBroadcastLevel"].strip() != '':
+                                  adapter_storm_control["Broadcast"] = {"level": adapterBCast["adapterStormControlBroadcastLevel"]}
+                                  adapter_storm_control["Broadcast"]["unit"] = adapterBCast["adapterStormControlBroadcastUnit"] \
+                                      if adapterBCast["adapterStormControlBroadcastUnit"] is not None and \
+                                          adapterBCast["adapterStormControlBroadcastUnit"].strip() != '' else "percent"
+                              
+                              adapterMCast = adapter["adapterStormControlDetails"]["adapterStormControlMulticast"]
+                              if adapterMCast["adapterStormControlMulticastLevel"] is not None and \
+                                  adapterMCast["adapterStormControlMulticastLevel"].strip() != '':
+                                  adapter_storm_control["Multicast"] = {"level": adapterMCast["adapterStormControlMulticastLevel"]}
+                                  adapter_storm_control["Multicast"]["unit"] = adapterMCast["adapterStormControlMulticastUnit"] \
+                                      if adapterMCast["adapterStormControlMulticastUnit"] is not None and \
+                                          adapterMCast["adapterStormControlMulticastUnit"].strip() != '' else "percent"
+                              
+                              adapterUUCast = adapter["adapterStormControlDetails"]["adapterStormControlUnknownUnicast"]
+                              if adapterUUCast["adapterStormControlUnknownUnicastLevel"] is not None and \
+                                  adapterUUCast["adapterStormControlUnknownUnicastLevel"].strip() != '':
+                                  adapter_storm_control["UnknownUnicast"] = {"level": adapterUUCast["adapterStormControlUnknownUnicastLevel"]}
+                                  adapter_storm_control["UnknownUnicast"]["unit"] = adapterUUCast["adapterStormControlUnknownUnicastUnit"] \
+                                      if adapterUUCast["adapterStormControlUnknownUnicastUnit"] is not None and \
+                                          adapterUUCast["adapterStormControlUnknownUnicastUnit"].strip() != '' else "percent"
+                              
+                              adapter_storm_control = get_attribute_value("storm_control", adapter_storm_control, adapter_profile)
+                              # Get port-channel details
+                              adapter_channel_group_id = get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile)
+                              adapter_port_channel_mode = get_attribute_value("port_channel_mode", adapter["adapterPortChannel"]["adapterPortChannelMode"], adapter_profile)
+                              adapter_port_channel_description = get_attribute_value("port_channel_description", adapter["adapterPortChannel"]["adapterPortChannelDescription"], adapter_profile)
+                              adapter_port_channel_short_esi = get_attribute_value("port_channel_short_esi", adapter["adapterPortChannel"]["adapterPortChannelShortEsi"], adapter_profile)
+                              if adapter["adapterPortChannel"].get("adapterPortChannelLacpFallback") is not None:
+                                  adapter_lacp_fallback_mode = get_attribute_value("port_channel_lacp_fallback_mode", \
+                                                                                  adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackMode"), \
+                                                                                  adapter_profile)
+                                  adapter_lacp_fallback_timeout = get_attribute_value("port_channel_lacp_fallback_timeout", \
+                                                                                  adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackTimeout"), \
+                                                                                  adapter_profile)
+                              else:
+                                  adapter_lacp_fallback_mode = None
+                                  adapter_lacp_fallback_timeout = None
+                              # Get QOS profile
+                              adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
+                              # Get PTP status
+                              adapter_ptp = {"enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile), 
+                                  "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile), 
+                                  "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile), 
+                                  "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile), 
+                                  "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile), 
+                                  "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+
+                              # Set Port-Channel attributes
+                              connected_port_channel_interface_config = {}
+                              connected_port_channel_interface_config["description"] = "{}_{}".format(adapter["adapterName"], adapter_port_channel_description) \
+                                                                                          if port_channel_description is not None else "{}".format(adapter["adapterName"])
+                              connected_port_channel_interface_config["mtu"] = adapter_mtu
+                              connected_port_channel_interface_config["type"] = "switched"
+                              connected_port_channel_interface_config["mode"] = adapter_mode
+                              connected_port_channel_interface_config["vlans"] = adapter_vlans
+                              connected_port_channel_interface_config["native_vlan"] = adapter_native_vlan
+                              connected_port_channel_interface_config["spanning_tree_portfast"] = adapter_spanning_tree_portfast
+                              connected_port_channel_interface_config["spanning_tree_bpdufilter"] = adapter_spanning_tree_bpdufilter
+                              connected_port_channel_interface_config["spanning_tree_bpduguard"] = adapter_spanning_tree_bpduguard
+                              if adapter_storm_control is not None:
+                                  connected_port_channel_interface_config["storm_control"] = adapter_storm_control
+                              # Set QoS
+                              if adapter_qos_profile is not None:
+                                  connected_port_channel_interface_config["service_profile"] = adapter_qos_profile
+                              # Set PTP
+                              connected_port_channel_interface_config["ptp"] = adapter_ptp
+
+                              # Set LACP Fallback details
+                              connected_port_channel_interface_config["lacp_fallback_mode"] = adapter_lacp_fallback_mode
+                              connected_port_channel_interface_config["lacp_fallback_timeout"] = adapter_lacp_fallback_timeout
+
+                              # Add ESI or MLAG config
+                              # EXPENSIVE???
+                              if len(adapter["endpointInterfaces"]) > 1:
+                                  if adapter_port_channel_short_esi is not None:
+                                      # Configure ESI
+                                      connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
+                                      connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
+                                      if adapter_port_channel_mode == "active":
+                                          connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
+                                  else:
+                                      # Configure MLAG
+                                      connected_port_channel_interface_config["mlag"] = adapter_channel_group_id
+                              # Add interface config to connected_port_channel_interface_config dictionary
+                              my_switch_port_channel_interfaces["Port-Channel{}".format(adapter_channel_group_id)] = \
+                                  connected_port_channel_interface_config
+                              
+                              # Add input details to my_switch_connected_interfaces list 
+                              my_switch_connected_interfaces.append((ep, adapter, ei, connected_switch_interface))
+                          ## break
+
+          config = {
+              "ethernet_interfaces": my_switch_ethernet_interfaces,
+              "port_channel_interfaces": my_switch_port_channel_interfaces
+          }
+
+          %>
+
+          ## ${json.dumps(port_profiles, indent=2)}
+          ## ----------------------------------------
+          ##Interfaces: ${json.dumps(config["ethernet_interfaces"], indent=2)}
+          ## ----------------------------------------
+          ## ${json.dumps(my_switch_port_channel_interfaces, indent=2)}
+
+          ## ${ locals() }
+          ## ${ globals() }
+          ## %for iface in my_switch_connected_interfaces:
+          ## ${iface}
+          ## %endfor
+          ## count: ${ count }
+
+          ## eos- Port-Channel Interfaces
+          % if config.get("port_channel_interfaces") is not None:
+          %   for port_channel_interface in natural_sort(config["port_channel_interfaces"].keys()):
+          interface ${ port_channel_interface }
+            no shutdown
+          <%     currentPortchannel = config["port_channel_interfaces"][port_channel_interface]%>
+          %     if currentPortchannel.get("description") is not None:
+            description ${ currentPortchannel["description"] }
+          %     endif
+          %     if currentPortchannel.get("mtu") is not None:
+            mtu ${ currentPortchannel["mtu"] }
+          %     endif
+          %     if currentPortchannel.get("type") is not None and currentPortchannel.get("type") == "routed":
+            no switchport
+          %     else:
+            switchport
+          %     endif
+          %     if currentPortchannel.get("mode") is not None and currentPortchannel.get("mode") == "access":
+            switchport access vlan ${ currentPortchannel["vlans"] }
+          %     endif
+          %     if currentPortchannel.get("mode") is not None and currentPortchannel.get("mode") == "trunk":
+            switchport mode trunk
+          %     endif
+          ## Trunk Groups
+          %     if currentPortchannel.get("trunk_groups") is not None:
+          %       for trunk_group in currentPortchannel["trunk_groups"]:
+            switchport trunk group ${ trunk_group }
+          %       endfor
+          %     endif
+          ## MLAG
+          %     if currentPortchannel.get("mlag") is not None:
+            mlag ${ currentPortchannel["mlag"] }
+          %     endif
+          %     if currentPortchannel.get("esi") is not None:
+            evpn ethernet-segment
+                identifier ${ currentPortchannel["esi"] }
+          %         if currentPortchannel.get("rt") is not None:
+                route-target import ${ currentPortchannel["rt"] }
+          %         endif
+          %     endif
+          %     if currentPortchannel.get("lacp_id") is not None:
+            lacp system-id ${ currentPortchannel["lacp_id"] }
+          %     endif
+          %     if currentPortchannel.get("lacp_fallback_timeout") is not None:
+            port-channel lacp fallback timeout ${ currentPortchannel["lacp_fallback_timeout"] }
+          %     endif
+          %     if currentPortchannel.get("lacp_fallback_mode") is not None:
+            port-channel lacp fallback ${ currentPortchannel["lacp_fallback_mode"] }
+          %     endif
+          %     if currentPortchannel.get("spanning_tree_portfast") is not None:
+          %       if currentPortchannel["spanning_tree_portfast"] == "edge":
+            spanning-tree portfast
+          %       elif currentPortchannel["spanning_tree_portfast"] == "network":
+            spanning-tree portfast network
+          %       endif
+          %     endif
+          %     if currentPortchannel["spanning_tree_bpdufilter"] == True:
+            spanning-tree bpdufilter enable
+          %     endif
+          %     if currentPortchannel["spanning_tree_bpduguard"] == True:
+            spanning-tree bpduguard enable
+          %     endif
+          %     if currentPortchannel.get("ptp") is not None:
+          ## ${ currentPortchannel["ptp"] }
+          %       if currentPortchannel["ptp"]["enablePTP"] == True:
+            ptp enable
+          %         if currentPortchannel["ptp"].get("ptpMaster") == True:
+            ptp role master
+          %         endif
+          %         if currentPortchannel["ptp"].get("ptpAnnounceInterval") is not None:
+            ptp announce interval ${ currentPortchannel["ptp"]["ptpAnnounceInterval"] }
+          %         endif
+          %         if currentPortchannel["ptp"].get("ptpAnnounceTimeout") is not None:
+            ptp announce timeout ${ currentPortchannel["ptp"]["ptpAnnounceTimeout"] }
+          %         endif
+          %         if currentPortchannel["ptp"].get("ptpDelayRequestInterval") is not None:
+            ptp delay-req interval ${ currentPortchannel["ptp"]["ptpDelayRequestInterval"] }
+          %         endif
+          %         if currentPortchannel["ptp"].get("ptpSyncMessageInterval") is not None:
+            ptp sync-message interval ${ currentPortchannel["ptp"]["ptpSyncMessageInterval"] }
+          %         endif
+          %       endif
+          %     endif
+          %     if currentPortchannel.get("service_profile") is not None:
+            service-profile ${ currentPortchannel["service_profile"] }
+          %     endif
+          %     if currentPortchannel.get("storm_control") is not None:
+          %       for section in natural_sort(currentPortchannel["storm_control"].keys()):
+          %         if currentPortchannel["storm_control"][section]["unit"] == "pps":
+            storm-control ${ section.lower().replace("_", "-") } level pps ${ currentPortchannel["storm_control"][section]["level"] }
+          %         else:
+            storm-control ${ section.lower().replace("_", "-") } level ${ currentPortchannel["storm_control"][section]["level"] }
+          %         endif
+          %       endfor
+          %     endif
+          !
+          %   endfor
+          % endif
+
+
+          <% lastIntCount = 0 %>
+          ## eos - Ethernet Interfaces
+          %if config.get("ethernet_interfaces") is not None:
+          %  for ethernet_interface in natural_sort(config["ethernet_interfaces"].keys()):
+          <%     lastIntCount += 1 %>
+          <%     currentInt = config["ethernet_interfaces"][ethernet_interface] %>
+          ##${ currentInt }
+          %     if currentInt.get("dot1xEnable") is not None and currentInt.get("dot1xEnable") == True:
+          aaa authentication dot1x default group radius
+          dot1x system-auth-control
+          %     endif
+          interface ${ ethernet_interface }
+          %     if currentInt["description"] is not None:
+            description ${currentInt["description"]}
+          %     endif
+          %     if currentInt.get("channel_group") is not None:
+            channel-group ${ currentInt["channel_group"]["id"] } mode ${ currentInt["channel_group"]["mode"] }
+          %         if currentInt.get("lacp_port_priority") is not None:
+            lacp port-priority ${ currentInt["lacp_port_priority"] }
+          %         endif
+          %     else:
+          %         if currentInt.get("mtu") is not None:
+            mtu ${ currentInt["mtu"] }
+          %         endif
+          %         if currentInt.get("type") is not None and currentInt.get("type") == "routed":
+            no switchport
+          %         else:
+            switchport
+          %         endif
+          %         if currentInt.get("mode") is not None and currentInt.get("mode") == "access":
+          %             if currentInt.get("vlans") is not None:
+            switchport access vlan ${ currentInt.get("vlans") }
+          %             endif
+          %         endif
+
+          ## Phone VLAN
+          %         if currentInt.get("phone_enabled") is True and currentInt.get("phone_vlan") is not None:
+            switchport phone vlan ${ currentInt.get("phone_vlan") }
+          %         endif
+          ## Trunking/Phone Trunking
+          %         if currentInt.get("mode") is not None and currentInt.get("mode") == "trunk":
+          %           if currentInt.get("phone_enabled") is True:
+            switchport mode trunk phone
+          %           else:
+            switchport mode trunk
+          %           endif
+          %         elif currentInt.get("mode") is not None:
+            switchport mode ${ currentInt.get("mode") }
+          %         endif
+          ## Phone Tagging
+          %         if currentInt.get("phone_tagging") is not None and currentInt.get("phone_enabled") is True:
+          %           if currentInt.get("phone_tagging") is True:
+            switchport phone trunk tagged
+          %           else:
+            switchport phone trunk untagged
+          %           endif
+          %         endif
+
+
+
+
+
+
+
+          ## interface Ethernet3/10
+          ##    switchport trunk native vlan 741
+          ##    switchport phone vlan 780
+          ##    switchport phone trunk untagged
+          ##    switchport mode trunk phone
+
+
+          ##----dot1x MAC based authentication bool portProfileMACBasedAuthentication
+          ##    dot1x mac based authentication
+
+          ##----bool portProfileHostType
+          ##    dot1x host-mode single-host <-- false
+          ##    dot1x host-mode multi-host  <-- true
+
+          ##----bool multiHostIndividualAuthentication 
+          ##    dot1x host-mode multi-host authenticated <-- true
+
+
+          ##----dot1x Failure Action
+          ##    dot1x authentication failure action traffic drop
+          ##    dot1x authentication failure action traffic allow vlan XXXX
+
+          ##----multi/single && multi auth hostMode bool
+          ##    dot1x host-mode multi-host authenticated
+
+          ##----dot1x reauthentication bool
+          ##    dot1x reauthentication
+          ##    dot1x timeout reauth-period server
+
+          ##    dot1x pae authenticator
+          ##    dot1x port-control auto
+
+
+          %         if currentInt.get("dot1xEnable") is not None and currentInt.get("dot1xEnable") == True:
+          %             if currentInt.get("hostMode") is not None and currentInt.get("hostMode") is True:
+          %                 if currentInt.get("multiHostIndividualAuthentication") is not None and currentInt.get("multiHostIndividualAuthentication") is True:
+            dot1x host-mode multi-host authenticated
+          %                 else:
+            dot1x host-mode multi-host
+          %                 endif
+          %             else:
+            dot1x host-mode single-host
+          %             endif
+          %             if currentInt.get("reauthentication") is not None and currentInt.get("reauthentication") is True:
+            dot1x reauthentication
+          %                 if currentInt.get("reauthenticationRequestLimit") is not None:
+            dot1x reauthorization request limit ${ currentInt.get("reauthenticationRequestLimit") }
+          %                 endif
+          %                 if currentInt.get("reauthenticationTimer") is not None and currentInt.get("reauthenticationTimer") == 0:
+            dot1x timeout reauth-period server
+          %                 else:
+            dot1x timeout reauth-period ${ currentInt.get("reauthenticationTimer") }
+          %                 endif
+          %             endif
+          %             if currentInt.get("macBasedAuthentication") is not None and currentInt.get("macBasedAuthentication") is True:
+            dot1x mac based authentication
+          %             endif
+          %             if currentInt.get("quietPeriodTimeout") is not None:
+            dot1x timeout quiet-period ${ currentInt.get("quietPeriodTimeout") }
+          %             endif
+          %             if currentInt.get("authenticationFailureAction") is not None:
+          %                 if currentInt.get("authenticationFailureVlan") is not None and currentInt.get("authenticationFailureAction") == "Allow":
+            dot1x authentication failure action traffic allow vlan ${ currentInt.get("authenticationFailureVlan") }
+          %                 elif currentInt.get("authenticationFailureAction") == "Drop":
+            dot1x authentication failure action traffic drop
+          %                 endif
+          %             endif
+          %         endif
+
+
+
+
+
+
+          %         if currentInt.get("mode") is not None and currentInt.get("mode") == "trunk":
+          %             if currentInt.get("vlans") is not None:
+            switchport trunk allowed vlan ${ currentInt.get("vlans") }
+          %             endif
+          %             if currentInt.get("native_vlan") is not None:
+            switchport trunk native vlan ${ currentInt.get("native_vlan") }
+          %             endif
+          %         endif
+          %         if currentInt.get("trunk_groups") is not None:
+          %             for trunk_group in currentInt.get("trunk_groups"):
+            switchport trunk group ${ trunk_group }
+          %             endfor
+          %         endif
+          %         if currentInt.get("spanning_tree_portfast") is not None:
+          %           if currentInt["spanning_tree_portfast"] == "edge":
+            spanning-tree portfast
+          %           elif currentInt["spanning_tree_portfast"] == "network":
+            spanning-tree portfast network
+          %           endif
+          %         endif
+          %         if currentInt["spanning_tree_bpdufilter"] == True:
+            spanning-tree bpdufilter enable
+          %         endif
+          %         if currentInt["spanning_tree_bpduguard"] == True:
+            spanning-tree bpduguard enable
+          %         endif
+          %         if currentInt.get("vrf") is not None:
+            vrf ${ currentInt.get("vrf") }
+          %         endif
+          %         if currentInt.get("ip_address") is not None:
+            ip address ${ currentInt.get("ip_address") }
+          %             if currentInt.get("ip_address_secondaries") is not None:
+          %                 for ip_address_secondary in currentInt.get("ip_address_secondaries"):
+            ip address ${ ip_address_secondary } secondary
+          %                 endfor
+          %             endif
+          %         endif
+          %         if currentInt.get("ptp") is not None:
+          ## ${ currentInt["ptp"] }
+          %           if currentInt["ptp"]["enablePTP"] == True:
+            ptp enable
+          %             if currentInt["ptp"].get("ptpMaster") == True:
+            ptp role master
+          %             endif
+          %             if currentInt["ptp"].get("ptpAnnounceInterval") is not None:
+            ptp announce interval ${ currentInt["ptp"]["ptpAnnounceInterval"] }
+          %             endif
+          %             if currentInt["ptp"].get("ptpAnnounceTimeout") is not None:
+            ptp announce timeout ${ currentInt["ptp"]["ptpAnnounceTimeout"] }
+          %             endif
+          %             if currentInt["ptp"].get("ptpDelayRequestInterval") is not None:
+            ptp delay-req interval ${ currentInt["ptp"]["ptpDelayRequestInterval"] }
+          %             endif
+          %             if currentInt["ptp"].get("ptpSyncMessageInterval") is not None:
+            ptp sync-message interval ${ currentInt["ptp"]["ptpSyncMessageInterval"] }
+          %             endif
+          %           endif
+          %         endif
+          %         if currentInt.get("service_profile") is not None:
+            service-profile ${ currentInt["service_profile"] }
+          %         endif
+          %         if currentInt.get("storm_control") is not None:
+          %           for section in natural_sort(currentInt["storm_control"].keys()):
+          %             if currentInt["storm_control"][section]["unit"] == "pps":
+            storm-control ${ section.lower().replace("_", "-") } level pps ${ currentInt["storm_control"][section]["level"] }
+          %             else:
+            storm-control ${ section.lower().replace("_", "-") } level ${ currentInt["storm_control"][section]["level"] }
+          %             endif
+          %           endfor
+          %         endif
+          %         if currentInt.get("CLI") is not []:
+          %           for line in currentInt.get("CLI"):
+            ${ line }
+          %           endfor
+          %         endif
+          %     endif
+          %     if lastIntCount != len(config["ethernet_interfaces"].keys()):
+          !
+          %     endif
+          %  endfor
+          %endif
+      input_schema:
+        fields:
+          values:
+            portProfileName:
+              id: portProfileName
+              name: portProfileName
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortfast:
+              id: portProfilePortfast
+              name: portProfilePortfast
+              label: Portfast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: edge
+                static_options:
+                  values:
+                    - edge
+                    - network
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileBpduFilter:
+              id: portProfileBpduFilter
+              name: portProfileBpduFilter
+              label: BPDU Filter
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileBpduGuard:
+              id: portProfileBpduGuard
+              name: portProfileBpduGuard
+              label: BPDU Guard
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileSpanningTreeDetails:
+              id: portProfileSpanningTreeDetails
+              name: portProfileSpanningTreeDetails
+              label: Spanning Tree
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfilePortfast
+                    - portProfileBpduFilter
+                    - portProfileBpduGuard
+            portProfileFlowControlReceived:
+              id: portProfileFlowControlReceived
+              name: portProfileFlowControlReceived
+              label: Received
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - received
+                    - send
+                    - 'on'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileFlowControl:
+              id: portProfileFlowControl
+              name: portProfileFlowControl
+              label: Flow Control
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileFlowControlReceived
+            portProfileQosProfile:
+              id: portProfileQosProfile
+              name: portProfileQosProfile
+              label: QOS Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlAllLevel:
+              id: portProfileStormControlAllLevel
+              name: portProfileStormControlAllLevel
+              label: Level
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlAllUnit:
+              id: portProfileStormControlAllUnit
+              name: portProfileStormControlAllUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlAll:
+              id: portProfileStormControlAll
+              name: portProfileStormControlAll
+              label: All
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileStormControlAllLevel
+                    - portProfileStormControlAllUnit
+            portProfileStormControlBroadcastLevel:
+              id: portProfileStormControlBroadcastLevel
+              name: portProfileStormControlBroadcastLevel
+              label: Level
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlBroadcastUnit:
+              id: portProfileStormControlBroadcastUnit
+              name: portProfileStormControlBroadcastUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlBroadcast:
+              id: portProfileStormControlBroadcast
+              name: portProfileStormControlBroadcast
+              label: Broadcast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileStormControlBroadcastLevel
+                    - portProfileStormControlBroadcastUnit
+            portProfileStormControlMulticastLevel:
+              id: portProfileStormControlMulticastLevel
+              name: portProfileStormControlMulticastLevel
+              label: Level
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlMulticastUnit:
+              id: portProfileStormControlMulticastUnit
+              name: portProfileStormControlMulticastUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlMulticast:
+              id: portProfileStormControlMulticast
+              name: portProfileStormControlMulticast
+              label: Multicast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileStormControlMulticastLevel
+                    - portProfileStormControlMulticastUnit
+            portProfileStormControlUnknownUnicastLevel:
+              id: portProfileStormControlUnknownUnicastLevel
+              name: portProfileStormControlUnknownUnicastLevel
+              label: Level
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlUnknownUnicastUnit:
+              id: portProfileStormControlUnknownUnicastUnit
+              name: portProfileStormControlUnknownUnicastUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileStormControlUnknownUnicast:
+              id: portProfileStormControlUnknownUnicast
+              name: portProfileStormControlUnknownUnicast
+              label: Unknown Unicast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileStormControlUnknownUnicastLevel
+                    - portProfileStormControlUnknownUnicastUnit
+            portProfileStormControlDetails:
+              id: portProfileStormControlDetails
+              name: portProfileStormControlDetails
+              label: Storm Control
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileStormControlAll
+                    - portProfileStormControlBroadcast
+                    - portProfileStormControlMulticast
+                    - portProfileStormControlUnknownUnicast
+            portProfileMtu:
+              id: portProfileMtu
+              name: portProfileMtu
+              label: MTU
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portProfileEnablePortChannel:
+              id: portProfileEnablePortChannel
+              name: portProfileEnablePortChannel
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            portProfilePortChannelMode:
+              id: portProfilePortChannelMode
+              name: portProfilePortChannelMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - active
+                    - passive
+                    - on (static)
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelLacpFallbackMode:
+              id: portProfilePortChannelLacpFallbackMode
+              name: portProfilePortChannelLacpFallbackMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - static
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelLacpFallbackTimeout:
+              id: portProfilePortChannelLacpFallbackTimeout
+              name: portProfilePortChannelLacpFallbackTimeout
+              label: Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portProfilePortChannelLacpFallback:
+              id: portProfilePortChannelLacpFallback
+              name: portProfilePortChannelLacpFallback
+              label: LACP Fallback
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfilePortChannelLacpFallbackMode
+                    - portProfilePortChannelLacpFallbackTimeout
+            portProfilePortChannelShortEsi:
+              id: portProfilePortChannelShortEsi
+              name: portProfilePortChannelShortEsi
+              label: Short ESI
+              description: an abbreviated 3 octets value to encode Ethernet Segment ID and LACP ID.  For example, a value of '0303:0202:0101' sets the ESI to 000:000:0303:0202:0101, the LACP ID to 0303.0202.0101, and the Route Target to 03:03:02:02:01:01.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelId:
+              id: portProfilePortChannelId
+              name: portProfilePortChannelId
+              label: ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portProfilePortChannelDescription:
+              id: portProfilePortChannelDescription
+              name: portProfilePortChannelDescription
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannel:
+              id: portProfilePortChannel
+              name: portProfilePortChannel
+              label: Port-Channel
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileEnablePortChannel
+                    - portProfilePortChannelMode
+                    - portProfilePortChannelLacpFallback
+                    - portProfilePortChannelShortEsi
+                    - portProfilePortChannelId
+                    - portProfilePortChannelDescription
+            portProfileSpeed:
+              id: portProfileSpeed
+              name: portProfileSpeed
+              label: Speed
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            phoneEnabled:
+              id: phoneEnabled
+              name: portPhoneEnabled
+              label: Phone VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            phoneVlan:
+              id: phoneVlan
+              name: portPhoneVlan
+              label: 'Phone VLAN #'
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portProfileMode:
+              id: portProfileMode
+              name: portProfileMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: access
+                static_options:
+                  values:
+                    - access
+                    - dot1q-tunnel
+                    - trunk
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfileNativeVlan:
+              id: portProfileNativeVlan
+              name: portProfileNativeVlan
+              label: Native VLAN
+              description: Native VLAN for a trunk port
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portProfileVlans:
+              id: portProfileVlans
+              name: portProfileVlans
+              label: VLANs
+              description: Interface VLANs
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileportPhoneTagging:
+              id: profileportPhoneTagging
+              name: portPhoneTagging
+              label: Phone Tagging
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            phoneSettings:
+              id: phoneSettings
+              name: vlanSettings
+              label: VLANs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - phoneEnabled
+                    - phoneVlan
+                    - portProfileMode
+                    - portProfileNativeVlan
+                    - portProfileVlans
+                    - profileportPhoneTagging
+            8021XEnabled:
+              id: 8021XEnabled
+              name: 8021XEnabled
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            macBasedAuthentication:
+              id: macBasedAuthentication
+              name: macBasedAuthentication
+              label: MAC Based Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            timeoutQuietPeriod:
+              id: timeoutQuietPeriod
+              name: timeoutQuietPeriod
+              label: Quiet Period Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            hostType:
+              id: hostType
+              name: hostMode
+              label: Host Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            multiHostIndividualAuthentication:
+              id: multiHostIndividualAuthentication
+              name: multiHostIndividualAuthentication
+              label: Multi-host Individual Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            portauthenticationFailureAction:
+              id: portauthenticationFailureAction
+              name: authenticationFailureAction
+              label: Authentication Failure Action
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Allow
+                    - Drop
+                    - Disable
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portauthenticationFailureVlan:
+              id: portauthenticationFailureVlan
+              name: authenticationFailureVlan
+              label: Authentication Failure VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portreauthentication:
+              id: portreauthentication
+              name: reauthentication
+              label: Reauthentication Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            portreauthenticationTimer:
+              id: portreauthenticationTimer
+              name: reauthenticationTimer
+              label: Reauthentication Timer
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portreauthenticationRequestLimit:
+              id: portreauthenticationRequestLimit
+              name: reauthenticationRequestLimit
+              label: Reauthentication Request Limit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            dot1XSettings:
+              id: dot1XSettings
+              name: dot1XSettings
+              label: 802.1x
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 8021XEnabled
+                    - macBasedAuthentication
+                    - timeoutQuietPeriod
+                    - hostType
+                    - multiHostIndividualAuthentication
+                    - portauthenticationFailureAction
+                    - portauthenticationFailureVlan
+                    - portreauthentication
+                    - portreauthenticationTimer
+                    - portreauthenticationRequestLimit
+            portprofileCli:
+              id: portprofileCli
+              name: profileCli
+              label: Profile CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileCliListGroup:
+              id: profileCliListGroup
+              name: value
+              label: profileCliList Group
+              description: Group of members for profileCliList
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portprofileCli
+            profileCliList:
+              id: profileCliList
+              name: profileCliList
+              label: CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: profileCliListGroup
+                key: ''
+            portenablePTP:
+              id: portenablePTP
+              name: enablePTP
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            portforceMaster:
+              id: portforceMaster
+              name: forceMaster
+              label: Force Master
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            portannounceInterval:
+              id: portannounceInterval
+              name: announceInterval
+              label: Announce Interval
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portannounceTimeout:
+              id: portannounceTimeout
+              name: announceTimeout
+              label: Announce Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portdelayRequestInterval:
+              id: portdelayRequestInterval
+              name: delayRequestInterval
+              label: Delay Request Interval
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portsyncMessageInterval:
+              id: portsyncMessageInterval
+              name: syncMessageInterval
+              label: Sync Message Interval
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portPTPGroup:
+              id: portPTPGroup
+              name: ptpGroup
+              label: PTP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portenablePTP
+                    - portforceMaster
+                    - portannounceInterval
+                    - portannounceTimeout
+                    - portdelayRequestInterval
+                    - portsyncMessageInterval
+            portProfileGroups:
+              id: portProfileGroups
+              name: portProfileGroups
+              label: Port Profile Groups
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfileName
+                    - portProfileSpanningTreeDetails
+                    - portProfileFlowControl
+                    - portProfileQosProfile
+                    - portProfileStormControlDetails
+                    - portProfileMtu
+                    - portProfilePortChannel
+                    - portProfileSpeed
+                    - phoneSettings
+                    - dot1XSettings
+                    - profileCliList
+                    - portPTPGroup
+            portProfiles:
+              id: portProfiles
+              name: portProfiles
+              label: Port Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: portProfileGroups
+                key: portProfileName
+            adapterSpeed:
+              id: adapterSpeed
+              name: adapterSpeed
+              label: Speed
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            directRangeLength:
+              id: directRangeLength
+              name: rangeLength
+              label: Range Length
+              description: The number of ports in this range, inclusive
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '1'
+                range: null
+                static_options: null
+                dynamic_options: null
+            directInterfaces:
+              id: directInterfaces
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: true
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: directRangeLength
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                input_tag_label: interface
+                tag_filter_query: null
+            endpointInterfaceName:
+              id: endpointInterfaceName
+              name: endpointInterfaceName
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            endpointInterfacesGroup:
+              id: endpointInterfacesGroup
+              name: endpointInterfacesGroup
+              label: Endpoint Interfaces Group
+              description: Group of members for Endpoint Interfaces
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - directInterfaces
+                    - endpointInterfaceName
+            endpointInterfaces:
+              id: endpointInterfaces
+              name: endpointInterfaces
+              label: Endpoint Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: endpointInterfacesGroup
+                key: endpointInterfaceName
+            adapterPortProfile:
+              id: adapterPortProfile
+              name: adapterPortProfile
+              label: Port Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"portProfileName"}'
+            adapterPortfast:
+              id: adapterPortfast
+              name: adapterPortfast
+              label: Portfast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - None
+                    - edge
+                    - network
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterBpduFilter:
+              id: adapterBpduFilter
+              name: adapterBpduFilter
+              label: BPDU Filter
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterBpduGuard:
+              id: adapterBpduGuard
+              name: adapterBpduGuard
+              label: BPDU Guard
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterSpanningTreeDetails:
+              id: adapterSpanningTreeDetails
+              name: adapterSpanningTreeDetails
+              label: Spanning Tree
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterPortfast
+                    - adapterBpduFilter
+                    - adapterBpduGuard
+            adapterFlowControlReceived:
+              id: adapterFlowControlReceived
+              name: adapterFlowControlReceived
+              label: Received
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - received
+                    - send
+                    - 'on'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterFlowControl:
+              id: adapterFlowControl
+              name: adapterFlowControl
+              label: Flow Control
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterFlowControlReceived
+            adapterQosProfile:
+              id: adapterQosProfile
+              name: adapterQosProfile
+              label: QOS Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelId:
+              id: adapterPortChannelId
+              name: adapterPortChannelId
+              label: ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterPortChannelMode:
+              id: adapterPortChannelMode
+              name: adapterPortChannelMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - active
+                    - passive
+                    - on (static)
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelLacpFallbackMode:
+              id: adapterPortChannelLacpFallbackMode
+              name: adapterPortChannelLacpFallbackMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - static
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelLacpFallbackTimeout:
+              id: adapterPortChannelLacpFallbackTimeout
+              name: adapterPortChannelLacpFallbackTimeout
+              label: Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterPortChannelLacpFallback:
+              id: adapterPortChannelLacpFallback
+              name: adapterPortChannelLacpFallback
+              label: LACP Fallback
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterPortChannelLacpFallbackMode
+                    - adapterPortChannelLacpFallbackTimeout
+            adapterPortChannelShortEsi:
+              id: adapterPortChannelShortEsi
+              name: adapterPortChannelShortEsi
+              label: Short ESI
+              description: an abbreviated 3 octets value to encode Ethernet Segment ID and LACP ID.  For example, a value of '0303:0202:0101' sets the ESI to 000:000:0303:0202:0101, the LACP ID to 0303.0202.0101, and the Route Target to 03:03:02:02:01:01.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterEnablePortChannel:
+              id: adapterEnablePortChannel
+              name: adapterEnablePortChannel
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            adapterPortChannelDescription:
+              id: adapterPortChannelDescription
+              name: adapterPortChannelDescription
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannel:
+              id: adapterPortChannel
+              name: adapterPortChannel
+              label: Port-Channel
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterPortChannelId
+                    - adapterPortChannelMode
+                    - adapterPortChannelLacpFallback
+                    - adapterPortChannelShortEsi
+                    - adapterEnablePortChannel
+                    - adapterPortChannelDescription
+            adapterStormControlAllLevel:
+              id: adapterStormControlAllLevel
+              name: adapterStormControlAllLevel
+              label: Level
+              description: Configure maximum storm-control level
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlAllUnit:
+              id: adapterStormControlAllUnit
+              name: adapterStormControlAllUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlAll:
+              id: adapterStormControlAll
+              name: adapterStormControlAll
+              label: All
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterStormControlAllLevel
+                    - adapterStormControlAllUnit
+            adapterStormControlBroadcastLevel:
+              id: adapterStormControlBroadcastLevel
+              name: adapterStormControlBroadcastLevel
+              label: Level
+              description: Configure maximum storm-control level
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlBroadcastUnit:
+              id: adapterStormControlBroadcastUnit
+              name: adapterStormControlBroadcastUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlBroadcast:
+              id: adapterStormControlBroadcast
+              name: adapterStormControlBroadcast
+              label: Broadcast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterStormControlBroadcastLevel
+                    - adapterStormControlBroadcastUnit
+            adapterStormControlMulticastLevel:
+              id: adapterStormControlMulticastLevel
+              name: adapterStormControlMulticastLevel
+              label: Level
+              description: Configure maximum storm-control level
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlMulticastUnit:
+              id: adapterStormControlMulticastUnit
+              name: adapterStormControlMulticastUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlMulticast:
+              id: adapterStormControlMulticast
+              name: adapterStormControlMulticast
+              label: Multicast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterStormControlMulticastLevel
+                    - adapterStormControlMulticastUnit
+            adapterStormControlUnknownUnicastLevel:
+              id: adapterStormControlUnknownUnicastLevel
+              name: adapterStormControlUnknownUnicastLevel
+              label: Level
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlUnknownUnicastUnit:
+              id: adapterStormControlUnknownUnicastUnit
+              name: adapterStormControlUnknownUnicastUnit
+              label: Unit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: percent
+                static_options:
+                  values:
+                    - percent
+                    - pps
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterStormControlUnknownUnicast:
+              id: adapterStormControlUnknownUnicast
+              name: adapterStormControlUnknownUnicast
+              label: Unknown Unicast
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterStormControlUnknownUnicastLevel
+                    - adapterStormControlUnknownUnicastUnit
+            adapterStormControlDetails:
+              id: adapterStormControlDetails
+              name: adapterStormControlDetails
+              label: Storm Control
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterStormControlAll
+                    - adapterStormControlBroadcast
+                    - adapterStormControlMulticast
+                    - adapterStormControlUnknownUnicast
+            adapterMtu:
+              id: adapterMtu
+              name: adapterMtu
+              label: MTU
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterDot1xEnable:
+              id: adapterDot1xEnable
+              name: dot1xEnable
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            adapterMACbasedAuth:
+              id: adapterMACbasedAuth
+              name: macBasedAuthentication
+              label: MAC Based Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            adapterDot1xauthenticationFailureAction:
+              id: adapterDot1xauthenticationFailureAction
+              name: authenticationFailureAction
+              label: Authentication Failure Action
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: Drop
+                static_options:
+                  values:
+                    - Allow
+                    - Drop
+                    - Disable
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterDot1xreauthentication:
+              id: adapterDot1xreauthentication
+              name: reauthentication
+              label: Reauthentication Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            adapterDot1xreauthenticationTimer:
+              id: adapterDot1xreauthenticationTimer
+              name: reauthenticationTimer
+              label: Reauthentication Timer
+              description: Seconds until reauthentication is requested, in seconds (1 - 65535)
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '3600'
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterDot1xhostMode:
+              id: adapterDot1xhostMode
+              name: hostMode
+              label: Host Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            adapterreauthenticationRequestLimit:
+              id: adapterreauthenticationRequestLimit
+              name: reauthenticationRequestLimit
+              label: Reauthentication Request Limit
+              description: Number of reauthentication requests submitted by the switch (1 10)
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '2'
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterquietPeriodTimeout:
+              id: adapterquietPeriodTimeout
+              name: quietPeriodTimeout
+              label: Quiet Period Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adaptermultiHostIndividualAuthentication:
+              id: adaptermultiHostIndividualAuthentication
+              name: multiHostIndividualAuthentication
+              label: Multi-host Individual Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            adapterauthenticationFailureVlan:
+              id: adapterauthenticationFailureVlan
+              name: authenticationFailureVlan
+              label: Authentication Failure VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterDot1xGroup:
+              id: adapterDot1xGroup
+              name: 8021X
+              label: 802.1x
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterDot1xEnable
+                    - adapterMACbasedAuth
+                    - adapterDot1xauthenticationFailureAction
+                    - adapterDot1xreauthentication
+                    - adapterDot1xreauthenticationTimer
+                    - adapterDot1xhostMode
+                    - adapterreauthenticationRequestLimit
+                    - adapterquietPeriodTimeout
+                    - adaptermultiHostIndividualAuthentication
+                    - adapterauthenticationFailureVlan
+            adapterMode:
+              id: adapterMode
+              name: adapterMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - access
+                    - dot1q-tunnel
+                    - trunk
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterNativeVlan:
+              id: adapterNativeVlan
+              name: adapterNativeVlan
+              label: Native VLAN
+              description: Native VLAN for a trunk port
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterVlans:
+              id: adapterVlans
+              name: adapterVlans
+              label: VLANs
+              description: Interface VLANs
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterphoneEnabled:
+              id: adapterphoneEnabled
+              name: phoneEnabled
+              label: Phone VLAN Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            adapterphoneVLAN:
+              id: adapterphoneVLAN
+              name: phoneVLAN
+              label: 'Phone VLAN #'
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterphoneTagging:
+              id: adapterphoneTagging
+              name: phoneTagging
+              label: Phone Tagging
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            adapterVLANS:
+              id: adapterVLANS
+              name: adapterVLANS
+              label: VLANs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterMode
+                    - adapterNativeVlan
+                    - adapterVlans
+                    - adapterphoneEnabled
+                    - adapterphoneVLAN
+                    - adapterphoneTagging
+            adapterportCli:
+              id: adapterportCli
+              name: portCli
+              label: Port CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterCLIGroup:
+              id: adapterCLIGroup
+              name: value
+              label: CLI Group
+              description: Group of members for CLI
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterportCli
+            adapterCLI:
+              id: adapterCLI
+              name: cli
+              label: CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: adapterCLIGroup
+                key: ''
+            adapterenablePTP:
+              id: adapterenablePTP
+              name: enablePTP
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            adapterannounceInterval:
+              id: adapterannounceInterval
+              name: announceInterval
+              label: Announce Interval
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterannounceTimeout:
+              id: adapterannounceTimeout
+              name: announceTimeout
+              label: Announce Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '3'
+                range: 2..255
+                static_options: null
+                dynamic_options: null
+            adapterdelayRequestInterval:
+              id: adapterdelayRequestInterval
+              name: delayRequestInterval
+              label: Delay Request Interval
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adaptersyncMessageInterval:
+              id: adaptersyncMessageInterval
+              name: syncMessageInterval
+              label: Sync Message Interval
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterforceMaster:
+              id: adapterforceMaster
+              name: forceMaster
+              label: Force Master
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            adapterptpGroup:
+              id: adapterptpGroup
+              name: ptpGroup
+              label: PTP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterenablePTP
+                    - adapterannounceInterval
+                    - adapterannounceTimeout
+                    - adapterdelayRequestInterval
+                    - adaptersyncMessageInterval
+                    - adapterforceMaster
+            adapteradapterName:
+              id: adapteradapterName
+              name: adapterName
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterDetails:
+              id: adapterDetails
+              name: adapterDetails
+              label: Adapter Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterSpeed
+                    - endpointInterfaces
+                    - adapterPortProfile
+                    - adapterSpanningTreeDetails
+                    - adapterFlowControl
+                    - adapterQosProfile
+                    - adapterPortChannel
+                    - adapterStormControlDetails
+                    - adapterMtu
+                    - adapterDot1xGroup
+                    - adapterVLANS
+                    - adapterCLI
+                    - adapterptpGroup
+                    - adapteradapterName
+            adapters:
+              id: adapters
+              name: adapters
+              label: Adapters
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: adapterDetails
+                key: adapteradapterName
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfiles
+                    - adapters
+        layout:
+          value: '{
+                "switchInterface": {
+                    "key": "switchInterface",
+                    "type": "INPUT",
+                    "isPageLayout": false
+                },
+                "endpointDetails": {
+                    "key": "endpointDetails",
+                    "type": "INPUT",
+                    "order": [
+                        "endpointName",
+                        "rack"
+                    ]
+                },
+                "endpoints": {
+                    "key": "endpoints",
+                    "type": "INPUT",
+                    "isPageLayout": true
+                },
+                "adapterDetails": {
+                    "key": "adapterDetails",
+                    "type": "INPUT",
+                    "order": [
+                        "adapteradapterName",
+                        "adapterPortProfile",
+                        "endpointInterfaces",
+                        "adapterSpeed",
+                        "adapterPortChannel",
+                        "adapterVLANS",
+                        "adapterSpanningTreeDetails",
+                        "adapterFlowControl",
+                        "adapterQosProfile",
+                        "adapterptpGroup",
+                        "adapterStormControlDetails",
+                        "adapterMtu",
+                        "adapterDot1xGroup",
+                        "adapterCLI"
+                    ]
+                },
+                "adapters": {
+                    "key": "adapters",
+                    "isPageLayout": true,
+                    "type": "INPUT"
+                },
+                "endpointInterfacesGroup": {
+                    "key": "endpointInterfacesGroup",
+                    "type": "INPUT",
+                    "order": [
+                        "endpointInterfaceName",
+                        "directInterfaces"
+                    ]
+                },
+                "endpointInterfaces": {
+                    "key": "endpointInterfaces",
+                    "type": "INPUT",
+                    "isPageLayout": false
+                },
+                "switch": {
+                    "key": "switch",
+                    "type": "INPUT",
+                    "isPageLayout": false
+                },
+                "adapterNativeVlan": {
+                    "key": "adapterNativeVlan",
+                    "type": "INPUT",
+                    "dependency": {
+                        "adapterMode": {
+                            "value": [
+                                "trunk"
+                            ],
+                            "mode": "SHOW"
+                        }
+                    }
+                },
+                "portProfileNativeVlan": {
+                    "key": "portProfileNativeVlan",
+                    "dependency": {
+                        "portProfileMode": {
+                            "value": [
+                                "trunk"
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "portProfileGroups": {
+                    "key": "portProfileGroups",
+                    "type": "INPUT",
+                    "order": [
+                        "portProfileName",
+                        "portProfileSpeed",
+                        "portProfilePortChannel",
+                        "phoneSettings",
+                        "portProfileSpanningTreeDetails",
+                        "portProfileFlowControl",
+                        "portProfileQosProfile",
+                        "portPTPGroup",
+                        "portProfileStormControlDetails",
+                        "portProfileMtu",
+                        "dot1XSettings",
+                        "profileCliList"
+                    ]
+                },
+                "adapterPortChannel": {
+                    "key": "adapterPortChannel",
+                    "type": "INPUT",
+                    "order": [
+                        "adapterEnablePortChannel",
+                        "adapterPortChannelId",
+                        "adapterPortChannelDescription",
+                        "adapterPortChannelMode",
+                        "adapterPortChannelLacpFallback",
+                        "adapterPortChannelShortEsi"
+                    ]
+                },
+                "adapterEnablePortChannel": {
+                    "key": "adapterEnablePortChannel",
+                    "type": "INPUT",
+                    "dependency": {}
+                },
+                "adapterPortChannelId": {
+                    "key": "adapterPortChannelId",
+                    "dependency": {
+                        "adapterEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterPortChannelMode": {
+                    "key": "adapterPortChannelMode",
+                    "dependency": {
+                        "adapterEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterPortChannelLacpFallbackMode": {
+                    "key": "adapterPortChannelLacpFallbackMode",
+                    "dependency": {
+                        "adapterEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterPortChannelLacpFallbackTimeout": {
+                    "key": "adapterPortChannelLacpFallbackTimeout",
+                    "dependency": {
+                        "adapterEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterPortChannelShortEsi": {
+                    "key": "adapterPortChannelShortEsi",
+                    "dependency": {
+                        "adapterEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "portProfilePortChannelMode": {
+                    "key": "portProfilePortChannelMode",
+                    "dependency": {
+                        "portProfileEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "portProfilePortChannelLacpFallbackMode": {
+                    "key": "portProfilePortChannelLacpFallbackMode",
+                    "dependency": {
+                        "portProfileEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "portProfilePortChannelLacpFallbackTimeout": {
+                    "key": "portProfilePortChannelLacpFallbackTimeout",
+                    "dependency": {
+                        "portProfileEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "portProfilePortChannelShortEsi": {
+                    "key": "portProfilePortChannelShortEsi",
+                    "dependency": {
+                        "portProfileEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "portProfiles": {
+                    "key": "portProfiles",
+                    "type": "INPUT",
+                    "isPageLayout": true
+                },
+                "portProfilePortChannelId": {
+                    "key": "portProfilePortChannelId",
+                    "type": "INPUT",
+                    "dependency": {
+                        "portProfileEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portProfilePortChannel": {
+                    "key": "portProfilePortChannel",
+                    "type": "INPUT",
+                    "order": [
+                        "portProfileEnablePortChannel",
+                        "portProfilePortChannelId",
+                        "portProfilePortChannelDescription",
+                        "portProfilePortChannelMode",
+                        "portProfilePortChannelLacpFallback",
+                        "portProfilePortChannelShortEsi"
+                    ]
+                },
+                "portProfilePortChannelDescription": {
+                    "key": "portProfilePortChannelDescription",
+                    "type": "INPUT",
+                    "dependency": {
+                        "portProfileEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "adapterPortChannelDescription": {
+                    "key": "adapterPortChannelDescription",
+                    "type": "INPUT",
+                    "dependency": {
+                        "adapterEnablePortChannel": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "adapterSpanningTreeDetails": {
+                    "key": "adapterSpanningTreeDetails",
+                    "type": "INPUT",
+                    "order": [
+                        "adapterPortfast",
+                        "adapterBpduFilter",
+                        "adapterBpduGuard"
+                    ]
+                },
+                "portProfileSpanningTreeDetails": {
+                    "key": "portProfileSpanningTreeDetails",
+                    "type": "INPUT",
+                    "order": [
+                        "portProfilePortfast",
+                        "portProfileBpduFilter",
+                        "portProfileBpduGuard"
+                    ]
+                },
+                "hostType": {
+                    "key": "hostType",
+                    "valueToLabelMap": {
+                        "True": "Multi-Host",
+                        "False": "Single-Host"
+                    },
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "reauthenticationTimerSetting": {
+                    "key": "reauthenticationTimerSetting",
+                    "type": "INPUT",
+                    "valueToLabelMap": {
+                        "True": "Server",
+                        "False": "Local"
+                    }
+                },
+                "adapterDot1xhostMode": {
+                    "key": "adapterDot1xhostMode",
+                    "valueToLabelMap": {
+                        "True": "Multi-Host",
+                        "False": "Single-Host"
+                    },
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterMACbasedAuth": {
+                    "key": "adapterMACbasedAuth",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterDot1xauthenticationFailureAction": {
+                    "key": "adapterDot1xauthenticationFailureAction",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterDot1xreauthentication": {
+                    "key": "adapterDot1xreauthentication",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterDot1xreauthenticationTimer": {
+                    "key": "adapterDot1xreauthenticationTimer",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "adapterDot1xreauthentication": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "dependencyType": "AND",
+                    "type": "INPUT"
+                },
+                "adapterreauthenticationRequestLimit": {
+                    "key": "adapterreauthenticationRequestLimit",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "adapterDot1xreauthentication": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT",
+                    "dependencyType": "AND"
+                },
+                "adapterphoneTagging": {
+                    "key": "adapterphoneTagging",
+                    "valueToLabelMap": {
+                        "True": "Tagged",
+                        "False": "Untagged"
+                    },
+                    "dependency": {
+                        "adapterphoneEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterphoneEnabled": {
+                    "key": "adapterphoneEnabled",
+                    "valueToLabelMap": {
+                        "True": "Yes",
+                        "False": "No"
+                    },
+                    "type": "INPUT"
+                },
+                "phoneSettings": {
+                    "key": "phoneSettings",
+                    "type": "INPUT",
+                    "order": [
+                        "portProfileMode",
+                        "portProfileNativeVlan",
+                        "portProfileVlans",
+                        "phoneEnabled",
+                        "phoneVlan",
+                        "profileportPhoneTagging"
+                    ]
+                },
+                "dot1XSettings": {
+                    "key": "dot1XSettings",
+                    "type": "INPUT",
+                    "order": [
+                        "8021XEnabled",
+                        "macBasedAuthentication",
+                        "hostType",
+                        "multiHostIndividualAuthentication",
+                        "portauthenticationFailureAction",
+                        "portauthenticationFailureVlan",
+                        "portreauthentication",
+                        "portreauthenticationTimer",
+                        "portreauthenticationRequestLimit",
+                        "timeoutQuietPeriod"
+                    ]
+                },
+                "phoneEnabled": {
+                    "key": "phoneEnabled",
+                    "valueToLabelMap": {
+                        "True": "Configured",
+                        "False": "Unconfigured"
+                    },
+                    "type": "INPUT",
+                    "dependency": {
+                        "portProfileMode": {
+                            "value": [
+                                "trunk"
+                            ],
+                            "mode": "SHOW"
+                        }
+                    }
+                },
+                "macBasedAuthentication": {
+                    "key": "macBasedAuthentication",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "multiHostIndividualAuthentication": {
+                    "key": "multiHostIndividualAuthentication",
+                    "type": "INPUT",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portauthenticationFailureAction": {
+                    "key": "portauthenticationFailureAction",
+                    "type": "INPUT",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portauthenticationFailureVlan": {
+                    "key": "portauthenticationFailureVlan",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "portauthenticationFailureAction": {
+                            "value": [
+                                "Allow"
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT",
+                    "dependencyType": "AND"
+                },
+                "portreauthentication": {
+                    "key": "portreauthentication",
+                    "type": "INPUT",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portreauthenticationTimer": {
+                    "key": "portreauthenticationTimer",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "portreauthentication": {
+                            "value": [
+                                false,
+                                true
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT",
+                    "dependencyType": "AND"
+                },
+                "portreauthenticationRequestLimit": {
+                    "key": "portreauthenticationRequestLimit",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "portreauthentication": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT",
+                    "dependencyType": "AND"
+                },
+                "timeoutQuietPeriod": {
+                    "key": "timeoutQuietPeriod",
+                    "dependency": {
+                        "8021XEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "dependencyType": "OR",
+                    "type": "INPUT"
+                },
+                "phoneVlan": {
+                    "key": "phoneVlan",
+                    "dependency": {
+                        "phoneEnabled": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "portProfileMode": {
+                            "value": [
+                                "trunk"
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT",
+                    "dependencyType": "AND"
+                },
+                "profileportPhoneTagging": {
+                    "key": "profileportPhoneTagging",
+                    "dependency": {
+                        "phoneEnabled": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "portProfileMode": {
+                            "value": [
+                                "trunk"
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT",
+                    "dependencyType": "AND"
+                },
+                "adapterquietPeriodTimeout": {
+                    "key": "adapterquietPeriodTimeout",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "dependencyType": "OR",
+                    "type": "INPUT"
+                },
+                "adaptermultiHostIndividualAuthentication": {
+                    "key": "adaptermultiHostIndividualAuthentication",
+                    "type": "INPUT",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "adapterDot1xGroup": {
+                    "key": "adapterDot1xGroup",
+                    "type": "INPUT",
+                    "order": [
+                        "adapterDot1xEnable",
+                        "adapterMACbasedAuth",
+                        "adapterDot1xhostMode",
+                        "adaptermultiHostIndividualAuthentication",
+                        "adapterDot1xauthenticationFailureAction",
+                        "adapterauthenticationFailureVlan",
+                        "adapterDot1xreauthentication",
+                        "adapterDot1xreauthenticationTimer",
+                        "adapterreauthenticationRequestLimit",
+                        "adapterquietPeriodTimeout"
+                    ]
+                },
+                "adapterauthenticationFailureVlan": {
+                    "key": "adapterauthenticationFailureVlan",
+                    "dependency": {
+                        "adapterDot1xEnable": {
+                            "value": [
+                                true
+                            ],
+                            "mode": "SHOW"
+                        },
+                        "adapterDot1xauthenticationFailureAction": {
+                            "value": [
+                                "Allow"
+                            ],
+                            "mode": "SHOW"
+                        }
+                    },
+                    "type": "INPUT",
+                    "dependencyType": "AND"
+                },
+                "directInterfaces": {
+                    "key": "directInterfaces",
+                    "type": "INPUT"
+                },
+                "directPorts": {
+                    "key": "directPorts",
+                    "type": "INPUT"
+                },
+                "adapterphoneVLAN": {
+                    "key": "adapterphoneVLAN",
+                    "dependency": {
+                        "adapterphoneEnabled": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterptpGroup": {
+                    "key": "adapterptpGroup",
+                    "type": "INPUT",
+                    "order": [
+                        "adapterenablePTP",
+                        "adapterforceMaster",
+                        "adapterannounceInterval",
+                        "adapterannounceTimeout",
+                        "adapterdelayRequestInterval",
+                        "adaptersyncMessageInterval"
+                    ]
+                },
+                "adapterforceMaster": {
+                    "key": "adapterforceMaster",
+                    "dependency": {
+                        "adapterenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    },
+                    "type": "INPUT"
+                },
+                "adapterannounceInterval": {
+                    "key": "adapterannounceInterval",
+                    "type": "INPUT",
+                    "dependency": {
+                        "adapterenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "adapterannounceTimeout": {
+                    "key": "adapterannounceTimeout",
+                    "type": "INPUT",
+                    "dependency": {
+                        "adapterenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "adapterdelayRequestInterval": {
+                    "key": "adapterdelayRequestInterval",
+                    "type": "INPUT",
+                    "dependency": {
+                        "adapterenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "adaptersyncMessageInterval": {
+                    "key": "adaptersyncMessageInterval",
+                    "type": "INPUT",
+                    "dependency": {
+                        "adapterenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portforceMaster": {
+                    "key": "portforceMaster",
+                    "type": "INPUT",
+                    "dependency": {
+                        "portenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portannounceInterval": {
+                    "key": "portannounceInterval",
+                    "type": "INPUT",
+                    "dependency": {
+                        "portenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portannounceTimeout": {
+                    "key": "portannounceTimeout",
+                    "type": "INPUT",
+                    "dependency": {
+                        "portenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portdelayRequestInterval": {
+                    "key": "portdelayRequestInterval",
+                    "type": "INPUT",
+                    "dependency": {
+                        "portenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                },
+                "portsyncMessageInterval": {
+                    "key": "portsyncMessageInterval",
+                    "type": "INPUT",
+                    "dependency": {
+                        "portenablePTP": {
+                            "value": [
+                                false
+                            ],
+                            "mode": "HIDE"
+                        }
+                    }
+                }
+            }'
