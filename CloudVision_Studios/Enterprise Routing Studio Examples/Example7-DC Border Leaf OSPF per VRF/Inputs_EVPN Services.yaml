@@ -1,0 +1,56 @@
+path: []
+inputs:
+  tenants:
+    - macVrfVniBase: 10000
+      name: L3DC-L3EVPN1-eos2-eos5-eos9
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos9
+              tags:
+                query: device:eos9
+          vlanId: 14
+          vrf: DC-L3EVPN1
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: v10
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos2
+              tags:
+                query: device:eos2
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos5
+              tags:
+                query: device:eos5
+          vlanId: 10
+          vrf: DC-L3EVPN1
+      vrfs:
+        - iBgpDetails: {}
+          name: DC-L3EVPN1
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5000

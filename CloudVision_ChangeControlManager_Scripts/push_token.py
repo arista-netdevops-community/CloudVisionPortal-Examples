@@ -10,7 +10,7 @@ token = scriptArgs["token"]
 filename = scriptArgs["filename"]
 
 # Write entry to Log
-alog("Downloading EOS image from CVP")
+alog("Uploading onboarding token..")
 
 # Connect to Device specified in Change Control
 switch = Device(ipAddress)

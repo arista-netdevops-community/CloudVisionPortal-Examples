@@ -1,0 +1,121 @@
+{
+  "dashboards": [
+    {
+      "key": "fd1edf0f-ccff-4393-9f19-34158972430f",
+      "createdAt": [
+        63309610,
+        1537
+      ],
+      "createdBy": "nikojohnarellano",
+      "metaData": {
+        "schemaVersion": "3",
+        "legacyKey": "",
+        "legacyVersion": ""
+      },
+      "name": "TerminAttrBandwidth",
+      "description": "#terminattr",
+      "widgets": [
+        {
+          "id": "eb5b6d42-ca44-457e-b28c-dbf3ed5e6461",
+          "name": "TerminAttr Bandwidth Usage (Kbps)",
+          "position": {
+            "x": 0,
+            "y": 2
+          },
+          "dimensions": {
+            "width": 12,
+            "height": 19
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data = `<_Device>:/ExpVars/expvars`[3h]\n# We want to look at different points of time\n# let data = `<_Device>:/ExpVars/expvars`[_timeWindowStart: _timeWindowEnd]\n\n# Only get keys\nlet filtered = data | recmap(2, _value | where(reMatch(_key, \"^bytes_sent_wire_total$\")))\n\nlet connections = filtered | map(_value | where(length(_value) > 0))\n\n# (Front-end issue) \n# Fix this with `dictKeys` once the unique TS fix is merged\nlet keys = merge(connections)\n\nlet timeseriesDict = newDict()\n\nfor connection, value in keys {\n    timeseriesDict[connection] = connections | field(connection) | field(\"bytes_sent_wire_total\")\n}\n\n# filter out entries with only one timestamp\ntimeseriesDict | where(length(_value) > 1) | map(rate((_value * 8) / 1024))\n",
+            "graphConfig": {
+              "showPoints": false
+            },
+            "visualization": "lineGraph"
+          },
+          "location": "main"
+        },
+        {
+          "id": "3ca907ac-b0d2-4c10-9fb9-c2fa7dcc0a54",
+          "name": "Top 5 Devices - TerminAttr Bandwidth",
+          "position": {
+            "x": 12,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 12,
+            "height": 11
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data = `*:/ExpVars/expvars`[1h] \n\nlet filteredwithBytesSentWireTotal = data | recmap(3, _value | where(reMatch(_key, \"^bytes_sent_wire_total$\")))\nlet removedEmpty = filteredwithBytesSentWireTotal | recmap(2, _value | where(length(_value) > 0))\n\nlet connectionsPerDevice = removedEmpty | map(merge(_value))\n\nlet deviceConnectionTimeseries = newDict()\n\nfor device, connections in connectionsPerDevice {\n    deviceConnectionTimeseries[device] = newDict()\n\n    for connection, value in connections {\n        deviceConnectionTimeseries[device][connection] = removedEmpty[device] | field(connection) | field(\"bytes_sent_wire_total\")\n    }\n}\n\nlet removeOneEntry = deviceConnectionTimeseries | map(_value | where(length(_value) > 1))\n\nlet rates = removeOneEntry | recmap(2, rate(_value))\n\nlet latestRates = rates | recmap(2, _value[now()]) | where(length(_value) > 0)\n\n\nlet aggregateBandwidthPerDevice = latestRates | map(sum(_value))\n\nlet top5 = aggregateBandwidthPerDevice | topK(5, _value) \n\ntop5 | map(newDict() | setFields(\"value\", _value * (8/1024)))",
+            "graphConfig": {
+              "columns": {
+                "key": {
+                  "mapToHostname": true,
+                  "unit": "",
+                  "type": "string"
+                },
+                "value": {
+                  "unit": "Kbps",
+                  "type": "number",
+                  "decimals": 2
+                }
+              }
+            },
+            "visualization": "table"
+          },
+          "location": "main"
+        },
+        {
+          "id": "316ac934-3b09-46c5-a017-d03331cb4c55",
+          "name": "Aggregate TerminAttr Bandwith Usage",
+          "position": {
+            "x": 12,
+            "y": 11
+          },
+          "dimensions": {
+            "width": 12,
+            "height": 10
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data = `*:/ExpVars/expvars`[1h] \n\nlet filteredwithBytesSentWireTotal = data | recmap(3, _value | where(reMatch(_key, \"^bytes_sent_wire_total$\")))\nlet removedEmpty = filteredwithBytesSentWireTotal | recmap(2, _value | where(length(_value) > 0))\n\nlet connectionsPerDevice = removedEmpty | map(merge(_value))\n\nlet deviceConnectionTimeseries = newDict()\n\nfor device, connections in connectionsPerDevice {\n    deviceConnectionTimeseries[device] = newDict()\n\n    for connection, value in connections {\n        deviceConnectionTimeseries[device][connection] = removedEmpty[device] | field(connection) | field(\"bytes_sent_wire_total\")\n    }\n}\n\nlet removeOneEntry = deviceConnectionTimeseries | map(_value | where(length(_value) > 1))\n\nlet rates = removeOneEntry | recmap(2, rate(_value))\n\nlet latestRates = rates | recmap(2, _value[now()]) | where(length(_value) > 0)\n\n\nlet aggregateBandwidthPerDevice = latestRates | map(sum(_value))\n\nsum(aggregateBandwidthPerDevice) * (8/1024)",
+            "graphConfig": {
+              "type": "number",
+              "decimals": 2,
+              "unit": "Kbps",
+              "fontSize": 120
+            },
+            "visualization": "singleValue"
+          },
+          "location": "main"
+        },
+        {
+          "id": "bc5e9f98-31e4-4a03-9cb0-1eb1c20e5961",
+          "name": "",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 12,
+            "height": 2
+          },
+          "type": "input-widget",
+          "inputs": {
+            "defaultValue": "JAS16400040",
+            "inputName": "Device",
+            "inputSource": "devices",
+            "inputWidgetId": "bc5e9f98-31e4-4a03-9cb0-1eb1c20e5961",
+            "tagLabel": "device"
+          },
+          "location": "main"
+        }
+      ],
+      "lastUpdated": 1651003580621,
+      "lastUpdatedBy": "nikojohnarellano"
+    }
+  ]
+}
