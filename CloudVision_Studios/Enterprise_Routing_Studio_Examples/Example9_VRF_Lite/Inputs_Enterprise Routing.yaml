@@ -1,0 +1,585 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 7
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreexternalInterfaces:
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 16.16.16.0
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet4@eos1
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 12.12.12.0
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet1@eos1
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 151.151.151.0
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet5@eos1
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 111.111.111.0
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet3@eos1
+                  coreneighbor: []
+                  corepeerGroups:
+                    - coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: CoreNet-Peers
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 16.16.16.1
+                          corepeerAsn: 7
+                          corevrf: L3DCVRF1
+                      corepeerGroupName: CoreNet-Peers
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                    - coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: ''
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 151.151.151.1
+                          corepeerAsn: 65001
+                          corevrf: L3DCVRF1
+                        - coreneighborIp: 12.12.12.1
+                          corepeerAsn: 65001
+                          corevrf: L3DCVRF1
+                      corepeerGroupName: L3DC
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                    - coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: ''
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 111.111.111.1
+                          corepeerAsn: 15
+                          corevrf: L3DCVRF1
+                      corepeerGroupName: L2DC
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  rRs: []
+              tags:
+                query: device:eos1
+            - inputs:
+                coreLinkDetails:
+                  coreexternalInterfaces:
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 16.16.16.1
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet4@eos6
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 56.56.56.1
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet1@eos6
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 26.26.26.1
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet5@eos6
+                    - inputs:
+                        coreexternalInterfaceGroup:
+                          coreextdescription: ''
+                          coreextspeed: ''
+                          coreextmtu:
+                          coreextvlans:
+                            - coreextipAddress: 136.136.136.0
+                              coreextospf: false
+                              coreextsubnetMask: 31
+                              coreextvlan: 10
+                              coreextvlandescription: ''
+                              coreextvrf: L3DCVRF1
+                      tags:
+                        query: interface:Ethernet3@eos6
+                  coreneighbor: []
+                  corepeerGroups:
+                    - coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: CoreNet-Peers
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 16.16.16.0
+                          corepeerAsn: 7
+                          corevrf: L3DCVRF1
+                      corepeerGroupName: CoreNet-Peers
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                    - coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: ''
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 26.26.26.0
+                          corepeerAsn: 65001
+                          corevrf: L3DCVRF1
+                        - coreneighborIp: 56.56.56.0
+                          corepeerAsn: 65001
+                          corevrf: L3DCVRF1
+                      corepeerGroupName: L3DC
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                    - coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: ''
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 136.136.136.1
+                          corepeerAsn: 15
+                          corevrf: L3DCVRF1
+                      corepeerGroupName: L2DC
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  rRs: []
+              tags:
+                query: device:eos6
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:Ex9-CoreNet-eos1-eos6
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 15
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extspeed: ''
+                                  extmtu:
+                                  extvlans:
+                                    - extipAddress: 111.111.111.1
+                                      extospf: false
+                                      extsubnetMask: 31
+                                      extvlan: 10
+                                      extvlandescription: ''
+                                      extvrf: L3DCVRF1
+                              tags:
+                                query: interface:Ethernet1@eos11
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: false
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 169.254.0.1
+                                  peerAsn: 15
+                                  vrf: L3DCVRF1
+                              peerGroupName: L2DC-Peers
+                              routeMapIn: []
+                              routeMapOut: []
+                            - aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: true
+                              description: CoreNet
+                              eBgcoreneighbors:
+                                - neighborIp: 111.111.111.0
+                                  peerAsn: 7
+                                  vrf: L3DCVRF1
+                              peerGroupName: CoreNet-Peers
+                              routeMapIn: []
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: L2DC-Routes
+                                  seqNum: 10
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: L2DC-Routes
+                              seqNums:
+                                - maskLength:
+                                  permitDeny: permit
+                                  prefix: 15.15.15.0/24
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos11
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extspeed: ''
+                                  extmtu:
+                                  extvlans:
+                                    - extipAddress: 136.136.136.1
+                                      extospf: false
+                                      extsubnetMask: 31
+                                      extvlan: 10
+                                      extvlandescription: ''
+                                      extvrf: L3DCVRF1
+                              tags:
+                                query: interface:Ethernet1@eos13
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: false
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 169.254.0.0
+                                  peerAsn: 15
+                                  vrf: L3DCVRF1
+                              peerGroupName: L2DC-Peers
+                              routeMapIn: []
+                              routeMapOut: []
+                            - aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: true
+                              description: CoreNet-Peers
+                              eBgcoreneighbors:
+                                - neighborIp: 136.136.136.0
+                                  peerAsn: 7
+                                  vrf: L3DCVRF1
+                              peerGroupName: CoreNet-Peers
+                              routeMapIn: []
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: L2DC-Routes
+                                  seqNum: 10
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: L2DC-Routes
+                              seqNums:
+                                - maskLength:
+                                  permitDeny: permit
+                                  prefix: 15.15.15.0/24
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos13
+              tags:
+                query: Edge-Router-Domain:11-13
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:L2DC-eos11-eos13
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces: []
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists:
+                            - prefixListName: PL_P2P_UNDERLAY
+                              seqNums:
+                                - maskLength:
+                                  permitDeny: permit
+                                  prefix: 14.14.14.0/24
+                                  prefixLength: exact-route
+                                  seqNum: 20
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos9
+              tags:
+                query: Edge-Router-Domain:9
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:L3DC-End-device-eos9
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extspeed: ''
+                                  extmtu:
+                                  extvlans:
+                                    - extipAddress: 12.12.12.1
+                                      extospf: false
+                                      extsubnetMask: 31
+                                      extvlan: 10
+                                      extvlandescription: ''
+                                      extvrf: L3DCVRF1
+                              tags:
+                                query: interface:Ethernet5@eos2
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extspeed: ''
+                                  extmtu:
+                                  extvlans:
+                                    - extipAddress: 26.26.26.0
+                                      extospf: false
+                                      extsubnetMask: 31
+                                      extvlan: 10
+                                      extvlandescription: ''
+                                      extvrf: L3DCVRF1
+                              tags:
+                                query: interface:Ethernet4@eos2
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings:
+                                overrideGlobalAs: 65001
+                              bgpOptions:
+                                bfd: false
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: false
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 26.26.26.1
+                                  peerAsn: 7
+                                  vrf: L3DCVRF1
+                                - neighborIp: 12.12.12.0
+                                  peerAsn: 7
+                                  vrf: L3DCVRF1
+                              peerGroupName: CoreNet-Peers
+                              routeMapIn: []
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: L3DC-Routes
+                                  seqNum: 10
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: L3DC-Routes
+                              seqNums:
+                                - maskLength:
+                                  permitDeny: permit
+                                  prefix: 14.14.14.0/24
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos2
+              tags:
+                query: Edge-Router-Domain:2
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces:
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extspeed: ''
+                                  extmtu:
+                                  extvlans:
+                                    - extipAddress: 56.56.56.0
+                                      extospf: false
+                                      extsubnetMask: 31
+                                      extvlan: 10
+                                      extvlandescription: ''
+                                      extvrf: L3DCVRF1
+                              tags:
+                                query: interface:Ethernet5@eos5
+                            - inputs:
+                                externalInterfaceGroup:
+                                  extdescription: ''
+                                  extspeed: ''
+                                  extmtu:
+                                  extvlans:
+                                    - extipAddress: 151.151.151.1
+                                      extospf: false
+                                      extsubnetMask: 31
+                                      extvlan: 10
+                                      extvlandescription: ''
+                                      extvrf: L3DCVRF1
+                              tags:
+                                query: interface:Ethernet4@eos5
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - aggregateRoutes: []
+                              asnSettings:
+                                overrideGlobalAs: 65001
+                              bgpOptions:
+                                bfd: false
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: false
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 56.56.56.1
+                                  peerAsn: 7
+                                  vrf: L3DCVRF1
+                                - neighborIp: 151.151.151.0
+                                  peerAsn: 7
+                                  vrf: L3DCVRF1
+                              peerGroupName: CoreNet-Peers
+                              routeMapIn: []
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: L3DC-Routes
+                                  seqNum: 10
+                                  setCommunity: ''
+                          prefixLists:
+                            - prefixListName: L3DC-Routes
+                              seqNums:
+                                - maskLength:
+                                  permitDeny: permit
+                                  prefix: 14.14.14.0/24
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos5
+              tags:
+                query: Edge-Router-Domain:5
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:L3DC-Border-Leafs-eos2-eos5
