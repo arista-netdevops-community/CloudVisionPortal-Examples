@@ -1,0 +1,3621 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: bd312810-57f1-4a31-8f41-0c14b6a5c617
+        workspace_id: 8c0840e5-d4d2-49a3-a022-e3b36c58492d
+      display_name: EVPN Services E-Tree
+      description: >-
+        Define and configure EVPN services for an L3 network fabric, including
+        configuration of VRFs, VNIs, VLANs and associated IP addressing
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: >
+          <%
+
+          import sys
+
+          import os
+
+          import json
+
+          import ipaddress
+
+          import re
+
+          from collections import OrderedDict
+
+          import tagsearch_python.tagsearch_pb2_grpc as tsgr
+
+          import tagsearch_python.tagsearch_pb2 as tspb
+
+          from arista.tag.v2.tag_pb2 import Tag, \
+              TagKey, \
+              TagAssignment, \
+              TagAssignmentKey, \
+              TagAssignmentConfig
+
+          def convert(text):
+              return int(text) if text.isdigit() else text.lower()
+
+          def alphanum_key(key):
+              return [convert(c) for c in re.split('([0-9]+)', str(key))]
+
+          def natural_sort(iterable):
+              if iterable is None:
+                  return list()
+              return sorted(iterable, key=alphanum_key)
+
+          def string_to_list(string_to_convert):
+              numbers = []
+              segments = [ segment.strip() for segment in string_to_convert.split(",") ]
+              for segment in segments:
+                  if "-" in segment:
+                      for i in range(int(segment.split("-")[0]), int(segment.split("-")[1]) + 1):
+                          numbers.append(i)
+                  else:
+                      numbers.append(int(segment))    
+              return numbers
+
+          from itertools import count, groupby
+
+          def list_compress(list_to_compress):
+              if not isinstance(list_to_compress, list):
+                  raise TypeError('value must be of type list, got %s' % type(list_to_compress))
+              G = (list(x) for y, x in groupby(sorted(list_to_compress), lambda x, c=count(): next(c) - x))
+              return (",".join("-".join(map(str, (g[0], g[-1])[:len(g)])) for g in G))
+
+          def get_tag_values_applied_to_device(tag_assignment_key):
+              label = tag_assignment_key.label.value
+              value = tag_assignment_key.value.value
+              device_id = tag_assignment_key.device_id.value
+              workspace_id = tag_assignment_key.workspace_id.value
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+
+              matching_tags = []
+
+              tvsr = tspb.TagValueSearchRequest(label=label, workspace_id=workspace_id, topology_studio_request=True)
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query= "{}:\"{}\" AND device:{}".format(tag.label, tag.value, device_id)
+                  tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+                  tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      if match.device.device_id == device_id:
+                          matching_tags.append(tag)
+                          
+              return matching_tags
+
+          def check_vni_overlap(vrfs, vlans):
+              '''
+              Summary:
+                  Asserts errors if vlans or vnis use overlapping vni numbers
+              Returns
+                  None
+              '''
+              vnis_seen = {}
+              for vlan, vlan_details in vlans.items():
+                  assert vnis_seen.get(vlan_details["vni"]) is None, "VNI {} found in multiple places -> {} in tenant {} and {} in tenant {}. Please correct the VNI conflict before moving forward.".format(
+                      vlan_details["vni"],  vnis_seen[vlan_details["vni"]]["error_name"], vnis_seen[vlan_details["vni"]]["tenant"],
+                      vlan_details["error_name"], vlan_details["tenant"]
+                  )
+                  vnis_seen[vlan_details["vni"]] = vlan_details
+              for vrf, vrf_details in vrfs.items():
+                  assert vnis_seen.get(vrf_details["vni"]) is None, "VNI {} found in multiple places -> {} in tenant {} and {} in tenant {}. Please correct the VNI conflict before moving forward.".format(
+                      vrf_details["vni"],  vnis_seen[vrf_details["vni"]]["error_name"], vnis_seen[vrf_details["vni"]]["tenant"],
+                      vrf_details["error_name"], vrf_details["tenant"]
+                  )
+                  vnis_seen[vrf_details["vni"]] = vrf_details
+
+          class SwitchDetails:
+              def __init__(self):
+                  self.id = None
+                  self.model = None #Model tag
+                  self.eos_version = None #Eos version tag
+                  self.hostname = None #hostname tag
+                  self.role = None
+                  self.neighbors = []
+
+              def get_mlag_role(self):
+                  '''
+                  Returns 'Primary', 'Secondary', or None if no MLAG neighbor present
+                  '''
+                  leaf_domain_look_up = {
+                      "Leaf": "Leaf-Domain",
+                      "L2-Leaf": "L2-Leaf-Domain"
+                  }
+                  mlag_peer = None
+                  tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+                  try:
+                      query = "DC:\"{}\" AND DC-Pod:\"{}\" AND {}:\"{}\"".format(self.dc, self.dc_pod, leaf_domain_lookup[self.role], self.leaf_domain)
+
+                      tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+                      tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+                      for m in tagmresp.matches:
+                          if m.device.device_id != my_device_id:
+                              mlag_peer = m.device.device_id
+
+                      if mlag_peer is None:
+                          return
+
+                      tvsr = tspb.TagValueSearchRequest(label="Leaf-Number", workspace_id=workspace_id, topology_studio_request=True)
+                      tags = tsclient.GetTagValueSuggestions(tvsr).tags
+                      for tag in tags:
+                          tagmr = tspb.TagMatchRequestV2(query="{}:\"{}\"".format(tag.label, tag.value), workspace_id=workspace_id, topology_studio_request=True)
+                          tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+                          for m in tagmresp.matches:
+                              if m.device.device_id == mlag_peer:
+                                  mlag_peer_leaf_number = int(tag.value)
+                                  break
+
+                      if int(self.leaf_number) < int(mlag_peer_leaf_number):
+                          return "Primary"
+                      else:
+                          return "Secondary"
+                  except:
+                      return
+
+              def get_mlag_peer_link(self):
+                  if self.get_mlag_role() is None:
+                      return None
+                  tag_assignment_key = TagAssignmentKey()
+                  tag_assignment_key.workspace_id.value = workspace_id
+                  tag_assignment_key.element_type = 1
+                  tag_assignment_key.label.value = "mlag_configuration.peer_link"
+                  tag_assignment_key.device_id.value = self.id
+                  tags = get_tag_values_applied_to_device(tag_assignment_key)
+                  for tag in tags:
+                      return tag.value
+
+          class L2LeafDetails(SwitchDetails):
+              def __init__(self):
+                  super().__init__()
+                  self.role = "L2-Leaf"
+                  self.leaf_number = None  # Leaf-Number tag
+                  self.leaf_domain = None  # Leaf-Domain tag
+                  self.l3 = False
+                  self.config = {
+                      "vlans": {}
+                  }
+
+              def __str__(self):
+                  return "{} - {}\n   role: {}\n   leaf number: {}\n   leaf domain: {}".format(self.hostname, self.id, self.role, self.leaf_number, self.leaf_domain)
+
+              def get_interfaces(self):
+                  '''
+                  Gets and sets the physical ethernet interfaces for connections from switch
+                  Returns interface dictionary where keys are local interface names and values are dictionaries with keys below:
+                  {
+                      "neighborHostname": str,
+                      "neighborInterface": str,
+                      "neighborId": str
+                  }
+                  '''
+                  uplink_interfaces = {}
+                  downlink_interfaces = {}
+                  mlag_peer_link_interfaces = {}
+                  for i in ctx.topology.getDevices(deviceIds=[self.id])[0].getInterfaces():
+                      peer_device, peer_interface = i.getPeerInfo()
+                      if peer_device is not None:
+                          if switches_in_my_dc.get(peer_device.id):
+                              neighbor = switches_in_my_dc.get(peer_device.id)
+                              if neighbor.role == "L2-Leaf" and self.leaf_domain == neighbor.leaf_domain:
+                                  mlag_peer_link_interfaces[i.name] = {"neighborId": peer_device.id, "neighborHostname": peer_device.hostName, "neighborInterface": peer_interface.name}
+                              elif neighbor.role == "Leaf":
+                                  uplink_interfaces[i.name] = {"neighborId": peer_device.id, "neighborHostname": peer_device.hostName, "neighborInterface": peer_interface.name}
+                              self.neighbors.append(peer_device.id)
+                  self.uplink_interfaces = uplink_interfaces
+                  self.downlink_interfaces = downlink_interfaces
+                  self.mlag_peer_link_interfaces = mlag_peer_link_interfaces
+                  return
+
+              def set_config_params_via_tags(self):
+                  mlag_peer_link = self.get_mlag_peer_link()
+                  if mlag_peer_link is not None:
+                      self.config["port_channel_interfaces"][mlag_peer_link] = {"trunk_groups": [] }
+
+
+              def configure_vrfs(self, vrfs):
+                  return
+
+              def configure_vlans(self, vlans, vlan_aware_bundles):
+                  for vlan, vlan_details in vlans.items():
+                      self.config["vlans"][vlan] = {}
+                      if vlan_details["name"].strip() != "":
+                          self.config["vlans"][vlan]["name"] = vlan_details["name"]
+
+          class LeafDetails(SwitchDetails):
+              def __init__(self):
+                  super().__init__()
+                  self.role = "Leaf"
+                  self.leaf_number = None  # Leaf-Number tag
+                  self.leaf_domain = None  # Leaf-Domain tag
+                  self.l3 = True
+                  self.config = {
+                      "vlans": {},
+                      "vrfs": {},
+                      "port_channel_interfaces": {},
+                      "loopback_interfaces": {},
+                      "vlan_interfaces": {},
+                      "vxlan_tunnel_interface": {
+                          "Vxlan1": {
+                              "vxlan_vni_mappings": {
+                                  "vlans": {},
+                                  "vrfs": {}
+                              }
+                          }
+                      },
+                      "router_bgp":{
+                          "as": None,
+                          "router_id": None,
+                          "vrfs": {},
+                          "vlans": {},
+                          "vlan_aware_bundles": {}
+                      },
+                      "virtual_source_nat_vrfs": {}
+                  }
+
+              def __str__(self):
+                  return "{} - {}\n   role: {}\n   leaf number: {}\n   leaf domain: {}".format(self.hostname, self.id, self.role, self.leaf_number, self.leaf_domain)
+
+              def set_config_params_via_tags(self):
+                  self.config["router_bgp"]["as"] = self.get_bgp_asn()
+                  self.config["router_bgp"]["router_id"] = self.get_bgp_router_id()
+                  mlag_peer_link = self.get_mlag_peer_link()
+                  if mlag_peer_link is not None:
+                      self.config["port_channel_interfaces"][mlag_peer_link] = {"trunk_groups": [] }
+
+              def check_config_parameters(self):
+                  assert self.config["router_bgp"]["as"] is not None, "{} is not set.  Please apply a '{}' tag to {} in the Tags section of Provisioning with the appropriate workspace selected".format(
+                          "BGP ASN", "router_bgp.as", self.hostname
+                      )
+                  assert self.config["router_bgp"]["router_id"] is not None, "{} is not set.  Please apply a '{}' tag to {} in the Tags section of Provisioning with the appropriate workspace selected".format(
+                          "BGP Router ID", "router_bgp.router_id", self.hostname
+                      )
+                  if self.get_mlag_role() is not None:
+                      assert self.get_mlag_peer_link() is not None, "{} is not set.  Please apply a '{}' tag to {} in the Tags section of Provisioning with the appropriate workspace selected".format(
+                              "MLAG Peer Link", "mlag_configuration.peer_link", self.hostname
+                          )
+
+              def get_bgp_asn(self):
+                  tag_assignment_key = TagAssignmentKey()
+                  tag_assignment_key.workspace_id.value = workspace_id
+                  tag_assignment_key.element_type = 1
+                  tag_assignment_key.label.value = "router_bgp.as"
+                  tag_assignment_key.device_id.value = self.id
+                  tags = get_tag_values_applied_to_device(tag_assignment_key)
+                  for tag in tags:
+                      return tag.value
+                  assert False, "{} is not set. Please apply a '{}' tag to {} in the Tags section of Provisioning with the appropriate workspace selected".format(
+                      "BGP ASN Tag", tag_assignment_key.label.value, self.hostname
+                  )
+
+              def get_bgp_router_id(self):
+                  tag_assignment_key = TagAssignmentKey()
+                  tag_assignment_key.workspace_id.value = workspace_id
+                  tag_assignment_key.element_type = 1 
+                  tag_assignment_key.label.value = "router_bgp.router_id"
+                  tag_assignment_key.device_id.value = self.id
+                  tags = get_tag_values_applied_to_device(tag_assignment_key)
+                  for tag in tags:
+                      return tag.value
+                  assert False, "{} is not set. Please apply a '{}' tag to {} in the Tags section of Provisioning with the appropriate workspace selected".format(
+                      "BGP Router ID Tag", tag_assignment_key.label.value, self.hostname
+                  )
+
+                  assert False, "{} is not set.  Please apply a '{}' tag to {} in the Tags section of Provisioning with the appropriate workspace selected".format(
+                          "MLAG Peer Link", "mlag_configuration.peer_link", self.hostname
+                      )
+
+              def configure_vrfs(self, vrfs):
+                  ip_vrf_admin_field_key_words = {
+                      "VNI": "vrf_details['vni']",
+                      "Router-ID": "self.config['router_bgp']['router_id']"
+                  }
+                  for vrf, vrf_details in vrfs.items():
+                      self.config["vrfs"][vrf] = {
+                          "description": None,
+                          "ip_routing": True 
+                      }
+                      self.config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"]["vrfs"][vrf] = {"vni": vrf_details["vni"]}
+                      switch_rd = []
+                      for rd_segment in vrf_details["route_distinguisher"].split(":"):
+                          if ip_vrf_admin_field_key_words.get(rd_segment):
+                              switch_rd.append(  str(eval(ip_vrf_admin_field_key_words[rd_segment])) )
+                          else:
+                              switch_rd.append(rd_segment)
+                      switch_rd = ":".join(switch_rd)
+                      switch_rt = []
+                      for rt_segment in vrf_details["route_target"].split(":"):
+                          if ip_vrf_admin_field_key_words.get(rt_segment):
+                              switch_rt.append(  str(eval(ip_vrf_admin_field_key_words[rt_segment])) )
+                          else:
+                              switch_rt.append(rt_segment)
+                      switch_rt = ":".join(switch_rt)
+                      self.config["router_bgp"]["vrfs"][vrf] = {
+                          "rd": switch_rd,
+                          "route_targets": {
+                              "import": {
+                                  "evpn": [switch_rt]
+                              },
+                              "export": {
+                                  "evpn": [switch_rt]
+                              }
+                          },
+                          "router_id": self.config["router_bgp"]["router_id"],
+                          "neighbors": {},
+                          "redistribute_routes": {
+                              "connected":{}
+                          }
+                      } 
+                      mlag_role = self.get_mlag_role()
+                      if mlag_role is not None:
+                          if vrf_details["ibgp_details"]["iBgpVlanId"] is not None:
+                              self.config["vlans"][vrf_details["ibgp_details"]["iBgpVlanId"]] = {
+                                  "name": "IBGP-{}".format(vrf),
+                                  "trunk_groups": ["IBGP-VRF-{}".format(vrf)]
+                              }
+                              for port_channel in self.config["port_channel_interfaces"].keys():
+                                  self.config["port_channel_interfaces"][port_channel]["trunk_groups"].append("IBGP-VRF-{}".format(vrf))
+
+                              ibgp_svi_subnet = ipaddress.ip_network(vrf_details["ibgp_details"]["iBgpSubnet"])
+                              ibgp_svi_subnet_mask = int(vrf_details["ibgp_details"]["iBgpSubnetMask"])
+
+                              if ibgp_svi_subnet_mask != ibgp_svi_subnet.prefixlen:
+                                  ibgp_svi_subnet = list(ibgp_svi_subnet.subnets(new_prefix=ibgp_svi_subnet_mask))[ int(self.leaf_domain) - 1 ]
+
+                              ibgp_svi_ip_address = str( list(ibgp_svi_subnet.hosts())[0] if self.get_mlag_role() == "Primary" else list(ibgp_svi_subnet.hosts())[1] )
+                              ibgp_svi_peer_address = str( list(ibgp_svi_subnet.hosts())[1] if self.get_mlag_role() == "Primary" else list(ibgp_svi_subnet.hosts())[0] )
+
+                              self.config["vlan_interfaces"]["Vlan{}".format(vrf_details["ibgp_details"]["iBgpVlanId"])] = {
+                                  "description": None,
+                                  "mtu": 9214,
+                                  "vrf": vrf,
+                                  "ip_address": "{}/{}".format(ibgp_svi_ip_address, ibgp_svi_subnet_mask)
+                              }
+                              self.config["router_bgp"]["vrfs"][vrf]['neighbors'][ibgp_svi_peer_address] = {
+                                  "remote_as": self.config["router_bgp"]["as"]
+                              }
+                              self.config["router_bgp"]["vrfs"][vrf]["address_families"] = {
+                                      "ipv4": {
+                                          "neighbors": {
+                                              ibgp_svi_peer_address : {
+                                                  "activate": True
+                                              }
+                                          },
+                                          "networks":{
+
+                                          }
+                                      }
+                                  }
+
+                      try:
+                          if vrf_details["nat_source_details"].get("natSubnet") and vrf_details["nat_source_details"].get("natSubnet").strip() != "":
+                              nat_source_ip_address = str( list(ipaddress.ip_network(vrf_details["nat_source_details"]["natSubnet"]))[int(self.leaf_number) - 1 ] )
+                              self.config["loopback_interfaces"][vrf_details["nat_source_details"]["natInterface"]] = {
+                                  "description": "Virtual NAT Source Address for VRF {}".format(vrf),
+                                  "vrf": vrf,
+                                  "ip_address": "{}/32".format(nat_source_ip_address)
+                              }
+                              self.config["virtual_source_nat_vrfs"][vrf] = {
+                                  "ip_address": nat_source_ip_address
+                              }
+                      except:
+                          pass
+
+              def configure_vlans(self, vlans, vlan_aware_bundles):
+                  vlan_based_mac_vrf_admin_field_key_words = {
+                      "VNI": "vlan_details['vni']",
+                      "VLAN": "vlan",
+                      "Router-ID": "self.config['router_bgp']['router_id']"
+                  }
+                  for vlan, vlan_details in vlans.items():
+                      self.config["vlans"][vlan] = {}
+                      if vlan_details["name"].strip() != "":
+                          self.config["vlans"][vlan]["name"] = vlan_details["name"]
+                      if vlan_details["etree_role"] == 'Leaf':
+                          self.config["vlans"][vlan]["etree_role"] = 'Leaf'
+                      self.config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"]["vlans"][vlan] = {
+                          "vni": vlan_details['vni']
+                      }
+                      if vlan_details["svi_ip_addresses"]["sviVirtualIpAddress"].strip() != "":
+                          self.config["vlan_interfaces"]["Vlan{}".format(vlan)] = {
+                              "mtu": 9214,
+                              "ip_helpers": {}
+                          }
+                          if vlan_details["vrf"] is not None and vlan_details["vrf"].strip() not in ["", "None"]:
+                              self.config["vlan_interfaces"]["Vlan{}".format(vlan)]["vrf"] = vlan_details["vrf"]
+                          if vlan_details["svi_ip_addresses"]["sviVirtualIpAddress"].strip() != "":
+                              self.config["vlan_interfaces"]["Vlan{}".format(vlan)]["ip_address_virtual"] = vlan_details["svi_ip_addresses"]["sviVirtualIpAddress"]
+                          for ip_helper_details in vlan_details["dhcp_server_details"]:
+                              self.config["vlan_interfaces"]["Vlan{}".format(vlan)]["ip_helpers"][ip_helper_details["dhcpServer"]] = {
+                                  "vrf": None,
+                                  "source_interface": None
+                              }
+                              if ip_helper_details["dhcpServerVrf"] is not None and ip_helper_details["dhcpServerVrf"].strip() not in ["", "None"]:
+                                  self.config["vlan_interfaces"]["Vlan{}".format(vlan)]["ip_helpers"][ip_helper_details["dhcpServer"]]["vrf"] = ip_helper_details["dhcpServerVrf"]
+                              if ip_helper_details["dhcpHelperSourceInterface"] is not None and ip_helper_details["dhcpHelperSourceInterface"].strip() not in ["", "None"]:
+                                  self.config["vlan_interfaces"]["Vlan{}".format(vlan)]["ip_helpers"][ip_helper_details["dhcpServer"]]["source_interface"] = ip_helper_details["dhcpHelperSourceInterface"]
+                      vlan_in_mac_vrf_bundle = False
+                      for bundle, bundle_details in vlan_aware_bundles.items():
+                          if vlan in string_to_list(bundle_details["vlan_range"]):
+                              vlan_in_mac_vrf_bundle = True
+                              break
+
+                      if vlan_in_mac_vrf_bundle == False:
+                          switch_rd = []
+                          for rd_segment in vlan_details["route_distinguisher"].split(":"):
+                              if vlan_based_mac_vrf_admin_field_key_words.get(rd_segment) is not None:
+                                  switch_rd.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rd_segment])) )
+                              else:
+                                  switch_rd.append(rd_segment)
+                          switch_rd = ":".join(switch_rd)
+          ##                switch_rt = []
+                          import_switch_rt = []
+                          has_etree_leaf_import_switch_rt = []
+                          export_switch_rt = []
+                          index = 0
+                          for rt_segment in vlan_details["route_target"].split(":"):
+                              if vlan_based_mac_vrf_admin_field_key_words.get(rt_segment) is not None and index == 0:
+                                  import_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                                  export_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                                  if vlan_details["etree_role"] == 'Root':
+                                      has_etree_leaf_import_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                              elif vlan_based_mac_vrf_admin_field_key_words.get(rt_segment) is not None and index == 1 and vlan_details["etree_role"] == 'Root':
+                                  import_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                                  export_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                                  has_etree_leaf_import_switch_rt.append(  str(1 + eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )           
+                              elif vlan_based_mac_vrf_admin_field_key_words.get(rt_segment) is not None and index == 1 and vlan_details["etree_role"] == 'Leaf':
+                                  import_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                                  export_switch_rt.append(  str(1 + eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                              else:
+                                  import_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                                  export_switch_rt.append(  str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])) )
+                              index = index +1
+          ##                switch_rt = ":".join(switch_rt)
+                          import_switch_rt = ":".join(import_switch_rt)
+                          export_switch_rt = ":".join(export_switch_rt)
+                          has_etree_leaf_import_switch_rt = ":".join(has_etree_leaf_import_switch_rt)
+                          self.config["router_bgp"]["vlans"][vlan] = {
+                              "rd": switch_rd,
+                              "etree_role": vlan_details["etree_role"],
+                              "route_targets": {
+          ##                        "both": [switch_rt],
+                                  "import": [import_switch_rt],
+                                  "has_etree_leaf_import": [has_etree_leaf_import_switch_rt],
+                                  "export": [export_switch_rt]
+                              },
+                              "redistribute_routes": {
+                                  "learned":{}
+                              }
+                          }
+                  
+                  vlan_bundle_mac_vrf_admin_field_key_words = {
+                      "First-VNI": "vlans[ string_to_list(bundle_details['vlan_range'])[0] ]['vni']",
+                      "First-VLAN": "string_to_list(bundle_details['vlan_range'])[0]",
+                      "Last-VNI": "vlans[ string_to_list(bundle_details['vlan_range'])[-1] ]['vni']",
+                      "Last-VLAN": "string_to_list(bundle_details['vlan_range'])[-1]",
+                      "Router-ID": "self.config['router_bgp']['router_id']"
+                  }
+                  for bundle, bundle_details in vlan_aware_bundles.items():
+                      switch_rd = []
+                      for rd_segment in bundle_details["route_distinguisher"].split(":"):
+                          if vlan_bundle_mac_vrf_admin_field_key_words.get(rd_segment) is not None:
+                              try:
+                                  switch_rd.append(  str( eval( vlan_bundle_mac_vrf_admin_field_key_words[rd_segment] ) ) )
+                              except KeyError:
+                                  if re.match(r'First', rd_segment):
+                                      switch_rd.append( str(string_to_list(bundle_details['vlan_range'])[0]) )
+                                  else:
+                                      switch_rd.append( str(string_to_list(bundle_details['vlan_range'])[-1]) )
+                          else:
+                              switch_rd.append(rd_segment)
+                      switch_rd = ":".join(switch_rd)
+                      switch_rt = []
+                      for rt_segment in bundle_details["route_target"].split(":"):
+                          if vlan_bundle_mac_vrf_admin_field_key_words.get(rt_segment) is not None:
+                              try:
+                                  switch_rt.append(  str( eval( vlan_bundle_mac_vrf_admin_field_key_words[rt_segment] ) ) )
+                              except KeyError:
+                                  if re.match(r'First', rt_segment):
+                                      switch_rt.append( str(string_to_list(bundle_details['vlan_range'])[0]) )
+                                  else:
+                                      switch_rt.append( str(string_to_list(bundle_details['vlan_range'])[-1]) )
+                          else:
+                              switch_rt.append(rt_segment)
+                      switch_rt = ":".join(switch_rt)            
+                      self.config["router_bgp"]["vlan_aware_bundles"][bundle] = {
+                          "rd": switch_rd,
+                          "route_targets":{
+                              "both": [switch_rt]
+                          },
+                          "redistribute_routes": {
+                              "learned":{}
+                          },
+                          "vlan": bundle_details["vlan_range"]
+                      }
+
+          def create_switch(role, bgp_tag_applied=None):
+              if role == "L2-Leaf":
+                  return L2LeafDetails()
+              else:
+                  return LeafDetails()
+
+          def get_switch(device_id):
+              labels_to_fields = {
+                  "hostname": "hostname",
+                  "model": "model",
+                  "Role": "role",
+                  "DC": "dc",
+                  "DC-Pod": "dc_pod",
+                  "Leaf-Number": "leaf_number",
+                  "Leaf-Domain": "leaf_domain",
+                  "Spine-Number": "spine_number",
+                  "Super-Spine-Number": "super_spine_number"
+              }
+              switch = None
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              found_switch = False
+
+              # Check if device has router bgp tags
+              router_bgp_tag_found = False
+              tvsr = tspb.TagValueSearchRequest(label="router_bgp.as", workspace_id=workspace_id, topology_studio_request=True)
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = "{}:\"{}\" AND device:{}".format(tag.label, tag.value, device_id)
+                  tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+                  tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+                  if len(tagmresp.matches) > 0:
+                      router_bgp_tag_found = True
+                      break
+
+              # Check if device is special case of an L2-Leaf
+              switch_role = ""
+              query = "{}:\"{}\" AND device:{}".format("Role", "L2-Leaf", device_id)
+              tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+              tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+              if len(tagmresp.matches) > 0:
+                  switch_role = "L2-Leaf"
+
+              switch = create_switch(switch_role, bgp_tag_applied=router_bgp_tag_found)
+              ctx.info(f'create_switch for {device_id} with role {switch.role} and router_bgp_tag_found {router_bgp_tag_found}')
+              found_switch = True
+
+              if found_switch == False or switch is None:
+                  return
+
+              for label in labels_to_fields.keys():
+                  if label == "hostname":
+                      for dev in ctx.topology.getDevices(deviceIds=[device_id]):
+                          if dev.hostName:
+                              setattr(switch, labels_to_fields[ label ], dev.hostName)
+                      continue
+                  if label == "model":
+                      for dev in ctx.topology.getDevices(deviceIds=[device_id]):
+                          if dev.modelName:
+                              setattr(switch, labels_to_fields[ label ], dev.modelName)
+                      continue
+                  tvsr = tspb.TagValueSearchRequest(label=label, workspace_id=workspace_id, topology_studio_request=True)
+                  for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                      try:
+                          query= "{}:\"{}\" AND device:{}".format(tag.label, tag.value, device_id)
+                          tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+                          tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+                      except:
+                          continue
+                      else:
+                          for match in tagmresp.matches:
+                              if match.device.device_id == device_id:
+                                  setattr(switch, labels_to_fields[ tag.label ], tag.value)
+                                  break
+
+              switch.id = device_id
+              return switch
+
+          def get_switches_in_dc(data_center):
+              '''
+              Args
+                  data_center (str) -> value of data center tag to retrieve switches from
+              '''
+              # Dictionary of switches that will be returned
+              switches = {}
+
+              #Create tagstub
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+
+              #Get switches in dc
+              query= "{}:\"{}\"".format("DC", data_center)
+              tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+              tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+              for match in tagmresp.matches:
+                  switch = get_switch(match.device.device_id)
+                  if switch is None:
+                      continue
+                  if switch.id not in switches:
+                      switches[switch.id] = switch
+              return switches
+
+          workspace_id = ctx.studio.workspaceId
+
+          my_device = ctx.getDevice()
+
+          my_device_id = my_device.id
+
+
+          vlan_based_mac_vrf_attribute_formats = vlanBasedMacVrfAttributeFormats
+
+          vlan_bundle_mac_vrf_attribute_formats =
+          vlanBundleMacVrfAttributeFormats
+
+          vrf_attribute_formats = vrfAttributeFormats
+
+
+          vrfs = {}
+
+          vrfs_seen = {}
+
+          vlans = {}
+
+          vlans_seen = {}
+
+          vlan_aware_bundles = {}
+
+
+          # Get VLANs and VRFs from input
+
+          for tenant in tenants:
+              for vrf in tenant["vrfs"]:
+                  #Check to see if vrf already exists in a previously traversed tenant
+                  assert vrfs_seen.get(vrf["name"]) is None, "{} found in multiple Tenants -> {} and {}. Please remove the VRF {} definition from one of the previously listed tenants.".format(
+                      vrf["name"], vrfs_seen[vrf["name"]], tenant["name"],  vrf["name"]
+                  )
+                  vrfs_seen[vrf["name"]] = tenant["name"]
+                  vrfs[vrf["name"]] = {
+                      "nat_source_details": vrf["natSourceDetails"],
+                      "ibgp_details": vrf["iBgpDetails"],
+                      "vni": vrf["vni"],
+                      "route_distinguisher": vrf_attribute_formats["vrfRouteDistinguisherFormat"],
+                      "route_target": vrf_attribute_formats["vrfRouteTargetFormat"],
+                      "tenant": tenant["name"], # Set for error asserting purposes
+                      "error_name": "VRF {}".format(vrf["name"]) # Set for error asserting purposes
+                  }
+                  if vrf["overrideVariables"]["routeDistinguisher"] is not None and vrf["overrideVariables"]["routeDistinguisher"].strip() != "":
+                      vrfs[vrf["name"]]["route_distinguisher"] = vrf["overrideVariables"]["routeDistinguisher"]
+                  if vrf["overrideVariables"]["routeTarget"] is not None and vrf["overrideVariables"]["routeTarget"].strip() != "":
+                      vrfs[vrf["name"]]["route_target"] = vrf["overrideVariables"]["routeTarget"]
+
+              for vlan in tenant["vlans"]:
+                  #Check to see if vlan already exists in a previously traversed tenant
+                  assert vlans_seen.get(vlan["vlanId"]) is None, "{} found in multiple Tenants -> {} and {}. Please remove the VLAN {} definition from one of the previously listed tenants.".format(
+                      vlan["vlanId"], vlans_seen[vlan["vlanId"]], tenant["name"],  vlan["vlanId"]
+                  )
+                  vlans_seen[vlan["vlanId"]] = tenant["name"]
+                  vlans[vlan["vlanId"]] = {
+                      "name": vlan["name"],
+                      "vrf": vlan["vrf"],
+                      "svi_ip_addresses": vlan["sviIpAddresses"],
+                      "dhcp_server_details": vlan["dhcpServerDetails"],
+                      "vni": int(tenant["macVrfVniBase"]) + int(vlan["vlanId"]),
+                      "member_switches": vlan["switches"],
+                      "etree_role": 'None',
+                      "route_distinguisher": vlan_based_mac_vrf_attribute_formats["macVrfRouteDistinguisherFormat"],
+                      "route_target": vlan_based_mac_vrf_attribute_formats["macVrfRouteTargetFormat"],
+                      "tenant": tenant["name"], # Set for error asserting purposes
+                      "error_name": "Vlan{}".format(vlan["vlanId"]) # Set for error asserting purposes
+                  }
+                  if vlan["overrideVariables"]["vni"] is not None:
+                      vlans[vlan["vlanId"]]["vni"] = int(vlan["overrideVariables"]["vni"])
+                  if vlan["overrideVariables"]["routeDistinguisher"] is not None and vlan["overrideVariables"]["routeDistinguisher"].strip() != "":
+                      vlans[vlan["vlanId"]]["route_distinguisher"] = vlan["overrideVariables"]["routeDistinguisher"]
+                  if vlan["overrideVariables"]["routeTarget"] is not None and vlan["overrideVariables"]["routeTarget"].strip() != "":
+                      vlans[vlan["vlanId"]]["route_target"] = vlan["overrideVariables"]["routeTarget"]
+
+              for vlan_aware_bundle in tenant["vlanAwareBundles"]:
+                  vlan_range = string_to_list(vlan_aware_bundle["vlanRange"])
+                  vlan_range = list_compress(vlan_range)
+                  vlan_aware_bundles[ vlan_aware_bundle["name"] ] = {
+                      "vlan_range": vlan_range,
+                      "route_distinguisher": vlan_bundle_mac_vrf_attribute_formats["macVrfRouteDistinguisherFormat"],
+                      "route_target": vlan_bundle_mac_vrf_attribute_formats["macVrfRouteTargetFormat"]
+                  }
+                  if vlan_aware_bundle["overrideVariables"]["routeDistinguisher"] is not None and vlan_aware_bundle["overrideVariables"]["routeDistinguisher"].strip() != "":
+                      vlan_aware_bundles[ vlan_aware_bundle["name"] ]["route_distinguisher"] = vlan_aware_bundle["overrideVariables"]["routeDistinguisher"]
+                  if vlan_aware_bundle["overrideVariables"]["routeTarget"] is not None and vlan_aware_bundle["overrideVariables"]["routeTarget"].strip() != "":
+                      vlan_aware_bundles[ vlan_aware_bundle["name"] ]["route_target"] = vlan_aware_bundle["overrideVariables"]["routeTarget"]
+
+          # Check for duplicate VNIs
+
+          check_vni_overlap(vrfs, vlans)
+
+
+          switch = get_switch(my_device_id)
+
+
+          switch_vrfs = {}
+
+          switch_vlans = {}
+
+          switch_vlan_bundles = {}
+
+          # Get only VLANs applied to this switch
+
+          if switch is not None and switch.role != "L2-Leaf":
+              for vlan, vlan_details in vlans.items():
+                  if vlan_details["member_switches"].resolve()["switch"]["hostname"].resolve()["apply"] == True:
+                      if vlan_details["member_switches"].resolve()["switch"]["eTreeRole"] == 'Leaf':
+                          vlan_details["etree_role"] = 'Leaf'
+                      elif vlan_details["member_switches"].resolve()["switch"]["eTreeRole"] == 'Root':
+                          vlan_details["etree_role"] = 'Root'
+                      switch_vlans[vlan] = vlan_details
+                      if vlan_details.get("vrf") is not None and vlan_details["vrf"].strip() not in ["", "None"]:
+                          switch_vrfs[ vlan_details["vrf"] ] = vrfs[ vlan_details["vrf"] ]
+                      for bundle, bundle_details in vlan_aware_bundles.items():
+                          if vlan in string_to_list(bundle_details["vlan_range"]):
+                              switch_vlan_bundles[bundle] = bundle_details
+                              break
+          elif switch is not None and switch.role == "L2-Leaf":
+              switches_in_my_dc = get_switches_in_dc(switch.dc)
+              switch.get_interfaces()
+              uplink_neighbor_ids = [ details["neighborId"] for details in switch.uplink_interfaces.values() ]
+              for vlan, vlan_details in vlans.items():
+                  for neighbor_id in uplink_neighbor_ids:
+                      if vlan_details["member_switches"].resolve(device=neighbor_id)["switch"]["hostname"].resolve(device=neighbor_id)["apply"] == True:
+                          switch_vlans[vlan] = vlan_details
+                          break
+
+          # Create config
+
+          if len(switch_vlans) > 0:
+              switch.set_config_params_via_tags()
+              switch.configure_vrfs(switch_vrfs)
+              switch.configure_vlans(switch_vlans, switch_vlan_bundles)
+              config = switch.config
+          else:
+              config = {}
+          %>
+
+          ## eos - VLANs
+
+          %if config.get("vlans") is not None:
+
+          %     for vlan in natural_sort(config.get("vlans")):
+
+          vlan ${ vlan }
+
+          %          if config.get("vlans")[vlan].get("name") is not None:
+
+          name ${ config.get("vlans")[vlan].get("name") }
+
+          %          endif
+
+          %          if config.get("vlans")[vlan].get("etree_role") == 'Leaf':
+
+          e-tree role leaf
+
+          %          endif
+
+          %          if config.get("vlans")[vlan].get("state") is not None:
+
+          state ${ config.get("vlans")[vlan].get("state") }
+
+          %          endif
+
+          %          if config.get("vlans")[vlan].get("trunk_groups") is not
+          None:
+
+          %               for trunk_group in
+          config.get("vlans")[vlan].get("trunk_groups"):
+
+          trunk group ${ trunk_group }
+
+          %               endfor
+
+          %          endif
+
+          !
+
+          %    endfor %}
+
+          %endif
+
+          ## vrfs
+
+          % if config.get("vrfs") is not None:
+
+          %   for vrf in natural_sort(config["vrfs"].keys()):
+
+          vrf instance ${ vrf }
+
+          %     if config["vrfs"][vrf].get("description"):
+
+          description ${ config["vrfs"][vrf]["description"] }
+
+          %     endif
+
+          !
+
+          %   endfor
+
+          ## eos- Port-Channel Interfaces
+
+          % if config.get("port_channel_interfaces") is not None:
+
+          %   for port_channel_interface in
+          natural_sort(config["port_channel_interfaces"].keys()):
+
+          interface ${ port_channel_interface }
+
+          %     if
+          config["port_channel_interfaces"][port_channel_interface].get("description")
+          is not None:
+
+          description ${
+          config["port_channel_interfaces"][port_channel_interface]["description"]
+          }
+
+          %     endif
+
+          %     if
+          config["port_channel_interfaces"][port_channel_interface].get("shutdown")
+          == True:
+
+          shutdown
+
+          %     elif
+          config["port_channel_interfaces"][port_channel_interface].get("shutdown")
+          == False:
+
+          no shutdown
+
+          %     endif
+
+          %     if
+          config["port_channel_interfaces"][port_channel_interface].get("mtu")
+          is not None:
+
+          mtu ${
+          config["port_channel_interfaces"][port_channel_interface]["mtu"] }
+
+          %     endif
+
+          %     if
+          config["port_channel_interfaces"][port_channel_interface].get("type")
+          is not None and
+          config["port_channel_interfaces"][port_channel_interface].get("type")
+          == "routed":
+
+          no switchport
+
+          %     else:
+
+          switchport
+
+          %     endif
+
+          %     if
+          config["port_channel_interfaces"][port_channel_interface].get("mode")
+          is not None and
+          config["port_channel_interfaces"][port_channel_interface].get("mode")
+          == "access":
+
+          switchport access vlan ${
+          config["port_channel_interfaces"][port_channel_interface]["vlans"] }
+
+          %     endif %}
+
+          %     if
+          config["port_channel_interfaces"][port_channel_interface].get("mode")
+          is not None and
+          config["port_channel_interfaces"][port_channel_interface].get("mode")
+          == "trunk":
+
+          switchport mode ${
+          config["port_channel_interfaces"][port_channel_interface]["mode"] }
+
+          %     endif
+
+          %     if
+          config["port_channel_interfaces"][port_channel_interface].get("trunk_groups")
+          is not None:
+
+          %       for trunk_group in
+          config["port_channel_interfaces"][port_channel_interface]["trunk_groups"]:
+
+          switchport trunk group ${ trunk_group }
+
+          %       endfor
+
+          %     endif
+
+          !
+
+          %   endfor
+
+          % endif
+
+          ## eos - Loopback Interfaces
+
+          %if config.get("loopback_interfaces") is not None:
+
+          %   for loopback_interface in
+          natural_sort(config.get("loopback_interfaces").keys()):
+
+          interface ${ loopback_interface }
+
+          %       if
+          config["loopback_interfaces"][loopback_interface].get("description")
+          is not None:
+
+          description ${
+          config["loopback_interfaces"][loopback_interface].get("description") }
+
+          %       endif
+
+          %       if
+          config["loopback_interfaces"][loopback_interface].get("shutdown") is
+          not None and
+          config["loopback_interfaces"][loopback_interface].get("shutdown") ==
+          True:
+
+          shutdown
+
+          %       elif
+          config["loopback_interfaces"][loopback_interface].get("shutdown") is
+          not None and
+          config["loopback_interfaces"][loopback_interface].get("shutdown") ==
+          False:
+
+          no shutdown
+
+          %       endif
+
+          %       if
+          config["loopback_interfaces"][loopback_interface].get("vrf") is not
+          None:
+
+          vrf ${ config["loopback_interfaces"][loopback_interface].get("vrf") }
+
+          %       endif
+
+          %       if
+          config["loopback_interfaces"][loopback_interface].get("ip_address") is
+          not None:
+
+          ip address ${
+          config["loopback_interfaces"][loopback_interface].get("ip_address") }
+
+          %           if
+          config["loopback_interfaces"][loopback_interface].get("ip_address_secondaries")
+          is not None:
+
+          %               for ip_address_secondary in
+          config["loopback_interfaces"][loopback_interface].get("ip_address_secondaries"):
+
+          ip address ${ ip_address_secondary } secondary
+
+          %               endfor
+
+          %           endif
+
+          %       endif
+
+          !
+
+          %   endfor
+
+          %endif
+
+          ## vlan-interfaces
+
+          % if config.get("vlan_interfaces") is not None:
+
+          %   for vlan_interface in
+          natural_sort(config.get("vlan_interfaces").keys()):
+
+          interface ${ vlan_interface }
+
+          %     if
+          config.get("vlan_interfaces")[vlan_interface].get("description") is
+          not None:
+
+          description ${
+          config.get("vlan_interfaces")[vlan_interface].get("description") }
+
+          %     endif
+
+          %     if config.get("vlan_interfaces")[vlan_interface].get("shutdown")
+          == True:
+
+          shutdown
+
+          %     elif
+          config.get("vlan_interfaces")[vlan_interface].get("shutdown") ==
+          False:
+
+          no shutdown
+
+          %     endif
+
+          %     if config.get("vlan_interfaces")[vlan_interface].get("mtu") is
+          not None:
+
+          mtu ${ config.get("vlan_interfaces")[vlan_interface].get("mtu") }
+
+          %     endif
+
+          %     if
+          config.get("vlan_interfaces")[vlan_interface].get("no_autostate") ==
+          True:
+
+          no autostate
+
+          %     endif
+
+          %     if config.get("vlan_interfaces")[vlan_interface].get("vrf") is
+          not None:
+
+          vrf ${ config.get("vlan_interfaces")[vlan_interface].get("vrf") }
+
+          %     endif
+
+          %     if
+          config.get("vlan_interfaces")[vlan_interface].get("ip_address") is not
+          None:
+
+          ip address ${
+          config.get("vlan_interfaces")[vlan_interface].get("ip_address") }
+
+          %         if
+          config.get("vlan_interfaces")[vlan_interface].get("ip_address_secondaries")
+          is not None:
+
+          %             for ip_address_secondary in
+          config["vlan_interfaces"][vlan_interface]["ip_address_secondaries"]:
+
+          ip address ${ ip_address_secondary } secondary
+
+          %             endfor
+
+          %         endif
+
+          %     endif
+
+          %     if
+          config.get("vlan_interfaces")[vlan_interface].get("ip_virtual_router_address")
+          is not None:
+
+          ip virtual-router address ${
+          config.get("vlan_interfaces")[vlan_interface].get("ip_virtual_router_address")
+          }
+
+          %     endif
+
+          %     if
+          config.get("vlan_interfaces")[vlan_interface].get("ip_address_virtual")
+          is not None:
+
+          ip address virtual ${
+          config.get("vlan_interfaces")[vlan_interface].get("ip_address_virtual")
+          }
+
+          %     endif
+
+          %     if
+          config.get("vlan_interfaces")[vlan_interface].get("ip_helpers") is not
+          None:
+
+          %       for ip_helper in
+          config.get("vlan_interfaces")[vlan_interface].get("ip_helpers").keys():
+
+          <%        ip_helper_cli = "ip helper-address " + ip_helper %>
+
+          %         if
+          config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("vrf")
+          is not None:
+
+          <%            ip_helper_cli = ip_helper_cli + " vrf " +
+          config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("vrf")
+          %>
+
+          %         endif
+
+          %         if
+          config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("source_interface")
+          is not None:
+
+          <%            ip_helper_cli = ip_helper_cli + " source-interface " +
+          config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("source_interface")
+          %>
+
+          %         endif %}
+
+          ${ ip_helper_cli }
+
+          %       endfor
+
+          %      endif
+
+          !
+
+          %   endfor
+
+          % endif
+
+          ## vxlan-interfaces
+
+          % if config.get("vxlan_tunnel_interface"):
+
+          interface Vxlan1
+
+          %     if
+          config["vxlan_tunnel_interface"]["Vxlan1"].get("source_interface"):
+
+          vxlan source-interface ${
+          config["vxlan_tunnel_interface"]["Vxlan1"]["source_interface"] }
+
+          %     endif
+
+          %     if
+          config["vxlan_tunnel_interface"]["Vxlan1"].get("virtual_router"):
+
+          vxlan virtual-router encapsulation mac-address ${
+          config["vxlan_tunnel_interface"]["Vxlan1"]["virtual_router"]["encapsulation_mac_address"]
+          }
+
+          %     endif
+
+          %     if
+          config["vxlan_tunnel_interface"]["Vxlan1"].get("vxlan_udp_port"):
+
+          vxlan udp-port ${
+          config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_udp_port"] }
+
+          %     endif
+
+          %     if
+          config["vxlan_tunnel_interface"]["Vxlan1"].get("vxlan_vni_mappings"):
+
+          %       if
+          config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"].get("vlans"):
+
+          %           for vlan in
+          config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"]["vlans"].keys():
+
+          vxlan vlan ${ vlan } vni ${
+          config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"]["vlans"][vlan]["vni"]
+          }
+
+          %           endfor
+
+          %       endif
+
+          %       if
+          config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"].get("vrfs"):
+
+          %           for vrf in
+          config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"]["vrfs"].keys():
+
+          vxlan vrf ${ vrf } vni ${
+          config["vxlan_tunnel_interface"]["Vxlan1"]["vxlan_vni_mappings"]["vrfs"][vrf]["vni"]
+          }
+
+          %           endfor %}
+
+          %       endif
+
+          %     endif
+
+          !
+
+          % endif
+
+          ## ip-routing
+
+          %   for vrf in config.get("vrfs"):
+
+          %       if config.get("vrfs")[vrf].get("ip_routing") is not None and
+          config.get("vrfs")[vrf].get("ip_routing") == True  and vrf !=
+          'default':
+
+          ip routing vrf ${ vrf }
+
+          %       elif config.get("vrfs")[vrf].get("ip_routing") is not None and
+          config.get("vrfs")[vrf].get("ip_routing") == False  and vrf !=
+          'default':
+
+          no ip routing vrf ${ vrf }
+
+          %       endif
+
+          %   endfor
+
+          !
+
+          % endif
+
+          ## virtual source nat
+
+          % if config.get("virtual_source_nat_vrfs"):
+
+          %     for vrf in
+          natural_sort(config["virtual_source_nat_vrfs"].keys()):
+
+          %         if config["virtual_source_nat_vrfs"][vrf].get("ip_address"):
+
+          ip address virtual source-nat vrf ${ vrf } address ${
+          config["virtual_source_nat_vrfs"][vrf]["ip_address"] }
+
+          %         endif
+
+          %     endfor
+
+          !
+
+          % endif
+
+          ## router-bgp
+
+          % if config.get("router_bgp") is not None:
+
+          % if config["router_bgp"].get("as") is not None:
+
+          router bgp ${ config["router_bgp"]["as"] }
+
+          %     if config["router_bgp"].get("router_id") is not None:
+
+          router-id ${ config["router_bgp"]["router_id"] }
+
+          %     endif
+
+          %     if config["router_bgp"].get("bgp_defaults") is not None:
+
+          %       for bgp_default in config["router_bgp"]["bgp_defaults"]:
+
+          ${ bgp_default }
+
+          %       endfor
+
+          %     endif
+
+          %     if config["router_bgp"].get("peer_groups") is not None:
+
+          %       for peer_group in config["router_bgp"]["peer_groups"].keys():
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("bgp_listen_range_prefix")
+          is not None and
+          config["router_bgp"]["peer_groups"][peer_group].get("peer_filter") is
+          not None:
+
+          bgp listen range ${
+          config["router_bgp"]["peer_groups"][peer_group]["bgp_listen_range_prefix"]
+          } peer-group ${ peer_group } peer-filter ${
+          config["router_bgp"]["peer_groups"][peer_group]["peer_filter"] }
+
+          %         endif
+
+          %       endfor
+
+          %     for peer_group in config["router_bgp"]["peer_groups"].keys():
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("description") is
+          not None:
+
+          neighbor ${ peer_group } description ${
+          config["router_bgp"]["peer_groups"][peer_group]["description"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("shutdown") ==
+          True:
+
+          neighbor ${ peer_group } shutdown
+
+          %         endif
+
+          neighbor ${ peer_group } peer group
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("remote_as") is
+          not None:
+
+          neighbor ${ peer_group } remote-as ${
+          config["router_bgp"]["peer_groups"][peer_group]["remote_as"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("local_as") is not
+          None:
+
+          neighbor ${ peer_group } local-as ${
+          config["router_bgp"]["peer_groups"][peer_group]["local_as"] }
+          no-prepend replace-as
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("next_hop_self")
+          == True:
+
+          neighbor ${ peer_group } next-hop-self
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("next_hop_unchanged")
+          == True:
+
+          neighbor ${ peer_group } next-hop-unchanged
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("update_source")
+          is not None:
+
+          neighbor ${ peer_group } update-source ${
+          config["router_bgp"]["peer_groups"][peer_group]["update_source"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("route_reflector_client")
+          == True:
+
+          neighbor ${ peer_group } route-reflector-client
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("bfd") == True:
+
+          neighbor ${ peer_group } bfd
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("ebgp_multihop")
+          is not None:
+
+          neighbor ${ peer_group } ebgp-multihop ${
+          config["router_bgp"]["peer_groups"][peer_group]["ebgp_multihop"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("password") is not
+          None:
+
+          neighbor ${ peer_group } password 7 ${
+          config["router_bgp"]["peer_groups"][peer_group]["password"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("send_community")
+          is not None and
+          config["router_bgp"]["peer_groups"][peer_group]["send_community"] ==
+          "all":
+
+          neighbor ${ peer_group } send-community
+
+          %         elif
+          config["router_bgp"]["peer_groups"][peer_group].get("send_community")
+          is not None:
+
+          neighbor ${ peer_group } send-community ${
+          config["router_bgp"]["peer_groups"][peer_group]["send_community"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes")
+          is not None and
+          config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes_warning_limit")
+          is not None:
+
+          neighbor ${ peer_group } maximum-routes ${
+          config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] }
+          warning-limit ${
+          config["router_bgp"]["peer_groups"][peer_group]["maximum_routes_warning_limit"]
+          }
+
+          %         elif
+          config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes")
+          is not None:
+
+          neighbor ${ peer_group } maximum-routes ${
+          config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("weight") is not
+          None:
+
+          neighbor ${ peer_group } weight ${
+          config["router_bgp"]["peer_groups"][peer_group]["weight"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("timers") is not
+          None:
+
+          neighbor ${ peer_group } timers ${
+          config["router_bgp"]["peer_groups"][peer_group]["timers"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("route_map_in") is
+          not None:
+
+          neighbor ${ peer_group } route-map ${
+          config["router_bgp"]["peer_groups"][peer_group]["route_map_in"] } in
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["peer_groups"][peer_group].get("route_map_out")
+          is not None:
+
+          neighbor ${ peer_group } route-map ${
+          config["router_bgp"]["peer_groups"][peer_group]["route_map_out"] } out
+
+          %         endif
+
+          %       endfor
+
+          %     endif
+
+          ## {%     for neighbor_interface in router_bgp.neighbor_interfaces |
+          arista.avd.natural_sort %}
+
+          ## {%         set neighbor_interface_cli = "neighbor interface " ~
+          neighbor_interface %}
+
+          ## {%         if
+          router_bgp.neighbor_interfaces[neighbor_interface].peer_group is
+          arista.avd.defined %}
+
+          ## {%             set neighbor_interface_cli = neighbor_interface_cli
+          ~ " peer-group " ~
+          router_bgp.neighbor_interfaces[neighbor_interface].peer_group %}
+
+          ## {%         endif %}
+
+          ## {%         if
+          router_bgp.neighbor_interfaces[neighbor_interface].remote_as is
+          arista.avd.defined %}
+
+          ## {%             set neighbor_interface_cli = neighbor_interface_cli
+          ~ " remote-as " ~
+          router_bgp.neighbor_interfaces[neighbor_interface].remote_as %}
+
+          ## {%         endif %}
+
+          ## ##    {{ neighbor_interface_cli }}
+
+          ## {%     endfor %}
+
+          %     if config["router_bgp"].get("neighbors") is not None:
+
+          %       for neighbor in config["router_bgp"]["neighbors"].keys():
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("peer_group") is not
+          None:
+
+          neighbor ${ neighbor } peer group ${
+          config["router_bgp"]["neighbors"][neighbor]["peer_group"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("remote_as") is not
+          None:
+
+          neighbor ${ neighbor } remote-as ${
+          config["router_bgp"]["neighbors"][neighbor].remote_as }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("next_hop_self") ==
+          True:
+
+          neighbor ${ neighbor } next-hop-self
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("shutdown") == True:
+
+          neighbor ${ neighbor } shutdown
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("local_as") is not
+          None:
+
+          neighbor ${ neighbor } local-as ${
+          config["router_bgp"]["neighbors"][neighbor]["local_as"] } no-prepend
+          replace-as
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("description") is not
+          None:
+
+          neighbor ${ neighbor } description ${
+          config["router_bgp"]["neighbors"][neighbor]["description"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("update_source") is
+          not None:
+
+          neighbor ${ neighbor } update-source ${
+          config["router_bgp"]["neighbors"][neighbor]["update_source"] }
+
+          %         endif
+
+          %         if config["router_bgp"]["neighbors"][neighbor].get("bfd") ==
+          True:
+
+          neighbor ${ neighbor } bfd
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("password") is not
+          None:
+
+          neighbor ${ neighbor } password 7 ${
+          config["router_bgp"]["neighbors"][neighbor]["password"] }
+
+          %         endif
+
+          %         if config["router_bgp"]["neighbors"][neighbor].get("weight")
+          is not None:
+
+          neighbor ${ neighbor } weight ${
+          config["router_bgp"]["neighbors"][neighbor]["weight"] }
+
+          %         endif
+
+          %         if config["router_bgp"]["neighbors"][neighbor].get("timers")
+          is not None:
+
+          neighbor ${ neighbor } timers ${
+          config["router_bgp"]["neighbors"][neighbor]["timers"] }
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("route_map_in") is not
+          None:
+
+          neighbor ${ neighbor } route-map ${
+          config["router_bgp"]["neighbors"][neighbor]["route_map_in"] } in
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["neighbors"][neighbor].get("route_map_out") is
+          not None:
+
+          neighbor ${ neighbor } route-map ${
+          config["router_bgp"]["neighbors"][neighbor]["route_map_out"] } out
+
+          %         endif
+
+          %       endfor
+
+          %     endif
+
+          ## {%     for aggregate_address in router_bgp.aggregate_addresses |
+          arista.avd.natural_sort %}
+
+          ## {%         set aggregate_address_cli = "aggregate-address " ~
+          aggregate_address %}
+
+          ## {%         if
+          router_bgp.aggregate_addresses[aggregate_address].as_set is
+          arista.avd.defined(true) %}
+
+          ## {%             set aggregate_address_cli = aggregate_address_cli ~
+          " as-set" %}
+
+          ## {%         endif %}
+
+          ## {%         if
+          router_bgp.aggregate_addresses[aggregate_address].summary_only is
+          arista.avd.defined(true) %}
+
+          ## {%             set aggregate_address_cli = aggregate_address_cli ~
+          " summary-only" %}
+
+          ## {%         endif %}
+
+          ## {%         if
+          router_bgp.aggregate_addresses[aggregate_address].attribute_map is
+          arista.avd.defined %}
+
+          ## {%             set aggregate_address_cli = aggregate_address_cli ~ 
+          " attribute-map " ~
+          router_bgp.aggregate_addresses[aggregate_address].attribute_map %}
+
+          ## {%         endif %}
+
+          ## {%         if
+          router_bgp.aggregate_addresses[aggregate_address].match_map is
+          arista.avd.defined %}
+
+          ## {%             set aggregate_address_cli = aggregate_address_cli ~
+          " match-map " ~
+          router_bgp.aggregate_addresses[aggregate_address].match_map %}
+
+          ## {%         endif %}
+
+          ## {%         if
+          router_bgp.aggregate_addresses[aggregate_address].advertise_only is
+          arista.avd.defined(true) %}
+
+          ## {%             set aggregate_address_cli = aggregate_address_cli ~
+          " advertise-only" %}
+
+          ## {%         endif %}
+
+          ##    {{ aggregate_address_cli }}
+
+          ## {%     endfor %}
+
+          %     if config["router_bgp"].get("redistribute_routes") is not None:
+
+          %       for redistribute_route in
+          config["router_bgp"]["redistribute_routes"].keys():
+
+          <%         redistribute_route_cli = "redistribute " +
+          redistribute_route %>
+
+          %         if
+          config["router_bgp"]["redistribute_routes"][redistribute_route].get("route_map")
+          is not None:
+
+          <%             redistribute_route_cli = redistribute_route_cli + "
+          route-map " +
+          config["router_bgp"]["redistribute_routes"][redistribute_route]["route_map"]
+          %>
+
+          %         endif
+
+          ${ redistribute_route_cli }
+
+          %       endfor
+
+          %     endif
+
+          ## L2VPNs - (vxlan) vlan based
+
+          %     if config["router_bgp"].get("vlans") is not None:
+
+          %       for vlan in config["router_bgp"]["vlans"]:
+
+          !
+
+          vlan ${ vlan }
+
+          %         if config["router_bgp"]["vlans"][vlan].get("rd") is not
+          None:
+              rd ${ config["router_bgp"]["vlans"][vlan]["rd"] }
+          %         endif
+
+          %         if config["router_bgp"]["vlans"][vlan].get("route_targets")
+          is not None and
+          config["router_bgp"]["vlans"][vlan]["route_targets"].get("both") is
+          not None:
+
+          %             for route_target in
+          config["router_bgp"]["vlans"][vlan]["route_targets"]["both"]:
+              route-target both ${ route_target }
+          %             endfor
+
+          %         endif
+
+          %         if config["router_bgp"]["vlans"][vlan].get("route_targets")
+          is not None and
+          config["router_bgp"]["vlans"][vlan]["route_targets"].get("import") is
+          not None:
+
+          %             for route_target in
+          config["router_bgp"]["vlans"][vlan]["route_targets"]["import"]:
+              route-target import ${ route_target }
+          %             endfor
+
+          %         endif
+
+          %         if config["router_bgp"]["vlans"][vlan].get("route_targets")
+          is not None and config["router_bgp"]["vlans"][vlan]["etree_role"] ==
+          'Root':
+
+          %             for route_target in
+          config["router_bgp"]["vlans"][vlan]["route_targets"]["has_etree_leaf_import"]:
+              route-target import ${ route_target }
+          %             endfor
+
+          %         endif
+
+          %         if config["router_bgp"]["vlans"][vlan].get("route_targets")
+          is not None and
+          config["router_bgp"]["vlans"][vlan]["route_targets"].get("export") is
+          not None:
+
+          %             for route_target in
+          config["router_bgp"]["vlans"][vlan]["route_targets"]["export"]:
+              route-target export ${ route_target }
+          %             endfor
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["vlans"][vlan].get("redistribute_routes") is not
+          None:
+
+          %           for redistribute_route in
+          config["router_bgp"]["vlans"][vlan]["redistribute_routes"]:
+              redistribute ${ redistribute_route }
+          %           endfor
+
+          %         endif
+
+          %       endfor
+
+          ## vxlan vlan aware bundles
+
+          %       if config["router_bgp"].get("vlan_aware_bundles") is not None:
+
+          %         for vlan_aware_bundle in
+          config["router_bgp"]["vlan_aware_bundles"].keys():
+
+          !
+
+          vlan-aware-bundle ${ vlan_aware_bundle }
+
+          %         if 
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("rd")
+          is not None:
+              rd ${  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd"] }
+          %         endif
+
+          %         if
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets")
+          is not None and
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("both")
+          is not None:
+
+          %             for route_target in 
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["both"]:
+              route-target both ${ route_target }
+          %             endfor
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets")
+          is not None and
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("import")
+          is not None:
+
+          %             for route_target in
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["import"]:
+              route-target import ${ route_target }
+          %             endfor
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets")
+          is not None and
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("export")
+          is not None:
+
+          %             for route_target in 
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["export"]:
+              route-target export ${ route_target }
+          %             endfor
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("redistribute_routes")
+          is not None:
+
+          %           for redistribute_route in
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["redistribute_routes"]:
+              redistribute ${ redistribute_route }
+          %           endfor %}
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("vlan")
+          is not None:
+              vlan ${ config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["vlan"] }
+          %         endif
+
+          %         endfor
+
+          %       endif
+
+          %     endif
+
+          ## address families activation
+
+          ## address family evpn activation ##
+
+          %     if config["router_bgp"].get("address_family_evpn") is not None:
+
+          !
+
+          address-family evpn
+
+          %         if
+          config["router_bgp"]["address_family_evpn"].get("evpn_hostflap_detection")
+          is not None and
+          config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"].get("enabled")
+          == False:
+              no host-flap detection
+          %         else:
+
+          %             if
+          config["router_bgp"]["address_family_evpn"].get("evpn_hostflap_detection")
+          is not None and
+          config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"].get("window")
+          is not None:
+              host-flap detection window ${ config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"]["window"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_evpn"].get("evpn_hostflap_detection")
+          is not None and
+          config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"].get("threshold")
+          is not None:
+              host-flap detection threshold ${ config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"]["threshold"] }
+          %             endif
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["address_family_evpn"].get("domain_identifier")
+          is not None:
+              domain identifier ${ config["router_bgp"]["address_family_evpn"]["domain_identifier"] }
+          %         endif
+
+          %         if
+          config["router_bgp"]["address_family_evpn"].get("peer_groups") is not
+          None:
+
+          %           for peer_group in
+          config["router_bgp"]["address_family_evpn"]["peer_groups"].keys():
+
+          %             if
+          config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("route_map_in")
+          is not None:
+              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group]["route_map_in"] } in
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("route_map_out")
+          is not None:
+              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group]["route_map_out"] } out
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("activate")
+          == True:
+              neighbor ${ peer_group } activate
+          %             elif
+          config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("activate")
+          == False:
+              no neighbor ${ peer_group } activate
+          %             endif
+
+          %           endfor
+
+          %         endif
+
+          %     endif
+
+          ## {# address family rt-membership activation #}
+
+          ## {%     if router_bgp.address_family_rtc is arista.avd.defined %}
+
+          ##    !
+
+          ##    address-family rt-membership
+
+          ## {%         for peer_group in
+          router_bgp.address_family_rtc.peer_groups | arista.avd.natural_sort %}
+
+          ## {%             if
+          router_bgp.address_family_rtc.peer_groups[peer_group].activate is
+          arista.avd.defined(true) %}
+
+          ##       neighbor ${ peer_group } activate
+
+          ## {%             elif
+          router_bgp.address_family_rtc.peer_groups[peer_group].activate is
+          arista.avd.defined(false) %}
+
+          ##       no neighbor ${ peer_group } activate
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target
+          is defined %}
+
+          ## {%                 if
+          router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target.only
+          is arista.avd.defined(true) %}
+
+          ##       neighbor ${ peer_group } default-route-target only
+
+          ## {%                 else %}
+
+          ##       neighbor ${ peer_group } default-route-target
+
+          ## {%                 endif %}
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target.encoding_origin_as_omit
+          is defined %}
+
+          ##       neighbor ${ peer_group } default-route-target encoding
+          origin-as omit
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%     endif %}
+
+          ## address family ipv4 activation
+
+          %     if config["router_bgp"].get("address_family_ipv4") is not None:
+
+          !
+
+          address-family ipv4
+
+          %       if config["router_bgp"]["address_family_ipv4"].get("networks")
+          is not None:
+
+          %         for network in
+          config["router_bgp"]["address_family_ipv4"]["networks"].keys():
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["networks"][network].get("route_map")
+          is not None:
+              network ${ network } route-map ${ config["router_bgp"]["address_family_ipv4"]["networks"][network]["route_map"] }
+          %             else:
+              network ${ network }
+          %             endif
+
+          %         endfor
+
+          %       endif
+
+          %       if
+          config["router_bgp"]["address_family_ipv4"].get("peer_groups") is not
+          None:
+
+          %           for peer_group in
+          config["router_bgp"]["address_family_ipv4"]["peer_groups"].keys():
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("route_map_in")
+          is not None:
+              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["route_map_in"] } in
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("route_map_out")
+          is not None:
+              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["route_map_out"] } out
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("prefix_list_in")
+          is not None:
+              neighbor ${ peer_group } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["prefix_list_in"] } in
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("prefix_list_out")
+          is not None:
+              neighbor ${ peer_group } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["prefix_list_out"] } out
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("activate")
+          == True:
+              neighbor ${ peer_group } activate
+          %             elif
+          config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("activate")
+          == False:
+              no neighbor ${ peer_group } activate
+          %             endif
+
+          %           endfor
+
+          %       endif
+
+          %       if
+          config["router_bgp"]["address_family_ipv4"].get("neighbors") is not
+          None:
+
+          %           for neighbor in
+          config["router_bgp"]["address_family_ipv4"]["neighbors"].keys():
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("route_map_in")
+          is not None:
+              neighbor ${ neighbor } route-map ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["route_map_in"] } in
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("route_map_out")
+          is not None:
+              neighbor ${ neighbor } route-map ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["route_map_out"] } out
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("prefix_list_in")
+          is not None:
+              neighbor ${ neighbor } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["prefix_list_in"] } in
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("prefix_list_out")
+          is not None:
+              neighbor ${ neighbor } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["prefix_list_out"] } out
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("default_originate")
+          is not None:
+
+          <%                 neighbor_default_originate_cli = "neighbor " +
+          neighbor + " default-originate" %>
+
+          %                 if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["default_originate"].get("route_map")
+          is not None:
+
+          <%                     neighbor_default_originate_cli =
+          neighbor_default_originate_cli + " route-map " +
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["default_originate"]["route_map"]
+          %>
+
+          %                 endif
+
+          %                 if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["default_originate"].get("always")
+          == True:
+
+          <%                     neighbor_default_originate_cli =
+          neighbor_default_originate_cli + " always" %>
+
+          %                 endif
+              ${ neighbor_default_originate_cli }
+          %             endif
+
+          %             if
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("activate")
+          == True:
+              neighbor ${ neighbor } activate
+          %             elif
+          config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("activate")
+          == False:
+              no neighbor ${ neighbor } activate
+          %             endif
+
+          %           endfor
+
+          %       endif
+
+          %     endif
+
+          ## {# address family ipv4 multicast activation #}
+
+          ## {%     if router_bgp.address_family_ipv4_multicast is
+          arista.avd.defined %}
+
+          ##    !
+
+          ##    address-family ipv4 multicast
+
+          ## {%         for peer_group in
+          router_bgp.address_family_ipv4_multicast.peer_groups |
+          arista.avd.natural_sort %}
+
+          ## {%             if
+          router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_in
+          is arista.avd.defined %}
+
+          ##       neighbor ${ peer_group } route-map {{
+          router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_in
+          }} in
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_out
+          is arista.avd.defined %}
+
+          ##       neighbor ${ peer_group } route-map {{
+          router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_out
+          }} out
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].activate
+          is arista.avd.defined(true) %}
+
+          ##       neighbor ${ peer_group } activate
+
+          ## {%             elif
+          router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].activate
+          is arista.avd.defined(false) %}
+
+          ##       no neighbor ${ peer_group } activate
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%         for neighbor in
+          router_bgp.address_family_ipv4_multicast.neighbors |
+          arista.avd.natural_sort %}
+
+          ## {%             if
+          router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_in
+          is arista.avd.defined %}
+
+          ##       neighbor {{ neighbor }} route-map {{
+          router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_in
+          }} in
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_out
+          is arista.avd.defined %}
+
+          ##       neighbor {{ neighbor }} route-map {{
+          router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_out
+          }} out
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv4_multicast.neighbors[neighbor].activate
+          is arista.avd.defined(true) %}
+
+          ##       neighbor {{ neighbor }} activate
+
+          ## {%             elif
+          router_bgp.address_family_ipv4_multicast.neighbors[neighbor].activate
+          is arista.avd.defined(false) %}
+
+          ##       no neighbor {{ neighbor }} activate
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%         for redistribute_route in
+          router_bgp.address_family_ipv4_multicast.redistribute_routes |
+          arista.avd.natural_sort %}
+
+          ## {%             set redistribute_route_cli = "redistribute " ~
+          redistribute_route %}
+
+          ## {%             if
+          router_bgp.address_family_ipv4_multicast.redistribute_routes[redistribute_route].route_map
+          is arista.avd.defined %}
+
+          ## {%                 set redistribute_route_cli =
+          redistribute_route_cli ~ " route-map " ~
+          router_bgp.address_family_ipv4_multicast.redistribute_routes[redistribute_route].route_map
+          %}
+
+          ## {%             endif %}
+
+          ##       {{ redistribute_route_cli }}
+
+          ## {%         endfor %}
+
+          ## {%     endif %}
+
+          ## {# address family ipv6 activation #}
+
+          ## {%     if router_bgp.address_family_ipv6 is arista.avd.defined %}
+
+          ##    !
+
+          ##    address-family ipv6
+
+          ## {%         for network in router_bgp.address_family_ipv6.networks |
+          arista.avd.natural_sort %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.networks[network].route_map is
+          arista.avd.defined %}
+
+          ##       network {{ network }} route-map {{
+          router_bgp.address_family_ipv6.networks[network].route_map }}
+
+          ## {%             else %}
+
+          ##       network {{ network }}
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%         for peer_group in
+          router_bgp.address_family_ipv6.peer_groups | arista.avd.natural_sort
+          %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_in is
+          arista.avd.defined %}
+
+          ##       neighbor ${ peer_group } route-map {{
+          router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_in }}
+          in
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_out
+          is arista.avd.defined %}
+
+          ##       neighbor ${ peer_group } route-map {{
+          router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_out
+          }} out
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.peer_groups[peer_group].activate is
+          arista.avd.defined(true) %}
+
+          ##       neighbor ${ peer_group } activate
+
+          ## {%             elif
+          router_bgp.address_family_ipv6.peer_groups[peer_group].activate is
+          arista.avd.defined(false) %}
+
+          ##       no neighbor ${ peer_group } activate
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%         for neighbor in router_bgp.address_family_ipv6.neighbors
+          | arista.avd.natural_sort %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.neighbors[neighbor].route_map_in is
+          arista.avd.defined %}
+
+          ##       neighbor {{ neighbor }} route-map {{
+          router_bgp.address_family_ipv6.neighbors[neighbor].route_map_in }} in
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.neighbors[neighbor].route_map_out is
+          arista.avd.defined %}
+
+          ##       neighbor {{ neighbor }} route-map {{
+          router_bgp.address_family_ipv6.neighbors[neighbor].route_map_out }}
+          out
+
+          ## {%             endif %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.neighbors[neighbor].activate is
+          arista.avd.defined(true) %}
+
+          ##       neighbor {{ neighbor }} activate
+
+          ## {%             elif
+          router_bgp.address_family_ipv6.neighbors[neighbor].activate is
+          arista.avd.defined(false) %}
+
+          ##       no neighbor {{ neighbor }} activate
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%         for redistribute_route in
+          router_bgp.address_family_ipv6.redistribute_routes |
+          arista.avd.natural_sort %}
+
+          ## {%             set redistribute_route_cli = "redistribute " ~
+          redistribute_route %}
+
+          ## {%             if
+          router_bgp.address_family_ipv6.redistribute_routes[redistribute_route].route_map
+          is arista.avd.defined %}
+
+          ## {%                 set redistribute_route_cli =
+          redistribute_route_cl ~ " route-map " ~
+          router_bgp.address_family_ipv6.redistribute_routes[redistribute_route].route_map
+          %}
+
+          ## {%             endif %}
+
+          ##       {{ redistribute_route_cli }}
+
+          ## {%         endfor %}
+
+          ## {%     endif %}
+
+          ## {# address family vpn-ipv4 activation #}
+
+          ## {%     if router_bgp.address_family_vpn_ipv4 is arista.avd.defined
+          %}
+
+          ##    !
+
+          ##    address-family vpn-ipv4
+
+          ## {%         if router_bgp.address_family_vpn_ipv4.domain_identifier
+          is arista.avd.defined %}
+
+          ##       domain identifier {{
+          router_bgp.address_family_vpn_ipv4.domain_identifier }}
+
+          ## {%         endif %}
+
+          ## {%         for peer_group in
+          router_bgp.address_family_vpn_ipv4.peer_groups |
+          arista.avd.natural_sort %}
+
+          ## {%             if
+          router_bgp.address_family_vpn_ipv4.peer_groups[peer_group].activate is
+          arista.avd.defined(true) %}
+
+          ##       neighbor ${ peer_group } activate
+
+          ## {%             elif
+          router_bgp.address_family_vpn_ipv4.peer_groups[peer_group].activate is
+          arista.avd.defined(false) %}
+
+          ##       no neighbor ${ peer_group } activate
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%         for neighbor in
+          router_bgp.address_family_vpn_ipv4.neighbors | arista.avd.natural_sort
+          %}
+
+          ## {%             if
+          router_bgp.address_family_vpn_ipv4.neighbors[neighbor].activate is
+          arista.avd.defined(true) %}
+
+          ##       neighbor {{ neighbor }} activate
+
+          ## {%             elif
+          router_bgp.address_family_vpn_ipv4.neighbors[neighbor].activate is
+          arista.avd.defined(false) %}
+
+          ##       no neighbor {{ neighbor }} activate
+
+          ## {%             endif %}
+
+          ## {%         endfor %}
+
+          ## {%         if
+          router_bgp.address_family_vpn_ipv4.neighbor_default_encapsulation_mpls_next_hop_self.source_interface
+          is arista.avd.defined %}
+
+          ##       neighbor default encapsulation mpls next-hop-self
+          source-interface {{
+          router_bgp.address_family_vpn_ipv4.neighbor_default_encapsulation_mpls_next_hop_self.source_interface
+          }}
+
+          ## {%         endif %}
+
+          ## {%     endif %}
+
+          ## L3VPNs - (vxlan) VRFs
+
+          %     if config["router_bgp"].get("vrfs") is not None:
+
+          %       for vrf in config["router_bgp"]["vrfs"].keys():
+
+          !
+
+          vrf ${ vrf }
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("rd") is not None:
+              rd ${ config["router_bgp"]["vrfs"][vrf]["rd"] }
+          %         endif
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is
+          not None and
+          config["router_bgp"]["vrfs"][vrf]["route_targets"].get("import") is
+          not None:
+
+          %             for address_family in
+          config["router_bgp"]["vrfs"][vrf]["route_targets"]["import"].keys():
+
+          %                 for route_target in
+          config["router_bgp"]["vrfs"][vrf]["route_targets"]["import"][address_family]:
+              route-target import ${ address_family } ${ route_target }
+          %                 endfor
+
+          %             endfor
+
+          %         endif
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is
+          not None and
+          config["router_bgp"]["vrfs"][vrf]["route_targets"].get("export") is
+          not None:
+
+          %             for address_family in
+          config["router_bgp"]["vrfs"][vrf]["route_targets"]["export"].keys():
+
+          %                 for route_target in
+          config["router_bgp"]["vrfs"][vrf]["route_targets"]["export"][address_family]:
+              route-target export ${ address_family } ${ route_target }
+          %                 endfor
+
+          %             endfor
+
+          %         endif
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("router_id") is not
+          None:
+              router-id ${ config["router_bgp"]["vrfs"][vrf]["router_id"] }
+          %         endif
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("timers") is not
+          None:
+              timers bgp ${ config["router_bgp"]["vrfs"][vrf]["timers"] }
+          %         endif
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("networks") is not
+          None:
+
+          %           for network in
+          config["router_bgp"]["vrfs"][vrf]["networks"].keys():
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf].networks[network].get("route_map")
+          is not None:
+              network ${ network } route-map ${ config["router_bgp"]["vrfs"][vrf]["networks"][network]["route_map"] }
+          %             else:
+              network ${ network }
+          %             endif
+
+          %           endfor
+
+          %         endif
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("neighbors") is not
+          None:
+
+          %           for neighbor in
+          config["router_bgp"]["vrfs"][vrf]["neighbors"].keys():
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("remote_as")
+          is not None:
+              neighbor ${ neighbor } remote-as ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["remote_as"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("peer_group")
+          is not None:
+              neighbor ${ neighbor } peer group ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["peer_group"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("password")
+          is not None:
+              neighbor ${ neighbor } password 7 ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["password"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("local_as")
+          is not None:
+              neighbor ${ neighbor } local-as ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("description")
+          is not None:
+              neighbor ${ neighbor } description ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["description"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("ebgp_multihop")
+          is not None:
+
+          <%                 neighbor_ebgp_multihop_cli = "neighbor " + neighbor
+          + " ebgp-multihop" %>
+
+          %                 if
+          type(config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["ebgp_multihop"])
+          is int:
+
+          <%                     neighbor_ebgp_multihop_cli =
+          neighbor_ebgp_multihop_cli + " " +
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["ebgp_multihop"]
+          %>
+
+          %                 endif
+              ${ neighbor_ebgp_multihop_cli }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("next_hop_self")
+          == True:
+              neighbor ${ neighbor } next-hop-self
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("timers")
+          is not None:
+              neighbor ${ neighbor } timers ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["timers"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("send_community")
+          is not None and
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["send_community"]
+          == "all":
+              neighbor ${ neighbor } send-community
+          %             elif
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("send_community")
+          is not None:
+              neighbor ${ neighbor } send-community ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["send_community"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("maximum_routes")
+          is not None:
+              neighbor ${ neighbor } maximum-routes ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["maximum_routes"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("default_originate")
+          is not None:
+
+          <%                neighbor_default_originate_cli = "neighbor " +
+          neighbor + " default-originate" %>
+
+          %                 if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["default_originate"].get("route_map")
+          is not None:
+
+          <%                    neighbor_default_originate_cli =
+          neighbor_default_originate_cli + " route-map " +
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["default_originate"]["route_map"]
+          %>
+
+          %                 endif
+
+          %                 if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["default_originate"].get("always")
+          == True:
+
+          <%                    neighbor_default_originate_cli =
+          neighbor_default_originate_cli+ " always" %>
+
+          %                 endif
+              ${ neighbor_default_originate_cli }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("update_source")
+          is not None:
+              neighbor ${ neighbor } update-source ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["update_source"] }
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("route_map_out")
+          is not None:
+              neighbor ${ neighbor } route-map ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["route_map_out"] } out
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("route_map_in")
+          is not None:
+              neighbor ${ neighbor } route-map ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["route_map_in"] } in
+          %             endif
+
+          %           endfor
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["vrfs"][vrf].get("redistribute_routes") is not
+          None:
+
+          %           for redistribute_route in
+          config["router_bgp"]["vrfs"][vrf]["redistribute_routes"].keys():
+
+          <%             redistribute_cli = "redistribute " + redistribute_route
+          %>
+
+          %              if
+          config["router_bgp"]["vrfs"][vrf]["redistribute_routes"][redistribute_route].get("route_map")
+          is not None:
+
+          <%                 redistribute_cli = redistribute_cli + " route-map "
+          +
+          config["router_bgp"]["vrfs"][vrf]["redistribute_routes"][redistribute_route]["route_map"]
+          %>
+
+          %              endif
+              ${ redistribute_cli }
+          %           endfor
+
+          %         endif
+
+          %         if
+          config["router_bgp"]["vrfs"][vrf].get("aggregate_addresses") is not
+          None:
+
+          %           for aggregate_address in
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"].keys():
+
+          <%             aggregate_address_cli = "aggregate-address " +
+          aggregate_address %>
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address].get("as_set")
+          == True:
+
+          <%                 aggregate_address_cli = aggregate_address_cli + "
+          as-set" %>
+
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address].get("summary_only")
+          == True:
+
+          <%                  aggregate_address_cli = aggregate_address_cli + "
+          summary-only" %>
+
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address].get("attribute_map")
+          is not None:
+
+          <%                  aggregate_address_cli = aggregate_address_cli + "
+          attribute-map " +
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address]["attribute_map"]
+          %>
+
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address].get("match_map")
+          is not None:
+
+          <%                  aggregate_address_cli = aggregate_address_cli + "
+          match-map " +
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address]["match_map"]
+          %>
+
+          %             endif
+
+          %             if
+          config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address].get("advertise_only")
+          == True:
+
+          <%                 aggregate_address_cli = aggregate_address_cli + "
+          advertise-only" %>
+
+          %             endif
+              ${ aggregate_address_cli }
+          %           endfor
+
+          %         endif
+
+          %         if config["router_bgp"]["vrfs"][vrf].get("address_families")
+          is not None:
+
+          %           for  address_family in
+          config["router_bgp"]["vrfs"][vrf]["address_families"].keys():
+              !
+              address-family ${ address_family }
+          %             for neighbor in
+          config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["neighbors"].keys():
+
+          %                 if
+          config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["neighbors"][neighbor].get("activate")
+          == True:
+                  neighbor ${ neighbor } activate
+          %                 endif
+
+          %             endfor
+
+          %             for network in
+          config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["networks"].keys():
+
+          <%                network_cli = "network " + network %>
+
+          %                 if
+          config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["networks"][network].get("route_map")
+          is not None:
+
+          <%                     network_cli = network_cli + " route-map " +
+          config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["networks"][network]["route_map"]
+          %>
+
+          %                 endif
+                  ${ network_cli }
+          %             endfor
+
+          %           endfor
+
+          %         endif
+
+          %       endfor
+
+          %     endif
+
+          !
+
+          % endif
+
+          % endif
+      input_schema:
+        fields:
+          values:
+            tenantName:
+              id: tenantName
+              name: name
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfName:
+              id: vrfName
+              name: name
+              label: Name
+              description: ''
+              required: true
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            iBgpSubnet:
+              id: iBgpSubnet
+              name: iBgpSubnet
+              label: iBGP Subnet
+              description: >-
+                Define the subnet of the host IP address for the iBGP peering of
+                SVIs with an MLAG peer (if an MLAG peer exists)
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            iBgpVlanId:
+              id: iBgpVlanId
+              name: iBgpVlanId
+              label: iBGP VLAN ID
+              description: >-
+                Determine the VLAN used for iBGP peering with an MLAG peer (if
+                an MLAG peer exists)
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            iBgpSubnetMask:
+              id: iBgpSubnetMask
+              name: iBgpSubnetMask
+              label: iBGP Subnet Mask
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '31'
+                range: null
+                static_options:
+                  values:
+                    - '30'
+                    - '31'
+                dynamic_options: null
+            iBgpDetails:
+              id: iBgpDetails
+              name: iBgpDetails
+              label: IBGP Details
+              description: Enable iBGP overlay by configuring values.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - iBgpSubnet
+                    - iBgpVlanId
+                    - iBgpSubnetMask
+            natInterface:
+              id: natInterface
+              name: natInterface
+              label: NAT Source Interface
+              description: >-
+                Define the loopback interface used for sourcing pings within
+                this VRF
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            natSubnet:
+              id: natSubnet
+              name: natSubnet
+              label: NAT Source Subnet
+              description: Define the subnet for the NAT source interface
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            natSourceDetails:
+              id: natSourceDetails
+              name: natSourceDetails
+              label: NAT Source Details
+              description: Enable NAT by configuring values.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - natInterface
+                    - natSubnet
+            vrfOverrideRouteDistinguisher:
+              id: vrfOverrideRouteDistinguisher
+              name: routeDistinguisher
+              label: Route Distinguisher
+              description: >-
+                Assign a route value to this VRF. Use the format "Router-ID:
+                integer" (e.g. 67: 5013)
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfOverrideRouteTarget:
+              id: vrfOverrideRouteTarget
+              name: routeTarget
+              label: Route Target
+              description: >-
+                Set a target to import routes from, and to enable other switches
+                to determine if they need to import route updates from this VRF.
+                Use the format "integer: VNI or VLAN ID" (e.g. 12: 5131).
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfOverrideVariables:
+              id: vrfOverrideVariables
+              name: overrideVariables
+              label: Override VRF Attributes
+              description: >-
+                Enter values specific to this VRF to override the default
+                MAC-VRF attributes.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfOverrideRouteDistinguisher
+                    - vrfOverrideRouteTarget
+            vrfOverrideVNI:
+              id: vrfOverrideVNI
+              name: vni
+              label: VNI
+              description: >-
+                Enter a Virtual Network Identifier to identify networks in the
+                overlay.
+              required: true
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfGroup:
+              id: vrfGroup
+              name: vrfGroup
+              label: VRF Definition
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfName
+                    - iBgpDetails
+                    - natSourceDetails
+                    - vrfOverrideVariables
+                    - vrfOverrideVNI
+            vrfs:
+              id: vrfs
+              name: vrfs
+              label: VRFs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vrfGroup
+                key: vrfName
+            vlanAwareBundleVlanRange:
+              id: vlanAwareBundleVlanRange
+              name: vlanRange
+              label: VLAN Range
+              description: >-
+                Assign VLANS to this bundle with their VLAN IDs. Specify
+                separate VLANs with a comma and series with a hyphen (e.g 1-9,
+                14, 23-40)
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanAwareBundleName:
+              id: vlanAwareBundleName
+              name: name
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanAwareBundleOverrideRouteDistinguisher:
+              id: vlanAwareBundleOverrideRouteDistinguisher
+              name: routeDistinguisher
+              label: Route Distinguisher
+              description: >-
+                Assign a route value to this VRF. Use the format "Router-ID:
+                integer" (eg. 67: 5013)
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanAwareBundleOverrideRouteTarget:
+              id: vlanAwareBundleOverrideRouteTarget
+              name: routeTarget
+              label: Route Target
+              description: >-
+                Set a target to import routes from, and to enable other switches
+                to determine if they need to import route updates from this VRF.
+                Use the format "integer: VNI or VLAN ID" (e.g. 12: 5131).
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanAwareBundleOverrideVariables:
+              id: vlanAwareBundleOverrideVariables
+              name: overrideVariables
+              label: Overide MAC-VRF Attributes
+              description: >-
+                Enter values specific to this VRF to overide the default MAC-VRF
+                attributes.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanAwareBundleOverrideRouteDistinguisher
+                    - vlanAwareBundleOverrideRouteTarget
+            vlanAwareBundleGroup:
+              id: vlanAwareBundleGroup
+              name: vlanGroup
+              label: VLAN Bundle Definition
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanAwareBundleVlanRange
+                    - vlanAwareBundleName
+                    - vlanAwareBundleOverrideVariables
+            vlanAwareBundles:
+              id: vlanAwareBundles
+              name: vlanAwareBundles
+              label: VLAN Aware Bundles
+              description: >-
+                Configure a bundle of VLANs that share the same MAC-VRF
+                attributes.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vlanAwareBundleGroup
+                key: vlanAwareBundleName
+            vlanId:
+              id: vlanId
+              name: vlanId
+              label: VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vlanBasedVlanName:
+              id: vlanBasedVlanName
+              name: name
+              label: Name
+              description: Enter a one-word name for the VLAN.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanMemberSwitchApply:
+              id: vlanMemberSwitchApply
+              name: apply
+              label: Apply
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: null
+            vlanMemberSwitchHostname:
+              id: vlanMemberSwitchHostname
+              name: hostname
+              label: Hostname
+              description: The service will not be configured unless Apply is selected.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: vlanMemberSwitchApply
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
+            0af58acc-a509-4b7c-929c-79e16fd4dd4e:
+              id: 0af58acc-a509-4b7c-929c-79e16fd4dd4e
+              name: eTreeRole
+              label: E-Tree Role
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: None
+                static_options:
+                  values:
+                    - None
+                    - Root
+                    - Leaf
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanMemberSwitch:
+              id: vlanMemberSwitch
+              name: switch
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanMemberSwitchHostname
+                    - 0af58acc-a509-4b7c-929c-79e16fd4dd4e
+            vlanMemberSwitches:
+              id: vlanMemberSwitches
+              name: switches
+              label: Devices
+              description: Assign a VLAN to devices.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: vlanMemberSwitch
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            vlanDhcpServerVrf:
+              id: vlanDhcpServerVrf
+              name: dhcpServerVrf
+              label: DHCP Server VRF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"vrfName"}'
+            vlanDhcpServers:
+              id: vlanDhcpServers
+              name: dhcpServer
+              label: DHCP Server
+              description: Enter the FQDN or the IP address of the DHCP server
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            dhcpHelperSourceInterface:
+              id: dhcpHelperSourceInterface
+              name: dhcpHelperSourceInterface
+              label: DHCP Helper Source Interface
+              description: Enter an interface to source DHCP relays from
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanDhcpServerDetail:
+              id: vlanDhcpServerDetail
+              name: dhcpServerDetail
+              label: DHCP Server Detail
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanDhcpServerVrf
+                    - vlanDhcpServers
+                    - dhcpHelperSourceInterface
+            vlanDhcpServerDetails:
+              id: vlanDhcpServerDetails
+              name: dhcpServerDetails
+              label: DHCP Helper Details
+              description: Specify the location of the DHCP server for this VLAN.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vlanDhcpServerDetail
+                key: vlanDhcpServers
+            vlanL3OrL2:
+              id: vlanL3OrL2
+              name: l3OrL2
+              label: Routed or Bridged
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            vlanSviVirtualIpAddress:
+              id: vlanSviVirtualIpAddress
+              name: sviVirtualIpAddress
+              label: SVI Virtual IP Address
+              description: >-
+                Assign a virtual IP address to be used on the VLAN's SVI. This
+                will be the default gateway for devices behind this VTEP on this
+                VLAN.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanSVIIpAddresses:
+              id: vlanSVIIpAddresses
+              name: sviIpAddresses
+              label: SVI Addressing
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanSviVirtualIpAddress
+            vlanOverrideVni:
+              id: vlanOverrideVni
+              name: vni
+              label: VNI
+              description: >-
+                Enter a Virtual Network Identifier to identify networks in the
+                overlay
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vlanOverrideRouteDistinguisher:
+              id: vlanOverrideRouteDistinguisher
+              name: routeDistinguisher
+              label: Route Distinguisher
+              description: >-
+                Assign a route value to this VRF. Use the format Router-ID:
+                integer (eg. 67: 5013)
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanOverrideRouteTarget:
+              id: vlanOverrideRouteTarget
+              name: routeTarget
+              label: Route Target
+              description: >-
+                Set a target to import routes from, and to enable other switches
+                to determine if they need to import route updates from this VRF.
+                Use the format integer: VNI or VLAN ID (e.g. 12: 5131).
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanOverrideVariables:
+              id: vlanOverrideVariables
+              name: overrideVariables
+              label: Override Attributes
+              description: >-
+                Enter values specific to this VLAN and VRF to override the
+                default generated attributes.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanOverrideVni
+                    - vlanOverrideRouteDistinguisher
+                    - vlanOverrideRouteTarget
+            vlanVrf:
+              id: vlanVrf
+              name: vrf
+              label: VRF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: None
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"vrfName"}'
+            vlanBasedVlans:
+              id: vlanBasedVlans
+              name: vlanBasedVlaNs
+              label: VLAN Definitions
+              description: VLAN based VLANs
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanId
+                    - vlanBasedVlanName
+                    - vlanMemberSwitches
+                    - vlanDhcpServerDetails
+                    - vlanL3OrL2
+                    - vlanSVIIpAddresses
+                    - vlanOverrideVariables
+                    - vlanVrf
+            vlans:
+              id: vlans
+              name: vlans
+              label: VLANs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vlanBasedVlans
+                key: vlanId
+            macVrfVniBase:
+              id: macVrfVniBase
+              name: macVrfVniBase
+              label: MAC-VRF VNI Base
+              description: >-
+                Set the default number that generates each Virtual Network
+                Identifier by adding it to the specific VLAN ID.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '10000'
+                range: null
+                static_options: null
+                dynamic_options: null
+            tenantDefinition:
+              id: tenantDefinition
+              name: tenantDefinition
+              label: Tenant Definition
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - tenantName
+                    - vrfs
+                    - vlanAwareBundles
+                    - vlans
+                    - macVrfVniBase
+            tenants:
+              id: tenants
+              name: tenants
+              label: Tenants
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: tenantDefinition
+                key: tenantName
+            vrfRouteDistinguisherFormat:
+              id: vrfRouteDistinguisherFormat
+              name: vrfRouteDistinguisherFormat
+              label: VRF Route Distinguisher Format
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: Router-ID:VNI
+                static_options:
+                  values:
+                    - Router-ID:VNI
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfRouteTargetFormat:
+              id: vrfRouteTargetFormat
+              name: vrfRouteTargetFormat
+              label: VRF Route Target Format
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: VNI:VNI
+                static_options:
+                  values:
+                    - VNI:VNI
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfAttributeFormats:
+              id: vrfAttributeFormats
+              name: vrfAttributeFormats
+              label: VRF Attributes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfRouteDistinguisherFormat
+                    - vrfRouteTargetFormat
+            vlanBasedMacVrfRouteDistinguisherFormat:
+              id: vlanBasedMacVrfRouteDistinguisherFormat
+              name: macVrfRouteDistinguisherFormat
+              label: MAC-VRF Route Distinguisher Format
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: Router-ID:VNI
+                static_options:
+                  values:
+                    - Router-ID:VNI
+                    - Router-ID:VLAN
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanBasedMacVrfRouteTargetFormat:
+              id: vlanBasedMacVrfRouteTargetFormat
+              name: macVrfRouteTargetFormat
+              label: MAC-VRF Route Target Format
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: VNI:VNI
+                static_options:
+                  values:
+                    - VNI:VNI
+                    - VLAN:VLAN
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanBasedMacVrfAttributeFormats:
+              id: vlanBasedMacVrfAttributeFormats
+              name: vlanBasedMacVrfAttributeFormats
+              label: VLAN Based MAC-VRF Attributes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanBasedMacVrfRouteDistinguisherFormat
+                    - vlanBasedMacVrfRouteTargetFormat
+            vlanBundleMacVrfRouteDistinguisherFormat:
+              id: vlanBundleMacVrfRouteDistinguisherFormat
+              name: macVrfRouteDistinguisherFormat
+              label: MAC-VRF Route Distinguisher Format
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: Router-ID:First-VLAN
+                static_options:
+                  values:
+                    - Router-ID:First-VLAN
+                    - Router-ID:First-VNI
+                    - Router-ID:Last-VLAN
+                    - Router-ID:Last-VNI
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanBundleMacVrfRouteTargetFormat:
+              id: vlanBundleMacVrfRouteTargetFormat
+              name: macVrfRouteTargetFormat
+              label: MAC-VRF Route Target Format
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: First-VNI:Last-VNI
+                static_options:
+                  values:
+                    - First-VLAN:First-VLAN
+                    - First-VNI:First-VNI
+                    - Last-VLAN:Last-VLAN
+                    - Last-VNI:Last-VNI
+                    - First-VLAN:Last-VLAN
+                    - First-VNI:Last-VNI
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanBundleMacVrfAttributeFormats:
+              id: vlanBundleMacVrfAttributeFormats
+              name: vlanBundleMacVrfAttributeFormats
+              label: VLAN Bundle MAC-VRF Attributes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanBundleMacVrfRouteDistinguisherFormat
+                    - vlanBundleMacVrfRouteTargetFormat
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - tenants
+                    - vrfAttributeFormats
+                    - vlanBasedMacVrfAttributeFormats
+                    - vlanBundleMacVrfAttributeFormats
+        layout:
+          value: >-
+            {"vrfs":{"key":"vrfs","type":"INPUT","isPageLayout":true},"tenants":{"key":"tenants","type":"INPUT","isPageLayout":true},"vlans":{"key":"vlans","type":"INPUT","isPageLayout":true},"vlanBasedVlans":{"key":"vlanBasedVlans","type":"INPUT","order":["vlanId","vlanBasedVlanName","vlanL3OrL2","vlanVrf","vlanSVIIpAddresses","vlanDhcpServerDetails","vlanMemberSwitches","vlanOverrideVariables"]},"vrfGroup":{"key":"vrfGroup","type":"INPUT","order":["vrfName","vrfOverrideVNI","iBgpDetails","natSourceDetails","vrfOverrideVariables"]},"vlanL3OrL2":{"key":"vlanL3OrL2","valueToLabelMap":{"True":"Routed","False":"Bridged"},"type":"INPUT"},"vlanSviVirtualIpAddress":{"key":"vlanSviVirtualIpAddress","dependency":{"vlanL3OrL2":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"vlanSviSecondaryIpAddress":{"key":"vlanSviSecondaryIpAddress","dependency":{"vlanL3OrL2":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"tenantDefinition":{"key":"tenantDefinition","type":"INPUT","order":["tenantName","vrfs","macVrfVniBase","vlans","vlanAwareBundles"]},"iBgpDetails":{"key":"iBgpDetails","type":"INPUT","order":["iBgpVlanId","iBgpSubnet","iBgpSubnetMask"]},"vlanDhcpServerVrf":{"key":"vlanDhcpServerVrf","dependency":{"vlanL3OrL2":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"vlanDhcpServers":{"key":"vlanDhcpServers","dependency":{"vlanL3OrL2":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"dhcpHelperSourceInterface":{"key":"dhcpHelperSourceInterface","dependency":{"vlanL3OrL2":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"vlanAwareBundleGroup":{"key":"vlanAwareBundleGroup","type":"INPUT","order":["vlanAwareBundleName","vlanAwareBundleVlanRange","vlanAwareBundleOverrideVariables"]},"vlanAwareBundles":{"key":"vlanAwareBundles","type":"INPUT","isPageLayout":true},"vlanMemberSwitches":{"key":"vlanMemberSwitches","isPageLayout":true,"type":"INPUT"},"vlanVrf":{"key":"vlanVrf","dependency":{"vlanL3OrL2":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"vrfOverrideVariables":{"key":"vrfOverrideVariables","type":"INPUT","order":["vrfOverrideRouteDistinguisher","vrfOverrideRouteTarget"]},"vlanMemberSwitch":{"key":"vlanMemberSwitch","type":"INPUT","order":["vlanMemberSwitchHostname","deviceTagger","0af58acc-a509-4b7c-929c-79e16fd4dd4e"]},"vlanMemberSwitchApply":{"key":"vlanMemberSwitchApply","type":"INPUT","dependency":{}},"deviceTagger":{"key":"deviceTagger","type":"TAGGER","parentKey":"vlanMemberSwitch","name":"Router
+            BGP
+            Tags","assignmentType":"SINGLE","tagType":"DEVICE","description":"The
+            following tags are required for a service to be configured on a
+            switch.","columns":[{"tagLabel":"router_bgp.router_id","suggestedValues":[]},{"tagLabel":"router_bgp.as","suggestedValues":[]}]},"vlanSVIIpAddresses":{"key":"vlanSVIIpAddresses","type":"INPUT","order":["vlanSviVirtualIpAddress"]},"acc6ba89-b924-4a09-af01-51811b297b2e":{"key":"acc6ba89-b924-4a09-af01-51811b297b2e","type":"INPUT","valueToLabelMap":{"False":"Root","True":"Leaf"}}}
