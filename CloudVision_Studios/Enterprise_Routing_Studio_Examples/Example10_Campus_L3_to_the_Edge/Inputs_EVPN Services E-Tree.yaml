@@ -1,0 +1,307 @@
+path: []
+inputs:
+  tenants:
+    - macVrfVniBase: 10000
+      name: BLUE
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: false
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos11
+              tags:
+                query: device:eos11
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+              tags:
+                query: device:eos6
+          vlanId: 123
+          vrf: None
+      vrfs: []
+    - macVrfVniBase: 10000
+      name: GREEN
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos11
+              tags:
+                query: device:eos11
+          vlanId: 200
+          vrf: GREEN
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos11
+              tags:
+                query: device:eos11
+          vlanId: 210
+          vrf: GREEN
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos13
+              tags:
+                query: device:eos13
+          vlanId: 201
+          vrf: GREEN
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos13
+              tags:
+                query: device:eos13
+          vlanId: 211
+          vrf: GREEN
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos9
+              tags:
+                query: device:eos9
+          vlanId: 202
+          vrf: GREEN
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos9
+              tags:
+                query: device:eos9
+          vlanId: 212
+          vrf: GREEN
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: FW
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+              tags:
+                query: device:eos6
+          vlanId: 229
+          vrf: GREEN
+      vrfs:
+        - iBgpDetails: {}
+          name: GREEN
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5555
+    - macVrfVniBase: 10000
+      name: RED
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: false
+          name: RED
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: Root
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:9C809332310607508C60E4740F3C9359
+              tags:
+                query: device:eos6
+            - inputs:
+                switch:
+                  eTreeRole: Leaf
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:95A0ADFCE36FFA14EDE87009E17D4CA2
+              tags:
+                query: device:eos13
+            - inputs:
+                switch:
+                  eTreeRole: Leaf
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:6F1A0135F44B1AA9D25473177E89A98A
+              tags:
+                query: device:eos9
+            - inputs:
+                switch:
+                  eTreeRole: Leaf
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:DC5DA2A1D61E5DAD8CFE52A4125A477A
+              tags:
+                query: device:DC5DA2A1D61E5DAD8CFE52A4125A477A
+          vlanId: 319
+          vrf: None
+      vrfs: []
+    - macVrfVniBase: 10000
+      name: YELLOW
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos1
+              tags:
+                query: device:eos1
+          vlanId: 17
+          vrf: YELLOW
+        - dhcpServerDetails: []
+          l3OrL2: true
+          name: ''
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+              tags:
+                query: device:eos6
+          vlanId: 500
+          vrf: YELLOW
+      vrfs:
+        - iBgpDetails: {}
+          name: YELLOW
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5002
+    - macVrfVniBase: 10000
+      name: BLACK
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: false
+          name: v431
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos11
+              tags:
+                query: device:eos11
+            - inputs:
+                switch:
+                  eTreeRole: None
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos9
+              tags:
+                query: device:eos9
+          vlanId: 431
+          vrf: None
+      vrfs: []
+  vlanBasedMacVrfAttributeFormats:
+    macVrfRouteDistinguisherFormat: Router-ID:VNI
+    macVrfRouteTargetFormat: VLAN:VLAN
