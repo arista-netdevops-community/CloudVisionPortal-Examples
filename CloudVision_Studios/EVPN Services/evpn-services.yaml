@@ -379,7 +379,11 @@
                   switch_facts['tenants'][info['tenant']]['vlan_aware_bundles'][vlan_aware_bundle] = {
                       "vlan_range": info['vlan_range'],
                       "route_distinguisher": info['route_distinguisher'],
-                      "route_target": info['route_target']
+                      "route_target": info['route_target'],
+                      "first_vlan": info['first_vlan'], 
+                      "first_vni": info['first_vni'],
+                      "last_vlan": info['last_vlan'],
+                      "last_vni": info['last_vni']
                   }
 
               return switch_facts
@@ -636,6 +640,13 @@
                       "VLAN": "vlan",
                       "Router-ID": "switch_facts['router_id']"
                   }
+                  vlan_aware_mac_vrf_admin_field_key_words = {
+                      "First-VLAN": "bundle_info['first_vlan']",
+                      "First-VNI": "bundle_info['first_vni']",
+                      "Last-VLAN": "bundle_info['last_vlan']",
+                      "Last-VNI": "bundle_info['last_vni']",
+                      "Router-ID": "switch_facts['router_id']"
+                  }
                   for tenant in switch_facts['tenants'].keys():
                       # Set vrfs
                       for vrf, vrf_info in switch_facts['tenants'][tenant]['vrfs'].items():
@@ -692,11 +703,30 @@
                               else:
                                   switch_rt.append(rt_segment)
                           vlan_info['route_target'] = ":".join(switch_rt)
+                      # Set vlan_aware_bundles
+                      for bundle, bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].items():
+                          # Set bundle rd
+                          switch_rd = []
+                          for rd_segment in bundle_info['route_distinguisher'].split(":"):
+                              if vlan_aware_mac_vrf_admin_field_key_words.get(rd_segment) is not None:
+                                  switch_rd.append(str(eval(vlan_aware_mac_vrf_admin_field_key_words[rd_segment])))
+                              else:
+                                  switch_rd.append(rd_segment)
+                          bundle_info['route_distinguisher'] = ":".join(switch_rd)
+                          # Set bundle rt
+                          switch_rt = []
+                          for rt_segment in bundle_info['route_target'].split(":"):
+                              if vlan_aware_mac_vrf_admin_field_key_words.get(rt_segment) is not None:
+                                  switch_rt.append(str(eval(vlan_aware_mac_vrf_admin_field_key_words[rt_segment])))
+                              else:
+                                  switch_rt.append(rt_segment)
+                          bundle_info['route_target'] = ":".join(switch_rt)
 
                   # Set bgp
                   if switch_facts['network_services'].get('l3'):
                       config['router_bgp']['vrfs'] = {}
                       config['router_bgp']['vlans'] = {}
+                      config['router_bgp']['vlan_aware_bundles'] = {}
                       for tenant in switch_facts['tenants'].keys():
                           # Set vrfs
                           for vrf, vrf_info in switch_facts['tenants'][tenant]['vrfs'].items():
@@ -806,6 +836,13 @@
 
                               # Set l3 vlans
                               for vlan, vlan_info in vrf_info['svis'].items():
+                                  vlan_in_bundle = False
+                                  for bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].values():
+                                      if vlan in string_to_list(bundle_info['vlan_range']):
+                                          vlan_in_bundle = True
+                                          break
+                                  if vlan_in_bundle is True:
+                                      continue 
                                   config['router_bgp']['vlans'][vlan] = {
                                       "tenant": tenant,
                                       "rd": vlan_info['route_distinguisher'],
@@ -818,6 +855,13 @@
                                   }
                           # Set l2 vlans
                           for vlan, vlan_info in switch_facts['tenants'][tenant]['l2vlans'].items():
+                              vlan_in_bundle = False
+                              for bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].values():
+                                  if vlan in string_to_list(bundle_info['vlan_range']):
+                                      vlan_in_bundle = True
+                                      break
+                              if vlan_in_bundle is True:
+                                  continue
                               config['router_bgp']['vlans'][vlan] = {
                                   "tenant": tenant,
                                   "rd": vlan_info['route_distinguisher'],
@@ -828,6 +872,19 @@
                                       "learned": {}
                                   }
                               }
+                          # Set vlan aware bundles
+                          for bundle, bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].items():
+                              config['router_bgp']['vlan_aware_bundles'][bundle] = {
+                                  "rd": bundle_info['route_distinguisher'],
+                                  "route_targets": {
+                                      "both": [bundle_info['route_target']]
+                                  },
+                                  "vlan": bundle_info['vlan_range'],
+                                  "redistribute_routes": [
+                                      "learned"
+                                  ]
+                              }
+                              
 
                   # Set vxlan interface
                   config['vxlan_interface'] = {"Vxlan1": {"vxlan": {"vrfs": {}, "vlans": {}}}}
@@ -1263,12 +1320,18 @@
 
               for vlan_aware_bundle in tenant['vlanAwareBundles']:
                   vlan_range = string_to_list(vlan_aware_bundle['vlanRange'])
+                  first_vlan = vlan_range[0]
+                  last_vlan = vlan_range[-1]
                   vlan_range = list_compress(vlan_range)
                   vlan_aware_bundles[vlan_aware_bundle['name']] = {
                       "vlan_range": vlan_range,
                       "route_distinguisher": vlan_bundle_mac_vrf_attribute_formats['macVrfRouteDistinguisherFormat'],
                       "route_target": vlan_bundle_mac_vrf_attribute_formats['macVrfRouteTargetFormat'],
-                      "tenant": tenant['name']
+                      "tenant": tenant['name'],
+                      "first_vlan": first_vlan,
+                      "last_vlan": last_vlan,
+                      "first_vni": vlans[first_vlan]["vni"] if vlans.get(first_vlan) else int(first_vlan) + int(tenant['macVrfVniBase']),
+                      "last_vni": vlans[last_vlan]["vni"] if vlans.get(last_vlan) else int(last_vlan) + int(tenant['macVrfVniBase'])
                   }
                   if vlan_aware_bundle['overrideVariables']['routeDistinguisher'] is not None \
                           and vlan_aware_bundle['overrideVariables']['routeDistinguisher'].strip() != "":
