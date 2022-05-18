@@ -213,7 +213,7 @@ inputs:
                                   ersubnetMask: 31
                               tags:
                                 query: >-
-                                  interface:Ethernet3@DC5DA2A1D61E5DAD8CFE52A4125A477A
+                                  interface:Ethernet3@eos4
                             - inputs:
                                 erneighborDetails:
                                   description: ''
@@ -222,7 +222,7 @@ inputs:
                                   ersubnetMask: 31
                               tags:
                                 query: >-
-                                  interface:Ethernet4@DC5DA2A1D61E5DAD8CFE52A4125A477A
+                                  interface:Ethernet4@eos4
                             - inputs:
                                 erneighborDetails:
                                   description: ''
@@ -231,7 +231,7 @@ inputs:
                                   ersubnetMask: 31
                               tags:
                                 query: >-
-                                  interface:Ethernet1@DC5DA2A1D61E5DAD8CFE52A4125A477A
+                                  interface:Ethernet1@eos4
                           externalInterfaces: []
                           loopback1Address: 4.4.4.44
                           mlagGroup: {}
@@ -248,7 +248,7 @@ inputs:
                               rrspeed: auto
                           staticRoutes: []
                       tags:
-                        query: device:DC5DA2A1D61E5DAD8CFE52A4125A477A
+                        query: device:eos4
                     - inputs:
                         erLinkDetails:
                           erneighbors:
@@ -260,7 +260,7 @@ inputs:
                                   ersubnetMask: 31
                               tags:
                                 query: >-
-                                  interface:Ethernet1@8E39D56C43FB0A6B73B455AFF4782391
+                                  interface:Ethernet1@eos3
                             - inputs:
                                 erneighborDetails:
                                   description: eos2
@@ -269,7 +269,7 @@ inputs:
                                   ersubnetMask: 31
                               tags:
                                 query: >-
-                                  interface:Ethernet3@8E39D56C43FB0A6B73B455AFF4782391
+                                  interface:Ethernet3@eos3
                             - inputs:
                                 erneighborDetails:
                                   description: eos5
@@ -278,7 +278,7 @@ inputs:
                                   ersubnetMask: 31
                               tags:
                                 query: >-
-                                  interface:Ethernet4@8E39D56C43FB0A6B73B455AFF4782391
+                                  interface:Ethernet4@eos3
                           externalInterfaces: []
                           loopback1Address: 3.3.3.33
                           mlagGroup: {}
@@ -295,7 +295,7 @@ inputs:
                               rrspeed: auto
                           staticRoutes: []
                       tags:
-                        query: device:8E39D56C43FB0A6B73B455AFF4782391
+                        query: device:eos3
               tags:
                 query: Edge-Router-Domain:Site2
             - inputs:
@@ -523,7 +523,17 @@ inputs:
           igp: OSPF
           redistributeConnected: Enabled
           redistributeStatic: Enabled
-          rrs: []
+          rrs:
+            - tags:
+                query: device:eos2
+              inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+            - tags:
+                query: device:eos5
+              inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
       tags:
         query: >-
           Network:Ex10-CoreNet-eos1-eos2-eos3-eos4-eos5-eos6-eos9-eos11-eos13
@@ -610,7 +620,7 @@ inputs:
                                       extvrf: RED
                               tags:
                                 query: >-
-                                  interface:Ethernet1@1AA475846FCB995415949C85C651A277
+                                  interface:Ethernet1@eos8
                           loopback1Address: ''
                           mlagGroup: {}
                           peerGroups:
@@ -825,7 +835,7 @@ inputs:
                               coreextvlandescription: ''
                               coreextvrf: ''
                       tags:
-                        query: interface:Ethernet1@2B11928CFAFBC54EF61879C72DF27B22
+                        query: interface:Ethernet1@eos16
                   coreneighbor: []
                   corepeerGroups: []
                   coreprefixLists: []
@@ -835,7 +845,7 @@ inputs:
                       coreprefix: 0.0.0.0/0
                   rRs: []
               tags:
-                query: device:2B11928CFAFBC54EF61879C72DF27B22
+                query: device:eos16
           erDomains: []
           igp: None
           redistributeConnected: Enabled
