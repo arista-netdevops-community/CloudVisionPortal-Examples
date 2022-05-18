@@ -1,1 +1,1 @@
-This is an alpha version of a campus studio that gives users the ability to deploy L2 or L3 campuses. The input schema and template for this studio are subject to change.  More documentation and details will be added later.
+This is an alpha version of a campus studio that gives users the ability to deploy L2 or L3 campuses. The input schema and template for this studio are subject to change.  More documentation and details will be added later.  **It is not recommended to use this studio in production networks.**
