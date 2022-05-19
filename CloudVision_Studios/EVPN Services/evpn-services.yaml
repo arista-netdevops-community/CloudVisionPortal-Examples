@@ -9,7 +9,7 @@
       description: Define and configure EVPN services for an L3 network fabric, including configuration of VRFs, VLANs, VNIs and associated IP addressing
       template:
         type: TEMPLATE_TYPE_MAKO
-        body: |
+        body: |-
           <%
           import ipaddress
           import json
@@ -78,23 +78,26 @@
               Returns
                   None
               '''
-              vnis_seen = {}
-              for vlan, vlan_details in vlans.items():
-                  assert vnis_seen.get(vlan_details['vni']) is None, f"VNI {vlan_details['vni']} found in multiple places -> " \
-                                                                    f"{vnis_seen[vlan_details['vni']]['error_name']} in tenant " \
-                                                                    f"{vnis_seen[vlan_details['vni']]['tenant']} and " \
-                                                                    f"{vlan_details['error_name']} in tenant " \
-                                                                    f"{vlan_details['tenant']}. Please correct the VNI " \
-                                                                    f"conflict before moving forward."
-                  vnis_seen[vlan_details['vni']] = vlan_details
-              for vrf, vrf_details in vrfs.items():
-                  assert vnis_seen.get(vrf_details['vni']) is None, f"VNI {vrf_details['vni']} found in multiple places -> " \
-                                                                    f"{vnis_seen[vrf_details['vni']]['error_name']} in tenant " \
-                                                                    f"{vnis_seen[vrf_details['vni']]['tenant']} and " \
-                                                                    f"{vrf_details['error_name']} in tenant " \
-                                                                    f"{vrf_details['tenant']}. Please correct the VNI " \
-                                                                    f"conflict before moving forward."
-                  vnis_seen[vrf_details['vni']] = vrf_details
+              for tenant in vlans.keys():
+                  vnis_seen = {}
+                  for vlan, vlan_details in vlans[tenant].items():
+                      assert vnis_seen.get(vlan_details['vni']) is None, f"VNI {vlan_details['vni']} found in multiple places -> " \
+                                                                         f"{vnis_seen[vlan_details['vni']]['error_name']} in tenant " \
+                                                                         f"{vnis_seen[vlan_details['vni']]['tenant']} and " \
+                                                                         f"{vlan_details['error_name']} in tenant " \
+                                                                         f"{vlan_details['tenant']}. Please correct the VNI " \
+                                                                         f"conflict before moving forward."
+                      vnis_seen[vlan_details['vni']] = vlan_details
+              for tenant in vrfs.keys():
+                  vnis_seen = {}
+                  for vrf, vrf_details in vrfs[tenant].items():
+                      assert vnis_seen.get(vrf_details['vni']) is None, f"VNI {vrf_details['vni']} found in multiple places -> " \
+                                                                        f"{vnis_seen[vrf_details['vni']]['error_name']} in tenant " \
+                                                                        f"{vnis_seen[vrf_details['vni']]['tenant']} and " \
+                                                                        f"{vrf_details['error_name']} in tenant " \
+                                                                        f"{vrf_details['tenant']}. Please correct the VNI " \
+                                                                        f"conflict before moving forward."
+                      vnis_seen[vrf_details['vni']] = vrf_details
 
 
           def get_mlag_ip(switch_facts, mlag_peer_ipv4_pool, mlag_subnet_mask, mlag_role):
@@ -367,6 +370,7 @@
                           = info['route_distinguisher']
                       switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)]['route_target'] = \
                           info['route_target']
+
               # Normalize vlan_aware_bundles
               for vlan_aware_bundle, info in switch_vlan_bundles.items():
                   # If tenant not already created in tenants, create it
@@ -979,8 +983,8 @@
 
           def check_config_parameters(switch_facts):
               assert switch_facts['bgp_as'] is not None, f"BGP ASN is not set.  Please apply a 'router_bgp.as' tag to " \
-                                                        f"{switch_facts['hostname']} in the Tags section of Provisioning " \
-                                                        f"with the appropriate workspace selected."
+                                                         f"{switch_facts['hostname']} in the Tags section of Provisioning " \
+                                                         f"with the appropriate workspace selected."
               assert switch_facts['router_id'] is not None, f"BGP Router ID is not set.  Please apply a 'router_bgp.router_id' " \
                                                             f"tag to {switch_facts['hostname']} in the Tags section of " \
                                                             f"Provisioning with the appropriate workspace selected."
@@ -1265,8 +1269,10 @@
           # Get VLANs and VRFs from input
           for tenant in tenants:
               for vrf in tenant['vrfs']:
-                  vrfs[vrf['name']] = {
-                      "tenant": tenant['name'],  # Set for error asserting purposes
+                  if not vrfs.get(tenant['name']):
+                      vrfs[tenant['name']] = {}
+                  vrfs[tenant['name']][vrf['name']] = {
+                      "tenant": tenant['name'],
                       "nat_source_details": vrf['natSourceDetails'],
                       "ibgp_details": vrf['iBgpDetails'],
                       "vni": vrf['vni'],
@@ -1282,16 +1288,19 @@
                   }
                   if vrf['overrideVariables']['routeDistinguisher'] is not None \
                           and vrf['overrideVariables']['routeDistinguisher'].strip() != "":
-                      vrfs[vrf['name']]['route_distinguisher'] = vrf['overrideVariables']['routeDistinguisher']
+                      vrfs[tenant['name']][vrf['name']]['route_distinguisher'] = vrf['overrideVariables']['routeDistinguisher']
                   if vrf['overrideVariables']['routeTarget'] is not None and vrf['overrideVariables']['routeTarget'].strip() != "":
-                      vrfs[vrf['name']]['route_target'] = vrf['overrideVariables']['routeTarget']
+                      vrfs[tenant['name']][vrf['name']]['route_target'] = vrf['overrideVariables']['routeTarget']
 
               for vlan in tenant['vlans']:
+                  if not vlans.get(tenant['name']):
+                      vlans[tenant['name']] = {}
                   # Format vrf as member of svi_address_details for backwards compatibility
                   # Fix once we can handle field change in upgrade script
                   svi_ip_info = vlan['sviIpAddresses']
                   svi_ip_info['vrf'] = vlan['vrf']
-                  vlans[vlan['vlanId']] = {
+                  vlans[tenant['name']][vlan['vlanId']] = {
+                      "tenant": tenant['name'],
                       "name": vlan['name'],
                       # "svi_ip_addresses": vlan['sviIpAddresses'],
                       "svi_ip_addresses": svi_ip_info,
@@ -1308,22 +1317,24 @@
                   }
                   if vlan.get('overrideVariables'):
                       if vlan['overrideVariables']['vni'] is not None:
-                          vlans[vlan['vlanId']]['vni_override'] = int(vlan['overrideVariables']['vni'])
+                          vlans[tenant['name']][vlan['vlanId']]['vni_override'] = int(vlan['overrideVariables']['vni'])
                       else:
-                          vlans[vlan['vlanId']]['vni_override'] = None
+                          vlans[tenant['name']][vlan['vlanId']]['vni_override'] = None
                       if vlan['overrideVariables']['routeDistinguisher'] is not None \
                               and vlan['overrideVariables']['routeDistinguisher'].strip() != "":
-                          vlans[vlan['vlanId']]['route_distinguisher'] = vlan['overrideVariables']['routeDistinguisher']
+                          vlans[tenant['name']][vlan['vlanId']]['route_distinguisher'] = vlan['overrideVariables']['routeDistinguisher']
                       if vlan['overrideVariables']['routeTarget'] is not None \
                               and vlan['overrideVariables']['routeTarget'].strip() != "":
-                          vlans[vlan['vlanId']]['route_target'] = vlan['overrideVariables']['routeTarget']
+                          vlans[tenant['name']][vlan['vlanId']]['route_target'] = vlan['overrideVariables']['routeTarget']
 
               for vlan_aware_bundle in tenant['vlanAwareBundles']:
+                  if not vlan_aware_bundles.get(tenant['name']):
+                      vlan_aware_bundles[tenant['name']] = {}
                   vlan_range = string_to_list(vlan_aware_bundle['vlanRange'])
                   first_vlan = vlan_range[0]
                   last_vlan = vlan_range[-1]
                   vlan_range = list_compress(vlan_range)
-                  vlan_aware_bundles[vlan_aware_bundle['name']] = {
+                  vlan_aware_bundles[tenant['name']][vlan_aware_bundle['name']] = {
                       "vlan_range": vlan_range,
                       "route_distinguisher": vlan_bundle_mac_vrf_attribute_formats['macVrfRouteDistinguisherFormat'],
                       "route_target": vlan_bundle_mac_vrf_attribute_formats['macVrfRouteTargetFormat'],
@@ -1335,11 +1346,11 @@
                   }
                   if vlan_aware_bundle['overrideVariables']['routeDistinguisher'] is not None \
                           and vlan_aware_bundle['overrideVariables']['routeDistinguisher'].strip() != "":
-                      vlan_aware_bundles[vlan_aware_bundle['name']]['route_distinguisher'] \
+                      vlan_aware_bundles[tenant['name']][vlan_aware_bundle['name']]['route_distinguisher'] \
                           = vlan_aware_bundle['overrideVariables']['routeDistinguisher']
                   if vlan_aware_bundle['overrideVariables']['routeTarget'] is not None \
                           and vlan_aware_bundle['overrideVariables']['routeTarget'].strip() != "":
-                      vlan_aware_bundles[vlan_aware_bundle['name']]['route_target'] \
+                      vlan_aware_bundles[tenant['name']][vlan_aware_bundle['name']]['route_target'] \
                           = vlan_aware_bundle['overrideVariables']['routeTarget']
 
           # Check for duplicate VNIs
@@ -1351,62 +1362,65 @@
           my_switch_vlan_bundles = {}
 
           # Get VLANs that should be configured on this switch
-          for vlan, vlan_details in vlans.items():
-              for gateway_id in my_switch_facts['gateway_switches']:
-                  if device_matches_resolver_query(
-                          vlan_details['member_switches'].resolve(device=gateway_id)['switch']['hostname'], gateway_id) is True:
-                      my_switch_vlans[vlan] = vlan_details
-                      if vlan_details['svi_ip_addresses'].get('vrf') is not None \
-                              and vlan_details['svi_ip_addresses']['vrf'].strip() not in ["", "None"]:
-                          my_switch_vrfs[vlan_details['svi_ip_addresses']['vrf']] = vrfs[vlan_details['svi_ip_addresses']['vrf']]
-                      for bundle, bundle_details in vlan_aware_bundles.items():
-                          if vlan in string_to_list(bundle_details['vlan_range']):
-                              my_switch_vlan_bundles[bundle] = bundle_details
+          for tenant in vlans.keys():
+              for vlan, vlan_details in vlans[tenant].items():
+                  for gateway_id in my_switch_facts['gateway_switches']:
+                      if device_matches_resolver_query(
+                              vlan_details['member_switches'].resolve(device=gateway_id)['switch']['hostname'], gateway_id) is True:
+                          my_switch_vlans[vlan] = vlan_details
+                          if vlan_details['svi_ip_addresses'].get('vrf') is not None \
+                                  and vlan_details['svi_ip_addresses']['vrf'].strip() not in ["", "None"]:
+                              my_switch_vrfs[vlan_details['svi_ip_addresses']['vrf']] = vrfs[tenant][vlan_details['svi_ip_addresses']['vrf']]
+                          if vlan_aware_bundles.get(tenant):
+                              for bundle, bundle_details in vlan_aware_bundles[tenant].items():
+                                  if vlan in string_to_list(bundle_details['vlan_range']):
+                                      my_switch_vlan_bundles[bundle] = bundle_details
+                                      break
                               break
-                      break
 
           # Get VRFs that should be configured on the switch
-          for vrf, info in vrfs.items():
-              # check if device is specified in Applied Devices
-              if (device_matches_resolver_query(info['devices'].resolve(
-                      device=my_switch_facts['serial_number'])['devices']['hostname'],
-                      my_switch_facts['serial_number'])):
-                  my_switch_vrfs[vrf] = info
-                  continue
+          for tenant in vrfs.keys():
+              for vrf, info in vrfs[tenant].items():
+                  # check if device is specified in Applied Devices
+                  if (device_matches_resolver_query(info['devices'].resolve(
+                          device=my_switch_facts['serial_number'])['devices']['hostname'],
+                          my_switch_facts['serial_number'])):
+                      my_switch_vrfs[vrf] = info
+                      continue
 
-              # check if any l3 interfaces resolve
-              if len(info.get('l3_interfaces').resolve(device=my_switch_facts['serial_number'])['interfaces']) > 0:
-                  my_switch_vrfs[vrf] = info
-                  continue
+                  # check if any l3 interfaces resolve
+                  if len(info.get('l3_interfaces').resolve(device=my_switch_facts['serial_number'])['interfaces']) > 0:
+                      my_switch_vrfs[vrf] = info
+                      continue
 
-              # check if apply column resolves for any static routes
-              for sr in info.get('static_routes'):
-                  # if static route is to be configured on switch
-                  if (device_matches_resolver_query(sr['devices'].resolve(
-                          device=my_switch_facts['serial_number'])['devices']['hostname'],
-                          my_switch_facts['serial_number'])):
-                      my_switch_vrfs[vrf] = info
-                      break
-              if my_switch_vrfs.get(vrf):
-                  continue
-              # check if apply column resolves for external bgp neighbors
-              for bgp_peer in info.get('external_bgp_peers'):
-                  # if bgp peer is to be configured on switch
-                  if (device_matches_resolver_query(bgp_peer['devices'].resolve(
-                          device=my_switch_facts['serial_number'])['devices']['hostname'],
-                          my_switch_facts['serial_number'])):
-                      my_switch_vrfs[vrf] = info
-                      break
-              if my_switch_vrfs.get(vrf):
-                  continue
-              # check if apply column resolves for additional route targets
-              for rt in info.get('additional_route_targets'):
-                  # if additional route target is to be configured on switch
-                  if (device_matches_resolver_query(rt['devices'].resolve(
-                          device=my_switch_facts['serial_number'])['devices']['hostname'],
-                          my_switch_facts['serial_number'])):
-                      my_switch_vrfs[vrf] = info
-                      break
+                  # check if apply column resolves for any static routes
+                  for sr in info.get('static_routes'):
+                      # if static route is to be configured on switch
+                      if (device_matches_resolver_query(sr['devices'].resolve(
+                              device=my_switch_facts['serial_number'])['devices']['hostname'],
+                              my_switch_facts['serial_number'])):
+                          my_switch_vrfs[vrf] = info
+                          break
+                  if my_switch_vrfs.get(vrf):
+                      continue
+                  # check if apply column resolves for external bgp neighbors
+                  for bgp_peer in info.get('external_bgp_peers'):
+                      # if bgp peer is to be configured on switch
+                      if (device_matches_resolver_query(bgp_peer['devices'].resolve(
+                              device=my_switch_facts['serial_number'])['devices']['hostname'],
+                              my_switch_facts['serial_number'])):
+                          my_switch_vrfs[vrf] = info
+                          break
+                  if my_switch_vrfs.get(vrf):
+                      continue
+                  # check if apply column resolves for additional route targets
+                  for rt in info.get('additional_route_targets'):
+                      # if additional route target is to be configured on switch
+                      if (device_matches_resolver_query(rt['devices'].resolve(
+                              device=my_switch_facts['serial_number'])['devices']['hostname'],
+                              my_switch_facts['serial_number'])):
+                          my_switch_vrfs[vrf] = info
+                          break
 
           my_switch_facts = normalize_tenant_info(my_switch_facts, my_switch_vrfs, my_switch_vlans, my_switch_vlan_bundles)
 
@@ -4163,65 +4177,65 @@
                     "key":"vlanBasedVlans",
                     "type":"INPUT",
                     "order":[
-                    "vlanId",
-                    "vlanMemberSwitches",
-                    "vlanBasedVlanName",
-                    "vlanL3OrL2",
-                    "vlanVrf",
-                    "vlanSVIIpAddresses",
-                    "vlanDhcpServerDetails",
-                    "vlanSviMtu",
-                    "vlanSviArpDetails",
-                    "vlanSviEosCliStatements",
-                    "vlanOverrideVariables"
+                        "vlanId",
+                        "vlanMemberSwitches",
+                        "vlanBasedVlanName",
+                        "vlanL3OrL2",
+                        "vlanVrf",
+                        "vlanSVIIpAddresses",
+                        "vlanDhcpServerDetails",
+                        "vlanSviMtu",
+                        "vlanSviArpDetails",
+                        "vlanSviEosCliStatements",
+                        "vlanOverrideVariables"
                     ]
                 },
                 "vrfGroup":{
                     "key":"vrfGroup",
                     "type":"INPUT",
                     "order":[
-                    "vrfName",
-                    "vrfOverrideVNI",
-                    "iBgpDetails",
-                    "natSourceDetails",
-                    "vrfL3InterfacesDevice",
-                    "staticRoutesCollection",
-                    "vrfRedistributeStaticRoutesToggle",
-                    "externalBgpPeers",
-                    "additionalRouteTargets",
-                    "vrfAssignDevicesResolver",
-                    "vrfOverrideVariables"
+                        "vrfName",
+                        "vrfOverrideVNI",
+                        "iBgpDetails",
+                        "natSourceDetails",
+                        "vrfL3InterfacesDevice",
+                        "staticRoutesCollection",
+                        "vrfRedistributeStaticRoutesToggle",
+                        "externalBgpPeers",
+                        "additionalRouteTargets",
+                        "vrfAssignDevicesResolver",
+                        "vrfOverrideVariables"
                     ]
                 },
                 "vlanL3OrL2":{
                     "key":"vlanL3OrL2",
                     "valueToLabelMap":{
-                    "True":"Routed",
-                    "False":"Bridged"
+                        "True":"Routed",
+                        "False":"Bridged"
                     },
                     "type":"INPUT"
                 },
                 "vlanSviVirtualIpAddress":{
                     "key":"vlanSviVirtualIpAddress",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
                 "vlanSviSecondaryIpAddress":{
                     "key":"vlanSviSecondaryIpAddress",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
@@ -4229,43 +4243,43 @@
                     "key":"tenantDefinition",
                     "type":"INPUT",
                     "order":[
-                    "tenantName",
-                    "vrfs",
-                    "macVrfVniBase",
-                    "vlans",
-                    "vlanAwareBundles"
+                        "tenantName",
+                        "vrfs",
+                        "macVrfVniBase",
+                        "vlans",
+                        "vlanAwareBundles"
                     ]
                 },
                 "iBgpDetails":{
                     "key":"iBgpDetails",
                     "type":"INPUT",
                     "order":[
-                    "iBgpVlanId",
-                    "iBgpSubnet",
-                    "iBgpSubnetMask"
+                        "iBgpVlanId",
+                        "iBgpSubnet",
+                        "iBgpSubnetMask"
                     ]
                 },
                 "vlanDhcpServerVrf":{
                     "key":"vlanDhcpServerVrf",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
                 "vlanDhcpServers":{
                     "key":"vlanDhcpServers",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
@@ -4273,9 +4287,9 @@
                     "key":"vlanAwareBundleGroup",
                     "type":"INPUT",
                     "order":[
-                    "vlanAwareBundleName",
-                    "vlanAwareBundleVlanRange",
-                    "vlanAwareBundleOverrideVariables"
+                        "vlanAwareBundleName",
+                        "vlanAwareBundleVlanRange",
+                        "vlanAwareBundleOverrideVariables"
                     ]
                 },
                 "vlanAwareBundles":{
@@ -4292,12 +4306,12 @@
                 "vlanVrf":{
                     "key":"vlanVrf",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
@@ -4305,19 +4319,19 @@
                     "key":"vrfOverrideVariables",
                     "type":"INPUT",
                     "order":[
-                    "vrfOverrideRouteDistinguisher",
-                    "vrfOverrideRouteTarget"
+                        "vrfOverrideRouteDistinguisher",
+                        "vrfOverrideRouteTarget"
                     ]
                 },
                 "vlanMemberSwitchApply":{
                     "key":"vlanMemberSwitchApply",
                     "dependency":{
-                    "vlanMemberSwitchApply":{
-                        "value":[
-                        false
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanMemberSwitchApply":{
+                            "value":[
+                                false
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
@@ -4325,25 +4339,33 @@
                     "key":"vlanSVIIpAddresses",
                     "type":"INPUT",
                     "order":[
-                    "vlanSviVirtualIpAddress",
-                    "vlanVirtualAddressConfigType"
+                        "vlanSviVirtualIpAddress",
+                        "vlanVirtualAddressConfigType"
                     ]
                 },
                 "vlanVirtualAddressConfigType":{
                     "key":"vlanVirtualAddressConfigType",
-                    "type":"INPUT",
                     "valueToLabelMap":{
-                    "True":"ip address virtual",
-                    "False":"ip virtual-router address"
+                        "True":"ip address virtual",
+                        "False":"ip virtual-router address"
+                    },
+                    "type":"INPUT",
+                    "dependency":{
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     }
                 },
                 "natSourceDetails":{
                     "key":"natSourceDetails",
                     "type":"INPUT",
                     "order":[
-                    "sourceNatDataCenterResolver",
-                    "sourceNatCampusResolver",
-                    "natInterface"
+                        "sourceNatDataCenterResolver",
+                        "sourceNatCampusResolver",
+                        "natInterface"
                     ]
                 },
                 "campusSite":{
@@ -4354,12 +4376,12 @@
                 "vlanSviMtu":{
                     "key":"vlanSviMtu",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
@@ -4367,19 +4389,19 @@
                     "key":"vlanSviArpAgingTimeout",
                     "type":"INPUT",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     }
                 },
                 "vrfL3InterfacesDevice":{
                     "key":"vrfL3InterfacesDevice",
                     "type":"INPUT",
                     "order":[
-                    "vrfL3InterfacesCollection"
+                        "vrfL3InterfacesCollection"
                     ]
                 },
                 "vrfL3InterfacesCollection":{
@@ -4396,22 +4418,22 @@
                     "key":"externalBgpPeersDetails",
                     "type":"INPUT",
                     "order":[
-                    "externalBgpPeeringName",
-                    "externalBgpPeersDevicesResolver",
-                    "externalBgpPeersNeighborIpAddress",
-                    "externalBgpPeersRemoteAs",
-                    "externalBgpPeersDescription",
-                    "externalBgpPeersPassword",
-                    "externalBgpPeersSendCommunity",
-                    "externalBgpPeersNextHopSelf",
-                    "externalBgpPeersMaxRoutesGroup",
-                    "externalBgpPeersUpdateSource",
-                    "externalBgpPeersEbgpMultihop",
-                    "externalBgpPeersWeight",
-                    "externalBgpPeersNextHopGroup",
-                    "externalBgpPeersRouteMapGroup",
-                    "externalBgpPeersDefaultOriginate",
-                    "externalBgpPeersLocalAs"
+                        "externalBgpPeeringName",
+                        "externalBgpPeersDevicesResolver",
+                        "externalBgpPeersNeighborIpAddress",
+                        "externalBgpPeersRemoteAs",
+                        "externalBgpPeersDescription",
+                        "externalBgpPeersPassword",
+                        "externalBgpPeersSendCommunity",
+                        "externalBgpPeersNextHopSelf",
+                        "externalBgpPeersMaxRoutesGroup",
+                        "externalBgpPeersUpdateSource",
+                        "externalBgpPeersEbgpMultihop",
+                        "externalBgpPeersWeight",
+                        "externalBgpPeersNextHopGroup",
+                        "externalBgpPeersRouteMapGroup",
+                        "externalBgpPeersDefaultOriginate",
+                        "externalBgpPeersLocalAs"
                     ]
                 },
                 "staticRoutesCollection":{
@@ -4423,12 +4445,12 @@
                     "key":"vlanSviCliStatement",
                     "type":"INPUT",
                     "dependency":{
-                    "vlanL3OrL2":{
-                        "value":[
-                        true
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vlanL3OrL2":{
+                            "value":[
+                                true
+                            ],
+                            "mode":"SHOW"
+                        }
                     }
                 },
                 "VlanAssignmentBgpTagger":{
@@ -4442,18 +4464,18 @@
                     "tagType":"DEVICE",
                     "description":"Necessary BGP Tags",
                     "columns":[
-                    {
-                        "tagLabel":"router_bgp.as",
-                        "suggestedValues":[
-                        
-                        ]
-                    },
-                    {
-                        "tagLabel":"router_bgp.router_id",
-                        "suggestedValues":[
-                        
-                        ]
-                    }
+                        {
+                            "tagLabel":"router_bgp.as",
+                            "suggestedValues":[
+                                
+                            ]
+                        },
+                        {
+                            "tagLabel":"router_bgp.router_id",
+                            "suggestedValues":[
+                                
+                            ]
+                        }
                     ]
                 },
                 "VrfAssignmentBgpTagger":{
@@ -4467,71 +4489,71 @@
                     "tagType":"DEVICE",
                     "description":"",
                     "columns":[
-                    {
-                        "tagLabel":"router_bgp.as",
-                        "suggestedValues":[
-                        
-                        ]
-                    },
-                    {
-                        "tagLabel":"router_bgp.router_id",
-                        "suggestedValues":[
-                        
-                        ]
-                    }
+                        {
+                            "tagLabel":"router_bgp.as",
+                            "suggestedValues":[
+                                
+                            ]
+                        },
+                        {
+                            "tagLabel":"router_bgp.router_id",
+                            "suggestedValues":[
+                                
+                            ]
+                        }
                     ]
                 },
                 "vrfAssignDevicesGroup":{
                     "key":"vrfAssignDevicesGroup",
                     "type":"INPUT",
                     "order":[
-                    "vrfAssignHostname",
-                    "VrfAssignmentBgpTagger",
-                    "vrfDeviceAssignmentSwitchFactsTagger"
+                        "vrfAssignHostname",
+                        "VrfAssignmentBgpTagger",
+                        "vrfDeviceAssignmentSwitchFactsTagger"
                     ]
                 },
                 "vlanMemberSwitch":{
                     "key":"vlanMemberSwitch",
                     "type":"INPUT",
                     "order":[
-                    "vlanMemberSwitchHostname",
-                    "VlanAssignmentBgpTagger",
-                    "vlanDeviceAssignmentSwitchFactsTagger"
+                        "vlanMemberSwitchHostname",
+                        "VlanAssignmentBgpTagger",
+                        "vlanDeviceAssignmentSwitchFactsTagger"
                     ]
                 },
                 "additionalRouteTargetsApply":{
                     "key":"additionalRouteTargetsApply",
                     "dependency":{
-                    "additionalRouteTargetsApply":{
-                        "value":[
-                        false
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "additionalRouteTargetsApply":{
+                            "value":[
+                                false
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
                 "externalBgpPeersApply":{
                     "key":"externalBgpPeersApply",
                     "dependency":{
-                    "externalBgpPeersApply":{
-                        "value":[
-                        false
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "externalBgpPeersApply":{
+                            "value":[
+                                false
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
                 "staticRoutesApply":{
                     "key":"staticRoutesApply",
                     "dependency":{
-                    "staticRoutesApply":{
-                        "value":[
-                        false
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "staticRoutesApply":{
+                            "value":[
+                                false
+                            ],
+                            "mode":"SHOW"
+                        }
                     },
                     "type":"INPUT"
                 },
@@ -4539,12 +4561,12 @@
                     "key":"vrfAssignApply",
                     "type":"INPUT",
                     "dependency":{
-                    "vrfAssignApply":{
-                        "value":[
-                        false
-                        ],
-                        "mode":"SHOW"
-                    }
+                        "vrfAssignApply":{
+                            "value":[
+                                false
+                            ],
+                            "mode":"SHOW"
+                        }
                     }
                 },
                 "additionalRouteTargetsBgpTagger":{
@@ -4558,18 +4580,18 @@
                     "tagType":"DEVICE",
                     "description":"",
                     "columns":[
-                    {
-                        "tagLabel":"router_bgp.as",
-                        "suggestedValues":[
-                        
-                        ]
-                    },
-                    {
-                        "tagLabel":"router_bgp.router_id",
-                        "suggestedValues":[
-                        
-                        ]
-                    }
+                        {
+                            "tagLabel":"router_bgp.as",
+                            "suggestedValues":[
+                                
+                            ]
+                        },
+                        {
+                            "tagLabel":"router_bgp.router_id",
+                            "suggestedValues":[
+                                
+                            ]
+                        }
                     ]
                 },
                 "externalBgpPeersBgpTagger":{
@@ -4583,18 +4605,18 @@
                     "tagType":"DEVICE",
                     "description":"",
                     "columns":[
-                    {
-                        "tagLabel":"router_bgp.as",
-                        "suggestedValues":[
-                        
-                        ]
-                    },
-                    {
-                        "tagLabel":"router_bgp.router_id",
-                        "suggestedValues":[
-                        
-                        ]
-                    }
+                        {
+                            "tagLabel":"router_bgp.as",
+                            "suggestedValues":[
+                                
+                            ]
+                        },
+                        {
+                            "tagLabel":"router_bgp.router_id",
+                            "suggestedValues":[
+                                
+                            ]
+                        }
                     ]
                 },
                 "staticRoutesNetworkServicesTagger":{
@@ -4607,20 +4629,20 @@
                     "tagType":"DEVICE",
                     "description":"Used to set network properties for devices",
                     "columns":[
-                    {
-                        "tagLabel":"vtep",
-                        "suggestedValues":[
-                        "True",
-                        "False"
-                        ]
-                    },
-                    {
-                        "tagLabel":"network_services",
-                        "suggestedValues":[
-                        "L2",
-                        "L3"
-                        ]
-                    }
+                        {
+                            "tagLabel":"vtep",
+                            "suggestedValues":[
+                                "True",
+                                "False"
+                            ]
+                        },
+                        {
+                            "tagLabel":"network_services",
+                            "suggestedValues":[
+                                "L2",
+                                "L3"
+                            ]
+                        }
                     ]
                 },
                 "vlanDeviceAssignmentSwitchFactsTagger":{
@@ -4633,20 +4655,20 @@
                     "tagType":"DEVICE",
                     "description":"Used to set network properties for devices",
                     "columns":[
-                    {
-                        "tagLabel":"vtep",
-                        "suggestedValues":[
-                        "True",
-                        "False"
-                        ]
-                    },
-                    {
-                        "tagLabel":"network_services",
-                        "suggestedValues":[
-                        "L2",
-                        "L3"
-                        ]
-                    }
+                        {
+                            "tagLabel":"vtep",
+                            "suggestedValues":[
+                                "True",
+                                "False"
+                            ]
+                        },
+                        {
+                            "tagLabel":"network_services",
+                            "suggestedValues":[
+                                "L2",
+                                "L3"
+                            ]
+                        }
                     ]
                 },
                 "externalBgpPeersSwitchFactsTagger":{
@@ -4659,20 +4681,20 @@
                     "tagType":"DEVICE",
                     "description":"Used to set network properties for devices",
                     "columns":[
-                    {
-                        "tagLabel":"vtep",
-                        "suggestedValues":[
-                        "True",
-                        "False"
-                        ]
-                    },
-                    {
-                        "tagLabel":"network_services",
-                        "suggestedValues":[
-                        "L2",
-                        "L3"
-                        ]
-                    }
+                        {
+                            "tagLabel":"vtep",
+                            "suggestedValues":[
+                                "True",
+                                "False"
+                            ]
+                        },
+                        {
+                            "tagLabel":"network_services",
+                            "suggestedValues":[
+                                "L2",
+                                "L3"
+                            ]
+                        }
                     ]
                 },
                 "additionalRouteTargetsSwitchFactsTagger":{
@@ -4685,20 +4707,20 @@
                     "tagType":"DEVICE",
                     "description":"Used to set network properties for devices",
                     "columns":[
-                    {
-                        "tagLabel":"vtep",
-                        "suggestedValues":[
-                        "True",
-                        "False"
-                        ]
-                    },
-                    {
-                        "tagLabel":"network_services",
-                        "suggestedValues":[
-                        "L2",
-                        "L3"
-                        ]
-                    }
+                        {
+                            "tagLabel":"vtep",
+                            "suggestedValues":[
+                                "True",
+                                "False"
+                            ]
+                        },
+                        {
+                            "tagLabel":"network_services",
+                            "suggestedValues":[
+                                "L2",
+                                "L3"
+                            ]
+                        }
                     ]
                 },
                 "vrfDeviceAssignmentSwitchFactsTagger":{
@@ -4711,20 +4733,20 @@
                     "tagType":"DEVICE",
                     "description":"Used to set network properties for devices",
                     "columns":[
-                    {
-                        "tagLabel":"vtep",
-                        "suggestedValues":[
-                        "True",
-                        "False"
-                        ]
-                    },
-                    {
-                        "tagLabel":"network_services",
-                        "suggestedValues":[
-                        "L2",
-                        "L3"
-                        ]
-                    }
+                        {
+                            "tagLabel":"vtep",
+                            "suggestedValues":[
+                                "True",
+                                "False"
+                            ]
+                        },
+                        {
+                            "tagLabel":"network_services",
+                            "suggestedValues":[
+                                "L2",
+                                "L3"
+                            ]
+                        }
                     ]
                 }
             }
