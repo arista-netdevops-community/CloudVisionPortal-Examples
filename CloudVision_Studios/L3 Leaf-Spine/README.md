@@ -17,7 +17,7 @@ You’ll need to have the following device tags in place before you can configur
 | DC | DC:DC1 | DC defines the data center that is being configured. |
 | DC-Pod | DC-Pod:DC1 | Data center pod name. |
 | Role | Role:Leaf, Role:Spine, Role:Super-Spine, Role:L2-Leaf | Device Role. Can either be a l3leaf, spine, super-spine, or l2leaf. |
-| node_id | node_id:1 | This is the node id per node type (l3leaf, spine, super-spine, or l2leaf) per DC-Pod (or per DC in case of super-spine). |
+| NodeId | NodeId:1 | This is the node id per node type (l3leaf, spine, super-spine, or l2leaf) per DC-Pod (or per DC in case of super-spine). |
 | Leaf-Domain | Leaf-Domain:1 | Specifies the leafs within a common AS, which is usually an MLAG pair of leafs. The value must be an integer. |
 | L2-Leaf-Domain | L2-Leaf-Domain:1 | Specifies the l2-leafs connected to same l3 leaf-domain, which is usually an MLAG pair of leafs. The value must be an integer. |
 | Super-Spine-Plane | Super-Spine-Plane:1 | Specifies the super-spines that have a common routing config. The value must be an integer. |
