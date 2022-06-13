@@ -1,0 +1,2358 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: a7a49383-6f94-4f3b-85a7-917b7f69c8a2
+        workspace_id: 998f4587-bad9-4233-ba90-c157ede80175
+      display_name: ACLs/QOS v0.7.1
+      description: ''
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: >-
+          <%
+
+          import sys
+
+          import os
+
+          import json
+
+          import ipaddress
+
+          import re
+
+          from collections import OrderedDict
+
+
+          class SwitchDetails:
+              def __init__(self):
+                  self.id = None
+                  self.model = None #Model tag
+                  self.config = {
+                      "acls": {},
+                      "qos": {}
+                  }
+
+              def configure_acls(self, switch_acls):
+                  for acl, acl_details in switch_acls.items():
+                      self.config["acls"][acl] = {}
+                      self.config["acls"][acl]["counters_per_entry"] = acl_details["counters_per_entry"]
+                      if acl_details["name"].strip() != "":
+                          self.config["acls"][acl]["name"] = acl_details["name"]
+                      if acl_details["description"].strip() != "":
+                          self.config["acls"][acl]["description"] = acl_details["description"]
+                      if acl_details["type"].strip() != "":
+                          self.config["acls"][acl]["type"] = acl_details["type"]
+                      if acl_details["acl_lines"]:
+                          self.config["acls"][acl]["acl_lines"] = acl_details["acl_lines"]
+                      if acl_details["devices"]:
+                          self.config["acls"][acl]["devices"] = acl_details["devices"]
+
+              def configure_qos(self, switch_qos):
+                  for qos, qos_details in switch_qos.items():
+                      self.config["qos"][qos] = {}
+                      if qos_details["instance_name"].strip() != "":
+                          self.config["qos"][qos]["instance_name"] = qos_details["instance_name"]
+                      if qos_details["class_maps"]:
+                          self.config["qos"][qos]["class_maps"] = qos_details["class_maps"]
+                      if qos_details["policy_maps"]:
+                          self.config["qos"][qos]["policy_maps"] = qos_details["policy_maps"]
+                      if qos_details["service_profiles"]:
+                          self.config["qos"][qos]["service_profiles"] = qos_details["service_profiles"]
+                      if qos_details["classification"]:
+                          self.config["qos"][qos]["classification"] = qos_details["classification"]
+          #            if qos_details["rewrite_rules"]:
+                          self.config["qos"][qos]["rewrite_rules"] = qos_details["rewrite_rules"]
+                      if qos_details["traffic_cl_to_q"]:
+                          self.config["qos"][qos]["traffic_cl_to_q"] = qos_details["traffic_cl_to_q"]
+                      if qos_details["devices"]:
+                          self.config["qos"][qos]["devices"] = qos_details["devices"]
+
+          def create_switch():
+              return SwitchDetails()
+
+          def get_switch(device_id):
+              switch = None
+              switch = create_switch()
+              switch.id = device_id
+              return switch
+
+          aclInputs = {}
+
+          qosInputs = {}
+
+          workspace_id = ctx.studio.workspaceId
+
+          my_device = ctx.getDevice()
+
+          my_device_id = my_device.id
+
+
+          #if not aclNames:
+
+          #  return
+
+          # Get  ACL input
+
+          for acl in aclNames:
+              aclInputs[acl["name"]] = {
+                  "name": acl["name"],
+                  "description": acl["description"],
+                  "type": acl["type"],
+                  "acl_lines": acl["aclLines"],
+                  "counters_per_entry": acl["countersPerEntry"],
+                  "devices": acl["devices"]
+              }
+          #if not qos:
+
+          #  return
+
+          # Get  QOS input
+
+          for qos in qosInstances:
+              qosInputs[qos["instanceName"]] = {
+                  "instance_name": qos["instanceName"],
+                  "class_maps": qos["classMaps"],
+                  "policy_maps": qos["policyMaps"],
+                  "service_profiles": qos["serviceProfiles"],
+                  "classification": qos["classification"],
+                  "rewrite_rules": qos["rewriteRules"],
+                  "traffic_cl_to_q": qos["trafficClassToQueue"],
+                  "devices": qos["devices"]
+              }
+          # Create switch    
+
+          switch = get_switch(my_device_id)
+
+
+          switch_acls = {}
+
+          switch_qos = {}
+
+          ACL = ""
+
+          if switch is not None:
+
+          # Get only ACLs applied to this switch
+              for acl, acl_details in aclInputs.items():
+                  if acl_details["devices"].resolve()["interfaces"]["vlanInterfaces"]:
+                      switch_acls[acl] = acl_details
+          # Get only QOS applied to this switch
+              for qos, qos_details in qosInputs.items():
+                  if qos_details["devices"].resolve()["deviceGroup"]["interfaces"]:
+                      switch_qos[qos] = qos_details
+                      # Get ACLs applied applied to QOS
+                      for acl, acl_details in aclInputs.items():
+                          for map in qos_details["class_maps"]:
+                              if acl == map["acl"]:
+                                  switch_acls[acl] = acl_details
+
+          # Create config
+
+          if len(switch_acls) > 0:
+              switch.configure_acls(switch_acls)
+          if len(switch_qos) > 0:
+              switch.configure_qos(switch_qos)
+          config = switch.config
+
+
+          %>
+
+          ##${aclInputs}
+
+          ##inputs ${qosInputs}
+
+          ##config ${config}
+
+
+          ## ACLs
+
+          %if config.get("acls"):
+
+          %    for acl in config.get("acls"):
+
+          ${config.get("acls")[acl].get("type")} access-list
+          ${config.get("acls")[acl].get("name")}
+
+          %        if config.get("acls")[acl].get("counters_per_entry"):
+              counters per-entry
+          %        endif    
+
+          %        for line in config.get("acls")[acl]["acl_lines"]:
+
+          %            if line.permitDenyRemark != "remark":
+
+          %                if line.log:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.protocol} ${line.source} ${line.destination} log
+          %                elif line.tracked:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.protocol} ${line.source} ${line.destination} tracked
+          %                else:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.protocol} ${line.source} ${line.destination}
+          %                endif
+
+          %            else:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.description}
+          %            endif
+
+          %        endfor
+              !
+          ## ACL Devices
+
+          %        if
+          config.get("acls")[acl]["devices"].resolve()["interfaces"]["controlPlaneAcl"]:
+
+          system control-plane
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")}
+          %        elif
+          config.get("acls")[acl]["devices"].resolve()["interfaces"]["vlanInterfaces"]:
+
+          %            for interface in
+          config.get("acls")[acl]["devices"].resolve()["interfaces"]["vlanInterfaces"]:
+
+          interface vlan${interface.vlanId}
+
+          %                if interface.direction == True:
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")} out
+              !
+          %                else:
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")} in
+              !
+          %                endif
+
+          %            endfor
+
+          %        endif
+
+          %    endfor
+
+          %endif
+
+          ## QOS
+
+          %if config.get("qos"):
+
+          %    for qos in config.get("qos"):
+
+          ## QOS Devices
+
+          %        if
+          config.get("qos")[qos]["devices"].resolve()["deviceGroup"]["interfaces"]:
+
+          %            for interface in
+          config.get("qos")[qos]["devices"].resolve()["deviceGroup"]["interfaces"]:
+
+          interface ${interface.interfaceName}
+
+          %                for queue in interface["txQueue"]:
+              tx-queue ${queue.queue}
+          %                    if queue.priorityStrict == False:
+                  no priority
+          %                    endif
+
+          %                    if queue.bandwidthType:
+
+          %                        if queue.bandwidthType == "guaranteed":
+                  bandwidth ${bandwidthType} ${queue.bandwidth}
+          %                        elif queue.bandwidthType == "percent":
+                  bandwidth ${bandwidthType} ${queue.bandwidth}
+          %                        endif
+
+          %                    endif
+
+          %                    if queue.shapeRate:
+                  shape rate ${queue.shapeRate}
+          %                    endif
+
+          %                    if queue.randomDetectType == "drop":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes drop-probability ${queue.dropProbability}
+          %                    elif queue.randomDetectType == "ecn":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    elif queue.randomDetectType == "non-ect":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    endif
+
+          %                endfor
+
+          %                if interface.servicePolicyName and
+          interface.servicePolicyType == "qos":
+              service-policy type ${interface.servicePolicyType} ${interface.policyMapInputOutput} ${interface.servicePolicyName} 
+              !
+          %                elif interface.servicePolicyName and
+          interface.servicePolicyType == "pbr":
+              service-policy type ${interface.servicePolicyType} input ${interface.servicePolicyName} 
+              !
+          %                elif interface.serviceProfile:
+              service-profile ${interface.serviceProfile}
+          %                endif
+              !
+          %                if interface.shapeRate:
+              shape rate ${interface.shapeRate}
+          %                endif
+
+          %                if interface.trust:
+              qos trust ${interface.trust}
+          %                endif
+
+          %                if interface.dscp:
+              qos dscp ${interface.dscp}
+          %                endif
+
+          %                if interface.cos:
+              qos cos ${interface.cos}
+          %                endif
+
+
+          %            endfor
+
+          %        endif
+
+          !
+
+          ## Class Maps
+
+          %        if config.get("qos")[qos].get("class_maps"):
+
+          %        for class_map in config.get("qos")[qos]["class_maps"]:
+
+          class-map type ${class_map.type} match-any ${class_map.classMapName}
+
+          %            if class_map.matchValue:
+              match ${class_map.match} ${class_map.matchValue} 
+          %            endif
+
+          %            if class_map.acl:
+              match ${class_map.match} access-group ${class_map.acl} 
+          %            endif
+              !
+          %        endfor
+
+          %        endif
+
+          !
+
+          ## Policy Maps
+
+          %        if config.get("qos")[qos].get("policy_maps"):
+
+          %        for policy_map in config.get("qos")[qos]["policy_maps"]:
+
+          %            if policy_map.type == "qos":
+
+          policy-map type quality-of-service ${policy_map.policyMapName}
+
+          %                for class_map in policy_map["classMap"]:
+              class ${class_map.classMap}
+          %                    if class_map.trafficClass:
+                  set traffic-class ${class_map.trafficClass}
+          %                    endif
+
+          %                    if class_map.cos:
+                  set cos ${class_map.cos}
+          %                    endif
+
+          %                    if class_map.dscp:
+                  set dscp ${class_map.dscp}
+          %                    endif
+
+          %                    if class_map.dropPrecedence != "none":
+                  set drop-precedence ${class_map.dropPrecedence}
+          %                    endif
+
+          %                    if class_map.drop:
+                  drop
+          %                    endif
+
+          %                    if class_map.policerCir and not
+          class_map.policerBc:
+                  police cir ${class_map.policerCir}
+          %                    endif
+
+          %                    if class_map.policerBc:
+                  police cir ${class_map.policerCir} bc ${class_map.policerBc}
+          %                    endif
+
+          %                    if class_map.policerRate and not
+          class_map.policerBurstSize:
+                  police rate ${class_map.policerRate}
+          %                    endif
+
+          %                    if class_map.policerBurstSize:
+                  police rate ${class_map.policerRate} burst-size ${class_map.policerBurstSize}
+          %                    endif
+
+          %                endfor
+
+          %                if policy_map.classDefault:
+              class class-default
+                  set traffic-class ${policy_map.classDefault}
+          %                endif
+              !
+          %            elif policy_map.type == "policer":
+
+          policy-map type quality-of-service policer
+
+          %                for class_map in policy_map["classMap"]:
+              class ${class_map.classMap}
+          %                    if class_map.trafficClass:
+                  set traffic-class ${class_map.trafficClass}
+          %                    endif
+
+          %                    if class_map.cos:
+                  set cos ${class_map.cos}
+          %                    endif
+
+          %                    if class_map.dscp:
+                  set dscp ${class_map.dscp}
+          %                    endif
+
+          %                    if class_map.dropPrecedence != "none":
+                  set drop-precedence ${class_map.dropPrecedence}
+          %                    endif
+
+          %                    if class_map.drop:
+                  drop
+          %                    endif
+
+          %                    if class_map.policerCir and not
+          class_map.policerBc:
+                  police cir ${class_map.policerCir}
+          %                    endif
+
+          %                    if class_map.policerBc:
+                  police cir ${class_map.policerCir} bc ${class_map.policerBc}
+          %                    endif
+
+          %                    if class_map.policerRate and not
+          class_map.policerBurstSize:
+                  police rate ${class_map.policerRate}
+          %                    endif
+
+          %                    if class_map.policerBurstSize:
+                  police rate ${class_map.policerRate} burst-size ${class_map.policerBurstSize}
+          %                    endif
+
+          %                endfor
+
+          %                if policy_map.classDefault:
+              class class-default
+                  set traffic-class ${policy_map.classDefault}
+          %                endif
+
+          !
+
+          %            elif policy_map.type == "copp":
+
+          policy-map type copp copp-system-policy
+
+          %                for class_map in policy_map["classMap"]:
+              class ${class_map.classMap}
+          %                    if class_map.bandwidth:
+                  bandwidth pps ${class_map.bandwidth}
+          %                    endif
+
+          %                    if class_map.shapeRate:
+                  shape pps ${class_map.shapeRate}
+          %                    endif
+
+          %                endfor
+
+          %                if policy_map.classDefault:
+              class class-default
+                  set traffic-class ${policy_map.classDefault}
+          %                endif
+
+          !
+
+          %            endif
+
+          %        endfor
+
+          %        endif
+
+          ## QOS Profiles
+
+          %        if config.get("qos")[qos].get("service_profiles"):
+
+          %            for profile in
+          config.get("qos")[qos]["service_profiles"]:
+
+          qos profile ${profile.profileName}
+
+          %                if profile.policyMap:
+              service-policy type qos input ${profile.policyMap}
+          %            endif
+
+          %                if profile.shapeRate:
+              shape rate ${profile.shapeRate}
+          %                endif
+
+          %                if profile.bandwidth:
+              bandwidth guaranteed ${profile.bandwidth   }
+          %                endif
+
+          %                for queue in profile["txQueue"]:
+              tx-queue ${queue.queue}
+          %                    if queue.priorityStrict == False:
+                  no priority
+          %                     endif
+
+          %                    if queue.bandwidthType:
+                  bandwidth ${bandwidthType} ${queue.bandwidth}
+          %                    endif
+
+          %                    if queue.shapeRate:
+                  shape rate ${queue.shapeRate}
+          %                    endif
+
+          %                    if queue.randomDetectType == "drop":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes drop-probability ${queue.dropProbability}
+          %                    elif queue.randomDetectType == "ecn":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    elif queue.randomDetectType == "non-ect":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    endif
+
+          %                endfor
+
+          %                for setting in profile["qos"]:
+
+          %                    if setting.cos:
+              qos cos ${setting.cos}
+          %                    endif
+
+          %                    if setting.dscp:
+              qos dscp ${setting.dscp}
+          %                    endif
+
+          %                    if setting.trust:
+              qos trust ${setting.trust}
+          %                    endif
+              !
+          %                endfor
+
+          !
+
+          %            endfor
+
+          %        endif
+
+          !
+
+          ## QOS Map Classification
+
+          %        if config.get("qos")[qos].get("classification"):
+
+          %            for rule in config.get("qos")[qos]["classification"]:
+
+          qos map ${rule.type} ${rule.classifierValues} to traffic-class
+          ${rule.trafficClass}
+              !
+          %            endfor
+
+          %        endif
+
+          !
+
+          ## QOS Rewrite
+
+          %        if config.get("qos")[qos].get("rewrite_rules"):
+
+          %            for rule in config.get("qos")[qos]["rewrite_rules"]:
+
+          qos rewrite ${rule.rewriteType}
+              !
+          %            endfor
+
+          %        endif
+
+          !
+
+          ## QOS Map Traffic Class
+
+          %        if config.get("qos")[qos].get("traffic_cl_to_q"):
+
+          %            for rule in config.get("qos")[qos]["traffic_cl_to_q"]:
+
+          %                if rule.queue:
+
+          qos map traffic-class ${rule.trafficClass} to tx-queue ${rule.queue}
+
+          %                endif
+
+          %                if rule.cos:
+
+          qos map traffic-class ${rule.trafficClass} to cos ${rule.cos}
+
+          %                endif
+
+          %                if rule.dscp:
+
+          qos map traffic-class ${rule.trafficClass} to dscp ${rule.dscp}
+
+          %                endif
+              !
+          %            endfor
+
+          %        endif
+
+          !
+
+          %    endfor
+
+          %endif
+      input_schema:
+        fields:
+          values:
+            89c22dbd-5339-447b-a86c-1e7c23141ee1:
+              id: 89c22dbd-5339-447b-a86c-1e7c23141ee1
+              name: direction
+              label: Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            b3a7b838-f995-4aee-95a0-4bc52b82291e:
+              id: b3a7b838-f995-4aee-95a0-4bc52b82291e
+              name: subInterface
+              label: Sub Interface Number
+              description: optional
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            43d0fbb2-70b5-4af6-ac3c-af28b852b09c:
+              id: 43d0fbb2-70b5-4af6-ac3c-af28b852b09c
+              name: physicalInterfaceGroup
+              label: Physical Interface Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 89c22dbd-5339-447b-a86c-1e7c23141ee1
+                    - b3a7b838-f995-4aee-95a0-4bc52b82291e
+            bba360a6-ff2a-4fef-9675-64fd68f91be3:
+              id: bba360a6-ff2a-4fef-9675-64fd68f91be3
+              name: physicalInterfaces
+              label: Physical Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 43d0fbb2-70b5-4af6-ac3c-af28b852b09c
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                input_tag_label: interface
+                tag_filter_query: null
+            0beb2881-884c-4805-8dda-0e7a4cdb9353:
+              id: 0beb2881-884c-4805-8dda-0e7a4cdb9353
+              name: vlanId
+              label: VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            a0c6a9d7-906d-40e1-9b0f-f61f37008267:
+              id: a0c6a9d7-906d-40e1-9b0f-f61f37008267
+              name: direction
+              label: Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            5c2b2ecd-66a1-4d5e-b432-2104f05f2a1f:
+              id: 5c2b2ecd-66a1-4d5e-b432-2104f05f2a1f
+              name: vlanInterfacesGroup
+              label: VLAN Interfaces Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 0beb2881-884c-4805-8dda-0e7a4cdb9353
+                    - a0c6a9d7-906d-40e1-9b0f-f61f37008267
+            ffec9376-8190-41d4-95bc-b40f8c5bcbf4:
+              id: ffec9376-8190-41d4-95bc-b40f8c5bcbf4
+              name: vlanInterfaces
+              label: VLAN Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 5c2b2ecd-66a1-4d5e-b432-2104f05f2a1f
+                key: 0beb2881-884c-4805-8dda-0e7a4cdb9353
+            1ac7e151-79a6-4d2d-b19d-04c6ad63f1e6:
+              id: 1ac7e151-79a6-4d2d-b19d-04c6ad63f1e6
+              name: controlPlaneAcl
+              label: Control Plane ACL
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            12991be5-3521-4160-9864-e854ef5a5495:
+              id: 12991be5-3521-4160-9864-e854ef5a5495
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - bba360a6-ff2a-4fef-9675-64fd68f91be3
+                    - ffec9376-8190-41d4-95bc-b40f8c5bcbf4
+                    - 1ac7e151-79a6-4d2d-b19d-04c6ad63f1e6
+            a1f85247-40bd-4893-9181-2859565334c4:
+              id: a1f85247-40bd-4893-9181-2859565334c4
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 12991be5-3521-4160-9864-e854ef5a5495
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            cd959731-6dec-4fdf-b358-1aa8ec98730c:
+              id: cd959731-6dec-4fdf-b358-1aa8ec98730c
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            650fae2f-4df7-4793-98ac-678380c568e1:
+              id: 650fae2f-4df7-4793-98ac-678380c568e1
+              name: name
+              label: ACL Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1292fc2f-da1e-4313-af4f-9c8e4d111ac3:
+              id: 1292fc2f-da1e-4313-af4f-9c8e4d111ac3
+              name: seqNumber
+              label: Seq Number
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1b852dbc-ef39-4348-aa31-db00058e3a7b:
+              id: 1b852dbc-ef39-4348-aa31-db00058e3a7b
+              name: source
+              label: Source
+              description: Enter "any" or prefix. /32 = host
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            87df06d7-6980-4f4f-ad98-73cbfb53d8b7:
+              id: 87df06d7-6980-4f4f-ad98-73cbfb53d8b7
+              name: protocol
+              label: Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: ip
+                static_options:
+                  values:
+                    - ip
+                    - ahp
+                    - esp
+                    - gre
+                    - icmp
+                    - igmp
+                    - ospf
+                    - pim
+                    - rsvp
+                    - tcp
+                    - udp
+                    - vlan
+                    - vrrp
+                    - ipv6
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            fa2c4029-01be-4db3-8718-a9a0e6422b6d:
+              id: fa2c4029-01be-4db3-8718-a9a0e6422b6d
+              name: destination
+              label: Destination
+              description: Enter "any" or prefix. /32 = host
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            9adcb67a-420f-45c1-91c0-9c4d7bfac29b:
+              id: 9adcb67a-420f-45c1-91c0-9c4d7bfac29b
+              name: log
+              label: Log
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            29179dda-b44e-4d1f-9518-eb8200d34641:
+              id: 29179dda-b44e-4d1f-9518-eb8200d34641
+              name: permitDenyRemark
+              label: Permit Deny Remark
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: permit
+                static_options:
+                  values:
+                    - permit
+                    - deny
+                    - remark
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            8014cd4a-52d7-4c9c-8b8a-eabaca200de3:
+              id: 8014cd4a-52d7-4c9c-8b8a-eabaca200de3
+              name: description
+              label: Description
+              description: If remark option is chosen this text is a line in the ACL
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e6f314e0-293e-4436-b8d2-3677d9da699f:
+              id: e6f314e0-293e-4436-b8d2-3677d9da699f
+              name: tracked
+              label: Tracked
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            b73b5570-b859-443e-a3b5-a7679710562c:
+              id: b73b5570-b859-443e-a3b5-a7679710562c
+              name: aclLine
+              label: Seq Number Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 1292fc2f-da1e-4313-af4f-9c8e4d111ac3
+                    - 1b852dbc-ef39-4348-aa31-db00058e3a7b
+                    - 87df06d7-6980-4f4f-ad98-73cbfb53d8b7
+                    - fa2c4029-01be-4db3-8718-a9a0e6422b6d
+                    - 9adcb67a-420f-45c1-91c0-9c4d7bfac29b
+                    - 29179dda-b44e-4d1f-9518-eb8200d34641
+                    - 8014cd4a-52d7-4c9c-8b8a-eabaca200de3
+                    - e6f314e0-293e-4436-b8d2-3677d9da699f
+            11917ef4-e3a2-46fd-b499-7dc5a7c5f628:
+              id: 11917ef4-e3a2-46fd-b499-7dc5a7c5f628
+              name: aclLines
+              label: ACL Lines
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: b73b5570-b859-443e-a3b5-a7679710562c
+                key: 1292fc2f-da1e-4313-af4f-9c8e4d111ac3
+            3236f491-f5f3-4a9d-88ea-2c372bd6b6cf:
+              id: 3236f491-f5f3-4a9d-88ea-2c372bd6b6cf
+              name: countersPerEntry
+              label: Counters Per Entry
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            3a606049-e93e-4699-bb42-1be3df7c3129:
+              id: 3a606049-e93e-4699-bb42-1be3df7c3129
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: ip
+                static_options:
+                  values:
+                    - ip
+                    - IPv6
+                    - mac
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            525a7682-184b-427e-ae30-a845197f4746:
+              id: 525a7682-184b-427e-ae30-a845197f4746
+              name: aclGroup
+              label: ACL Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - a1f85247-40bd-4893-9181-2859565334c4
+                    - cd959731-6dec-4fdf-b358-1aa8ec98730c
+                    - 650fae2f-4df7-4793-98ac-678380c568e1
+                    - 11917ef4-e3a2-46fd-b499-7dc5a7c5f628
+                    - 3236f491-f5f3-4a9d-88ea-2c372bd6b6cf
+                    - 3a606049-e93e-4699-bb42-1be3df7c3129
+            4033ad25-d245-4d8a-a497-9ebcca9b6cc3:
+              id: 4033ad25-d245-4d8a-a497-9ebcca9b6cc3
+              name: aclNames
+              label: ACLs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 525a7682-184b-427e-ae30-a845197f4746
+                key: 650fae2f-4df7-4793-98ac-678380c568e1
+            a958c4a6-a3d2-4eb0-a5b5-858c09122bd4:
+              id: a958c4a6-a3d2-4eb0-a5b5-858c09122bd4
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - cos
+                    - dscp
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            ef09328d-367a-46d5-9a81-54a34595a2ff:
+              id: ef09328d-367a-46d5-9a81-54a34595a2ff
+              name: trafficClass
+              label: Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - '8'
+                    - '9'
+                    - '10'
+                    - '11'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            4c6df813-2e8d-4181-a5a8-2e9b52abf7f5:
+              id: 4c6df813-2e8d-4181-a5a8-2e9b52abf7f5
+              name: classifierValues
+              label: Values
+              description: Space separated values
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            3f8a3739-e33a-4f18-b843-8d590047ba0e:
+              id: 3f8a3739-e33a-4f18-b843-8d590047ba0e
+              name: classificationGroup
+              label: Classification Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - a958c4a6-a3d2-4eb0-a5b5-858c09122bd4
+                    - ef09328d-367a-46d5-9a81-54a34595a2ff
+                    - 4c6df813-2e8d-4181-a5a8-2e9b52abf7f5
+            40f87c7e-cbb9-4b0c-9d62-9d14da1a4f4a:
+              id: 40f87c7e-cbb9-4b0c-9d62-9d14da1a4f4a
+              name: classification
+              label: QOS Map Classification
+              description: Global Classification Map
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 3f8a3739-e33a-4f18-b843-8d590047ba0e
+                key: ''
+            14139a6b-3485-44f7-80f8-b9eace708982:
+              id: 14139a6b-3485-44f7-80f8-b9eace708982
+              name: qosRewrite
+              label: QOS Rewrite
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: enabled
+                static_options:
+                  values:
+                    - enabled
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            086f7330-e867-4da0-bd99-8c44351c9b19:
+              id: 086f7330-e867-4da0-bd99-8c44351c9b19
+              name: rewriteType
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: dscp
+                static_options:
+                  values:
+                    - dscp
+                    - cos
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            3d83f05a-356a-4f8a-a800-ced1c0800be5:
+              id: 3d83f05a-356a-4f8a-a800-ced1c0800be5
+              name: rewriteGroup
+              label: Rewrite Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 14139a6b-3485-44f7-80f8-b9eace708982
+                    - 086f7330-e867-4da0-bd99-8c44351c9b19
+            b43e13c2-4ac8-46f5-99af-28e80d5e8ac8:
+              id: b43e13c2-4ac8-46f5-99af-28e80d5e8ac8
+              name: rewriteRules
+              label: QOS Rewrite
+              description: 'Global QOS rewrite '
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 3d83f05a-356a-4f8a-a800-ced1c0800be5
+                key: 086f7330-e867-4da0-bd99-8c44351c9b19
+            cb3c0c4c-2376-429a-bec5-60361f914b29:
+              id: cb3c0c4c-2376-429a-bec5-60361f914b29
+              name: trafficClass
+              label: Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - '8'
+                    - '10'
+                    - '11'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            89719af0-dc22-4e43-99d0-4b08fb813412:
+              id: 89719af0-dc22-4e43-99d0-4b08fb813412
+              name: queue
+              label: Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            8bfb76d8-a845-4d9a-8036-b9e6933d900f:
+              id: 8bfb76d8-a845-4d9a-8036-b9e6933d900f
+              name: cos
+              label: COS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            91984573-f3e6-473e-bfbb-361308d18b15:
+              id: 91984573-f3e6-473e-bfbb-361308d18b15
+              name: dscp
+              label: DSCP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1e1d3166-5784-4d18-9c82-9ca0fdcf22db:
+              id: 1e1d3166-5784-4d18-9c82-9ca0fdcf22db
+              name: tCtoQGroup
+              label: TCtoQ Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - cb3c0c4c-2376-429a-bec5-60361f914b29
+                    - 89719af0-dc22-4e43-99d0-4b08fb813412
+                    - 8bfb76d8-a845-4d9a-8036-b9e6933d900f
+                    - 91984573-f3e6-473e-bfbb-361308d18b15
+            d6e24310-e652-4c6b-a389-766483103320:
+              id: d6e24310-e652-4c6b-a389-766483103320
+              name: trafficClassToQueue
+              label: Traffic Class to Queue
+              description: Global Traffic Class to Queue Map
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 1e1d3166-5784-4d18-9c82-9ca0fdcf22db
+                key: ''
+            9d70618f-58bb-4043-b4bb-fb3e5262eefc:
+              id: 9d70618f-58bb-4043-b4bb-fb3e5262eefc
+              name: serviceProfile
+              label: QOS Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"3e9b2a26-bf88-4d04-970a-661d2de0063f"}'
+            400ddc97-d60a-480c-b08f-1e1cac176a80:
+              id: 400ddc97-d60a-480c-b08f-1e1cac176a80
+              name: interfaceName
+              label: Interface Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            79247880-413e-4995-b0d9-e71ad6cfda74:
+              id: 79247880-413e-4995-b0d9-e71ad6cfda74
+              name: trust
+              label: Trust
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - DSCP
+                    - COS
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            2432edb0-040e-49d5-8128-c4cc211e1f7c:
+              id: 2432edb0-040e-49d5-8128-c4cc211e1f7c
+              name: servicePolicyName
+              label: Policy Map Name
+              description: Service map is on output if type qos and on input if type pbr
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"15d85469-a9e0-4f7d-89d2-e3acad6d92a1"}'
+            e27289e3-e8e2-4613-9448-f5422715b802:
+              id: e27289e3-e8e2-4613-9448-f5422715b802
+              name: servicePolicyType
+              label: Policy Map Type
+              description: Applied on output if "qos" and input if "pbr"
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - qos
+                    - pbr
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e51a249a-c42d-4adc-b242-4c8b5f48050b:
+              id: e51a249a-c42d-4adc-b242-4c8b5f48050b
+              name: shapeRate
+              label: Shape Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adbdf0f0-448a-41be-bda2-d93ff975f0b5:
+              id: adbdf0f0-448a-41be-bda2-d93ff975f0b5
+              name: queue
+              label: Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                dynamic_options: null
+            2166dc49-2618-42e2-ad2d-8022c9051461:
+              id: 2166dc49-2618-42e2-ad2d-8022c9051461
+              name: shapeRate
+              label: Shape Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            ed5c894f-5a87-4d65-bba2-5ad67faa4974:
+              id: ed5c894f-5a87-4d65-bba2-5ad67faa4974
+              name: bandwidth
+              label: Bandwidth
+              description: Absolute value or "percent" value
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            953bdc73-4f60-4804-97ec-48e9b72f3050:
+              id: 953bdc73-4f60-4804-97ec-48e9b72f3050
+              name: priorityStrict
+              label: Priority Strict
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            c4043f07-92bc-4821-ad3c-b890e6371f0b:
+              id: c4043f07-92bc-4821-ad3c-b890e6371f0b
+              name: randomDetectType
+              label: Random Detect Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - drop
+                    - ecn
+                    - non-ect
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            bea16f04-fbe3-4163-bb64-936315d0ca24:
+              id: bea16f04-fbe3-4163-bb64-936315d0ca24
+              name: randomDetectMinThreshold
+              label: RD Min Threshold
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            469376af-934e-4ef6-9854-3efd364ce6a4:
+              id: 469376af-934e-4ef6-9854-3efd364ce6a4
+              name: minThresholdMetric
+              label: Min Threshold Metric
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: bytes
+                static_options:
+                  values:
+                    - bytes
+                    - kbytes
+                    - mbytes
+                    - segments
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            21655122-6814-45f7-a24b-b17980025521:
+              id: 21655122-6814-45f7-a24b-b17980025521
+              name: randomDetectMaxThreshold
+              label: RD Max Threshold
+              description: bytes
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            02303264-330a-4d14-bc28-01a0ad7031be:
+              id: 02303264-330a-4d14-bc28-01a0ad7031be
+              name: dropProbability
+              label: Drop Probability
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            aacdc6a2-3725-4a2c-b03f-91e2c437af9e:
+              id: aacdc6a2-3725-4a2c-b03f-91e2c437af9e
+              name: bandwidthType
+              label: Bandwidth Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - guaranteed
+                    - percent
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b6fb94af-1d36-48bc-a08e-b01ab34f4f0e:
+              id: b6fb94af-1d36-48bc-a08e-b01ab34f4f0e
+              name: txQueueGroup
+              label: TX-Queue Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adbdf0f0-448a-41be-bda2-d93ff975f0b5
+                    - 2166dc49-2618-42e2-ad2d-8022c9051461
+                    - ed5c894f-5a87-4d65-bba2-5ad67faa4974
+                    - 953bdc73-4f60-4804-97ec-48e9b72f3050
+                    - c4043f07-92bc-4821-ad3c-b890e6371f0b
+                    - bea16f04-fbe3-4163-bb64-936315d0ca24
+                    - 469376af-934e-4ef6-9854-3efd364ce6a4
+                    - 21655122-6814-45f7-a24b-b17980025521
+                    - 02303264-330a-4d14-bc28-01a0ad7031be
+                    - aacdc6a2-3725-4a2c-b03f-91e2c437af9e
+            c9a5644c-5fef-46cd-9155-5004d39be2c6:
+              id: c9a5644c-5fef-46cd-9155-5004d39be2c6
+              name: txQueue
+              label: TX-Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: b6fb94af-1d36-48bc-a08e-b01ab34f4f0e
+                key: adbdf0f0-448a-41be-bda2-d93ff975f0b5
+            e92a896a-ccf1-4923-b0dc-089701dadac3:
+              id: e92a896a-ccf1-4923-b0dc-089701dadac3
+              name: cos
+              label: COS
+              description: default COS value for the port
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            80c4c34a-0de8-4115-a21d-278ba73677f1:
+              id: 80c4c34a-0de8-4115-a21d-278ba73677f1
+              name: dscp
+              label: DSCP
+              description: Default DSCP Value for the port
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            c935376a-2962-4ac4-b4e9-4453a2538501:
+              id: c935376a-2962-4ac4-b4e9-4453a2538501
+              name: policyMapInputOutput
+              label: Policy Map Input Output
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: input
+                static_options:
+                  values:
+                    - input
+                    - output
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            8969cee9-0f7d-414a-90f0-5578c2e7d046:
+              id: 8969cee9-0f7d-414a-90f0-5578c2e7d046
+              name: interfaceGroup
+              label: Interface Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 9d70618f-58bb-4043-b4bb-fb3e5262eefc
+                    - 400ddc97-d60a-480c-b08f-1e1cac176a80
+                    - 79247880-413e-4995-b0d9-e71ad6cfda74
+                    - 2432edb0-040e-49d5-8128-c4cc211e1f7c
+                    - e27289e3-e8e2-4613-9448-f5422715b802
+                    - e51a249a-c42d-4adc-b242-4c8b5f48050b
+                    - c9a5644c-5fef-46cd-9155-5004d39be2c6
+                    - e92a896a-ccf1-4923-b0dc-089701dadac3
+                    - 80c4c34a-0de8-4115-a21d-278ba73677f1
+                    - c935376a-2962-4ac4-b4e9-4453a2538501
+            ba889e0e-9b33-4e79-9c46-68575bf36822:
+              id: ba889e0e-9b33-4e79-9c46-68575bf36822
+              name: interfaces
+              label: Interfaces
+              description: Interface or range of interfaces
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 8969cee9-0f7d-414a-90f0-5578c2e7d046
+                key: 400ddc97-d60a-480c-b08f-1e1cac176a80
+            0a3587b9-54de-4e4c-b3f8-df3ac297fc51:
+              id: 0a3587b9-54de-4e4c-b3f8-df3ac297fc51
+              name: deviceGroup
+              label: Device Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - ba889e0e-9b33-4e79-9c46-68575bf36822
+            cca5c63c-74e0-4311-b091-1c20435a6347:
+              id: cca5c63c-74e0-4311-b091-1c20435a6347
+              name: devices
+              label: Devices
+              description: Attach Profiles, Policy Maps and per port QOS settings
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 0a3587b9-54de-4e4c-b3f8-df3ac297fc51
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            3e9b2a26-bf88-4d04-970a-661d2de0063f:
+              id: 3e9b2a26-bf88-4d04-970a-661d2de0063f
+              name: profileName
+              label: Profile Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            d78bb6eb-c65a-4ae7-8858-1e3d3c24a6bd:
+              id: d78bb6eb-c65a-4ae7-8858-1e3d3c24a6bd
+              name: policyMap
+              label: Input Policy Map
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"15d85469-a9e0-4f7d-89d2-e3acad6d92a1"}'
+            5a20f9cd-bc30-44fd-95ed-9bf02bfbf844:
+              id: 5a20f9cd-bc30-44fd-95ed-9bf02bfbf844
+              name: shapeRate
+              label: Shape Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            4136fc30-beff-4a94-8a6d-c6886fab2555:
+              id: 4136fc30-beff-4a94-8a6d-c6886fab2555
+              name: bandwidth
+              label: Bandwidth
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            b7a1491d-57f6-4680-b684-347276e9df9d:
+              id: b7a1491d-57f6-4680-b684-347276e9df9d
+              name: shapeRate
+              label: Shape Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            46847ef8-0c62-4d78-99b0-8651197b9c4e:
+              id: 46847ef8-0c62-4d78-99b0-8651197b9c4e
+              name: priorityStrict
+              label: Priority Strict
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            3ced3f80-3fb3-4466-b89e-93552b4af3ee:
+              id: 3ced3f80-3fb3-4466-b89e-93552b4af3ee
+              name: randomDetectType
+              label: Random Detect Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - drop
+                    - ecn
+                    - non-ect
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            82f6d948-d11b-4858-92b6-d65c9e5155e8:
+              id: 82f6d948-d11b-4858-92b6-d65c9e5155e8
+              name: bandwidth
+              label: Bandwidth
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e3ec4f30-ce7a-40df-8632-65d512dde76a:
+              id: e3ec4f30-ce7a-40df-8632-65d512dde76a
+              name: queue
+              label: Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            ad519971-2c69-4a5a-9935-59de5be176ad:
+              id: ad519971-2c69-4a5a-9935-59de5be176ad
+              name: randomDetectMinThreshold
+              label: RD Min Threshold
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            2caa3263-fa9e-477d-99b3-ad2efba8c5be:
+              id: 2caa3263-fa9e-477d-99b3-ad2efba8c5be
+              name: minThresholdMetric
+              label: Min Threshold Metric
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: bytes
+                static_options:
+                  values:
+                    - bytes
+                    - kbytes
+                    - mbytes
+                    - segments
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            119b5d70-9208-406b-90fa-afe386d25686:
+              id: 119b5d70-9208-406b-90fa-afe386d25686
+              name: randomDetectMaxThreshold
+              label: RD Max Threshold
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            bf8d2856-731e-4bcf-b196-6ca938f239dc:
+              id: bf8d2856-731e-4bcf-b196-6ca938f239dc
+              name: dropProbability
+              label: Drop Probability
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            651335b3-83e8-4221-b09c-dd3bc2c21a26:
+              id: 651335b3-83e8-4221-b09c-dd3bc2c21a26
+              name: bandwidthType
+              label: Bandwidth Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - guaranteed
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            832e6f1a-dfcb-4179-8586-d1bea85a3c92:
+              id: 832e6f1a-dfcb-4179-8586-d1bea85a3c92
+              name: txQueueGroup
+              label: tx-queue Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - b7a1491d-57f6-4680-b684-347276e9df9d
+                    - 46847ef8-0c62-4d78-99b0-8651197b9c4e
+                    - 3ced3f80-3fb3-4466-b89e-93552b4af3ee
+                    - 82f6d948-d11b-4858-92b6-d65c9e5155e8
+                    - e3ec4f30-ce7a-40df-8632-65d512dde76a
+                    - ad519971-2c69-4a5a-9935-59de5be176ad
+                    - 2caa3263-fa9e-477d-99b3-ad2efba8c5be
+                    - 119b5d70-9208-406b-90fa-afe386d25686
+                    - bf8d2856-731e-4bcf-b196-6ca938f239dc
+                    - 651335b3-83e8-4221-b09c-dd3bc2c21a26
+            fd98ab76-ea03-4b82-82cc-11c0baf0897b:
+              id: fd98ab76-ea03-4b82-82cc-11c0baf0897b
+              name: txQueue
+              label: tx-queue
+              description: Override default queue settings
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 832e6f1a-dfcb-4179-8586-d1bea85a3c92
+                key: e3ec4f30-ce7a-40df-8632-65d512dde76a
+            bcbcf734-e6c9-42f7-95ad-ec3425ea14c0:
+              id: bcbcf734-e6c9-42f7-95ad-ec3425ea14c0
+              name: cos
+              label: cos
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            44c0678a-4fbe-4325-9508-f1c6680be8ca:
+              id: 44c0678a-4fbe-4325-9508-f1c6680be8ca
+              name: dscp
+              label: dscp
+              description: 0-63
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            5aa39d76-ced7-49f4-b653-67dbd57c1dc8:
+              id: 5aa39d76-ced7-49f4-b653-67dbd57c1dc8
+              name: trust
+              label: Trust
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - cos
+                    - dscp
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            35f18b0a-36a4-41d4-955c-be06804627fc:
+              id: 35f18b0a-36a4-41d4-955c-be06804627fc
+              name: qosGroup
+              label: qos Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - bcbcf734-e6c9-42f7-95ad-ec3425ea14c0
+                    - 44c0678a-4fbe-4325-9508-f1c6680be8ca
+                    - 5aa39d76-ced7-49f4-b653-67dbd57c1dc8
+            236f7377-ff17-4b2f-ab51-893561cf05b1:
+              id: 236f7377-ff17-4b2f-ab51-893561cf05b1
+              name: qos
+              label: qos
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 35f18b0a-36a4-41d4-955c-be06804627fc
+                key: ''
+            4a5ee150-4b3c-4c70-9e49-4a69ef90f0cc:
+              id: 4a5ee150-4b3c-4c70-9e49-4a69ef90f0cc
+              name: serviceProfileGroup
+              label: Service Profile Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 3e9b2a26-bf88-4d04-970a-661d2de0063f
+                    - d78bb6eb-c65a-4ae7-8858-1e3d3c24a6bd
+                    - 5a20f9cd-bc30-44fd-95ed-9bf02bfbf844
+                    - 4136fc30-beff-4a94-8a6d-c6886fab2555
+                    - fd98ab76-ea03-4b82-82cc-11c0baf0897b
+                    - 236f7377-ff17-4b2f-ab51-893561cf05b1
+            59082f51-8401-4a37-89f8-de7e617384f1:
+              id: 59082f51-8401-4a37-89f8-de7e617384f1
+              name: serviceProfiles
+              label: QOS Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 4a5ee150-4b3c-4c70-9e49-4a69ef90f0cc
+                key: 3e9b2a26-bf88-4d04-970a-661d2de0063f
+            15d85469-a9e0-4f7d-89d2-e3acad6d92a1:
+              id: 15d85469-a9e0-4f7d-89d2-e3acad6d92a1
+              name: policyMapName
+              label: Policy Map Name
+              description: Use name "policer" for policer type policy maps
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            a62c6265-5780-4c29-b7f2-9c42c5639d26:
+              id: a62c6265-5780-4c29-b7f2-9c42c5639d26
+              name: classDefault
+              label: Default Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - '8'
+                    - '9'
+                    - '10'
+                    - '11'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            9f86243f-fca3-40d2-ab4c-bff2e31f2e96:
+              id: 9f86243f-fca3-40d2-ab4c-bff2e31f2e96
+              name: classMap
+              label: Class Map
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"a8f6e7ef-3971-41a6-a556-9f804fc25eee"}'
+            1b78f931-dd9b-4cb6-9a69-2d4c7d199c02:
+              id: 1b78f931-dd9b-4cb6-9a69-2d4c7d199c02
+              name: trafficClass
+              label: Set Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - '8'
+                    - '11'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            d42c0016-c272-4ff7-a302-99f22c8b00da:
+              id: d42c0016-c272-4ff7-a302-99f22c8b00da
+              name: dscp
+              label: Set DSCP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - af11
+                    - af12
+                    - af13
+                    - af21
+                    - af22
+                    - af23
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            401957af-9ff8-4f54-9446-2833e2842d0f:
+              id: 401957af-9ff8-4f54-9446-2833e2842d0f
+              name: cos
+              label: Set COS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                dynamic_options: null
+            359e7ae5-defb-4472-9727-2329db5ca15f:
+              id: 359e7ae5-defb-4472-9727-2329db5ca15f
+              name: dropPrecedence
+              label: Set Drop Precedence
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - '1'
+                    - '2'
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1ea31628-d0b4-4a16-a3f6-b796304c22c1:
+              id: 1ea31628-d0b4-4a16-a3f6-b796304c22c1
+              name: policerCir
+              label: Policer CIR
+              description: default bps
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            718b04e9-49c8-461b-8d6c-9c79249765d8:
+              id: 718b04e9-49c8-461b-8d6c-9c79249765d8
+              name: policerBc
+              label: Policer BC
+              description: default bytes
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            8cc46c91-33ab-4a8f-af13-01dea8e93ca4:
+              id: 8cc46c91-33ab-4a8f-af13-01dea8e93ca4
+              name: policerRate
+              label: 'Policer Rate '
+              description: default bps
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            bbc6c2de-97a9-452c-a7e8-6e08b695ad04:
+              id: bbc6c2de-97a9-452c-a7e8-6e08b695ad04
+              name: policerBurstSize
+              label: Policer Burst Size
+              description: default bytes
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            5c39ef1a-2942-46d7-9d9a-a0292d53bcca:
+              id: 5c39ef1a-2942-46d7-9d9a-a0292d53bcca
+              name: drop
+              label: Drop
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            653cab43-4c03-4354-ad23-8c16d27d9cde:
+              id: 653cab43-4c03-4354-ad23-8c16d27d9cde
+              name: bandwidth
+              label: Bandwidth
+              description: pps
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            9e80d802-2236-4cbd-853a-b1841da9f4b9:
+              id: 9e80d802-2236-4cbd-853a-b1841da9f4b9
+              name: shapeRate
+              label: Shape Rate
+              description: pps
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            b52edf3f-cee3-417d-a488-f2baf246b045:
+              id: b52edf3f-cee3-417d-a488-f2baf246b045
+              name: pmClassMapGroup
+              label: PM Class Map Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 9f86243f-fca3-40d2-ab4c-bff2e31f2e96
+                    - 1b78f931-dd9b-4cb6-9a69-2d4c7d199c02
+                    - d42c0016-c272-4ff7-a302-99f22c8b00da
+                    - 401957af-9ff8-4f54-9446-2833e2842d0f
+                    - 359e7ae5-defb-4472-9727-2329db5ca15f
+                    - 1ea31628-d0b4-4a16-a3f6-b796304c22c1
+                    - 718b04e9-49c8-461b-8d6c-9c79249765d8
+                    - 8cc46c91-33ab-4a8f-af13-01dea8e93ca4
+                    - bbc6c2de-97a9-452c-a7e8-6e08b695ad04
+                    - 5c39ef1a-2942-46d7-9d9a-a0292d53bcca
+                    - 653cab43-4c03-4354-ad23-8c16d27d9cde
+                    - 9e80d802-2236-4cbd-853a-b1841da9f4b9
+            05f4e741-2137-4891-9546-aeb55b67c39d:
+              id: 05f4e741-2137-4891-9546-aeb55b67c39d
+              name: classMap
+              label: Select Class Map
+              description: Select settings based on Class Map match
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: b52edf3f-cee3-417d-a488-f2baf246b045
+                key: ''
+            ea864075-5167-440c-84d3-f5041a1f9b05:
+              id: ea864075-5167-440c-84d3-f5041a1f9b05
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: qos
+                static_options:
+                  values:
+                    - qos
+                    - copp
+                    - pbr
+                    - policer
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            0c39afa3-3ae5-469d-86fd-3ee8a001cf71:
+              id: 0c39afa3-3ae5-469d-86fd-3ee8a001cf71
+              name: policyMapGroup
+              label: Policy Map Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 15d85469-a9e0-4f7d-89d2-e3acad6d92a1
+                    - a62c6265-5780-4c29-b7f2-9c42c5639d26
+                    - 05f4e741-2137-4891-9546-aeb55b67c39d
+                    - ea864075-5167-440c-84d3-f5041a1f9b05
+            bcb7fdae-d434-4806-8427-81d755bf9746:
+              id: bcb7fdae-d434-4806-8427-81d755bf9746
+              name: policyMaps
+              label: Policy Maps
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 0c39afa3-3ae5-469d-86fd-3ee8a001cf71
+                key: ''
+            a8f6e7ef-3971-41a6-a556-9f804fc25eee:
+              id: a8f6e7ef-3971-41a6-a556-9f804fc25eee
+              name: classMapName
+              label: Class Map Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            7d11722b-4d72-4f3a-84ba-abdfbbb99426:
+              id: 7d11722b-4d72-4f3a-84ba-abdfbbb99426
+              name: acl
+              label: ACL
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"650fae2f-4df7-4793-98ac-678380c568e1"}'
+            da3c1c5f-acd3-4370-9843-58c93240a4b1:
+              id: da3c1c5f-acd3-4370-9843-58c93240a4b1
+              name: match
+              label: Match
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: ip
+                static_options:
+                  values:
+                    - cos
+                    - dscp
+                    - ecn
+                    - ip
+                    - ipv6
+                    - mac
+                    - mpls
+                    - vlan
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            9bb0bc88-a1c0-4c15-93e0-1a70476142a6:
+              id: 9bb0bc88-a1c0-4c15-93e0-1a70476142a6
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: qos
+                static_options:
+                  values:
+                    - qos
+                    - pbr
+                    - copp
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b8d43a9d-ff3a-4846-9aec-880431fa6efc:
+              id: b8d43a9d-ff3a-4846-9aec-880431fa6efc
+              name: matchValue
+              label: Match Value
+              description: Match DSCP, COS or VLAN values
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            a173ee90-345e-4ea1-8bff-e3ec07903cbd:
+              id: a173ee90-345e-4ea1-8bff-e3ec07903cbd
+              name: classMapGroup
+              label: Class Map Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - a8f6e7ef-3971-41a6-a556-9f804fc25eee
+                    - 7d11722b-4d72-4f3a-84ba-abdfbbb99426
+                    - da3c1c5f-acd3-4370-9843-58c93240a4b1
+                    - 9bb0bc88-a1c0-4c15-93e0-1a70476142a6
+                    - b8d43a9d-ff3a-4846-9aec-880431fa6efc
+            69837318-9da5-4288-982e-013ca09790d0:
+              id: 69837318-9da5-4288-982e-013ca09790d0
+              name: classMaps
+              label: Class Maps
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: a173ee90-345e-4ea1-8bff-e3ec07903cbd
+                key: a8f6e7ef-3971-41a6-a556-9f804fc25eee
+            5b089b58-494c-4998-90f1-348bc5d50a21:
+              id: 5b089b58-494c-4998-90f1-348bc5d50a21
+              name: instanceName
+              label: Instance Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            7ffa3830-bb49-45e8-9860-571afb070d2c:
+              id: 7ffa3830-bb49-45e8-9860-571afb070d2c
+              name: qosGroup
+              label: QOS Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 40f87c7e-cbb9-4b0c-9d62-9d14da1a4f4a
+                    - b43e13c2-4ac8-46f5-99af-28e80d5e8ac8
+                    - d6e24310-e652-4c6b-a389-766483103320
+                    - cca5c63c-74e0-4311-b091-1c20435a6347
+                    - 59082f51-8401-4a37-89f8-de7e617384f1
+                    - bcb7fdae-d434-4806-8427-81d755bf9746
+                    - 69837318-9da5-4288-982e-013ca09790d0
+                    - 5b089b58-494c-4998-90f1-348bc5d50a21
+            7cb273cd-f8a0-42d7-8dd4-be64b6ec92f9:
+              id: 7cb273cd-f8a0-42d7-8dd4-be64b6ec92f9
+              name: qosInstances
+              label: QOS Instances
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 7ffa3830-bb49-45e8-9860-571afb070d2c
+                key: 5b089b58-494c-4998-90f1-348bc5d50a21
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 4033ad25-d245-4d8a-a497-9ebcca9b6cc3
+                    - 7cb273cd-f8a0-42d7-8dd4-be64b6ec92f9
+        layout:
+          value: >-
+            {"df02e292-5fd1-4b88-8eb8-548bc2e6bba7":{"key":"df02e292-5fd1-4b88-8eb8-548bc2e6bba7","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"525a7682-184b-427e-ae30-a845197f4746":{"key":"525a7682-184b-427e-ae30-a845197f4746","type":"INPUT","order":["650fae2f-4df7-4793-98ac-678380c568e1","cd959731-6dec-4fdf-b358-1aa8ec98730c","a1f85247-40bd-4893-9181-2859565334c4","3a606049-e93e-4699-bb42-1be3df7c3129","11917ef4-e3a2-46fd-b499-7dc5a7c5f628","3236f491-f5f3-4a9d-88ea-2c372bd6b6cf"]},"4033ad25-d245-4d8a-a497-9ebcca9b6cc3":{"key":"4033ad25-d245-4d8a-a497-9ebcca9b6cc3","type":"INPUT","isPageLayout":true},"89c22dbd-5339-447b-a86c-1e7c23141ee1":{"key":"89c22dbd-5339-447b-a86c-1e7c23141ee1","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"4038eac1-2d62-4f27-8f2a-6c0d9bc4a022":{"key":"4038eac1-2d62-4f27-8f2a-6c0d9bc4a022","type":"INPUT","valueToLabelMap":{"True":"Permit","False":"Deny"}},"394b7cd4-46d5-4bba-9b43-0cb35c41eabc":{"key":"394b7cd4-46d5-4bba-9b43-0cb35c41eabc","type":"INPUT","order":["12a122d4-dc8a-49cc-813d-8ddf65a8565f","26a8322f-2f0c-4f91-96a1-9157f7a5f1b3"]},"aa3400e4-09e3-44cf-81d3-65cd0dd867f8":{"key":"aa3400e4-09e3-44cf-81d3-65cd0dd867f8","type":"INPUT","isPageLayout":true},"a1f85247-40bd-4893-9181-2859565334c4":{"key":"a1f85247-40bd-4893-9181-2859565334c4","type":"INPUT","showDefaultRow":false},"feb86ea5-601c-4f0e-88a6-cd4ed61f24b0":{"key":"feb86ea5-601c-4f0e-88a6-cd4ed61f24b0","type":"INPUT","valueToLabelMap":{"True":"Permit","False":"Deny"}},"b73b5570-b859-443e-a3b5-a7679710562c":{"key":"b73b5570-b859-443e-a3b5-a7679710562c","type":"INPUT","order":["1292fc2f-da1e-4313-af4f-9c8e4d111ac3","29179dda-b44e-4d1f-9518-eb8200d34641","8014cd4a-52d7-4c9c-8b8a-eabaca200de3","87df06d7-6980-4f4f-ad98-73cbfb53d8b7","1b852dbc-ef39-4348-aa31-db00058e3a7b","fa2c4029-01be-4db3-8718-a9a0e6422b6d","9adcb67a-420f-45c1-91c0-9c4d7bfac29b","e6f314e0-293e-4436-b8d2-3677d9da699f"]},"a0c6a9d7-906d-40e1-9b0f-f61f37008267":{"key":"a0c6a9d7-906d-40e1-9b0f-f61f37008267","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"bba360a6-ff2a-4fef-9675-64fd68f91be3":{"key":"bba360a6-ff2a-4fef-9675-64fd68f91be3","type":"INPUT","showDefaultRow":false},"8969cee9-0f7d-414a-90f0-5578c2e7d046":{"key":"8969cee9-0f7d-414a-90f0-5578c2e7d046","type":"INPUT","order":["400ddc97-d60a-480c-b08f-1e1cac176a80","9d70618f-58bb-4043-b4bb-fb3e5262eefc","2432edb0-040e-49d5-8128-c4cc211e1f7c","e27289e3-e8e2-4613-9448-f5422715b802","c935376a-2962-4ac4-b4e9-4453a2538501","e51a249a-c42d-4adc-b242-4c8b5f48050b","79247880-413e-4995-b0d9-e71ad6cfda74","80c4c34a-0de8-4115-a21d-278ba73677f1","e92a896a-ccf1-4923-b0dc-089701dadac3","c9a5644c-5fef-46cd-9155-5004d39be2c6"]},"0c39afa3-3ae5-469d-86fd-3ee8a001cf71":{"key":"0c39afa3-3ae5-469d-86fd-3ee8a001cf71","type":"INPUT","order":["15d85469-a9e0-4f7d-89d2-e3acad6d92a1","ea864075-5167-440c-84d3-f5041a1f9b05","a62c6265-5780-4c29-b7f2-9c42c5639d26","05f4e741-2137-4891-9546-aeb55b67c39d"]},"3d83f05a-356a-4f8a-a800-ced1c0800be5":{"key":"3d83f05a-356a-4f8a-a800-ced1c0800be5","type":"INPUT","order":["086f7330-e867-4da0-bd99-8c44351c9b19","14139a6b-3485-44f7-80f8-b9eace708982"]},"7cb273cd-f8a0-42d7-8dd4-be64b6ec92f9":{"key":"7cb273cd-f8a0-42d7-8dd4-be64b6ec92f9","isPageLayout":true,"type":"INPUT"},"7ffa3830-bb49-45e8-9860-571afb070d2c":{"key":"7ffa3830-bb49-45e8-9860-571afb070d2c","type":"INPUT","order":["5b089b58-494c-4998-90f1-348bc5d50a21","69837318-9da5-4288-982e-013ca09790d0","bcb7fdae-d434-4806-8427-81d755bf9746","59082f51-8401-4a37-89f8-de7e617384f1","cca5c63c-74e0-4311-b091-1c20435a6347","40f87c7e-cbb9-4b0c-9d62-9d14da1a4f4a","b43e13c2-4ac8-46f5-99af-28e80d5e8ac8","d6e24310-e652-4c6b-a389-766483103320"]},"236f7377-ff17-4b2f-ab51-893561cf05b1":{"key":"236f7377-ff17-4b2f-ab51-893561cf05b1","type":"INPUT","isPageLayout":false},"a173ee90-345e-4ea1-8bff-e3ec07903cbd":{"key":"a173ee90-345e-4ea1-8bff-e3ec07903cbd","type":"INPUT","order":["a8f6e7ef-3971-41a6-a556-9f804fc25eee","da3c1c5f-acd3-4370-9843-58c93240a4b1","b8d43a9d-ff3a-4846-9aec-880431fa6efc","7d11722b-4d72-4f3a-84ba-abdfbbb99426","9bb0bc88-a1c0-4c15-93e0-1a70476142a6"]},"832e6f1a-dfcb-4179-8586-d1bea85a3c92":{"key":"832e6f1a-dfcb-4179-8586-d1bea85a3c92","type":"INPUT","order":["e3ec4f30-ce7a-40df-8632-65d512dde76a","b7a1491d-57f6-4680-b684-347276e9df9d","651335b3-83e8-4221-b09c-dd3bc2c21a26","82f6d948-d11b-4858-92b6-d65c9e5155e8","46847ef8-0c62-4d78-99b0-8651197b9c4e","3ced3f80-3fb3-4466-b89e-93552b4af3ee","ad519971-2c69-4a5a-9935-59de5be176ad","2caa3263-fa9e-477d-99b3-ad2efba8c5be","119b5d70-9208-406b-90fa-afe386d25686","bf8d2856-731e-4bcf-b196-6ca938f239dc"]},"b52edf3f-cee3-417d-a488-f2baf246b045":{"key":"b52edf3f-cee3-417d-a488-f2baf246b045","type":"INPUT","order":["9f86243f-fca3-40d2-ab4c-bff2e31f2e96","1b78f931-dd9b-4cb6-9a69-2d4c7d199c02","d42c0016-c272-4ff7-a302-99f22c8b00da","401957af-9ff8-4f54-9446-2833e2842d0f","359e7ae5-defb-4472-9727-2329db5ca15f","5c39ef1a-2942-46d7-9d9a-a0292d53bcca","1ea31628-d0b4-4a16-a3f6-b796304c22c1","718b04e9-49c8-461b-8d6c-9c79249765d8","8cc46c91-33ab-4a8f-af13-01dea8e93ca4","bbc6c2de-97a9-452c-a7e8-6e08b695ad04","653cab43-4c03-4354-ad23-8c16d27d9cde","9e80d802-2236-4cbd-853a-b1841da9f4b9"]},"3f8a3739-e33a-4f18-b843-8d590047ba0e":{"key":"3f8a3739-e33a-4f18-b843-8d590047ba0e","type":"INPUT","order":["a958c4a6-a3d2-4eb0-a5b5-858c09122bd4","4c6df813-2e8d-4181-a5a8-2e9b52abf7f5","ef09328d-367a-46d5-9a81-54a34595a2ff"]},"35f18b0a-36a4-41d4-955c-be06804627fc":{"key":"35f18b0a-36a4-41d4-955c-be06804627fc","type":"INPUT","order":["5aa39d76-ced7-49f4-b653-67dbd57c1dc8","44c0678a-4fbe-4325-9508-f1c6680be8ca","bcbcf734-e6c9-42f7-95ad-ec3425ea14c0"]},"12991be5-3521-4160-9864-e854ef5a5495":{"key":"12991be5-3521-4160-9864-e854ef5a5495","type":"INPUT","order":["1ac7e151-79a6-4d2d-b19d-04c6ad63f1e6","ffec9376-8190-41d4-95bc-b40f8c5bcbf4","bba360a6-ff2a-4fef-9675-64fd68f91be3"]},"88414667-7473-4e21-92b9-537f54c56c95":{"key":"88414667-7473-4e21-92b9-537f54c56c95","valueToLabelMap":{"True":"input","False":"output"},"type":"INPUT"},"b6fb94af-1d36-48bc-a08e-b01ab34f4f0e":{"key":"b6fb94af-1d36-48bc-a08e-b01ab34f4f0e","type":"INPUT","order":["adbdf0f0-448a-41be-bda2-d93ff975f0b5","2166dc49-2618-42e2-ad2d-8022c9051461","aacdc6a2-3725-4a2c-b03f-91e2c437af9e","ed5c894f-5a87-4d65-bba2-5ad67faa4974","953bdc73-4f60-4804-97ec-48e9b72f3050","c4043f07-92bc-4821-ad3c-b890e6371f0b","bea16f04-fbe3-4163-bb64-936315d0ca24","469376af-934e-4ef6-9854-3efd364ce6a4","21655122-6814-45f7-a24b-b17980025521","02303264-330a-4d14-bc28-01a0ad7031be"]}}
