@@ -864,7 +864,7 @@
 
               if switch_facts.get('platform_settings') is None:
                   for platform, settings in platform_settings.items():
-                      # Skip default as this will be applied at the end 
+                      # Skip default as this will be applied at the end
                       # to any switch that doesn't match any other platform
                       if platform == "default":
                           continue
@@ -891,7 +891,7 @@
                       if pod['overlayDetails'].get('vxlanOverlay'):
                           switch_facts['overlay_routing_protocol'] = "bgp"
                   # Accounts for super-spines; super-spine routing protocols are set later
-                  # based on first downstream spine's routing protocols 
+                  # based on first downstream spine's routing protocols
                   else:
                       switch_facts['underlay_routing_protocol'] = ""
 
@@ -962,8 +962,8 @@
                           switch_facts['mlag_subnet_mask'] = pod['commonMlagConfig']['mlagSubnetMask']
                           # Set mlag_l3_subnet_mask if mlag_peer_l3_vlan is different from mlag_peer_vlan
                           if pod['commonMlagConfig']['mlagPeerL3SubnetMask'] is not None \
-                                  and switch_facts['mlag_peer_vlan'] != switch_facts['mlag_peer_l3_vlan']: 
-                              switch_facts['mlag_l3_subnet_mask'] = pod['commonMlagConfig']['mlagPeerL3SubnetMask'] 
+                                  and switch_facts['mlag_peer_vlan'] != switch_facts['mlag_peer_l3_vlan']:
+                              switch_facts['mlag_l3_subnet_mask'] = pod['commonMlagConfig']['mlagPeerL3SubnetMask']
                           else:
                               switch_facts['mlag_l3_subnet_mask'] = switch_facts['mlag_subnet_mask']
                           switch_facts['mlag_lacp_mode'] = pod['commonMlagConfig']['lacpMode']
@@ -1031,7 +1031,7 @@
                           switch_facts['uplink_offset'] = switch_facts['max_spines'] * switch_facts['max_super_spines'] * \
                               switch_facts['max_parallel_uplinks_to_super_spines']
                       # If there are multiple leaf uplink pools supplied, check that the spine uplink pool
-                      # is not also a pool in the leaf uplink pools 
+                      # is not also a pool in the leaf uplink pools
                       else:
                           # If a spine uplink subnet is present, check for no duplicate pool in
                           # leaf uplink pools and spine uplink pools and set upplink offset to 0
@@ -1779,7 +1779,7 @@
               if custom_fabric_variables['interfaceDescriptions']['transitL2EthernetInterfaces']:
                   fabric_variables['interface_descriptions']['underlay_l2_ethernet_interfaces'] = \
                       custom_fabric_variables['interfaceDescriptions']['transitL2EthernetInterfaces']
-              # Transit Port-Channels     
+              # Transit Port-Channels
               if custom_fabric_variables['interfaceDescriptions']['transitPortChannelInterfaces']:
                   fabric_variables['interface_descriptions']['underlay_port_channel_interfaces'] = \
                       custom_fabric_variables['interfaceDescriptions']['transitPortChannelInterfaces']
@@ -1790,7 +1790,7 @@
               # MLAG Peer Link Member Interfaces
               if custom_fabric_variables['interfaceDescriptions']['mlagPeerLinkMemberInterfaces']:
                   fabric_variables['interface_descriptions']['mlag_ethernet_interfaces'] = \
-                      custom_fabric_variables['interfaceDescriptions']['mlagPeerLinkMemberInterfaces']            
+                      custom_fabric_variables['interfaceDescriptions']['mlagPeerLinkMemberInterfaces']
 
               return
 
@@ -2095,9 +2095,9 @@
                   # Merge multilane interfaces
                   switch_facts = merge_multilane_interfaces(switch_facts)
 
-          # Need to get and set maximums for all switches in the event that the topology has a super-spine 
+          # Need to get and set maximums for all switches in the event that the topology has a super-spine
           # and bgp evpn peering (router_ids need max super_spine and max_spine values when same subnet is used)
-          # When getting max uplink switches and max parallel uplinks, we'll only be able to get maximums 
+          # When getting max uplink switches and max parallel uplinks, we'll only be able to get maximums
           # on a spine switch and only need to do so on one spine switch.
           # This needs to come after set_switch_facts() is done because we need to access properties which
           # that function sets.
@@ -2451,7 +2451,7 @@
           ip virtual-router mac-address ${ config["ip_virtual_router_mac_address"] }
           !
           % endif
-          ## eos - IP Routing 
+          ## eos - IP Routing
           % if config.get("ip_routing") == True:
           ip routing
           !
@@ -3542,7 +3542,7 @@
               id: leafDomains
               name: LeafDomains
               label: Leaf Domains
-              description: Specify the MLAG pairs or standalone leaf switches in this Pod.
+              description: Specify the MLAG pairs or standalone leaf switches in this Pod. Value should be an integer.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3622,7 +3622,7 @@
               id: spineSuperSpineFabricSubnet
               name: spineSuperSpineFabricSubnet
               label: Spine Transit Uplink IPv4 Pool
-              description: Define a subnet in CIDR notation for the IP transit links between the spines and super-spines.
+              description: If a super-spine plane exists, define a subnet in CIDR notation for the IP transit links between the spines and super-spines.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3636,7 +3636,7 @@
               id: spineSuperSpineFabricSubnetMask
               name: spineSuperSpineFabricSubnetMask
               label: Spine Transit Uplink Subnet Mask
-              description: Set the subnet mask for the transit connections from the spines to the super-spines in the fabric if any super-spines exist.
+              description: If a super-spine plane exists, set the subnet mask for the transit connections from the spines to the super-spines in the fabric if any super-spines exist.
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3666,7 +3666,7 @@
               id: vxlanOverlay
               name: vxlanOverlay
               label: VXLAN Overlay
-              description: ''
+              description: Turn on to configure a VXLAN overlay across the fabric.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3689,7 +3689,7 @@
               id: vVtepAddress
               name: vVtepAddress
               label: vVTEP Address
-              description: If you are not using an integrated routing and bridging model, enter an IP address in CIDR notation. This addess will be a secondary IP address on the Loopback1 interface of all leaf switches
+              description: If you are not using an integrated routing and bridging model, enter an IP address in CIDR notation. This address will be a secondary IP address on the Loopback1 interface of all leaf switches
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3716,7 +3716,7 @@
               id: maxSpines
               name: maxSpines
               label: Maximum Number of Spines
-              description: If no number is entered, the spine limit will be set to the greatest 'Spine-Number' tag value in this Pod
+              description: If no number is entered, the spine limit will be set to the greatest Spine 'NodeId' tag value in this Pod
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3740,7 +3740,7 @@
               id: maxSuperSpines
               name: maxSuperSpines
               label: Max Super-Spines
-              description: ''
+              description: If no number is entered, the spine limit will be set to the greatest Super-Spine 'NodeId' tag value in this Pod
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3752,7 +3752,7 @@
               id: maximumParallelSpineUplinks
               name: maximumParallelSpineUplinks
               label: Maximum Parallel Spine Uplinks
-              description: ''
+              description: If no number is entered, the parallel transit link limit will be set to the greatest number of paralell links detected between a single spine and super-spine switch in the fabric.
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3798,7 +3798,7 @@
               id: l2LeafDomains
               name: l2LeafDomains
               label: L2 Leaf Domains
-              description: Specify the MLAG pairs or standalone L2 leaf switches in this Pod.
+              description: Specify the MLAG pairs or standalone L2 leaf switches in this Pod.  Value should be an integer.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3941,7 +3941,7 @@
               id: pods
               name: pods
               label: Pods
-              description: Configure a leaf-spine module for your fabric.
+              description: Define a leaf-spine pod for the fabric.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3954,7 +3954,7 @@
               id: bgpAsn
               name: bgpAsn
               label: BGP ASN
-              description: ''
+              description: Define the BGP ASN assigned to the super-spine switches in this plane.
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3966,7 +3966,7 @@
               id: superSpineRouterIdSubnet
               name: superSpineRouterIdSubnet
               label: Super-Spine Router ID Subnet
-              description: ''
+              description: Define the subnet from which IP addresses are allocated to each spine's Loopback0 interface.  This subnet should NOT be used as the Router ID subnet in any other pod or super-spine plane.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3980,7 +3980,7 @@
               id: ipv4BgpDynamicPeering
               name: ipv4BgpDynamicPeering
               label: IPv4 BGP Dynamic Peering
-              description: ''
+              description: Enable to set up a dynamic IPv4 BGP peering with spine switches.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3989,7 +3989,7 @@
               id: evpnBgpDynamicPeering
               name: evpnBgpDynamicPeering
               label: EVPN BGP Dynamic Peering
-              description: ''
+              description: Enable to set up a dynamic EVPN BGP peering with leaf switches.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -4012,7 +4012,7 @@
               id: superSpineBgpDefaults
               name: superSpineBgpDefaults
               label: Super-Spine BGP Defaults
-              description: ''
+              description: EOS CLI BGP configuration under the router bgp context for super-spine switches
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -4022,7 +4022,7 @@
               id: bgpConfiguration
               name: bgpConfiguration
               label: BGP  Configuration
-              description: ''
+              description: Configure the BGP settings for this super-spine plane.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4048,7 +4048,7 @@
               id: superSpinePlanes
               name: superSpinePlanes
               label: Super-Spine Planes
-              description: ''
+              description: Define a super-spine plane for the fabric if desired.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -4061,7 +4061,7 @@
               id: mlagReloadDelay
               name: mlagReloadDelay
               label: MLAG Reload Delay
-              description: ''
+              description: Set the reload delay for MLAG interfaces.  It is recommended that this value be less than that of non-MLAG interfaces.
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -4073,7 +4073,7 @@
               id: nonMlagReloadDelay
               name: nonMlagReloadDelay
               label: Non-MLAG Reload Delay
-              description: ''
+              description: Set the reload delay for non-MLAG interfaces.  It is recommended that this value be greater than that of MLAG interfaces.
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -4085,7 +4085,7 @@
               id: reloadDelays
               name: reloadDelays
               label: Reload Delays
-              description: ''
+              description: Reload-delay is the time period an MLAG switch will keep ports in an err-disabled state.  This is important for graceful reformation of the MLAG peering.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4097,7 +4097,7 @@
               id: tcamProfile
               name: tcamProfile
               label: TCAM Profile
-              description: ''
+              description: Enter the name of a TCAM profile.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4125,7 +4125,7 @@
               id: platformSettingsEosCli
               name: eosCli
               label: EOS CLI
-              description: ''
+              description: General EOS CLI configuration statements to be included in the running-configuration.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -4161,7 +4161,7 @@
               id: ipv4BgpPeerGroupName
               name: name
               label: Name
-              description: ''
+              description: Name of the peer group. If nothing is entered, the default name will be used.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4175,7 +4175,7 @@
               id: ipv4BgpPeerGroupPassword
               name: password
               label: Password
-              description: ''
+              description: Enter the encrypted password for the peer group.  If nothing is entered, no password will be used in the BGP peering.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4201,7 +4201,7 @@
               id: evpnBgpPeerGroupName
               name: name
               label: Name
-              description: ''
+              description: Name of the peer group. If nothing is entered, the default name will be used.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4215,7 +4215,7 @@
               id: evpnBgpPeerGroupPassword
               name: password
               label: Password
-              description: ''
+              description: Enter the encrypted password for the peer group.  If nothing is entered, no password will be used in the BGP peering.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4241,7 +4241,7 @@
               id: mlagIPv4BgpPeerGroupName
               name: name
               label: Name
-              description: ''
+              description: Name of the peer group. If nothing is entered, the default name will be used.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4255,7 +4255,7 @@
               id: mlagIPv4BgpPeerGroupPassword
               name: password
               label: Password
-              description: ''
+              description: Enter the encrypted password for the peer group.  If nothing is entered, no password will be used in the BGP peering.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4281,7 +4281,7 @@
               id: bgpPeerGroupSettings
               name: bgpPeerGroupSettings
               label: BGP Peer Group Settings
-              description: ''
+              description: Customize BGP peer group properties.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4559,7 +4559,6 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
@@ -4578,7 +4577,6 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
@@ -4603,7 +4601,6 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
@@ -4622,7 +4619,6 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
@@ -4737,7 +4733,7 @@
                 "assignmentType":"MULTIPLE",
                 "prepopulate":true,
                 "tagType":"DEVICE",
-                "description":"Define a switch's role.",
+                "description":"Define a switch's role and node ID.",
                 "columns":[
                   {
                     "tagLabel":"Role",
@@ -4746,6 +4742,11 @@
                       "Spine",
                       "Leaf",
                       "Super-Spine"
+                    ]
+                  },
+                  {
+                    "tagLabel":"NodeId",
+                    "suggestedValues":[
                     ]
                   }
                 ]
@@ -4765,7 +4766,6 @@
                 "key":"spineAS",
                 "type":"INPUT",
                 "dependency":{
-                  
                 }
               },
               "ospfConfiguration":{

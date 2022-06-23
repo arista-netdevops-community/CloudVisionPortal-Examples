@@ -384,7 +384,7 @@
                       "vlan_range": info['vlan_range'],
                       "route_distinguisher": info['route_distinguisher'],
                       "route_target": info['route_target'],
-                      "first_vlan": info['first_vlan'], 
+                      "first_vlan": info['first_vlan'],
                       "first_vni": info['first_vni'],
                       "last_vlan": info['last_vlan'],
                       "last_vni": info['last_vni']
@@ -409,7 +409,7 @@
                   config['ip_dhcp_relay'] = {
                       "information_option": True
                   }
-                  # Section commented out for now until more detail is found on which platforms 
+                  # Section commented out for now until more detail is found on which platforms
                   # support dhcp snooping
                   # Enable dhcp snooping
                   # config['ip_dhcp_snooping'] = {
@@ -428,7 +428,7 @@
                               }
                               # Create L3 SVI with helper address pointing towards CVP
                               config['vlan_interfaces'][f"Vlan{svi}"] = {}
-                              # Section commented out for now until more detail is found on which platforms 
+                              # Section commented out for now until more detail is found on which platforms
                               # support dhcp snooping
                               # if vrf == "default":
                               #     config['vlan_interfaces'][f"Vlan{svi}"]['ip_helpers'] = {
@@ -453,7 +453,7 @@
                               "tenant": tenant,
                               "name": info['name']
                           }
-                          # Section commented out for now until more detail is found on which platforms 
+                          # Section commented out for now until more detail is found on which platforms
                           # support dhcp snooping
                           # Create L2 SVI with helper address pointing towards CVP
                           # config['vlan_interfaces'][f"Vlan{svi}"]['ip_helpers'] = {
@@ -852,7 +852,7 @@
                                           vlan_in_bundle = True
                                           break
                                   if vlan_in_bundle is True:
-                                      continue 
+                                      continue
                                   config['router_bgp']['vlans'][vlan] = {
                                       "tenant": tenant,
                                       "rd": vlan_info['route_distinguisher'],
@@ -894,7 +894,7 @@
                                       "learned"
                                   ]
                               }
-                              
+
 
                   # Set vxlan interface
                   config['vxlan_interface'] = {"Vxlan1": {"vxlan": {"vrfs": {}, "vlans": {}}}}
@@ -1049,7 +1049,7 @@
                           neighbor_switch_facts = get_switch_basics_from_tags(info['neighborId'])
                           if neighbor_switch_facts['network_services'].get('l3'):
                               uplink_switches.append(neighbor_switch_facts)
-                      # Assume switch is a campus pod member switch in an L2 campus topology if it has no L3 
+                      # Assume switch is a campus pod member switch in an L2 campus topology if it has no L3
                       # uplink switches and that both neighbors are uplink switches (very use-case specific code)
                       if len(uplink_switches) == 0:
                           for info in switch_facts['interfaces'].values():
@@ -1174,7 +1174,7 @@
 
               # normalize mlag_port_channel_id and turn mlag on/off
               if switch_facts.get('mlag_peer_link') and switch_facts['mlag_peer_link'].strip() != "":
-                  switch_facts['mlag_port_channel_id'] = "".join(re.findall(r'\d', switch_facts['mlag_peer_link']))              
+                  switch_facts['mlag_port_channel_id'] = "".join(re.findall(r'\d', switch_facts['mlag_peer_link']))
                   switch_facts['mlag'] = True
               else:
                   switch_facts['mlag'] = False
@@ -1749,7 +1749,7 @@
           %     endif
           !
           % endif
-          ## eos - IP Routing 
+          ## eos - IP Routing
           % if config.get("ip_routing") == True:
           ip routing
           !
@@ -2417,7 +2417,7 @@
               id: tenantName
               name: name
               label: Name
-              description: ''
+              description: Specify a tenant name.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2431,7 +2431,7 @@
               id: vrfName
               name: name
               label: Name
-              description: ''
+              description: VRF Name
               required: true
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2540,7 +2540,7 @@
               id: sourceNatCampusResolver
               name: campus
               label: Campus Source NAT Subnets
-              description: ''
+              description: Define an IPv4 pool used to assign IP addresses to the source NAT interface for each VTEP in a particular campus.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2580,7 +2580,7 @@
               id: sourceNatDataCenterResolver
               name: dataCenter
               label: Data Center Source NAT Subnets
-              description: ''
+              description: Define an IPv4 pool used to assign IP addresses to the source NAT interface for each VTEP in a particular data center.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2593,7 +2593,7 @@
               id: natSourceDetails
               name: natSourceDetails
               label: Virtual Source NAT
-              description: Enable NAT by configuring values.
+              description: This will create a loopback with virtual source-nat enable to perform diagnostics from the switch.This will create a loopback with virtual source-nat enable to perform diagnostics from the switch.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -2658,7 +2658,7 @@
               id: vrfL3InterfaceName
               name: name
               label: Name
-              description: ''
+              description: Name of the interface or subinterface to configure (i.e. Ethernet1 or Ethernet1.100).
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2735,7 +2735,7 @@
               id: vrfL3InterfaceEosCli
               name: eosCli
               label: EOS CLI
-              description: ''
+              description: Raw EOS CLI statements to be configured under the interface.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -2771,7 +2771,7 @@
               id: vrfL3InterfacesDevice
               name: l3Interfaces
               label: L3 Interfaces
-              description: ''
+              description: This will create an IP routed interface inside the VRF.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2793,7 +2793,7 @@
               id: additionalRouteTargetsRouteTarget
               name: routeTarget
               label: Route Target
-              description: ''
+              description: Use the format <integer>:<integer>.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2828,7 +2828,7 @@
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
-                default_value: null
+                default_value: evpn
                 static_options: null
                 format: null
                 length: null
@@ -2871,7 +2871,7 @@
               id: additionalRouteTargetsDevicesResolver
               name: devices
               label: Devices
-              description: Devices to configure route targets on.
+              description: Select the devices to configure route targets on.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3100,7 +3100,7 @@
               id: externalBgpPeersRouteMapGroup
               name: routeMap
               label: Route Map
-              description: ''
+              description: Enter the name of the route map to configure in/out for the peer.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3213,7 +3213,7 @@
               id: externalBgpPeersDevicesResolver
               name: devices
               label: Devices
-              description: Devices to configure neighbor on.
+              description: Select the devices to configure the BGP neighbor on.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3288,7 +3288,7 @@
               id: staticRoutesDescription
               name: description
               label: Description
-              description: ''
+              description: Unique description for the static route.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3335,7 +3335,7 @@
               id: staticRoutesDevicesResolver
               name: devices
               label: Devices
-              description: ''
+              description: Select the devices to configure the static route on.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3455,7 +3455,7 @@
               id: staticRoutesCollection
               name: staticRoutes
               label: Static Routes
-              description: ''
+              description: This will create static routes inside the VRF.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -3498,7 +3498,7 @@
               id: vrfAssignDevicesResolver
               name: devices
               label: Devices
-              description: Devices to apply this VRF to where the VRF won't be automatically applied from VLAN association, static route redistribution, external BGP peerings, or additional route-targets.
+              description: Select the devices to apply this VRF to where the VRF won't be automatically applied from VLAN association, static route redistribution, external BGP peerings, or additional route-targets.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3532,7 +3532,7 @@
               id: vrfs
               name: vrfs
               label: VRFs
-              description: ''
+              description: Define L3 network services organized by vrf.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -3633,7 +3633,7 @@
               id: vlanId
               name: vlanId
               label: VLAN ID
-              description: ''
+              description: VLAN ID
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3692,7 +3692,7 @@
               id: vlanMemberSwitches
               name: switches
               label: VTEPs
-              description: Assign a VLAN to devices.
+              description: Select the devices to assign the VLAN to.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3755,7 +3755,7 @@
               id: vlanL3OrL2
               name: l3OrL2
               label: Routed or Bridged
-              description: ''
+              description: If set to 'Routed', both the L3 SVI and L2 VLAN will be configured on a selected L3 device. If set to 'Bridged', only the L2 VLAN will be configured on a selected L3 device. Only the L2 VLAN will be configured on any L2 devices downstream of the selected L3 device.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3876,7 +3876,7 @@
               id: vlanSviArpDetails
               name: arp
               label: ARP
-              description: ''
+              description: Set the ARP aging timeout for ARP entries for this VLAN.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3911,7 +3911,7 @@
               id: vlanVrf
               name: vrf
               label: VRF
-              description: ''
+              description: Select a VRF for this VLAN to be a member of.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3948,7 +3948,7 @@
               id: vlans
               name: vlans
               label: VLANs
-              description: ''
+              description: Define L2 network services organized by VLAN ID.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -3985,7 +3985,7 @@
               id: tenants
               name: tenants
               label: Tenants
-              description: ''
+              description: Network services are grouped by tenants. Tenants can be organizations or departments. The filtering model allows for granular deployment of network service to the fabric leveraging the tenant name and tags applied to the service definition.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -4027,7 +4027,7 @@
               id: vrfAttributeFormats
               name: vrfAttributeFormats
               label: VRF Attributes
-              description: ''
+              description: Set the default format for how VRF attributes are generated.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4073,7 +4073,7 @@
               id: vlanBasedMacVrfAttributeFormats
               name: vlanBasedMacVrfAttributeFormats
               label: VLAN Based MAC-VRF Attributes
-              description: ''
+              description: Set the default format for how VLAN based MAC-VRF attributes are generated.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4125,7 +4125,7 @@
               id: vlanBundleMacVrfAttributeFormats
               name: vlanBundleMacVrfAttributeFormats
               label: VLAN Bundle MAC-VRF Attributes
-              description: ''
+              description: Set the default format for how VLAN bundled MAC-VRF attributes are generated.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4563,13 +4563,11 @@
                   {
                     "tagLabel":"router_bgp.as",
                     "suggestedValues":[
-                      
                     ]
                   },
                   {
                     "tagLabel":"router_bgp.router_id",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
@@ -4601,13 +4599,11 @@
                   {
                     "tagLabel":"router_bgp.as",
                     "suggestedValues":[
-                      
                     ]
                   },
                   {
                     "tagLabel":"router_bgp.router_id",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
@@ -4639,13 +4635,11 @@
                   {
                     "tagLabel":"router_bgp.as",
                     "suggestedValues":[
-                      
                     ]
                   },
                   {
                     "tagLabel":"router_bgp.router_id",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
@@ -4677,13 +4671,11 @@
                   {
                     "tagLabel":"router_bgp.as",
                     "suggestedValues":[
-                      
                     ]
                   },
                   {
                     "tagLabel":"router_bgp.router_id",
                     "suggestedValues":[
-                      
                     ]
                   }
                 ]
