@@ -1,0 +1,4657 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: e7756e0e-3d60-40ee-9ada-b6fd74f57718
+        workspace_id: 6d43301a-ead1-4247-a57b-905669bd237f
+      display_name: Interface Configuration w Stack v1.8.2
+      description: >-
+        Configure device interfaces and interface profiles, and assign
+        administrative state, VLANs, and other attributes
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: >
+          <%
+
+          import sys
+
+          import os
+
+          import json
+
+          import ipaddress
+
+          import re
+
+          from collections import OrderedDict
+
+          import tagsearch_python.tagsearch_pb2_grpc as tsgr
+
+          import tagsearch_python.tagsearch_pb2 as tspb
+
+          from arista.tag.v2.tag_pb2 import Tag, \
+              TagKey, \
+              TagAssignment, \
+              TagAssignmentKey, \
+              TagAssignmentConfig
+
+          class SwitchDetails:
+              def __init__(self):
+                  self.id = None
+                  self.model = None #Model tag
+                  self.config = {
+                      "acls": {},
+                      "qos": {}
+                  }
+
+              def configure_acls(self, switch_acls):
+                  for acl, acl_details in switch_acls.items():
+                      self.config["acls"][acl] = {}
+                      self.config["acls"][acl]["counters_per_entry"] = acl_details["counters_per_entry"]
+                      if acl_details["name"].strip() != "":
+                          self.config["acls"][acl]["name"] = acl_details["name"]
+                      if acl_details["description"].strip() != "":
+                          self.config["acls"][acl]["description"] = acl_details["description"]
+                      if acl_details["type"].strip() != "":
+                          self.config["acls"][acl]["type"] = acl_details["type"]
+                      if acl_details["acl_lines"]:
+                          self.config["acls"][acl]["acl_lines"] = acl_details["acl_lines"]
+                      if acl_details["devices"]:
+                          self.config["acls"][acl]["devices"] = acl_details["devices"]
+
+              def configure_qos(self, switch_qos):
+                  for qos, qos_details in switch_qos.items():
+                      self.config["qos"][qos] = {}
+                      if qos_details["instance_name"].strip() != "":
+                          self.config["qos"][qos]["instance_name"] = qos_details["instance_name"]
+                      if qos_details["class_maps"]:
+                          self.config["qos"][qos]["class_maps"] = qos_details["class_maps"]
+                      if qos_details["policy_maps"]:
+                          self.config["qos"][qos]["policy_maps"] = qos_details["policy_maps"]
+                      if qos_details["service_profiles"]:
+                          self.config["qos"][qos]["service_profiles"] = qos_details["service_profiles"]
+                      if qos_details["classification"]:
+                          self.config["qos"][qos]["classification"] = qos_details["classification"]
+          #            if qos_details["rewrite_rules"]:
+                          self.config["qos"][qos]["rewrite_rules"] = qos_details["rewrite_rules"]
+                      if qos_details["traffic_cl_to_q"]:
+                          self.config["qos"][qos]["traffic_cl_to_q"] = qos_details["traffic_cl_to_q"]
+                      if qos_details["devices"]:
+                          self.config["qos"][qos]["devices"] = qos_details["devices"]
+
+          def create_switch():
+              return SwitchDetails()
+
+          def get_switch(device_id):
+              switch = None
+              switch = create_switch()
+              switch.id = device_id
+              return switch
+
+
+          def get_tag_values_applied_to_device(tag_assignment_key):
+              label = tag_assignment_key.label.value
+              value = tag_assignment_key.value.value
+              device_id = tag_assignment_key.device_id.value
+              workspace_id = tag_assignment_key.workspace_id.value
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+
+              matching_tags = []
+
+              tvsr = tspb.TagValueSearchRequest(label=label, workspace_id=workspace_id, topology_studio_request=True)
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query= "{}:\"{}\" AND device:{}".format(tag.label, tag.value, device_id)
+                  tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+                  tagmresp =  tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      if match.device.device_id == device_id:
+                          matching_tags.append(tag)
+
+              return matching_tags
+
+          def stack_member_number():
+              tag_assignment_key = TagAssignmentKey()
+              tag_assignment_key.workspace_id.value = workspace_id
+              tag_assignment_key.element_type = 1
+              tag_assignment_key.label.value = "Stack-Member"
+              tag_assignment_key.device_id.value = switch.id
+              tags = get_tag_values_applied_to_device(tag_assignment_key)
+              for tag in tags:
+                  return tag.value
+          ##    assert False, "{} is not set. Please apply a '{}' tag to {} in
+          the Tags section of Provisioning with the appropriate workspace
+          selected".format(
+
+          ##            "Stack Member Number Tag",
+          tag_assignment_key.label.value, self.hostname
+
+          ##       )
+
+
+          aclInputs = {}
+
+          qosInputs = {}
+
+          workspace_id = ctx.studio.workspaceId
+
+          my_device = ctx.getDevice()
+
+          my_device_id = my_device.id
+
+
+          #if not aclNames:
+
+          #  return
+
+          # Get  ACL input
+
+          for acl in aclNames:
+              aclInputs[acl["name"]] = {
+                  "name": acl["name"],
+                  "description": acl["description"],
+                  "type": acl["type"],
+                  "acl_lines": acl["aclLines"],
+                  "counters_per_entry": acl["countersPerEntry"],
+                  "devices": acl["devices"]
+              }
+          #if not qos:
+
+          #  return
+
+          # Get  QOS input
+
+          for qos in qosInstances:
+              qosInputs[qos["instanceName"]] = {
+                  "instance_name": qos["instanceName"],
+                  "class_maps": qos["classMaps"],
+                  "policy_maps": qos["policyMaps"],
+                  "service_profiles": qos["serviceProfiles"],
+                  "classification": qos["classification"],
+                  "rewrite_rules": qos["rewriteRules"],
+                  "traffic_cl_to_q": qos["trafficClassToQueue"],
+                  "devices": qos["devices"]
+              }
+
+          # Create switch
+
+          switch = get_switch(my_device_id)
+
+
+          switch_acls = {}
+
+          switch_qos = {}
+
+          my_stack_member_number = stack_member_number()
+
+          if switch is not None:
+
+          # Get only ACLs applied to this switch
+              for acl, acl_details in aclInputs.items():
+                  if acl_details["devices"].resolve()["interfaces"]["vlanInterfaces"]or acl_details["devices"].resolve()["interfaces"]["physicalAndSubInterfaces"]:
+                      switch_acls[acl] = acl_details
+                  for intfRange in devices.resolve()["devicesGroup"]["interfaceRanges"]:
+                      intfName = intfRange["interfaceName"]
+                      if my_stack_member_number:
+                          search = my_stack_member_number + "/"
+                          searchreturn = intfName.find(search)
+                          if (searchreturn == -1):
+                              continue
+                      else:
+                          search = "/"
+                          searchreturn = intfName.find(search)
+                          if (searchreturn != -1):
+                              continue
+                      if acl == intfRange["acl"]:
+                         switch_acls[acl] = acl_details
+                  for intf in my_device.getInterfaces():
+                      intfName = intf.name
+                      intfVal = devices.resolve().devicesGroup.interface.resolve(intfName, strict=True)
+                      if not intfVal or not intfVal.get('intfConfig'):
+                          continue
+                      intfCfg = intfVal['intfConfig']
+                      ## Don't output config if nothing interesting is set
+                      if len(intfCfg) == 0 or not intfCfg.get('enabled'):
+                          continue
+                      if acl == intfCfg.get('acl'):
+                          switch_acls[acl] = acl_details
+
+
+          # Get only QOS applied to this switch
+              for qos, qos_details in qosInputs.items():
+          #        if
+          qos_details["devices"].resolve()["deviceGroup"]["interfaces"] or
+          devices.resolve().devicesGroup.interfaceRanges:
+                  if qos_details["devices"].resolve()["deviceGroup"]["interfaces"]:
+                      switch_qos[qos] = qos_details
+                      # Get ACLs applied applied to QOS
+                      for acl, acl_details in aclInputs.items():
+                          for map in qos_details["class_maps"]:
+                              if acl == map["acl"]:
+                                  switch_acls[acl] = acl_details
+                  # Get QOS applied applied to Interface Ranges
+                  for intfRange in devices.resolve()["devicesGroup"]["interfaceRanges"]:
+                      intfName = intfRange["interfaceName"]
+                      if my_stack_member_number:
+                          search = my_stack_member_number + "/"
+                          searchreturn = intfName.find(search)
+                          if (searchreturn == -1):
+                              continue
+                      else:
+                          search = "/"
+                          searchreturn = intfName.find(search)
+                          if (searchreturn != -1):
+                              continue
+                      if qos == intfRange["qosInstance"]:
+                          switch_qos[qos] = qos_details
+                          for acl, acl_details in aclInputs.items():
+                              for map in qos_details["class_maps"]:
+                                  if acl == map["acl"]:
+                                      switch_acls[acl] = acl_details
+                  # Get QOS applied applied to Interfaces
+                  for intf in my_device.getInterfaces():
+                      intfName = intf.name
+                      intfVal = devices.resolve().devicesGroup.interface.resolve(intfName, strict=True)
+                      if not intfVal or not intfVal.get('intfConfig'):
+                          continue
+                      intfCfg = intfVal['intfConfig']
+                      ## Don't output config if nothing interesting is set
+                      if len(intfCfg) == 0 or not intfCfg.get('enabled'):
+                          continue
+                      if qos == intfCfg["qosInstance"]:
+                          switch_qos[qos] = qos_details
+                          for acl, acl_details in aclInputs.items():
+                              for map in qos_details["class_maps"]:
+                                  if acl == map["acl"]:
+                                      switch_acls[acl] = acl_details
+          # Create config
+
+          if len(switch_acls) > 0:
+              switch.configure_acls(switch_acls)
+          if len(switch_qos) > 0:
+              switch.configure_qos(switch_qos)
+          config = switch.config
+
+
+          #%>
+
+          #<%         INTERFACES
+
+          debug = False
+
+          def containsAny(str, set):
+              return 1 in [c in str for c in set]
+
+          def containsWord(string, listToSearch):
+              for ifin in listToSearch:
+                  searchreturn = string.find(ifin)
+                  if searchreturn != -1:
+                    return 1
+              return 0
+
+          class baseInterface:
+            def __init__(self):
+              self.enabled = None
+              self.mode = None
+              self.security = []
+              self.violation = False
+              self.dot1x = []
+              self.logging = []
+              self.poe = []
+              self.accessVlan = None
+              self.desc = None
+              self.nativeVlanId = None
+              self.allowedVlans = None
+              self.phoneVlanId = None
+              self.phoneTrunk = None
+              self.portFastEnabled = None
+              self.ipaddress = None
+              self.vrf = None
+              self.secIP = []
+              self.vripaddress = None
+              self.helper = None
+              self.ipmtu = None
+              self.acl = None
+              self.aclDirection = None
+              self.aclType = None
+              self.qosInstance = None
+          class interface(baseInterface):
+            def __init__(self):
+              super().__init__()
+              self.speed = None
+              self.groupNum = None
+              self.lacpEnabled = True
+          class channelGroup(baseInterface):
+            def __init__(self):
+              super().__init__()
+              self.mlagEnabled = None
+
+          def processInterface(intfName, intfCfg, vlanProfileCfg,
+          dot1xProfileCfg, loggingProfileCfg, poeProfileCfg):
+            intf = interfaces.get(intfName, interface())
+            intf.enabled = intfCfg.get('enabled')
+            intf.speed = intfCfg.get('speed')
+            intf.groupNum = intfCfg.get('channelGroup')
+            if intf.groupNum:
+                group.acl = intfCfg.get('acl')
+                group.aclDirection = intfCfg.get('aclDirection')
+                group.aclType = intfCfg.get('aclType')
+                group.qosInstance = intfCfg.get('qosInstance')
+            else:
+                intf.acl = intfCfg.get('acl')
+                intf.aclDirection = intfCfg.get('aclDirection')
+                intf.aclType = intfCfg.get('aclType')
+                intf.qosInstance = intfCfg.get('qosInstance')
+                accessVlan = None
+                accessVlan = intfCfg.get('accessVlan')
+                mode = 'access' if accessVlan else None
+            desc = intfCfg.get('description')
+            group = None
+            security = []
+            if vlanProfileCfg or dot1xProfileCfg or loggingProfileCfg or poeProfileCfg:
+                if poeProfileCfg and not intf.groupNum:
+                    poe = poeProfileCfg.get('poe')
+                    intf.poe = poe
+                if loggingProfileCfg and not intf.groupNum:
+                    logging = loggingProfileCfg.get('logging')
+                    intf.logging = logging
+                if dot1xProfileCfg and not intf.groupNum:
+                    security = dot1xProfileCfg.get('portSecurity')
+                    dot1x = dot1xProfileCfg.get('dot1x')
+                    intf.security = security
+                    intf.dot1x = dot1x
+                if vlanProfileCfg:
+                    if not intf.speed:
+                        intf.speed = vlanProfileCfg.get('speed')
+                    intf.groupNum = intf.groupNum or vlanProfileCfg.get('channelGroup')
+                    profileMode = vlanProfileCfg.get('mode')
+                    if mode == 'access':
+                        assert profileMode == 'access', 'Interface %s: Access VLAN cannot be specified along with profile %s' %(intfName, profileMode)         
+                    else:
+                        mode = profileMode
+                    if mode == 'access':
+                        accessVlan = accessVlan or vlanProfileCfg.get('accessVlanId')
+          #             assert accessVlan > 0, 'Interface %s: Access Vlan must
+          be specified for access mode' %(intfName)
+                    if mode != 'routed':
+                        intf.portFastEnabled = intf.portFastEnabled or vlanProfileCfg.get('portFastEnabled')
+                        # add ip address if port is routed or vlan interface
+                    elif mode == 'routed':
+                        intf.ipaddress = intf.ipaddress or vlanProfileCfg.get('ipaddress')
+                        intf.ipmtu = intf.ipmtu or vlanProfileCfg.get('ipmtu')
+
+                    profileDesc = vlanProfileCfg.get('profileDescription')
+                    if profileDesc:
+                        if '$1' in profileDesc:
+                            if not desc:
+                                raise Exception('Interface %s is missing a description, '
+                                    'needed for the profile %r template' % (intfName, profileName))
+                            desc = profileDesc.replace('$1', desc)
+                        else:
+                            desc = profileDesc
+                if intf.groupNum:
+                    mlagEnabled = None
+                    group = groups.get(intf.groupNum, channelGroup())
+                    group.enabled = True
+                    group.mode = mode
+                    group.accessVlan = accessVlan
+                    if vlanProfileCfg:
+                        group.nativeVlanId = vlanProfileCfg.get('nativeVlanId')
+                        group.allowedVlans = vlanProfileCfg.get('allowedVlans')
+                        group.phoneVlanId = vlanProfileCfg.get('phoneVlanId')
+                        group.phoneTrunk = vlanProfileCfg.get('phoneTrunk')
+                        
+                        if group.mode != 'routed':
+                            group.portFastEnabled = group.portFastEnabled or vlanProfileCfg.get('portFastEnabled')
+                        else:
+                            group.ipaddress = group.ipaddress or vlanProfileCfg.get('ipaddress')
+                            group.ipmtu = group.ipmtu or vlanProfileCfg.get('ipmtu')
+                        mlagEnabled = vlanProfileCfg.get('mlagEnabled')
+                        intf.lacpEnabled = vlanProfileCfg.get('lacpEnabled')
+                    if poeProfileCfg:
+                        poe = poeProfileCfg.get('poe')
+                        group.poe = poe
+                    if loggingProfileCfg:
+                        logging = loggingProfileCfg.get('logging')
+                        group.logging = logging
+                    if dot1xProfileCfg:
+                        security = dot1xProfileCfg.get('portSecurity')
+                        dot1x = dot1xProfileCfg.get('dot1x')
+                        group.security = security
+                        group.dot1x = dot1x
+                    group.desc = desc
+                    group.acl = intfCfg.get('acl')
+                    group.aclDirection = intfCfg.get('aclDirection')
+                    group.aclType = intfCfg.get('aclType')
+                    group.qosInstance = intfCfg.get('qosInstance')
+                    intf.desc = intfCfg.get('description')
+                    group.mlagEnabled = mlagEnabled or intfCfg.get('mlagEnabled')
+                else:
+                    intf.mode = mode
+                    intf.accessVlan = accessVlan
+                    intf.nativeVlanId = vlanProfileCfg.get('nativeVlanId') if vlanProfileCfg else None
+                    intf.allowedVlans = vlanProfileCfg.get('allowedVlans') if vlanProfileCfg else None
+                    intf.phoneVlanId = vlanProfileCfg.get('phoneVlanId') if vlanProfileCfg else None
+                    intf.phoneTrunk = vlanProfileCfg.get('phoneTrunk') if vlanProfileCfg else None
+                    intf.desc = desc
+            intf.accessVlan = accessVlan
+            # if a vlan interface mode 
+            vlanlist = ['Vlan','vlan']
+            if containsWord(intfName, vlanlist):
+              intf.mode = "routed"
+              intf.ipaddress = intfCfg.get('ipSettings')["ipPrefix"]
+              intf.vripaddress = intfCfg.get('ipSettings')["virtualRouterAddress"]
+              intf.helper = intfCfg.get('ipSettings')["dhcpHelper"]
+              intf.vrf = intfCfg.get('ipSettings')["vrf"]
+              intf.secIP = intfCfg.get('ipSettings')["secIp"]
+            # routed port gets IP settings
+            elif intf.mode == "routed":
+              intf.ipaddress = intfCfg.get('ipSettings')["ipPrefix"]
+              intf.vripaddress = intfCfg.get('ipSettings')["virtualRouterAddress"]
+              intf.helper = intfCfg.get('ipSettings')["dhcpHelper"]
+              intf.vrf = intfCfg.get('ipSettings')["vrf"]
+              intf.secIP = intfCfg.get('ipSettings')["secIp"]
+            interfaces[intfName] = intf
+            if group:
+              groups[intf.groupNum] = group
+
+          if not profiles and not devices:
+            return
+          my_device = ctx.getDevice()
+
+          groups = {}
+
+          interfaces = {}
+
+          myStackNumber = stack_member_number()
+
+          vlanlist = ["Vlan","vlan"]
+
+          ### Interface Ranges
+
+          for intfRange in devices.resolve().devicesGroup.interfaceRanges:
+              normalizedlist = []
+              splitlist = []
+              intfName = intfRange["interfaceName"]
+              containsvlan = containsWord(intfName, vlanlist)
+              if myStackNumber:
+                  lookforstacknum = myStackNumber + "/"
+                  searchreturn = intfName.find(lookforstacknum)
+              # process stack numbers in interface names
+              if myStackNumber and containsvlan == 0 and searchreturn != -1:
+                # create comma separated list of the interface input
+                  splitlist = intfName.split(",")
+                  # remove duplicates
+                  res = []
+                  [res.append(x) for x in splitlist if x not in res]
+                  splitlist = res
+                  # remove stack numbers
+                  for item in splitlist:
+                      found = item.find(lookforstacknum)
+                      if found != -1:
+                         item = item.replace(lookforstacknum,"")
+                         normalizedlist.append(item)
+                  # do not process interface if my stacknumber is not present
+                  if searchreturn == -1:
+                    continue
+                  # rejoin list
+                  else:
+                      #add ethernet to beginning of input if it is missing
+                      intfName = ",".join(normalizedlist)
+                      if intfName:
+                         if containsAny(intfName, "eE") != 1:
+                                 intfName = "ethernet" + intfName
+              elif myStackNumber and containsvlan == 1:
+                  # create comma separated list of the interface input
+                  splitlist = intfName.split(",")
+                  # remove duplicates
+                  res = []
+                  [res.append(x) for x in splitlist if x not in res]
+                  splitlist = res
+                  # remove stack numbers
+                  lookforstacknum = myStackNumber + "/"
+                  searchreturn = intfName.find(lookforstacknum)
+                  for item in splitlist:
+                      found = item.find(lookforstacknum)
+                      if found != -1:
+                         item = item.replace(lookforstacknum,"")
+                         normalizedlist.append(item)
+                  # do not process interface if my stacknumber is not present
+                  if searchreturn == -1 and containsAny(intfName, "/") == 1:
+                      continue
+                      #add ethernet to beginning of input if it is missing
+                  if normalizedlist:
+                    intfName = ",".join(normalizedlist)
+                  if intfName:
+                    if containsAny(intfName, "vV") != 1:
+                      intfName = "Vlan" + intfName
+              # do not process if not a stack but input stack notation is used
+              else:
+                  searchreturn = intfName.find("/")
+                  if (searchreturn != -1):
+                      continue
+              intfCfg = intfRange
+              ## Don't output config if nothing interesting is set
+              if len(intfCfg) == 0 or len(intfName) == 0:
+                continue
+              vlanProfileName = intfCfg.get('vlanProfile')
+              matchedVlanProfile = None
+              if vlanProfileName:
+                  matchedVlanProfile = next((p for p in vlanProfiles if vlanProfileName == p['name']), None)
+                  if not matchedVlanProfile:
+                      raise Exception('Found no matching vlanProfile "%s" for interface %s' % (vlanProfileName, intfName))
+              dot1xProfileName = intfCfg.get('dot1XProfile')
+              matchedDot1xProfile = None
+              if dot1xProfileName:
+                  matchedDot1xProfile = next((p for p in dot1XProfiles if dot1xProfileName == p['dot1XProfileName']), None)
+                  if not matchedDot1xProfile:
+                      raise Exception('Found no matching dot1xProfile "%s" for interface %s' % (dot1xProfileName, intfName))
+              loggingProfileName = intfCfg.get('loggingProfile')
+              matchedLoggingProfile = None
+              if loggingProfileName:
+                  matchedLoggingProfile = next((p for p in loggingProfiles if loggingProfileName == p['loggingProfileName']), None)
+                  if not matchedLoggingProfile:
+                      raise Exception('Found no matching loggingProfile "%s" for interface %s' % (loggingProfileName, intfName))
+              poeProfileName = intfCfg.get('poeProfile')
+              matchedPoeProfile = None
+              if poeProfileName:
+                  matchedPoeProfile = next((p for p in poeProfiles if poeProfileName == p['poeProfileName']), None)
+                  if not matchedPoeProfile:
+                      raise Exception('Found no matching poeProfile "%s" for interface %s' % (poeProfileName, intfName))
+              processInterface(intfName, intfCfg, matchedVlanProfile, matchedDot1xxProfile, matchedLoggingProfile, matchedPoeProfile)
+          ### Interface
+
+          for intf in my_device.getInterfaces():
+              intfName = intf.name
+              intfVal = devices.resolve().devicesGroup.interface.resolve(intfName, strict=True)
+              if not intfVal or not intfVal.get('intfConfig'):
+                  continue
+              intfCfg = intfVal['intfConfig']
+              ## Don't output config if nothing interesting is set
+              if len(intfCfg) == 0 or not intfCfg.get('enabled'):
+                continue
+              # Note: we are not using the EOS 'interface profiles' feature for now because of
+              # they make config pushes slow in certain releases (519556).
+              vlanProfileName = intfCfg.get('vlanProfile')
+              matchedVlanProfile = None
+              if vlanProfileName:
+                  matchedVlanProfile = next((p for p in vlanProfiles if vlanProfileName == p['name']), None)
+                  if not matchedVlanProfile:
+                      raise Exception('Found no matching vlanProfile "%s" for interface %s' % (vlanPprofileName, intfName))
+              dot1xProfileName = intfCfg.get('dot1XProfile')
+              matchedDot1xProfile = None
+              if dot1xProfileName:
+                  matchedDot1xProfile = next((p for p in dot1XProfiles if dot1xProfileName == p['dot1XProfileName']), None)
+                  if not matchedDot1xProfile:
+                      raise Exception('Found no matching dot1xProfile "%s" for interface %s' % (dot1xProfileName, intfName))
+              loggingProfileName = intfCfg.get('loggingProfile')
+              matchedLoggingProfile = None
+              if loggingProfileName:
+                  matchedLoggingProfile = next((p for p in loggingProfiles if loggingProfileName == p['loggingProfileName']), None)
+                  if not matchedLoggingProfile:
+                      raise Exception('Found no matching loggingProfile "%s" for interface %s' % (loggingProfileName, intfName))
+              poeProfileName = intfCfg.get('poeProfile')
+              matchedPoeProfile = None
+              if poeProfileName:
+                  matchedPoeProfile = next((p for p in poeProfiles if poeProfileName == p['poeProfileName']), None)
+                  if not matchedPoeProfile:
+                      raise Exception('Found no matching poeProfile "%s" for interface %s' % (poeProfileName, intfName))
+              processInterface(intfName, intfCfg, matchedVlanProfile, matchedDot1xProfile, matchedLoggingProfile, matchedPoeProfile)
+          %>\
+
+
+          <%def name="makeIntfCfg(intfName, intfCfg)">
+              <%
+                # Interface-specific settings (intfCfg) override profile settings (vlanProfileCfg)
+                # Speed is always taken from profile if not set at interface level.
+                # Description is always taken from profile, and template-substituted with interface description
+              %>
+          <%
+
+          vlanIntFound = containsWord(intfName, vlanlist) 
+
+          %>
+
+          !
+
+          interface ${intfName}
+            %if intfCfg.enabled and vlanIntFound == 0:
+              no shutdown
+            %elif intfCfg.enabled == False and vlanIntFound == 0:
+              shutdown
+            %endif
+            ## ACL
+            %if intfCfg.acl:
+              ${intfCfg.aclType} access-group ${intfCfg.acl} ${intfCfg.aclDirection}
+            %endif
+            ## QOS
+            %if intfCfg.qosInstance:
+          <% i = intfCfg.qosInstance %>
+            %  for qi in config.get("qos"):
+            %      if i == qi:
+            %          if config.get("qos")[qi].get("service_profiles"):
+            %              if vlanIntFound:
+          ## some bug with this command on vlan interface
+
+          ##    qos profile ${intfCfg.qosInstance}
+              service-profile ${intfCfg.qosInstance}
+            %              endif
+            %          else:
+          <% pm = config.get("qos")[qi].get("policy_maps")[0]["policyMapName"]
+          %>
+              service-policy type qos input ${pm}
+            %          endif
+            %      endif
+            %  endfor
+            %endif
+            ## VLANs
+            %if intfCfg.mode == 'access':
+              switchport
+              switchport mode access
+              switchport access vlan ${intfCfg.accessVlan}
+            %elif intfCfg.mode == 'trunk':
+              switchport
+              switchport mode trunk
+            %    if intfCfg.nativeVlanId:
+              switchport trunk native vlan ${intfCfg.nativeVlanId}
+            %    endif
+            %    if intfCfg.allowedVlans:
+              switchport trunk allowed vlan ${intfCfg.allowedVlans}
+            %    endif
+            %elif intfCfg.mode == 'routed':
+            ## if vlan interface switchport commands do not apply
+            %  if not vlanIntFound:
+              no switchport
+              no switchport mode
+            %      if intfCfg.vrf:
+              vrf ${intfCfg.vrf}
+            %      endif
+            %      if intfCfg.ipaddress:
+              ip address ${intfCfg.ipaddress}
+            %      endif
+            %  else:  
+            %    if intfCfg.vrf:
+              vrf ${intfCfg.vrf}
+            %    endif
+              %  if intfCfg.ipaddress:
+              ip address ${intfCfg.ipaddress}
+              no autostate 
+            %    endif
+            %    for secadd in intfCfg.secIP:
+              ip address ${secadd.secPrefix} secondary
+            %    endfor
+              %  if intfCfg.vripaddress:
+              ip virtual-router address ${intfCfg.vripaddress}
+              no autostate
+            %    endif
+            %    if intfCfg.helper:
+              ip helper-address ${intfCfg.helper}
+            %    endif
+            %    if intfCfg.ipmtu:
+              mtu ${intfCfg.ipmtu}
+            %    endif
+            %  endif
+            %elif intfCfg.mode == 'phone':
+              switchport
+              switchport mode trunk phone
+            %    if intfCfg.nativeVlanId:
+              switchport trunk native vlan ${intfCfg.nativeVlanId}
+            %    endif
+              %    if intfCfg.phoneVlanId:
+              switchport phone vlan ${intfCfg.phoneVlanId}
+            %    endif
+            %    if intfCfg.phoneTrunk == "untagged":
+              switchport phone trunk untagged
+            %    endif
+              %    if intfCfg.phoneTrunk == "tagged":
+              switchport phone trunk tagged
+            %    endif
+            %    if intfCfg.allowedVlans:
+              switchport trunk allowed vlan ${intfCfg.allowedVlans}
+            %    endif
+            ##%elif intfCfg.accessVlan:
+            %elif intfCfg.accessVlan:
+              switchport
+              switchport mode access
+              switchport access vlan ${intfCfg.accessVlan}
+            %endif
+            %if intfCfg.portFastEnabled:
+              spanning-tree portfast
+            %endif
+            %if intfCfg.speed == "auto":
+              speed auto
+            %elif intfCfg.speed:
+              speed forced ${intfCfg.speed}
+            %endif
+              ## Port Security
+            %if intfCfg.security and intfCfg.mode != "routed":
+              %if intfCfg.security["enablePortSecurity"] == True:
+              switchport port-security
+              switchport port-security mac-address maximum ${intfCfg.security["portSecurityAllowedMacCount"]}
+                %if intfCfg.security["portSecurityViolations"] == False:
+              switchport port-security violation protect log
+                %endif
+              %endif
+            %endif
+            ## Dot1x
+            %if intfCfg.dot1x and intfCfg.mode != "routed":
+              dot1x pae authenticator
+              dot1x port-control ${intfCfg.dot1x.portControl}
+              %if intfCfg.dot1x.authenticationFailureAction == "drop":
+              dot1x authentication failure action traffic ${intfCfg.dot1x.authenticationFailureAction}
+              %endif
+              %if intfCfg.dot1x.authenticationFailureAction == "allow":
+              dot1x authentication failure action traffic ${intfCfg.dot1x.authenticationFailureAction} vlan ${intfCfg.dot1x.allowVlanId}
+              %endif
+              %if intfCfg.dot1x.hostMode == "single-host":
+              dot1x host-mode ${intfCfg.dot1x.hostMode} 
+              %endif  
+              %if intfCfg.dot1x.hostMode == "multi-host":
+              dot1x host-mode ${intfCfg.dot1x.hostMode} authenticated
+              %endif
+              %if intfCfg.dot1x.macBasedAuthentication == "enable":
+              dot1x mac based authentication
+              %endif
+              %if intfCfg.dot1x.macBasedAuthentication == "host-mode-common":
+              dot1x mac based authentication host-mode common
+              %endif
+            %endif
+            %if intfCfg.logging:
+              ## Logging
+              %if intfCfg.logging.congestionDrops  == "enabled":
+              logging event congestion-drops 
+              %endif
+              %if intfCfg.logging.congestionDrops  == "use-global":
+              logging event congestion-drops use-global 
+              %endif
+              %if intfCfg.logging.linkStatus  == "enabled":
+              logging event link-status 
+              %endif
+              %if intfCfg.logging.linkStatus  == "use-global":
+              logging event link-status use-global 
+              %endif
+              %if intfCfg.logging.spanningTree  == "enabled":
+              logging event spanning-tree 
+              %endif
+              %if intfCfg.logging.spanningTree  == "use-global":
+              logging event spanning-tree use-global 
+              %endif
+              %if intfCfg.logging.stormControl  == "enabled":
+              logging event storm-control 
+              %endif
+              %if intfCfg.logging.stormControl  == "use-global":
+              logging event storm-control use-global 
+              %endif
+              !
+            %endif
+            ## POE
+            %if intfCfg.poe and intfCfg.mode != "routed":
+              %if intfCfg.poe.linkDownAction  == "maintain":
+              poe link down action maintain 
+              %endif
+              %if intfCfg.poe.linkDownAction  == "powerOff":
+              poe link down action power-off 
+              %endif
+              %if intfCfg.poe.poeWattsLimit:
+              poe limit ${intfCfg.poe.poeWattsLimit} watts
+              %endif
+              %if intfCfg.poe.poeWattsLimitClass:
+              poe limit class class${intfCfg.poe.poeWattsLimitClass}
+              %endif
+              %if intfCfg.poe.priority:
+              poe priority ${intfCfg.poe.priority}
+              %endif
+              %if intfCfg.poe.poeNegotiationLldp == "enabled":
+              poe negotiation ${intfCfg.poe.poeNegotiationLldp}
+              %endif
+              %if intfCfg.poe.poeNegotiationLldp == "disabled":
+              poe negotiation ${intfCfg.poe.poeNegotiationLldp} disabled
+              %endif
+              %if intfCfg.poe.poeRebootAction == "maintain":
+              poe reboot action ${intfCfg.poe.poeRebootAction}
+              %endif
+              %if intfCfg.poe.poeRebootAction == "power-off":
+              poe reboot action ${intfCfg.poe.poeRebootAction}
+              %endif
+              %if intfCfg.poe.poeShutdownAction == "maintain":
+              poe shutdown action ${intfCfg.poe.poeShutdownAction}
+              %endif
+              %if intfCfg.poe.poeShutdownAction == "power-off":
+              poe shutdown action ${intfCfg.poe.poeShutdownAction}
+              %endif  
+            %endif
+            %if intfCfg.desc:
+              description ${intfCfg.desc}
+            %endif
+            !
+            %if intfCfg.accessVlan:
+          vlan ${intfCfg.accessVlan}
+
+          %endif
+
+          %if intfCfg.nativeVlanId:
+
+          vlan ${intfCfg.nativeVlanId}
+
+          %endif
+
+          %if intfCfg.mode == 'routed':
+            %if intfCfg.vrf:
+          vrf instance ${intfCfg.vrf}
+
+          ip routing vrf ${intfCfg.vrf}
+            %endif
+            %if vlanIntFound:
+            %  if intfCfg.vripaddress:
+          ip virtual-router mac-address 001c.7300.0099
+
+          ##ip fhrp accept-mode
+
+          <%
+
+          route = ipaddress.ip_interface(intfCfg.vripaddress)
+
+          %>
+
+          ip route ${route.network} vlan ${intfCfg.accessVlan}
+            %  endif
+            %  if intfCfg.helper:
+          ip dhcp relay information option
+
+          ip dhcp relay always-on
+
+          !
+            %  endif
+            %endif
+          %endif
+
+          </%def>\
+
+
+          <%def name="makeChannelMemberCfg(intfName, intfCfg)">
+              <%
+                # Simple config for a port channel member interface
+              %>
+          interface ${intfName}
+            %if intfCfg.enabled:
+              no shutdown
+            %endif
+            %if intfCfg.speed == "auto":
+              speed auto
+            %elif intfCfg.speed:
+              speed forced ${intfCfg.speed}
+            %endif
+            %if intfCfg.desc:
+              description ${intfCfg.desc}
+            %endif
+            %if intfCfg.lacpEnabled:
+              channel-group ${intfCfg.groupNum} mode active
+            %else:
+              channel-group ${intfCfg.groupNum} mode on
+            %endif
+            !
+            
+          </%def>\
+
+
+          <%def name="makeChannelGroupCfg(groupNum, groupCfg)">
+              <%
+                # config for the port channel interfaces
+              %>
+          !
+
+          interface Port-Channel ${groupNum}
+            %if groupCfg.enabled:
+              no shutdown
+            %endif
+            %if groupCfg.desc:
+              description ${groupCfg.desc}
+            %endif
+            ## ACL
+            %if groupCfg.acl:
+              ${groupCfg.aclType} access-group ${groupCfg.acl} ${groupCfg.aclDirection}
+            %endif
+              ## QOS
+            %if groupCfg.qosInstance:
+          <% i = groupCfg.qosInstance %>
+            %  for qi in config.get("qos"):
+            %      if i == qi:
+            %          if config.get("qos")[qi].get("service_profiles"):
+            %              if vlanIntFound:
+          ## some bug with this command on vlan interface
+
+          ##    qos profile ${intfCfg.qosInstance}
+              service-profile ${groupCfg.qosInstance}
+            %              endif
+            %          else:
+          <% pm = config.get("qos")[qi].get("policy_maps")[0]["policyMapName"]
+          %>
+              service-policy type qos input ${pm}
+            %          endif
+            %      endif
+            %  endfor
+            %endif
+            ## VLANs
+            %if groupCfg.mlagEnabled and groupCfg.mode != 'routed':
+              mlag ${groupNum}
+            %endif
+            %if groupCfg.mode == 'access':
+              switchport
+              switchport mode access
+              switchport access vlan ${groupCfg.accessVlan}
+            %elif groupCfg.mode == 'trunk':
+              switchport
+              switchport mode trunk
+            %    if groupCfg.nativeVlanId:
+              switchport trunk native vlan ${groupCfg.nativeVlanId}
+            %    endif
+            %    if groupCfg.allowedVlans:
+              switchport trunk allowed vlan ${groupCfg.allowedVlans}
+            %    endif
+            %elif groupCfg.mode == 'routed':
+              no switchport
+              no switchport mode
+            %    if groupCfg.ipaddress:
+              ip address ${groupCfg.ipaddress}
+            %    endif
+            %    if groupCfg.ipmtu:
+              mtu ${groupCfg.ipmtu}
+            %    endif
+            %elif groupCfg.mode == 'phone':
+              switchport
+              switchport mode trunk phone
+            %    if groupCfg.nativeVlanId:
+              switchport trunk native vlan ${groupCfg.nativeVlanId}
+            %    endif
+            %    if groupCfg.phoneVlanId:
+              switchport phone vlan ${groupCfg.phoneVlanId}
+            %    endif
+            %    if groupCfg.allowedVlans:
+              switchport trunk allowed vlan ${groupCfg.allowedVlans}
+            %    endif
+            %endif
+            %if groupCfg.portFastEnabled:
+              spanning-tree portfast
+            %endif
+            %if groupCfg.logging:
+            ## Logging
+              %if groupCfg.logging.congestionDrops  == "enabled":
+              logging event congestion-drops 
+              %endif
+              %if groupCfg.logging.congestionDrops  == "use-global":
+              logging event congestion-drops use-global 
+              %endif
+              %if groupCfg.logging.linkStatus  == "enabled":
+              logging event link-status 
+              %endif
+              %if groupCfg.logging.linkStatus  == "use-global":
+              logging event link-status use-global 
+              %endif
+              %if groupCfg.logging.spanningTree  == "enabled":
+              logging event spanning-tree 
+              %endif
+              %if groupCfg.logging.spanningTree  == "use-global":
+              logging event spanning-tree use-global 
+              %endif
+              %if groupCfg.logging.stormControl  == "enabled":
+              logging event storm-control 
+              %endif
+              %if groupCfg.logging.stormControl  == "use-global":
+              logging event storm-control use-global 
+              %endif
+            !
+            %endif
+          </%def>\
+
+
+          % for intfName, intfCfg in sorted(interfaces.items()):
+
+          % if intfCfg.groupNum and intfCfg.groupNum > 0:
+
+          ${makeChannelMemberCfg(intfName, intfCfg)}
+
+          % else:
+
+          ${makeIntfCfg(intfName, intfCfg)}
+            %if intfCfg.dot1x:
+          dot1x system-auth-control
+            %endif
+          % endif
+
+
+          %if debug:
+
+          % for name, intf in interfaces.items():
+
+          intf: ${name}, ${vars(intf).items()}
+
+          % endfor
+
+          % for num, group in groups.items():
+
+          group: ${num}, ${vars(group).items()}
+
+          % endfor
+
+          %endif
+
+          % endfor
+
+
+          % for groupNum, groupCfg in sorted(groups.items()):
+
+          ${makeChannelGroupCfg(groupNum, groupCfg)}
+
+          % endfor
+
+
+          ### ACL QOS
+
+          ##${aclInputs}
+
+          ##inputs ${qosInputs}v
+
+          ##config ${config}
+
+          ##joinInput ${joinInput}
+
+          ## ACLs
+
+          %if config.get("acls"):
+
+          %    for acl in config.get("acls"):
+
+          !
+
+          ${config.get("acls")[acl].get("type")} access-list
+          ${config.get("acls")[acl].get("name")}
+
+          %        if config.get("acls")[acl].get("counters_per_entry"):
+              counters per-entry
+          %        endif
+
+          %        for line in config.get("acls")[acl]["acl_lines"]:
+
+          %            if line.permitDenyRemark != "remark":
+
+          %                if line.log:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.protocol} ${line.source} ${line.destination} log
+          %                elif line.tracked:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.protocol} ${line.source} ${line.destination} tracked
+          %                else:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.protocol} ${line.source} ${line.destination}
+          %                endif
+
+          %            else:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.description}
+          %            endif
+
+          %        endfor
+              !
+          ## ACL Devices
+
+          %        if
+          config.get("acls")[acl]["devices"].resolve()["interfaces"]["controlPlaneAcl"]:
+
+          system control-plane
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")}
+          %        else:
+
+          %            for interface in
+          config.get("acls")[acl]["devices"].resolve()["interfaces"]["vlanInterfaces"]:
+
+          interface vlan${interface.vlanId}
+
+          %                if interface.direction == True:
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")} in
+              !
+          %                else:
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")} out
+              !
+          %                endif
+
+          %            endfor
+
+          %            for interface in
+          config.get("acls")[acl]["devices"].resolve()["interfaces"]["physicalAndSubInterfaces"]:
+
+          interface ${interface.interfaceName}
+
+          %                if interface.direction == True:
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")} in
+              !
+          %                else:
+              ${config.get("acls")[acl].get("type")} access-group ${config.get("acls")[acl].get("name")} out
+              !
+          %                endif
+
+          %            endfor
+
+          %        endif
+
+          %    endfor
+
+          %endif
+
+          ## QOS
+
+          %if config.get("qos"):
+
+          %    for qos in config.get("qos"):
+
+          ## QOS Devices
+
+          %        if
+          config.get("qos")[qos]["devices"].resolve()["deviceGroup"]["interfaces"]:
+
+          %            for interface in
+          config.get("qos")[qos]["devices"].resolve()["deviceGroup"]["interfaces"]:
+
+          interface ${interface.interfaceName}
+
+          %                for queue in interface["txQueue"]:
+              tx-queue ${queue.queue}
+          %                    if queue.priorityStrict == False:
+                  no priority
+          %                    endif
+
+          %                    if queue.bandwidthType:
+
+          %                        if queue.bandwidthType == "guaranteed":
+                  bandwidth ${bandwidthType} ${queue.bandwidth}
+          %                        elif queue.bandwidthType == "percent":
+                  bandwidth ${bandwidthType} ${queue.bandwidth}
+          %                        endif
+
+          %                    endif
+
+          %                    if queue.shapeRate:
+                  shape rate ${queue.shapeRate}
+          %                    endif
+
+          %                    if queue.randomDetectType == "drop":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes drop-probability ${queue.dropProbability}
+          %                    elif queue.randomDetectType == "ecn":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    elif queue.randomDetectType == "non-ect":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    endif
+
+          %                endfor
+
+          %                if interface.servicePolicyName and
+          interface.servicePolicyType == "qos":
+              service-policy type ${interface.servicePolicyType} ${interface.policyMapInputOutput} ${interface.servicePolicyName}
+              !
+          %                elif interface.servicePolicyName and
+          interface.servicePolicyType == "pbr":
+              service-policy type ${interface.servicePolicyType} input ${interface.servicePolicyName}
+              !
+          %                elif interface.serviceProfile:
+              service-profile ${interface.serviceProfile}
+          %                endif
+              !
+          %                if interface.shapeRate:
+              shape rate ${interface.shapeRate}
+          %                endif
+
+          %                if interface.trust != "none":
+              qos trust ${interface.trust}
+          %                endif
+
+          %                if interface.dscp:
+              qos dscp ${interface.dscp}
+          %                endif
+
+          %                if interface.cos:
+              qos cos ${interface.cos}
+          %                endif
+
+
+          %            endfor
+
+          !
+
+          %        endif
+
+          ## Class Maps
+
+          %        if config.get("qos")[qos].get("class_maps"):
+
+          %            for class_map in config.get("qos")[qos]["class_maps"]:
+
+          class-map type ${class_map.type} match-any ${class_map.classMapName}
+
+          %                if class_map.matchValue:
+              match ${class_map.match} ${class_map.matchValue}
+          %                endif
+
+          %                if class_map.acl:
+              match ${class_map.match} access-group ${class_map.acl}
+          %                endif
+              !
+          %            endfor
+
+          %        endif
+
+          !
+
+          ## Policy Maps
+
+          %        if config.get("qos")[qos].get("policy_maps"):
+
+          %        for policy_map in config.get("qos")[qos]["policy_maps"]:
+
+          %            if policy_map.type == "qos":
+
+          policy-map type quality-of-service ${policy_map.policyMapName}
+
+          %                for class_map in policy_map["classMap"]:
+              class ${class_map.classMap}
+          %                    if class_map.classMapSettings.trafficClass !=
+          "none":
+                  set traffic-class ${class_map.classMapSettings.trafficClass}
+          %                    endif
+
+          %                    if class_map.classMapSettings.cos != "none":
+                  set cos ${class_map.classMapSettings.cos}
+          %                    endif
+
+          %                    if class_map.classMapSettings.dscp != "none":
+                  set dscp ${class_map.classMapSettings.dscp}
+          %                    endif
+
+          %                    if class_map.classMapSettings.dropPrecedence !=
+          "none":
+                  set drop-precedence ${class_map.classMapSettings.dropPrecedence}
+          %                    endif
+
+          %                    if class_map.classMapSettings.drop:
+                  drop
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerCir and not
+          class_map.policerBc:
+                  police cir ${class_map.classMapSettings.policerCir}
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerBc:
+                  police cir ${class_map.classMapSettings.policerCir} bc ${class_map.classMapSettings.policerBc}
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerRate and not
+          class_map.classMapSettings.policerBurstSize:
+                  police rate ${class_map.classMapSettings.policerRate}
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerBurstSize:
+                  police rate ${class_map.classMapSettings.policerRate} burst-size ${class_map.classMapSettings.policerBurstSize}
+          %                    endif
+
+          %                endfor
+
+          %                if policy_map.classDefault:
+              class class-default
+                  set traffic-class ${policy_map.classDefault}
+          %                endif
+              !
+          %            elif policy_map.type == "policer":
+
+          policy-map type quality-of-service policer
+
+          %                for class_map in policy_map["classMap"]:
+              class ${class_map.classMap}
+          %                    if class_map.classMapSettings.trafficClass !=
+          "none":
+                  set traffic-class ${class_map.classMapSettings.trafficClass}
+          %                    endif
+
+          %                    if class_map.classMapSettings.cos != "none":
+                  set cos ${class_map.classMapSettings.cos}
+          %                    endif
+
+          %                    if class_map.classMapSettings.dscp != "none":
+                  set dscp ${class_map.classMapSettings.dscp}
+          %                    endif
+
+          %                    if class_map.classMapSettings.dropPrecedence !=
+          "none":
+                  set drop-precedence ${class_map.classMapSettings.dropPrecedence}
+          %                    endif
+
+          %                    if class_map.classMapSettings.drop:
+                  drop
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerCir and not
+          class_map.classMapSettings.policerBc:
+                  police cir ${class_map.classMapSettings.policerCir}
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerBc:
+                  police cir ${class_map.classMapSettings.policerCir} bc ${class_map.classMapSettings.policerBc}
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerRate and not
+          class_map.classMapSettings.policerBurstSize:
+                  police rate ${class_map.classMapSettings.policerRate}
+          %                    endif
+
+          %                    if class_map.classMapSettings.policerBurstSize:
+                  police rate ${class_map.classMapSettings.policerRate} burst-size ${class_map.classMapSettings.policerBurstSize}
+          %                    endif
+
+          %                endfor
+
+          %                if policy_map.classDefault:
+              class class-default
+                  set traffic-class ${policy_map.classDefault}
+          %                endif
+
+          !
+
+          %            elif policy_map.type == "copp":
+
+          policy-map type copp copp-system-policy
+
+          %                for class_map in policy_map["classMap"]:
+              class ${class_map.classMap}
+          %                    if class_map.classMapSettings.bandwidth:
+                  bandwidth pps ${class_map.classMapSettings.bandwidth}
+          %                    endif
+
+          %                    if class_map.classMapSettings.shapeRate:
+                  shape pps ${class_map.classMapSettings.shapeRate}
+          %                    endif
+
+          %                endfor
+
+          %                if policy_map.classDefault:
+              class class-default
+                  set traffic-class ${policy_map.classDefault}
+          %                endif
+
+          !
+
+          %            endif
+
+          %        endfor
+
+          %        endif
+
+          ## QOS Profiles
+
+          %        if config.get("qos")[qos].get("service_profiles"):
+
+          %            for profile in
+          config.get("qos")[qos]["service_profiles"]:
+
+          qos profile ${profile.profileName}
+
+          %                if profile.policyMap:
+              service-policy type qos input ${profile.policyMap}
+          %            endif
+
+          %                if profile.shapeRate:
+              shape rate ${profile.shapeRate}
+          %                endif
+
+          %                if profile.cos:
+              qos cos ${profile.cos}
+          %                endif
+
+          %                if profile.dscp:
+              qos dscp ${profile.dscp}
+          %                endif
+
+          %                if profile.trust != "none":
+              qos trust ${profile.trust}
+          %                endif
+              !
+          %                for queue in profile["txQueue"]:
+              tx-queue ${queue.queue}
+          %                    if queue.priorityStrict == False:
+                  no priority
+          %                     endif
+
+          %                    if queue.bandwidthType:
+
+          %                        if queue.bandwidthType == "guaranteed":
+                  bandwidth ${queue.bandwidthType} ${queue.bandwidth}
+          %                        elif queue.bandwidthType == "percent":
+                  bandwidth ${queue.bandwidthType} ${queue.bandwidth}
+          %                        endif
+
+          %                    endif
+
+          %                    if queue.shapeRate:
+                  shape rate ${queue.shapeRate}
+          %                    endif
+
+          %                    if queue.randomDetectType == "drop":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes drop-probability ${queue.dropProbability}
+          %                    elif queue.randomDetectType == "ecn":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    elif queue.randomDetectType == "non-ect":
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+          %                    endif
+
+          %                endfor
+
+          !
+
+          %            endfor
+
+          %        endif
+
+          ## QOS Map Classification
+
+          %        if config.get("qos")[qos].get("classification"):
+
+          %            for rule in config.get("qos")[qos]["classification"]:
+
+          qos map ${rule.type} ${rule.classifierValues} to traffic-class
+          ${rule.trafficClass}
+
+          %            endfor
+
+          !
+
+          %        endif
+
+
+          ## QOS Rewrite
+
+          %        if config.get("qos")[qos].get("rewrite_rules"):
+
+          %            for rule in config.get("qos")[qos]["rewrite_rules"]:
+
+          qos rewrite ${rule.rewriteType}
+
+          %            endfor
+
+          !
+
+          %        endif
+
+          ## QOS Map Traffic Class
+
+          %        if config.get("qos")[qos].get("traffic_cl_to_q"):
+
+          %            for rule in config.get("qos")[qos]["traffic_cl_to_q"]:
+
+          %                if rule.queue:
+
+          qos map traffic-class ${rule.trafficClass} to tx-queue ${rule.queue}
+
+          %                endif
+
+          %                if rule.cos:
+
+          qos map traffic-class ${rule.trafficClass} to cos ${rule.cos}
+
+          %                endif
+
+          %                if rule.dscp:
+
+          qos map traffic-class ${rule.trafficClass} to dscp ${rule.dscp}
+
+          %                endif
+
+          %            endfor
+
+          !
+
+          %        endif
+
+          %    endfor
+
+          %endif
+      input_schema:
+        fields:
+          values:
+            83957a33-96fb-424e-a49e-b68dba720da5:
+              id: 83957a33-96fb-424e-a49e-b68dba720da5
+              name: interfaceName
+              label: InterfaceName
+              description: >-
+                Use Stack syntax if there are Stack Members (stack-number/port
+                number) and eos port ranges syntax  ex.
+                ethernet1/1-1/48,2/2,2/4. Use non-overlapping ranges between
+                rows.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            83829c03-f581-402d-ba99-ee71d21c6a40:
+              id: 83829c03-f581-402d-ba99-ee71d21c6a40
+              name: vlanProfile
+              label: VLAN Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"profileName"}'
+            e6e1aaee-ffb5-4b12-b2b1-5348b11cde18:
+              id: e6e1aaee-ffb5-4b12-b2b1-5348b11cde18
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            0700b440-440a-4db8-87f6-9087e1cd1f57:
+              id: 0700b440-440a-4db8-87f6-9087e1cd1f57
+              name: accessVlan
+              label: Access VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            beb2a016-56d0-484f-9e7e-390f837cf8e6:
+              id: beb2a016-56d0-484f-9e7e-390f837cf8e6
+              name: interfaceSpeed
+              label: Interface Speed
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: auto
+                static_options:
+                  values:
+                    - auto
+                    - 10half
+                    - 10full
+                    - 100full
+                    - 1gfull
+                    - 10gfull
+                    - 25gfull
+                    - 40gfull
+                    - 100gfull
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            c0d6733b-41f3-4f89-866f-af7ffef57d1d:
+              id: c0d6733b-41f3-4f89-866f-af7ffef57d1d
+              name: portChannelGroup
+              label: Port-Channel Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            d2bc2f59-9e84-4681-8632-de95d3454a61:
+              id: d2bc2f59-9e84-4681-8632-de95d3454a61
+              name: enabled
+              label: Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            416371d6-1b1b-49de-aeee-f7d739fe1f54:
+              id: 416371d6-1b1b-49de-aeee-f7d739fe1f54
+              name: dot1XProfile
+              label: Dot1x Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"8a3ebd96-17f2-4e8e-ba4e-36bc3bf5d835"}'
+            5f703ab2-e2ec-43bf-b66d-a6db33553e03:
+              id: 5f703ab2-e2ec-43bf-b66d-a6db33553e03
+              name: acl
+              label: ACL
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"528dcbee-454f-42bb-806b-1ebe81d365ad"}'
+            332211a8-1b01-4ff4-9139-ce19810575ce:
+              id: 332211a8-1b01-4ff4-9139-ce19810575ce
+              name: poeProfile
+              label: POE Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"4b7ab8bd-531a-4307-8ec9-8f62f77d30ca"}'
+            aed6ce19-d30a-41dd-bc7d-488822759a59:
+              id: aed6ce19-d30a-41dd-bc7d-488822759a59
+              name: qosInstance
+              label: QOS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"8e58f9aa-5c56-4316-ab34-9e1c4cd8156e"}'
+            0d0062bb-b75d-4cf4-863b-8e8c664d08ec:
+              id: 0d0062bb-b75d-4cf4-863b-8e8c664d08ec
+              name: aclDirection
+              label: ACL Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - in
+                    - out
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            fb984f8b-b843-4573-81fa-d4d7cbe70b6b:
+              id: fb984f8b-b843-4573-81fa-d4d7cbe70b6b
+              name: aclType
+              label: ACL Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - ip
+                    - ipv6
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            37d829f0-53bb-4af0-9339-58b76f3163b0:
+              id: 37d829f0-53bb-4af0-9339-58b76f3163b0
+              name: name
+              label: Profile Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e5e1a028-b8f6-487c-91c0-9488276c2993:
+              id: e5e1a028-b8f6-487c-91c0-9488276c2993
+              name: loggingProfile
+              label: Logging Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"f038c7da-9cf3-49e6-a876-a6038ebf6cc5"}'
+            6b07dd6b-d168-4e9d-85b4-cefd86769894:
+              id: 6b07dd6b-d168-4e9d-85b4-cefd86769894
+              name: ipPrefix
+              label: IP Prefix
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1e9fefe3-a092-484a-b9a2-67abf43456b8:
+              id: 1e9fefe3-a092-484a-b9a2-67abf43456b8
+              name: dhcpHelper
+              label: DHCP Helper
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            2c1e5f26-50c5-436f-812c-3213c59c601b:
+              id: 2c1e5f26-50c5-436f-812c-3213c59c601b
+              name: vrf
+              label: VRF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            45e35b40-8eaa-424b-940d-2b561b4e23ae:
+              id: 45e35b40-8eaa-424b-940d-2b561b4e23ae
+              name: virtualRouterAddress
+              label: Virtual Router Address or Prefix
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            97883756-bf52-42e0-b75b-1ba2c1dc97c2:
+              id: 97883756-bf52-42e0-b75b-1ba2c1dc97c2
+              name: secPrefix
+              label: Secondary Prefix
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e50dc916-2b0c-4ec4-bdb1-51395340689f:
+              id: e50dc916-2b0c-4ec4-bdb1-51395340689f
+              name: secIpGroup
+              label: SIPs Group
+              description: Group of members for IPs
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 97883756-bf52-42e0-b75b-1ba2c1dc97c2
+            7c231c2b-dacb-4b66-b145-6ff354fad339:
+              id: 7c231c2b-dacb-4b66-b145-6ff354fad339
+              name: secIp
+              label: Secondary IPs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: e50dc916-2b0c-4ec4-bdb1-51395340689f
+                key: ''
+            2a6c7292-7231-4036-9372-22e8ac584b38:
+              id: 2a6c7292-7231-4036-9372-22e8ac584b38
+              name: ipSettings
+              label: IP Settings
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 6b07dd6b-d168-4e9d-85b4-cefd86769894
+                    - 1e9fefe3-a092-484a-b9a2-67abf43456b8
+                    - 2c1e5f26-50c5-436f-812c-3213c59c601b
+                    - 45e35b40-8eaa-424b-940d-2b561b4e23ae
+                    - 7c231c2b-dacb-4b66-b145-6ff354fad339
+            fff9af94-c57d-44a2-b27e-a7dda0ce7c00:
+              id: fff9af94-c57d-44a2-b27e-a7dda0ce7c00
+              name: interfaceRangesGroup
+              label: Interface Ranges Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 83957a33-96fb-424e-a49e-b68dba720da5
+                    - 83829c03-f581-402d-ba99-ee71d21c6a40
+                    - e6e1aaee-ffb5-4b12-b2b1-5348b11cde18
+                    - 0700b440-440a-4db8-87f6-9087e1cd1f57
+                    - beb2a016-56d0-484f-9e7e-390f837cf8e6
+                    - c0d6733b-41f3-4f89-866f-af7ffef57d1d
+                    - d2bc2f59-9e84-4681-8632-de95d3454a61
+                    - 416371d6-1b1b-49de-aeee-f7d739fe1f54
+                    - 5f703ab2-e2ec-43bf-b66d-a6db33553e03
+                    - 332211a8-1b01-4ff4-9139-ce19810575ce
+                    - aed6ce19-d30a-41dd-bc7d-488822759a59
+                    - 0d0062bb-b75d-4cf4-863b-8e8c664d08ec
+                    - fb984f8b-b843-4573-81fa-d4d7cbe70b6b
+                    - 37d829f0-53bb-4af0-9339-58b76f3163b0
+                    - e5e1a028-b8f6-487c-91c0-9488276c2993
+                    - 2a6c7292-7231-4036-9372-22e8ac584b38
+            1272ed58-34c1-4524-a620-e2cfff28d95e:
+              id: 1272ed58-34c1-4524-a620-e2cfff28d95e
+              name: interfaceRanges
+              label: Interface Profiles
+              description: >-
+                Use "Stack Number / " + EOS Interface range syntax for ports or
+                Vlan interfaces. Omitting stack number applies interface to all
+                members of the Stack
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: fff9af94-c57d-44a2-b27e-a7dda0ce7c00
+                key: ''
+            enabled:
+              id: enabled
+              name: enabled
+              label: Enabled
+              description: Enable or disable the interface for adminstration
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            description:
+              id: description
+              name: description
+              label: Description
+              description: Enter a port description string (max. 30 characters)
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            accessVlan:
+              id: accessVlan
+              name: accessVlan
+              label: Access VLAN ID
+              description: Enter the VLAN ID for this port
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: 0..4094
+                static_options: null
+                dynamic_options: null
+            speed:
+              id: speed
+              name: speed
+              label: Interface Speed
+              description: Set the interface speed
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - auto
+                    - 10half
+                    - 10full
+                    - 100full
+                    - 1gfull
+                    - 10gfull
+                    - 25gfull
+                    - 40gfull
+                    - 100gfull
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profile:
+              id: profile
+              name: vlanProfile
+              label: VLAN Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"profileName"}'
+            channelGroup:
+              id: channelGroup
+              name: channelGroup
+              label: Port Channel Group
+              description: >-
+                Enter a Port Channel ID if this interface is in a Link
+                Aggregation Group (LAG)
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: 0..999999
+                static_options: null
+                dynamic_options: null
+            mlagEnabled:
+              id: mlagEnabled
+              name: mlagEnabled
+              label: Enable MLAG
+              description: >-
+                Enable or disable the MLAG ID if this interface is in a Link
+                Aggregation Group (LAG)
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            d1123ef5-ffee-4aa3-aa77-4c2a848f6335:
+              id: d1123ef5-ffee-4aa3-aa77-4c2a848f6335
+              name: dot1XProfile
+              label: Dot1x Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"8a3ebd96-17f2-4e8e-ba4e-36bc3bf5d835"}'
+            8316501f-c12b-4854-b1fc-fc57e5afb68d:
+              id: 8316501f-c12b-4854-b1fc-fc57e5afb68d
+              name: poeProfile
+              label: POE Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"4b7ab8bd-531a-4307-8ec9-8f62f77d30ca"}'
+            403b15fd-5abd-4530-9d0e-48a794b574e2:
+              id: 403b15fd-5abd-4530-9d0e-48a794b574e2
+              name: acl
+              label: ACL
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"528dcbee-454f-42bb-806b-1ebe81d365ad"}'
+            084a5c74-356b-4496-936f-a22ee332a755:
+              id: 084a5c74-356b-4496-936f-a22ee332a755
+              name: qosInstance
+              label: QOS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"8e58f9aa-5c56-4316-ab34-9e1c4cd8156e"}'
+            72637ab0-af99-4a93-8600-45cf8671d785:
+              id: 72637ab0-af99-4a93-8600-45cf8671d785
+              name: aclDirection
+              label: ACL Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - in
+                    - out
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            c12a38bb-b6c9-459c-88bd-6e2e54b7bdf9:
+              id: c12a38bb-b6c9-459c-88bd-6e2e54b7bdf9
+              name: aclType
+              label: ACL Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: ip
+                static_options:
+                  values:
+                    - ip
+                    - ipv6
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e8b7d75a-e332-411f-be3c-d768a23c6595:
+              id: e8b7d75a-e332-411f-be3c-d768a23c6595
+              name: loggingProfile
+              label: Logging Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"f038c7da-9cf3-49e6-a876-a6038ebf6cc5"}'
+            intfConfig:
+              id: intfConfig
+              name: intfConfig
+              label: Interface specific configuration
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - enabled
+                    - description
+                    - accessVlan
+                    - speed
+                    - profile
+                    - channelGroup
+                    - mlagEnabled
+                    - d1123ef5-ffee-4aa3-aa77-4c2a848f6335
+                    - 8316501f-c12b-4854-b1fc-fc57e5afb68d
+                    - 403b15fd-5abd-4530-9d0e-48a794b574e2
+                    - 084a5c74-356b-4496-936f-a22ee332a755
+                    - 72637ab0-af99-4a93-8600-45cf8671d785
+                    - c12a38bb-b6c9-459c-88bd-6e2e54b7bdf9
+                    - e8b7d75a-e332-411f-be3c-d768a23c6595
+            interface:
+              id: interface
+              name: interface
+              label: Interfaces
+              description: >-
+                View and configure the device's interfaces. Configurations will
+                override same configurations in Profiles.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: intfConfig
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                input_tag_label: interface
+                tag_filter_query: null
+            e312232e-c8b1-40a4-96b6-fef7cd7bc67b:
+              id: e312232e-c8b1-40a4-96b6-fef7cd7bc67b
+              name: devicesGroup
+              label: Devices Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 1272ed58-34c1-4524-a620-e2cfff28d95e
+                    - interface
+            devices:
+              id: devices
+              name: devices
+              label: Devices
+              description: >-
+                Select a tag for a group of devices or a single device to set
+                their interface properties
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: e312232e-c8b1-40a4-96b6-fef7cd7bc67b
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            profileName:
+              id: profileName
+              name: name
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileDescription:
+              id: profileDescription
+              name: profileDescription
+              label: Profile Description
+              description: >-
+                Create a description for this profile. Entering "$1" will add
+                the device interface description when applied to a device.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileSpeed:
+              id: profileSpeed
+              name: speed
+              label: Speed
+              description: Set the speed of the interface.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - auto
+                    - 10half
+                    - 10full
+                    - 100full
+                    - 1gfull
+                    - 10gfull
+                    - 25gfull
+                    - 40gfull
+                    - 100gfull
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            mode:
+              id: mode
+              name: mode
+              label: Mode
+              description: >-
+                Set this as a VLAN access interface, as a trunk interface, a
+                routed interface, or as a phone interface for VLAN unaware IP
+                phones.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: access
+                static_options:
+                  values:
+                    - access
+                    - trunk
+                    - routed
+                    - phone
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            accessVlanId:
+              id: accessVlanId
+              name: accessVlanId
+              label: Access VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: 0..4094
+                static_options: null
+                dynamic_options: null
+            nativeVlanId:
+              id: nativeVlanId
+              name: nativeVlanId
+              label: Native VLAN ID
+              description: >-
+                Assign a VLAN that untagged traffic arriving on this trunk will
+                be tagged with.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '1'
+                range: 0..4094
+                static_options: null
+                dynamic_options: null
+            phoneVlanId:
+              id: phoneVlanId
+              name: phoneVlanId
+              label: Phone VLAN ID
+              description: >-
+                VoIP VLAN that enables LLDP-based classification of IP phones
+                using the Type 7 System Capabilities TLV.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '0'
+                range: 0..4094
+                static_options: null
+                dynamic_options: null
+            allowedVlans:
+              id: allowedVlans
+              name: allowedVlans
+              label: Allowed VLANs
+              description: >-
+                List the VLAN IDs that this trunk can carry. Separate values
+                with a comma and including continuous values with a hyphen (e.g.
+                4, 10-16, 100).
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profilePortFastEnabled:
+              id: profilePortFastEnabled
+              name: portFastEnabled
+              label: Enable spanning-tree portfast
+              description: Enable or disable spanning-tree portfast for a switchport
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            ipaddress:
+              id: ipaddress
+              name: ipaddress
+              label: Routed Port IP Address and Subnet Mask
+              description: Enter in CIDR notation
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            ipmtu:
+              id: ipmtu
+              name: ipmtu
+              label: Routed Port MTU
+              description: Enter the MTU for the Routed Port
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: 68..65535
+                static_options: null
+                dynamic_options: null
+            profileChannelGroup:
+              id: profileChannelGroup
+              name: channelGroup
+              label: Port Channel Group
+              description: >-
+                Enter a Port Channel ID if the interface is in a Link
+                Aggregation Group (LAG)
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: 0..999999
+                static_options: null
+                dynamic_options: null
+            profileMlagEnabled:
+              id: profileMlagEnabled
+              name: mlagEnabled
+              label: Enable MLAG
+              description: >-
+                Enable or disable the MLAG ID on the Link Aggregation Group
+                (LAG)
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            profileLACPEnabled:
+              id: profileLACPEnabled
+              name: lacpEnabled
+              label: Enable LACP
+              description: >-
+                Enable or disable the LACP mode on the member ports of the Link
+                Aggregation Group (LAG)
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            5c7ddf11-3fe9-4218-827b-38549342e5a3:
+              id: 5c7ddf11-3fe9-4218-827b-38549342e5a3
+              name: phoneTrunk
+              label: Phone Trunk
+              description: Trunk settings for phone
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - tagged
+                    - untagged
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileValue:
+              id: profileValue
+              name: value
+              label: VLAN Profiles Group
+              description: Group of members for Profiles
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - profileName
+                    - profileDescription
+                    - profileSpeed
+                    - mode
+                    - accessVlanId
+                    - nativeVlanId
+                    - phoneVlanId
+                    - allowedVlans
+                    - profilePortFastEnabled
+                    - ipaddress
+                    - ipmtu
+                    - profileChannelGroup
+                    - profileMlagEnabled
+                    - profileLACPEnabled
+                    - 5c7ddf11-3fe9-4218-827b-38549342e5a3
+            profiles:
+              id: profiles
+              name: vlanProfiles
+              label: VLAN Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: profileValue
+                key: profileName
+            8a3ebd96-17f2-4e8e-ba4e-36bc3bf5d835:
+              id: 8a3ebd96-17f2-4e8e-ba4e-36bc3bf5d835
+              name: dot1XProfileName
+              label: DOT1x Profile Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            835c430a-c64d-47fa-a520-ee896cf06d17:
+              id: 835c430a-c64d-47fa-a520-ee896cf06d17
+              name: portSecurityViolations
+              label: Port Security Violations
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            0e804b22-e349-4578-8be9-cdb0770e5474:
+              id: 0e804b22-e349-4578-8be9-cdb0770e5474
+              name: portSecurityAllowedMacCount
+              label: Port Security Allowed MAC count
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '1'
+                range: null
+                static_options: null
+                dynamic_options: null
+            14fee512-3281-4585-98e3-41e9fe8c2699:
+              id: 14fee512-3281-4585-98e3-41e9fe8c2699
+              name: enablePortSecurity
+              label: Enable Port Security
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            806e6fa2-8085-4cb6-b735-706fcb63724a:
+              id: 806e6fa2-8085-4cb6-b735-706fcb63724a
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            74392035-9b57-4f10-9b98-6f1501259a7a:
+              id: 74392035-9b57-4f10-9b98-6f1501259a7a
+              name: portSecurity
+              label: Port Security
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 835c430a-c64d-47fa-a520-ee896cf06d17
+                    - 0e804b22-e349-4578-8be9-cdb0770e5474
+                    - 14fee512-3281-4585-98e3-41e9fe8c2699
+                    - 806e6fa2-8085-4cb6-b735-706fcb63724a
+            fee6b34b-0e5f-45a1-ad32-39fb4bae68f0:
+              id: fee6b34b-0e5f-45a1-ad32-39fb4bae68f0
+              name: portControl
+              label: Port Control
+              description: Port will be set to authicator
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: auto
+                static_options:
+                  values:
+                    - auto
+                    - force-authorized
+                    - force-unauthorized
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            c7b92963-00ba-4245-a721-670beb4c0b84:
+              id: c7b92963-00ba-4245-a721-670beb4c0b84
+              name: authenticationFailureAction
+              label: Authentication Failure Action
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - drop
+                    - allow
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e288fc4b-e9ff-42fe-83cb-47e323d6ce88:
+              id: e288fc4b-e9ff-42fe-83cb-47e323d6ce88
+              name: allowVlanId
+              label: Allow VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            49b3be6e-c002-43fc-8c3f-48529d32c09e:
+              id: 49b3be6e-c002-43fc-8c3f-48529d32c09e
+              name: hostMode
+              label: Host Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - multi-host
+                    - single-host
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            acabee5e-4cf9-44de-ad01-f3e148971828:
+              id: acabee5e-4cf9-44de-ad01-f3e148971828
+              name: macBasedAuthentication
+              label: Mac Based Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - enable
+                    - host-mode-common
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            db399ebb-7f60-432c-87b4-dc82cf08f5d7:
+              id: db399ebb-7f60-432c-87b4-dc82cf08f5d7
+              name: dot1x
+              label: Dot1x
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - fee6b34b-0e5f-45a1-ad32-39fb4bae68f0
+                    - c7b92963-00ba-4245-a721-670beb4c0b84
+                    - e288fc4b-e9ff-42fe-83cb-47e323d6ce88
+                    - 49b3be6e-c002-43fc-8c3f-48529d32c09e
+                    - acabee5e-4cf9-44de-ad01-f3e148971828
+            0294a977-31ee-40b6-a249-f4e1d90b27e5:
+              id: 0294a977-31ee-40b6-a249-f4e1d90b27e5
+              name: dot1XGroup
+              label: Dot1x Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 8a3ebd96-17f2-4e8e-ba4e-36bc3bf5d835
+                    - 74392035-9b57-4f10-9b98-6f1501259a7a
+                    - db399ebb-7f60-432c-87b4-dc82cf08f5d7
+            3c984f50-c6f9-4f69-889b-1614a87ff6c3:
+              id: 3c984f50-c6f9-4f69-889b-1614a87ff6c3
+              name: dot1XProfiles
+              label: Dot1x Profiles
+              description: Port Security
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 0294a977-31ee-40b6-a249-f4e1d90b27e5
+                key: 8a3ebd96-17f2-4e8e-ba4e-36bc3bf5d835
+            efdd9a94-fcb4-49a4-bc86-65d0f14679fa:
+              id: efdd9a94-fcb4-49a4-bc86-65d0f14679fa
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            4b7ab8bd-531a-4307-8ec9-8f62f77d30ca:
+              id: 4b7ab8bd-531a-4307-8ec9-8f62f77d30ca
+              name: poeProfileName
+              label: POE Profile Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            29e21196-1625-45cc-83ac-2389a52782e4:
+              id: 29e21196-1625-45cc-83ac-2389a52782e4
+              name: linkDownAction
+              label: Link Down Action
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - maintain
+                    - power-off
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            cd66e41b-bd97-4a94-8935-258d850fb048:
+              id: cd66e41b-bd97-4a94-8935-258d850fb048
+              name: poeWattsLimit
+              label: POE Watts Limit
+              description: 1-60
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            fc8eed6c-5ad7-4a1e-9df5-907e7a7725cd:
+              id: fc8eed6c-5ad7-4a1e-9df5-907e7a7725cd
+              name: poeWattsLimitClass
+              label: POE Watts Limit Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b5e7f2ec-f3e2-440b-b142-247712498490:
+              id: b5e7f2ec-f3e2-440b-b142-247712498490
+              name: poeRebootAction
+              label: POE Reboot Action
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - maintain
+                    - power-off
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            353d599b-f0d7-4bc4-b4b5-604b56c61bfc:
+              id: 353d599b-f0d7-4bc4-b4b5-604b56c61bfc
+              name: poeShutdownAction
+              label: POE Shutdown Action
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - maintain
+                    - power-off
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            3c5d875c-f52e-4af1-9b0d-0d32e154546a:
+              id: 3c5d875c-f52e-4af1-9b0d-0d32e154546a
+              name: priority
+              label: Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - low
+                    - medium
+                    - high
+                    - critical
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            744d5ed4-78f0-4fa8-b9ea-c038c76d3228:
+              id: 744d5ed4-78f0-4fa8-b9ea-c038c76d3228
+              name: poeNegotiationLldp
+              label: POE Negotiation LLDP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - enabled
+                    - disabled
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            a1ae1696-80a5-4e7c-bba9-424d8750aab0:
+              id: a1ae1696-80a5-4e7c-bba9-424d8750aab0
+              name: poe
+              label: POE
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 29e21196-1625-45cc-83ac-2389a52782e4
+                    - cd66e41b-bd97-4a94-8935-258d850fb048
+                    - fc8eed6c-5ad7-4a1e-9df5-907e7a7725cd
+                    - b5e7f2ec-f3e2-440b-b142-247712498490
+                    - 353d599b-f0d7-4bc4-b4b5-604b56c61bfc
+                    - 3c5d875c-f52e-4af1-9b0d-0d32e154546a
+                    - 744d5ed4-78f0-4fa8-b9ea-c038c76d3228
+            d261183a-5e0b-4429-a7e1-aaec257aa0ca:
+              id: d261183a-5e0b-4429-a7e1-aaec257aa0ca
+              name: poeGroup
+              label: POE Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - efdd9a94-fcb4-49a4-bc86-65d0f14679fa
+                    - 4b7ab8bd-531a-4307-8ec9-8f62f77d30ca
+                    - a1ae1696-80a5-4e7c-bba9-424d8750aab0
+            3889dfb8-65fc-425c-aa7f-672391a38d1b:
+              id: 3889dfb8-65fc-425c-aa7f-672391a38d1b
+              name: poeProfiles
+              label: POE Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: d261183a-5e0b-4429-a7e1-aaec257aa0ca
+                key: 4b7ab8bd-531a-4307-8ec9-8f62f77d30ca
+            528dcbee-454f-42bb-806b-1ebe81d365ad:
+              id: 528dcbee-454f-42bb-806b-1ebe81d365ad
+              name: name
+              label: ACL Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b613a1bd-7549-4f73-99bc-21d091c62498:
+              id: b613a1bd-7549-4f73-99bc-21d091c62498
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            49765e98-ba1d-4a1a-948c-a12192bd74a9:
+              id: 49765e98-ba1d-4a1a-948c-a12192bd74a9
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: ip
+                static_options:
+                  values:
+                    - ip
+                    - ipv6
+                    - mac
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            03fe8990-6188-4c41-8255-54c5c206503b:
+              id: 03fe8990-6188-4c41-8255-54c5c206503b
+              name: countersPerEntry
+              label: Counters Per Entry
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            d4192ebf-23dc-42be-9c4d-e6d954b3f177:
+              id: d4192ebf-23dc-42be-9c4d-e6d954b3f177
+              name: controlPlaneAcl
+              label: Control Plane ACL
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            a85ce3b9-106c-43fb-91d3-72be74705205:
+              id: a85ce3b9-106c-43fb-91d3-72be74705205
+              name: vlanId
+              label: VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            950c86b2-104e-4673-9c5e-f51fcb7bf645:
+              id: 950c86b2-104e-4673-9c5e-f51fcb7bf645
+              name: direction
+              label: Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            353a9008-6666-449e-9c6b-999df5f1aa31:
+              id: 353a9008-6666-449e-9c6b-999df5f1aa31
+              name: vlanInterfacesGroup
+              label: VLAN Interfaces Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - a85ce3b9-106c-43fb-91d3-72be74705205
+                    - 950c86b2-104e-4673-9c5e-f51fcb7bf645
+            cfceab68-2498-4447-a527-1e70e9cfc736:
+              id: cfceab68-2498-4447-a527-1e70e9cfc736
+              name: vlanInterfaces
+              label: VLAN Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 353a9008-6666-449e-9c6b-999df5f1aa31
+                key: ''
+            65fd37b6-4f6b-47d0-aa24-66b66436804a:
+              id: 65fd37b6-4f6b-47d0-aa24-66b66436804a
+              name: interfaceName
+              label: Interface Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            53f10746-d3ec-4e84-bb61-e28eaa1e933a:
+              id: 53f10746-d3ec-4e84-bb61-e28eaa1e933a
+              name: direction
+              label: Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            f206e536-3bda-41d8-97dc-c3b30f14f46b:
+              id: f206e536-3bda-41d8-97dc-c3b30f14f46b
+              name: phyInterfaceGroup
+              label: Phy Interface Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 65fd37b6-4f6b-47d0-aa24-66b66436804a
+                    - 53f10746-d3ec-4e84-bb61-e28eaa1e933a
+            25c66008-45a3-4678-88d6-05b88f250781:
+              id: 25c66008-45a3-4678-88d6-05b88f250781
+              name: physicalAndSubInterfaces
+              label: Physical and SubInterfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: f206e536-3bda-41d8-97dc-c3b30f14f46b
+                key: ''
+            f66450c9-076c-40da-a26a-3d0d342da98a:
+              id: f66450c9-076c-40da-a26a-3d0d342da98a
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - d4192ebf-23dc-42be-9c4d-e6d954b3f177
+                    - cfceab68-2498-4447-a527-1e70e9cfc736
+                    - 25c66008-45a3-4678-88d6-05b88f250781
+            bac83548-3c5a-40a8-96fd-840085a0b8e3:
+              id: bac83548-3c5a-40a8-96fd-840085a0b8e3
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: f66450c9-076c-40da-a26a-3d0d342da98a
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            1d790a47-903a-49f5-a224-be5cf2a72b14:
+              id: 1d790a47-903a-49f5-a224-be5cf2a72b14
+              name: seqNumber
+              label: Seq Number
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            de7d6b02-7212-4ad3-ab39-b9b7ac50c4f9:
+              id: de7d6b02-7212-4ad3-ab39-b9b7ac50c4f9
+              name: permitDenyRemark
+              label: Permit Deny Remark
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: permit
+                static_options:
+                  values:
+                    - permit
+                    - deny
+                    - remark
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            d25c270d-a230-4143-9487-f7e8ec591efd:
+              id: d25c270d-a230-4143-9487-f7e8ec591efd
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            ebb04638-a7ac-4dc7-8519-a901ea988049:
+              id: ebb04638-a7ac-4dc7-8519-a901ea988049
+              name: protocol
+              label: Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - ip
+                    - ipv6
+                    - tcp
+                    - udp
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b90645d1-c097-441a-bfb8-544fc751a29d:
+              id: b90645d1-c097-441a-bfb8-544fc751a29d
+              name: source
+              label: Source
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            f185d81c-261c-47a9-bc93-08c014b91371:
+              id: f185d81c-261c-47a9-bc93-08c014b91371
+              name: destination
+              label: Destination
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            418e6379-be6e-4436-8ac6-e423ee167764:
+              id: 418e6379-be6e-4436-8ac6-e423ee167764
+              name: log
+              label: Log
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            aa38e230-a01b-4cf4-afab-295d3388e081:
+              id: aa38e230-a01b-4cf4-afab-295d3388e081
+              name: tracked
+              label: Tracked
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            eede3499-05c9-4a8c-8a04-b1e5016a7a41:
+              id: eede3499-05c9-4a8c-8a04-b1e5016a7a41
+              name: seqNumberGroup
+              label: Seq Number Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 1d790a47-903a-49f5-a224-be5cf2a72b14
+                    - de7d6b02-7212-4ad3-ab39-b9b7ac50c4f9
+                    - d25c270d-a230-4143-9487-f7e8ec591efd
+                    - ebb04638-a7ac-4dc7-8519-a901ea988049
+                    - b90645d1-c097-441a-bfb8-544fc751a29d
+                    - f185d81c-261c-47a9-bc93-08c014b91371
+                    - 418e6379-be6e-4436-8ac6-e423ee167764
+                    - aa38e230-a01b-4cf4-afab-295d3388e081
+            053768eb-0365-4c96-b24d-be51f31e6d08:
+              id: 053768eb-0365-4c96-b24d-be51f31e6d08
+              name: aclLines
+              label: ACL Lines
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: eede3499-05c9-4a8c-8a04-b1e5016a7a41
+                key: ''
+            a945ce25-750c-4816-b5a3-b5ac15bfc155:
+              id: a945ce25-750c-4816-b5a3-b5ac15bfc155
+              name: aclGroup
+              label: ACL Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 528dcbee-454f-42bb-806b-1ebe81d365ad
+                    - b613a1bd-7549-4f73-99bc-21d091c62498
+                    - 49765e98-ba1d-4a1a-948c-a12192bd74a9
+                    - 03fe8990-6188-4c41-8255-54c5c206503b
+                    - bac83548-3c5a-40a8-96fd-840085a0b8e3
+                    - 053768eb-0365-4c96-b24d-be51f31e6d08
+            ba2ecb4e-9831-4740-9ff6-c819ec21e36f:
+              id: ba2ecb4e-9831-4740-9ff6-c819ec21e36f
+              name: aclNames
+              label: ACLs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: a945ce25-750c-4816-b5a3-b5ac15bfc155
+                key: 528dcbee-454f-42bb-806b-1ebe81d365ad
+            8e58f9aa-5c56-4316-ab34-9e1c4cd8156e:
+              id: 8e58f9aa-5c56-4316-ab34-9e1c4cd8156e
+              name: instanceName
+              label: QOS Instance Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            6819c957-7d06-4fb2-bf0e-159b5f1d5bce:
+              id: 6819c957-7d06-4fb2-bf0e-159b5f1d5bce
+              name: classMapName
+              label: Class Map Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            bd4f1b88-f5bf-45a7-b7f0-dedcc04a0ba2:
+              id: bd4f1b88-f5bf-45a7-b7f0-dedcc04a0ba2
+              name: match
+              label: Match
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: ip
+                static_options:
+                  values:
+                    - ip
+                    - ipv6
+                    - dscp
+                    - cos
+                    - ecn
+                    - mac
+                    - mpls
+                    - vlan
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            2a47d63b-918d-4b03-b396-cd0dda138667:
+              id: 2a47d63b-918d-4b03-b396-cd0dda138667
+              name: matchValue
+              label: Match Value
+              description: Match DSCP, COS or VLAN values
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            56e1a283-243d-400a-9ba7-69a3e60b723e:
+              id: 56e1a283-243d-400a-9ba7-69a3e60b723e
+              name: acl
+              label: ACL
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"528dcbee-454f-42bb-806b-1ebe81d365ad"}'
+            d44ba2f6-5daf-4669-9ded-54f398141506:
+              id: d44ba2f6-5daf-4669-9ded-54f398141506
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: qos
+                static_options:
+                  values:
+                    - qos
+                    - pbr
+                    - copp
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            ed9b7c06-8ef2-461a-a7ed-581c13e2fd02:
+              id: ed9b7c06-8ef2-461a-a7ed-581c13e2fd02
+              name: classMapGroup
+              label: Class Map Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 6819c957-7d06-4fb2-bf0e-159b5f1d5bce
+                    - bd4f1b88-f5bf-45a7-b7f0-dedcc04a0ba2
+                    - 2a47d63b-918d-4b03-b396-cd0dda138667
+                    - 56e1a283-243d-400a-9ba7-69a3e60b723e
+                    - d44ba2f6-5daf-4669-9ded-54f398141506
+            775c3023-acd5-4110-9598-33819f9c4829:
+              id: 775c3023-acd5-4110-9598-33819f9c4829
+              name: classMaps
+              label: Class Maps
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: ed9b7c06-8ef2-461a-a7ed-581c13e2fd02
+                key: 6819c957-7d06-4fb2-bf0e-159b5f1d5bce
+            4fbf2d7e-d9f3-4508-a690-11dc2c3e5a54:
+              id: 4fbf2d7e-d9f3-4508-a690-11dc2c3e5a54
+              name: policyMapName
+              label: Policy Map Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b42c9861-6a46-4e67-82a3-a270ecb3795c:
+              id: b42c9861-6a46-4e67-82a3-a270ecb3795c
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: qos
+                static_options:
+                  values:
+                    - qos
+                    - pbr
+                    - copp
+                    - policer
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            6d28e68a-64de-4659-9277-142e43d4f10d:
+              id: 6d28e68a-64de-4659-9277-142e43d4f10d
+              name: classDefault
+              label: Default Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            babb3706-620e-42e6-add2-fbd1f897db61:
+              id: babb3706-620e-42e6-add2-fbd1f897db61
+              name: shapeRate
+              label: Shape Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            ac413833-e404-41a1-8900-e7e2385e1b00:
+              id: ac413833-e404-41a1-8900-e7e2385e1b00
+              name: bandwidth
+              label: Bandwidth
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            ed58055b-eab0-4bcc-8f7f-3c49a04e4f91:
+              id: ed58055b-eab0-4bcc-8f7f-3c49a04e4f91
+              name: drop
+              label: Drop
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            75d8a245-6b8e-4c58-875d-1d9ed610498e:
+              id: 75d8a245-6b8e-4c58-875d-1d9ed610498e
+              name: dropPrecedence
+              label: Set Drop Precedence
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - '1'
+                    - '2'
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            9c1421b5-0fd1-49eb-ad14-44de96a9e49f:
+              id: 9c1421b5-0fd1-49eb-ad14-44de96a9e49f
+              name: dscp
+              label: Set DSCP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - af11
+                    - af12
+                    - af13
+                    - af21
+                    - af22
+                    - af23
+                    - af31
+                    - af32
+                    - af33
+                    - af41
+                    - af42
+                    - af43
+                    - cs0
+                    - cs1
+                    - cs2
+                    - cs3
+                    - cs4
+                    - cs5
+                    - cs6
+                    - cs7
+                    - ef
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            a2cf1170-86d8-4a90-b9bb-8acd53ee3abc:
+              id: a2cf1170-86d8-4a90-b9bb-8acd53ee3abc
+              name: trafficClass
+              label: Set Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - '8'
+                    - '10'
+                    - '11'
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            2c029266-5114-4605-9040-4d1991037db3:
+              id: 2c029266-5114-4605-9040-4d1991037db3
+              name: policerRate
+              label: Policer Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            efbf234b-66ba-479c-9cb6-c888cb92eb9f:
+              id: efbf234b-66ba-479c-9cb6-c888cb92eb9f
+              name: policerBc
+              label: Policer BC
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            47fab3ee-e5f7-4171-a95c-4fee92fe75bf:
+              id: 47fab3ee-e5f7-4171-a95c-4fee92fe75bf
+              name: policerBurstSize
+              label: Policer Burst Size
+              description: default bytes
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            93ea4853-1a9f-4f95-a3da-81541a9e66ba:
+              id: 93ea4853-1a9f-4f95-a3da-81541a9e66ba
+              name: policerCir
+              label: Policer CIR
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            fd23b646-318f-4bc5-be70-8b0e346754e3:
+              id: fd23b646-318f-4bc5-be70-8b0e346754e3
+              name: cos
+              label: Set COS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            f5a153da-197b-4507-94e6-4d60da87a10f:
+              id: f5a153da-197b-4507-94e6-4d60da87a10f
+              name: classMapSettings
+              label: Class Map Settings
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - babb3706-620e-42e6-add2-fbd1f897db61
+                    - ac413833-e404-41a1-8900-e7e2385e1b00
+                    - ed58055b-eab0-4bcc-8f7f-3c49a04e4f91
+                    - 75d8a245-6b8e-4c58-875d-1d9ed610498e
+                    - 9c1421b5-0fd1-49eb-ad14-44de96a9e49f
+                    - a2cf1170-86d8-4a90-b9bb-8acd53ee3abc
+                    - 2c029266-5114-4605-9040-4d1991037db3
+                    - efbf234b-66ba-479c-9cb6-c888cb92eb9f
+                    - 47fab3ee-e5f7-4171-a95c-4fee92fe75bf
+                    - 93ea4853-1a9f-4f95-a3da-81541a9e66ba
+                    - fd23b646-318f-4bc5-be70-8b0e346754e3
+            d1dad45b-838d-4e37-89f6-fb90c19dd5b2:
+              id: d1dad45b-838d-4e37-89f6-fb90c19dd5b2
+              name: classMap
+              label: Class Map
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"6819c957-7d06-4fb2-bf0e-159b5f1d5bce"}'
+            ee1583fa-bcdf-4e72-8c98-680b387dc84e:
+              id: ee1583fa-bcdf-4e72-8c98-680b387dc84e
+              name: pmClassMapGroup
+              label: PM Class Map Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - f5a153da-197b-4507-94e6-4d60da87a10f
+                    - d1dad45b-838d-4e37-89f6-fb90c19dd5b2
+            1e7f215b-37a1-4b38-a3d0-23815c67cfef:
+              id: 1e7f215b-37a1-4b38-a3d0-23815c67cfef
+              name: classMap
+              label: Select Class Maps
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: ee1583fa-bcdf-4e72-8c98-680b387dc84e
+                key: ''
+            5dfad915-8f76-4c9f-b901-26c57b03f0e6:
+              id: 5dfad915-8f76-4c9f-b901-26c57b03f0e6
+              name: policyMapGroup
+              label: Policy Map Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 4fbf2d7e-d9f3-4508-a690-11dc2c3e5a54
+                    - b42c9861-6a46-4e67-82a3-a270ecb3795c
+                    - 6d28e68a-64de-4659-9277-142e43d4f10d
+                    - 1e7f215b-37a1-4b38-a3d0-23815c67cfef
+            672e95a2-fa75-4558-84e0-9b69e27f317e:
+              id: 672e95a2-fa75-4558-84e0-9b69e27f317e
+              name: policyMaps
+              label: Policy Maps
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 5dfad915-8f76-4c9f-b901-26c57b03f0e6
+                key: 4fbf2d7e-d9f3-4508-a690-11dc2c3e5a54
+            7e2a1c31-e10e-4ce7-9a27-41c9c7f6cc89:
+              id: 7e2a1c31-e10e-4ce7-9a27-41c9c7f6cc89
+              name: profileName
+              label: Profile Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            9bc65407-62fa-4a0e-841a-da67e9da5776:
+              id: 9bc65407-62fa-4a0e-841a-da67e9da5776
+              name: policyMap
+              label: Input Policy Map
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"4fbf2d7e-d9f3-4508-a690-11dc2c3e5a54"}'
+            c6b99835-093e-4c1f-a9ab-057629b6a26f:
+              id: c6b99835-093e-4c1f-a9ab-057629b6a26f
+              name: shapeRate
+              label: Shape Rate
+              description: Kbps, percent, PPS
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            fec09989-4e42-441e-b7a2-10e5b81c8e43:
+              id: fec09989-4e42-441e-b7a2-10e5b81c8e43
+              name: queue
+              label: Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            b8034a95-7088-4800-9d83-4e724284c632:
+              id: b8034a95-7088-4800-9d83-4e724284c632
+              name: shapeRate
+              label: Shape Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            5aac0153-4f49-440b-8e56-5a58908be4f4:
+              id: 5aac0153-4f49-440b-8e56-5a58908be4f4
+              name: bandwidthType
+              label: Bandwidth Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            8dff3db7-2b1f-4f6f-9773-e4a722bb1989:
+              id: 8dff3db7-2b1f-4f6f-9773-e4a722bb1989
+              name: bandwidth
+              label: Bandwidth
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            926f124d-1462-4388-86b3-c2e512d54de7:
+              id: 926f124d-1462-4388-86b3-c2e512d54de7
+              name: priorityStrict
+              label: Priority Strict
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            558e2286-b7fa-428d-9707-670dbb245bed:
+              id: 558e2286-b7fa-428d-9707-670dbb245bed
+              name: randomDetectType
+              label: Random Detect Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            bba4f3ec-39bd-4c1e-a9bb-a7dcc4a4f100:
+              id: bba4f3ec-39bd-4c1e-a9bb-a7dcc4a4f100
+              name: rdMinThreshold
+              label: RD Min Threshold
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            ac1a4a66-70af-4b2d-9ab5-9ca141e57adb:
+              id: ac1a4a66-70af-4b2d-9ab5-9ca141e57adb
+              name: minThresholdMetric
+              label: Min Threshold Metric
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            c52daf0f-1e4e-42f9-9ed9-9a4506cc63ce:
+              id: c52daf0f-1e4e-42f9-9ed9-9a4506cc63ce
+              name: rdMaxThreshold
+              label: RD Max Threshold
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            cdbf5336-e00a-4b0a-ac61-4d0967cb978e:
+              id: cdbf5336-e00a-4b0a-ac61-4d0967cb978e
+              name: dropProbability
+              label: Drop Probability
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            b459eeb0-8999-4222-bf95-878e52608e3d:
+              id: b459eeb0-8999-4222-bf95-878e52608e3d
+              name: txQueueGroup
+              label: tx-queue Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - fec09989-4e42-441e-b7a2-10e5b81c8e43
+                    - b8034a95-7088-4800-9d83-4e724284c632
+                    - 5aac0153-4f49-440b-8e56-5a58908be4f4
+                    - 8dff3db7-2b1f-4f6f-9773-e4a722bb1989
+                    - 926f124d-1462-4388-86b3-c2e512d54de7
+                    - 558e2286-b7fa-428d-9707-670dbb245bed
+                    - bba4f3ec-39bd-4c1e-a9bb-a7dcc4a4f100
+                    - ac1a4a66-70af-4b2d-9ab5-9ca141e57adb
+                    - c52daf0f-1e4e-42f9-9ed9-9a4506cc63ce
+                    - cdbf5336-e00a-4b0a-ac61-4d0967cb978e
+            c9f1dba9-daa4-4b7f-8b20-4c862b9553a4:
+              id: c9f1dba9-daa4-4b7f-8b20-4c862b9553a4
+              name: txQueue
+              label: tx-queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: b459eeb0-8999-4222-bf95-878e52608e3d
+                key: ''
+            57fc95c0-5ffe-4775-aab6-1725d5230dd6:
+              id: 57fc95c0-5ffe-4775-aab6-1725d5230dd6
+              name: trust
+              label: Trust
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - dscp
+                    - cos
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            34bbf675-bafb-43a9-a19f-93a1baf3d509:
+              id: 34bbf675-bafb-43a9-a19f-93a1baf3d509
+              name: dscp
+              label: Set DSCP
+              description: 0-63
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            a5379788-6246-4c9b-859f-7e66929b44db:
+              id: a5379788-6246-4c9b-859f-7e66929b44db
+              name: cos
+              label: Set COS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1ab4d686-db99-4a55-b905-cacb1fb709dd:
+              id: 1ab4d686-db99-4a55-b905-cacb1fb709dd
+              name: serviceProfileGroup
+              label: Service Profile Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 7e2a1c31-e10e-4ce7-9a27-41c9c7f6cc89
+                    - 9bc65407-62fa-4a0e-841a-da67e9da5776
+                    - c6b99835-093e-4c1f-a9ab-057629b6a26f
+                    - c9f1dba9-daa4-4b7f-8b20-4c862b9553a4
+                    - 57fc95c0-5ffe-4775-aab6-1725d5230dd6
+                    - 34bbf675-bafb-43a9-a19f-93a1baf3d509
+                    - a5379788-6246-4c9b-859f-7e66929b44db
+            8f49c4a8-a5ea-4799-9173-77ce00a7811f:
+              id: 8f49c4a8-a5ea-4799-9173-77ce00a7811f
+              name: serviceProfiles
+              label: QOS Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 1ab4d686-db99-4a55-b905-cacb1fb709dd
+                key: ''
+            0ddddc39-c2fa-4dcc-a2af-cd23c4dfe641:
+              id: 0ddddc39-c2fa-4dcc-a2af-cd23c4dfe641
+              name: interfaceName
+              label: Interface Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e1fb050e-ee14-4204-9e10-dff21a01841f:
+              id: e1fb050e-ee14-4204-9e10-dff21a01841f
+              name: serviceProfile
+              label: QOS Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"7e2a1c31-e10e-4ce7-9a27-41c9c7f6cc89"}'
+            654fbc43-14cc-47b9-a00a-e2b0f7b620b2:
+              id: 654fbc43-14cc-47b9-a00a-e2b0f7b620b2
+              name: servicePolicyName
+              label: Policy Map Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"4fbf2d7e-d9f3-4508-a690-11dc2c3e5a54"}'
+            21ca5fc0-4606-47cf-9add-ceb0a370b1fa:
+              id: 21ca5fc0-4606-47cf-9add-ceb0a370b1fa
+              name: servicePolicyType
+              label: Policy Map Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: qos
+                static_options:
+                  values:
+                    - qos
+                    - pbr
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            c5b91635-da6d-47d9-865c-365ea3e8b75b:
+              id: c5b91635-da6d-47d9-865c-365ea3e8b75b
+              name: policyMapInputOutput
+              label: Policy Map Input Output
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: input
+                static_options:
+                  values:
+                    - input
+                    - output
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1500bfe4-2209-4f2d-bf23-2933bf0bee03:
+              id: 1500bfe4-2209-4f2d-bf23-2933bf0bee03
+              name: shapeRate
+              label: Shape Rate
+              description: percent, Kbps, PPS
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            15f6a4f6-dd6f-4358-b6b5-372dcd402627:
+              id: 15f6a4f6-dd6f-4358-b6b5-372dcd402627
+              name: trust
+              label: Trust
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - dscp
+                    - cos
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            e22af696-3f45-4b3f-b2b8-b553015a4e66:
+              id: e22af696-3f45-4b3f-b2b8-b553015a4e66
+              name: dscp
+              label: DSCP
+              description: 0-63
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            c33bc106-f944-40c6-8446-1d0e73fe42dd:
+              id: c33bc106-f944-40c6-8446-1d0e73fe42dd
+              name: cos
+              label: COS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                dynamic_options: null
+            d833d679-49e1-4c47-a309-277e7ed33fa6:
+              id: d833d679-49e1-4c47-a309-277e7ed33fa6
+              name: queue
+              label: Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                dynamic_options: null
+            7f66bceb-13ef-40c7-90d5-4793dc8d94ee:
+              id: 7f66bceb-13ef-40c7-90d5-4793dc8d94ee
+              name: shapeRate
+              label: Shape Rate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: percent, Kbps, PPS
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            8d8cfa5b-c6b8-4f2f-becb-958d2845c600:
+              id: 8d8cfa5b-c6b8-4f2f-becb-958d2845c600
+              name: bandwidthType
+              label: Bandwidth Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - guaranteed
+                    - percent
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            5f4fb7cf-c097-4a49-b79c-3ecfe38c0a68:
+              id: 5f4fb7cf-c097-4a49-b79c-3ecfe38c0a68
+              name: bandwidth
+              label: Bandwidth
+              description: percent, Kbps, PPS
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            4bc722dc-8b8e-46a4-994d-cd5b03784a67:
+              id: 4bc722dc-8b8e-46a4-994d-cd5b03784a67
+              name: priorityStrict
+              label: Priority Strict
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            a02e2d86-ff69-4ad2-bfd5-d89bdf5f4afe:
+              id: a02e2d86-ff69-4ad2-bfd5-d89bdf5f4afe
+              name: randomDetectType
+              label: Random Detect Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - drop
+                    - ecn
+                    - non-ect
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            090071d0-19aa-4f72-a692-e4bd72b021e2:
+              id: 090071d0-19aa-4f72-a692-e4bd72b021e2
+              name: rdMinThreshold
+              label: RD Min Threshold
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            6b2e37c4-32ea-4b26-abff-d2028b1c73ad:
+              id: 6b2e37c4-32ea-4b26-abff-d2028b1c73ad
+              name: minThresholdMetric
+              label: Min Threshold Metric
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: bytes
+                static_options:
+                  values:
+                    - bytes
+                    - kbytes
+                    - mbytes
+                    - segments
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            bbe04333-1cae-479d-beb7-f4ceacd09fa4:
+              id: bbe04333-1cae-479d-beb7-f4ceacd09fa4
+              name: rdMaxThreshold
+              label: RD Max Threshold
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            a1cdb0d2-b107-4302-9180-5a34a29e082f:
+              id: a1cdb0d2-b107-4302-9180-5a34a29e082f
+              name: dropProbability
+              label: Drop Probability
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            7453d5aa-f843-46d1-be5c-f36e97dbb7c6:
+              id: 7453d5aa-f843-46d1-be5c-f36e97dbb7c6
+              name: txQueueGroup
+              label: TX-Queue Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - d833d679-49e1-4c47-a309-277e7ed33fa6
+                    - 7f66bceb-13ef-40c7-90d5-4793dc8d94ee
+                    - 8d8cfa5b-c6b8-4f2f-becb-958d2845c600
+                    - 5f4fb7cf-c097-4a49-b79c-3ecfe38c0a68
+                    - 4bc722dc-8b8e-46a4-994d-cd5b03784a67
+                    - a02e2d86-ff69-4ad2-bfd5-d89bdf5f4afe
+                    - 090071d0-19aa-4f72-a692-e4bd72b021e2
+                    - 6b2e37c4-32ea-4b26-abff-d2028b1c73ad
+                    - bbe04333-1cae-479d-beb7-f4ceacd09fa4
+                    - a1cdb0d2-b107-4302-9180-5a34a29e082f
+            17f73a25-3c21-4980-86af-116df04f713c:
+              id: 17f73a25-3c21-4980-86af-116df04f713c
+              name: txQueue
+              label: tx-queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 7453d5aa-f843-46d1-be5c-f36e97dbb7c6
+                key: ''
+            41943a87-8d5b-42ed-a96e-117d4c2e1810:
+              id: 41943a87-8d5b-42ed-a96e-117d4c2e1810
+              name: interfaceGroup
+              label: Interface Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 0ddddc39-c2fa-4dcc-a2af-cd23c4dfe641
+                    - e1fb050e-ee14-4204-9e10-dff21a01841f
+                    - 654fbc43-14cc-47b9-a00a-e2b0f7b620b2
+                    - 21ca5fc0-4606-47cf-9add-ceb0a370b1fa
+                    - c5b91635-da6d-47d9-865c-365ea3e8b75b
+                    - 1500bfe4-2209-4f2d-bf23-2933bf0bee03
+                    - 15f6a4f6-dd6f-4358-b6b5-372dcd402627
+                    - e22af696-3f45-4b3f-b2b8-b553015a4e66
+                    - c33bc106-f944-40c6-8446-1d0e73fe42dd
+                    - 17f73a25-3c21-4980-86af-116df04f713c
+            131acc28-a80d-4c14-835a-629c07273406:
+              id: 131acc28-a80d-4c14-835a-629c07273406
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 41943a87-8d5b-42ed-a96e-117d4c2e1810
+                key: 0ddddc39-c2fa-4dcc-a2af-cd23c4dfe641
+            98754f99-9d17-4e52-a966-43959b12dc78:
+              id: 98754f99-9d17-4e52-a966-43959b12dc78
+              name: deviceGroup
+              label: Device Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 131acc28-a80d-4c14-835a-629c07273406
+            bec81c8c-9034-4145-b97d-20fcc7445588:
+              id: bec81c8c-9034-4145-b97d-20fcc7445588
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 98754f99-9d17-4e52-a966-43959b12dc78
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            39caef75-b18b-4c21-a230-159a6fe90492:
+              id: 39caef75-b18b-4c21-a230-159a6fe90492
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - dscp
+                    - cos
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            fff4f979-a851-445a-96fa-209c71c89fba:
+              id: fff4f979-a851-445a-96fa-209c71c89fba
+              name: classifierValues
+              label: Values
+              description: cos 0-7 dscp 0-63
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            c61181c4-8ce2-4dc4-9d9a-604923d755d9:
+              id: c61181c4-8ce2-4dc4-9d9a-604923d755d9
+              name: trafficClass
+              label: Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - '8'
+                    - '9'
+                    - '10'
+                    - '11'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            171ea178-f8f5-41e4-8767-e466fd9bedc0:
+              id: 171ea178-f8f5-41e4-8767-e466fd9bedc0
+              name: classificationGroup
+              label: Classification Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 39caef75-b18b-4c21-a230-159a6fe90492
+                    - fff4f979-a851-445a-96fa-209c71c89fba
+                    - c61181c4-8ce2-4dc4-9d9a-604923d755d9
+            c6b9f98f-0f22-42aa-bcd5-5b90dff4a4aa:
+              id: c6b9f98f-0f22-42aa-bcd5-5b90dff4a4aa
+              name: classification
+              label: Global QOS Map
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 171ea178-f8f5-41e4-8767-e466fd9bedc0
+                key: ''
+            0d287225-a7a5-4db0-a354-fb42b2014368:
+              id: 0d287225-a7a5-4db0-a354-fb42b2014368
+              name: type
+              label: Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - dscp
+                    - cos
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            2877fdb3-8a49-4490-af5d-3a56699532c4:
+              id: 2877fdb3-8a49-4490-af5d-3a56699532c4
+              name: qosRewrite
+              label: QOS Rewrite
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - enabled
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            0f654982-52df-4e2e-b32c-513adcd13aa6:
+              id: 0f654982-52df-4e2e-b32c-513adcd13aa6
+              name: rewriteGroup
+              label: Rewrite Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 0d287225-a7a5-4db0-a354-fb42b2014368
+                    - 2877fdb3-8a49-4490-af5d-3a56699532c4
+            7dda7856-a031-431b-a7a1-982bb06ea777:
+              id: 7dda7856-a031-431b-a7a1-982bb06ea777
+              name: rewriteRules
+              label: Global QOS Rewrite
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 0f654982-52df-4e2e-b32c-513adcd13aa6
+                key: ''
+            6f4d4e1d-3a06-45b3-b789-d5af1a5a552d:
+              id: 6f4d4e1d-3a06-45b3-b789-d5af1a5a552d
+              name: trafficClass
+              label: Traffic Class
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                    - '8'
+                    - '10'
+                    - '11'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            470901b7-afce-4d3a-8dc1-14062ec4700f:
+              id: 470901b7-afce-4d3a-8dc1-14062ec4700f
+              name: queue
+              label: Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            3d98a9f6-f10c-4d1e-8618-7caf86629eb9:
+              id: 3d98a9f6-f10c-4d1e-8618-7caf86629eb9
+              name: cos
+              label: COS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            a6b1684e-7b03-4376-b048-ecf8f3f1c845:
+              id: a6b1684e-7b03-4376-b048-ecf8f3f1c845
+              name: dscp
+              label: DSCP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            67a7ecbd-e85b-4e9b-a144-8230e962d3b7:
+              id: 67a7ecbd-e85b-4e9b-a144-8230e962d3b7
+              name: tCtoQGroup
+              label: TCtoQ Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 6f4d4e1d-3a06-45b3-b789-d5af1a5a552d
+                    - 470901b7-afce-4d3a-8dc1-14062ec4700f
+                    - 3d98a9f6-f10c-4d1e-8618-7caf86629eb9
+                    - a6b1684e-7b03-4376-b048-ecf8f3f1c845
+            017251b1-867e-4bd3-8196-dd3e806f82e7:
+              id: 017251b1-867e-4bd3-8196-dd3e806f82e7
+              name: trafficClassToQueue
+              label: Global Traffic Class to Queue
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 67a7ecbd-e85b-4e9b-a144-8230e962d3b7
+                key: ''
+            8cda7fbd-dbf4-4355-9e16-dbba9dfa64d6:
+              id: 8cda7fbd-dbf4-4355-9e16-dbba9dfa64d6
+              name: qosGroup
+              label: QOS Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 8e58f9aa-5c56-4316-ab34-9e1c4cd8156e
+                    - 775c3023-acd5-4110-9598-33819f9c4829
+                    - 672e95a2-fa75-4558-84e0-9b69e27f317e
+                    - 8f49c4a8-a5ea-4799-9173-77ce00a7811f
+                    - bec81c8c-9034-4145-b97d-20fcc7445588
+                    - c6b9f98f-0f22-42aa-bcd5-5b90dff4a4aa
+                    - 7dda7856-a031-431b-a7a1-982bb06ea777
+                    - 017251b1-867e-4bd3-8196-dd3e806f82e7
+            e6038bbe-6331-4b43-917b-9f0b93539a8b:
+              id: e6038bbe-6331-4b43-917b-9f0b93539a8b
+              name: qosInstances
+              label: QOS Instances
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 8cda7fbd-dbf4-4355-9e16-dbba9dfa64d6
+                key: 8e58f9aa-5c56-4316-ab34-9e1c4cd8156e
+            f038c7da-9cf3-49e6-a876-a6038ebf6cc5:
+              id: f038c7da-9cf3-49e6-a876-a6038ebf6cc5
+              name: loggingProfileName
+              label: Logging Profile Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            10346a61-0443-445b-8662-487e01466233:
+              id: 10346a61-0443-445b-8662-487e01466233
+              name: congestionDrops
+              label: Congestion Drops
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - enabled
+                    - use-global
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            4ef214af-0a36-4ec6-8ff9-68f9bb122814:
+              id: 4ef214af-0a36-4ec6-8ff9-68f9bb122814
+              name: linkStatus
+              label: Link Status
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - enabled
+                    - use-global
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            bc2e5a7b-1434-4d64-8687-a84a52d46e5d:
+              id: bc2e5a7b-1434-4d64-8687-a84a52d46e5d
+              name: spanningTree
+              label: Spanning Tree
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - enabled
+                    - use-global
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            91cf157f-1dc0-4253-97a5-84aa18d1b7cd:
+              id: 91cf157f-1dc0-4253-97a5-84aa18d1b7cd
+              name: stormControl
+              label: Storm Control
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: none
+                static_options:
+                  values:
+                    - enabled
+                    - use-global
+                    - none
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            3189877c-418a-4a70-ac08-3dd6295eb917:
+              id: 3189877c-418a-4a70-ac08-3dd6295eb917
+              name: logging
+              label: Logging
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 10346a61-0443-445b-8662-487e01466233
+                    - 4ef214af-0a36-4ec6-8ff9-68f9bb122814
+                    - bc2e5a7b-1434-4d64-8687-a84a52d46e5d
+                    - 91cf157f-1dc0-4253-97a5-84aa18d1b7cd
+            fdd62fa2-e196-4419-ab68-0e0ae442cec6:
+              id: fdd62fa2-e196-4419-ab68-0e0ae442cec6
+              name: loggingGroup
+              label: Logging Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - f038c7da-9cf3-49e6-a876-a6038ebf6cc5
+                    - 3189877c-418a-4a70-ac08-3dd6295eb917
+            c8f90435-da20-44d2-98f4-e59619ec9873:
+              id: c8f90435-da20-44d2-98f4-e59619ec9873
+              name: loggingProfiles
+              label: Logging Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: fdd62fa2-e196-4419-ab68-0e0ae442cec6
+                key: f038c7da-9cf3-49e6-a876-a6038ebf6cc5
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - devices
+                    - profiles
+                    - 3c984f50-c6f9-4f69-889b-1614a87ff6c3
+                    - 3889dfb8-65fc-425c-aa7f-672391a38d1b
+                    - ba2ecb4e-9831-4740-9ff6-c819ec21e36f
+                    - e6038bbe-6331-4b43-917b-9f0b93539a8b
+                    - c8f90435-da20-44d2-98f4-e59619ec9873
+        layout:
+          value: >-
+            {"accessVlanId":{"key":"accessVlanId","dependency":{"mode":{"value":["access"],"mode":"SHOW"}},"type":"INPUT"},"nativeVlanId":{"key":"nativeVlanId","dependency":{"mode":{"value":["trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"allowedVlans":{"key":"allowedVlans","dependency":{"mode":{"value":["trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"phoneVlanId":{"key":"phoneVlanId","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}},"type":"INPUT"},"ipaddress":{"key":"ipaddress","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"ipmtu":{"key":"ipmtu","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"profilePortFastEnabled":{"key":"profilePortFastEnabled","dependency":{"mode":{"value":["access","trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"profileMlagEnabled":{"key":"profileMlagEnabled","dependency":{"profileChannelGroup":{"value":["__ANY__"],"mode":"SHOW"},"mode":{"value":["access","trunk","phone"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"profileLACPEnabled":{"key":"profileLACPEnabled","dependency":{"profileChannelGroup":{"value":["__ANY__"],"mode":"SHOW"}},"type":"INPUT"},"intfConfig":{"key":"intfConfig","type":"INPUT","order":["accessVlan","profile","e8b7d75a-e332-411f-be3c-d768a23c6595","d1123ef5-ffee-4aa3-aa77-4c2a848f6335","8316501f-c12b-4854-b1fc-fc57e5afb68d","403b15fd-5abd-4530-9d0e-48a794b574e2","72637ab0-af99-4a93-8600-45cf8671d785","c12a38bb-b6c9-459c-88bd-6e2e54b7bdf9","084a5c74-356b-4496-936f-a22ee332a755","speed","channelGroup","enabled","mlagEnabled","description"]},"profiles":{"key":"profiles","type":"INPUT","isPageLayout":true},"fff9af94-c57d-44a2-b27e-a7dda0ce7c00":{"key":"fff9af94-c57d-44a2-b27e-a7dda0ce7c00","type":"INPUT","order":["37d829f0-53bb-4af0-9339-58b76f3163b0","83957a33-96fb-424e-a49e-b68dba720da5","0700b440-440a-4db8-87f6-9087e1cd1f57","2a6c7292-7231-4036-9372-22e8ac584b38","83829c03-f581-402d-ba99-ee71d21c6a40","416371d6-1b1b-49de-aeee-f7d739fe1f54","332211a8-1b01-4ff4-9139-ce19810575ce","e5e1a028-b8f6-487c-91c0-9488276c2993","5f703ab2-e2ec-43bf-b66d-a6db33553e03","fb984f8b-b843-4573-81fa-d4d7cbe70b6b","0d0062bb-b75d-4cf4-863b-8e8c664d08ec","aed6ce19-d30a-41dd-bc7d-488822759a59","beb2a016-56d0-484f-9e7e-390f837cf8e6","c0d6733b-41f3-4f89-866f-af7ffef57d1d","d2bc2f59-9e84-4681-8632-de95d3454a61","e6e1aaee-ffb5-4b12-b2b1-5348b11cde18"]},"ed54af53-1c25-4b7a-b4e1-0de01435b347":{"type":"TAGGER","parentKey":"e312232e-c8b1-40a4-96b6-fef7cd7bc67b","key":"ed54af53-1c25-4b7a-b4e1-0de01435b347","name":"Stack
+            Members","assignmentType":"SINGLE","tagType":"DEVICE","description":"Groups
+            devices into a common configuration
+            stack.","columns":[{"tagLabel":"Stack-Member","suggestedValues":["1","2","3","4","5","6","7","8"]}]},"e312232e-c8b1-40a4-96b6-fef7cd7bc67b":{"key":"e312232e-c8b1-40a4-96b6-fef7cd7bc67b","type":"INPUT","order":["ed54af53-1c25-4b7a-b4e1-0de01435b347","1272ed58-34c1-4524-a620-e2cfff28d95e","interface"]},"0294a977-31ee-40b6-a249-f4e1d90b27e5":{"key":"0294a977-31ee-40b6-a249-f4e1d90b27e5","type":"INPUT","order":["8a3ebd96-17f2-4e8e-ba4e-36bc3bf5d835","74392035-9b57-4f10-9b98-6f1501259a7a","db399ebb-7f60-432c-87b4-dc82cf08f5d7"]},"d261183a-5e0b-4429-a7e1-aaec257aa0ca":{"key":"d261183a-5e0b-4429-a7e1-aaec257aa0ca","type":"INPUT","order":["4b7ab8bd-531a-4307-8ec9-8f62f77d30ca","efdd9a94-fcb4-49a4-bc86-65d0f14679fa","a1ae1696-80a5-4e7c-bba9-424d8750aab0"]},"3889dfb8-65fc-425c-aa7f-672391a38d1b":{"key":"3889dfb8-65fc-425c-aa7f-672391a38d1b","type":"INPUT","isPageLayout":true},"ba2ecb4e-9831-4740-9ff6-c819ec21e36f":{"key":"ba2ecb4e-9831-4740-9ff6-c819ec21e36f","type":"INPUT","isPageLayout":true},"e6038bbe-6331-4b43-917b-9f0b93539a8b":{"key":"e6038bbe-6331-4b43-917b-9f0b93539a8b","type":"INPUT","isPageLayout":true},"3c984f50-c6f9-4f69-889b-1614a87ff6c3":{"key":"3c984f50-c6f9-4f69-889b-1614a87ff6c3","type":"INPUT","isPageLayout":true},"950c86b2-104e-4673-9c5e-f51fcb7bf645":{"key":"950c86b2-104e-4673-9c5e-f51fcb7bf645","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"53f10746-d3ec-4e84-bb61-e28eaa1e933a":{"key":"53f10746-d3ec-4e84-bb61-e28eaa1e933a","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"672e95a2-fa75-4558-84e0-9b69e27f317e":{"key":"672e95a2-fa75-4558-84e0-9b69e27f317e","isPageLayout":false,"type":"INPUT"},"483b1c5f-0424-40a2-aaf5-db91db145de9":{"key":"483b1c5f-0424-40a2-aaf5-db91db145de9","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"835c430a-c64d-47fa-a520-ee896cf06d17":{"key":"835c430a-c64d-47fa-a520-ee896cf06d17","type":"INPUT","valueToLabelMap":{"True":"protect","False":"shutdown"}},"74392035-9b57-4f10-9b98-6f1501259a7a":{"key":"74392035-9b57-4f10-9b98-6f1501259a7a","type":"INPUT","order":["14fee512-3281-4585-98e3-41e9fe8c2699","806e6fa2-8085-4cb6-b735-706fcb63724a","835c430a-c64d-47fa-a520-ee896cf06d17","0e804b22-e349-4578-8be9-cdb0770e5474"]},"profileValue":{"key":"profileValue","type":"INPUT","order":["profileName","profileDescription","profileSpeed","mode","accessVlanId","nativeVlanId","phoneVlanId","5c7ddf11-3fe9-4218-827b-38549342e5a3","allowedVlans","profilePortFastEnabled","ipaddress","ipmtu","profileChannelGroup","profileMlagEnabled","profileLACPEnabled"]},"5c7ddf11-3fe9-4218-827b-38549342e5a3":{"key":"5c7ddf11-3fe9-4218-827b-38549342e5a3","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}}},"e288fc4b-e9ff-42fe-83cb-47e323d6ce88":{"key":"e288fc4b-e9ff-42fe-83cb-47e323d6ce88","type":"INPUT","dependency":{"c7b92963-00ba-4245-a721-670beb4c0b84":{"value":["allow"],"mode":"SHOW"}}},"fdd62fa2-e196-4419-ab68-0e0ae442cec6":{"key":"fdd62fa2-e196-4419-ab68-0e0ae442cec6","type":"INPUT","order":["f038c7da-9cf3-49e6-a876-a6038ebf6cc5","3189877c-418a-4a70-ac08-3dd6295eb917"]},"c8f90435-da20-44d2-98f4-e59619ec9873":{"key":"c8f90435-da20-44d2-98f4-e59619ec9873","type":"INPUT","isPageLayout":true},"f5a153da-197b-4507-94e6-4d60da87a10f":{"key":"f5a153da-197b-4507-94e6-4d60da87a10f","type":"INPUT","order":["babb3706-620e-42e6-add2-fbd1f897db61","ac413833-e404-41a1-8900-e7e2385e1b00","ed58055b-eab0-4bcc-8f7f-3c49a04e4f91","75d8a245-6b8e-4c58-875d-1d9ed610498e","9c1421b5-0fd1-49eb-ad14-44de96a9e49f","fd23b646-318f-4bc5-be70-8b0e346754e3","a2cf1170-86d8-4a90-b9bb-8acd53ee3abc","2c029266-5114-4605-9040-4d1991037db3","efbf234b-66ba-479c-9cb6-c888cb92eb9f","47fab3ee-e5f7-4171-a95c-4fee92fe75bf","93ea4853-1a9f-4f95-a3da-81541a9e66ba"]},"ee1583fa-bcdf-4e72-8c98-680b387dc84e":{"key":"ee1583fa-bcdf-4e72-8c98-680b387dc84e","type":"INPUT","order":["d1dad45b-838d-4e37-89f6-fb90c19dd5b2","f5a153da-197b-4507-94e6-4d60da87a10f"]},"f9758ef0-476e-4fd2-9b7f-85f232e04eb5":{"key":"f9758ef0-476e-4fd2-9b7f-85f232e04eb5","type":"INPUT","isPageLayout":true},"1ab4d686-db99-4a55-b905-cacb1fb709dd":{"key":"1ab4d686-db99-4a55-b905-cacb1fb709dd","type":"INPUT","order":["7e2a1c31-e10e-4ce7-9a27-41c9c7f6cc89","9bc65407-62fa-4a0e-841a-da67e9da5776","c6b99835-093e-4c1f-a9ab-057629b6a26f","57fc95c0-5ffe-4775-aab6-1725d5230dd6","34bbf675-bafb-43a9-a19f-93a1baf3d509","a5379788-6246-4c9b-859f-7e66929b44db","c9f1dba9-daa4-4b7f-8b20-4c862b9553a4"]},"7453d5aa-f843-46d1-be5c-f36e97dbb7c6":{"key":"7453d5aa-f843-46d1-be5c-f36e97dbb7c6","type":"INPUT","order":["d833d679-49e1-4c47-a309-277e7ed33fa6","7f66bceb-13ef-40c7-90d5-4793dc8d94ee","5f4fb7cf-c097-4a49-b79c-3ecfe38c0a68","8d8cfa5b-c6b8-4f2f-becb-958d2845c600","4bc722dc-8b8e-46a4-994d-cd5b03784a67","a02e2d86-ff69-4ad2-bfd5-d89bdf5f4afe","090071d0-19aa-4f72-a692-e4bd72b021e2","6b2e37c4-32ea-4b26-abff-d2028b1c73ad","bbe04333-1cae-479d-beb7-f4ceacd09fa4","a1cdb0d2-b107-4302-9180-5a34a29e082f"]},"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887":{"key":"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887","isPageLayout":false,"type":"INPUT"},"c193f31f-e3b5-4583-8244-519b3a5e933f":{"key":"c193f31f-e3b5-4583-8244-519b3a5e933f","type":"INPUT","order":["2fc54fc9-4f0d-46a9-8d3f-cbc7e2a94af6","87ecb8f9-44d1-4042-b2c3-c897db77b2e4"]},"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6":{"key":"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6","type":"INPUT","isPageLayout":false},"7c231c2b-dacb-4b66-b145-6ff354fad339":{"key":"7c231c2b-dacb-4b66-b145-6ff354fad339","type":"INPUT","isPageLayout":false},"interface":{"key":"interface","isPageLayout":false,"type":"INPUT"}}
