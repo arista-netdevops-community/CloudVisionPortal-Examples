@@ -280,54 +280,72 @@
                       }
                   # Check if VLAN is L2 or L3
                   # If this is an L3 VLAN
-                  if info.get('svi_ip_addresses'):
+                  if info['l2_only'] == False:
                       if info['svi_ip_addresses'].get('vrf') and info['svi_ip_addresses']['vrf'].strip() != "None":
                           vrf = info['svi_ip_addresses'].get('vrf')
                       else:
                           vrf = "default"
                       switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis'][int(vlan)] = {
                           "enabled": True,
+                          "vxlan": info['vxlan'],
                           "vni": info['vni'],
                           "eos_cli": info['eos_cli']
                       }
                       # normalize name
                       switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis'][int(vlan)]['name'] \
                           = info['name'] if info['name'].strip() != "" else None
-                      # Set vip
-                      svi_vip = info['svi_ip_addresses']['sviVirtualIpAddress']
-                      if info['svi_ip_addresses']['virtualAddressConfigType'] is True:
-                          # configure ip address virtual
-                          (switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis']
-                          [int(vlan)]['ip_address_virtual']) = svi_vip
-                      else:
-                          # configure ip virtual-router address and real ip address
-                          svi_network = ipaddress.ip_interface(svi_vip).network
-                          first_host = list(svi_network.hosts())[0]
-                          last_host = list(svi_network.hosts())[-1]
-                          if str(first_host) == svi_vip.split("/")[0]:
-                              position = "start"
-                          elif str(last_host) == svi_vip.split("/")[0]:
-                              position = "end"
+                      # set VIP
+                      if info['vxlan'] == True:
+                          svi_vip = info['svi_ip_addresses']['sviVirtualIpAddress']
+                      elif info['vxlan'] == False:
+                          # assert False, f"{info['member_switches'].resolve(device=switch_facts['serial_number'])['switch']['nodes'].resolve(device=switch_facts['serial_number'])}"
+                          if info['node_svi_details'].resolve(device=switch_facts['serial_number'])['sviIpInfo']['virtualIpAddress'].strip() != "":
+                              svi_vip = info['node_svi_details'].resolve(device=switch_facts['serial_number'])['sviIpInfo']['virtualIpAddress']
                           else:
-                              assert False, f"Error: {vlan}'s virtual IP address must be either the " \
-                                            "first or last host address in the subnet if 'ip virtual-router address'" \
-                                            " config type is set"
-                          if switch_facts.get('mlag_role') and switch_facts['mlag_role'] == "secondary":
-                              # take higher host address closest to vip
-                              if position == "start":
-                                  svi_ip = list(svi_network.hosts())[2]
-                              else:
-                                  svi_ip = list(svi_network.hosts())[-2]
+                              svi_vip = None
+                      # set IP address
+                      if info['vxlan'] == True:
+                          if info['svi_ip_addresses']['virtualAddressConfigType'] is True:
+                              # configure ip address virtual
+                              (switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis']
+                              [int(vlan)]['ip_address_virtual']) = svi_vip
                           else:
-                              # take lower host address closest to vip
-                              if position == "start":
-                                  svi_ip = list(svi_network.hosts())[1]
+                              # configure ip virtual-router address and real ip address
+                              svi_network = ipaddress.ip_interface(svi_vip).network
+                              first_host = list(svi_network.hosts())[0]
+                              last_host = list(svi_network.hosts())[-1]
+                              if str(first_host) == svi_vip.split("/")[0]:
+                                  position = "start"
+                              elif str(last_host) == svi_vip.split("/")[0]:
+                                  position = "end"
                               else:
-                                  svi_ip = list(svi_network.hosts())[-3]
+                                  assert False, f"Error: {vlan}'s virtual IP address must be either the " \
+                                              "first or last host address in the subnet if 'ip virtual-router address'" \
+                                              " config type is set"
+                              if switch_facts.get('mlag_role') and switch_facts['mlag_role'] == "secondary":
+                                  # take higher host address closest to vip
+                                  if position == "start":
+                                      svi_ip = list(svi_network.hosts())[2]
+                                  else:
+                                      svi_ip = list(svi_network.hosts())[-2]
+                              else:
+                                  # take lower host address closest to vip
+                                  if position == "start":
+                                      svi_ip = list(svi_network.hosts())[1]
+                                  else:
+                                      svi_ip = list(svi_network.hosts())[-3]
+                              (switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis']
+                              [int(vlan)]['ip_virtual_router_addresses']) = [svi_vip]
+                              (switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis']
+                              [int(vlan)]['ip_address']) = f"{svi_ip}/{svi_network.prefixlen}"
+                      elif info['vxlan'] == False:
+                          if svi_vip is not None:
+                              (switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis']
+                                  [int(vlan)]['ip_virtual_router_addresses']) = [svi_vip]
+                          svi_ip = info['node_svi_details'].resolve(device=switch_facts['serial_number'])['sviIpInfo']['ipAddress']
                           (switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis']
-                          [int(vlan)]['ip_virtual_router_addresses']) = [svi_vip]
-                          (switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis']
-                          [int(vlan)]['ip_address']) = f"{svi_ip}/{svi_network.prefixlen}"
+                              [int(vlan)]['ip_address']) = f"{svi_ip}"
+
                       # normalize ip helper info
                       if len(info['dhcp_server_details']) > 0:
                           switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['svis'][int(vlan)]['ip_helpers'] = {}
@@ -359,7 +377,7 @@
                   else:
                       # If this is an L2 VLAN
                       switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)] = {
-                          "vxlan": True,
+                          "vxlan": info['vxlan'],
                           "vni": info['vni'],
                           "vni_override": info.get('vni_override')
                       }
@@ -548,8 +566,6 @@
                                           (config['route_maps'][f"RM-{vrf}-{peer}-SET-NEXT-HOP-OUT"]
                                           ['sequence_numbers'][10]['set']).append("set_ipv6_next_hop")
 
-              # Assume this is a VTEP if below criteria is met
-              if switch_facts.get('vtep'):
                   # if mlag is enabled
                   if switch_facts.get('mlag'):
                       # Get mlag_peer_switch facts
@@ -640,6 +656,8 @@
                                   [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
                                   ['trunk_groups']).append("MLAG_VRF_PEER")
 
+              # Assume this is a VTEP if below criteria is met
+              if switch_facts.get('vtep'):
                   # Perform vtep logic (set rds and rts)
                   ip_vrf_admin_field_key_words = {
                       "VNI": "vrf_info['vrf_vni']",
@@ -846,6 +864,8 @@
 
                               # Set l3 vlans
                               for vlan, vlan_info in vrf_info['svis'].items():
+                                  if vlan_info['vxlan'] == False:
+                                      continue
                                   vlan_in_bundle = False
                                   for bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].values():
                                       if vlan in string_to_list(bundle_info['vlan_range']):
@@ -865,6 +885,8 @@
                                   }
                           # Set l2 vlans
                           for vlan, vlan_info in switch_facts['tenants'][tenant]['l2vlans'].items():
+                              if vlan_info['vxlan'] == False:
+                                  continue
                               vlan_in_bundle = False
                               for bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].values():
                                   if vlan in string_to_list(bundle_info['vlan_range']):
@@ -908,7 +930,7 @@
 
                           # map l3vlans to vnis
                           for svi, info in switch_facts['tenants'][tenant]['vrfs'][vrf]['svis'].items():
-                              if info.get('vni') is None:
+                              if info.get('vni') is None or info['vxlan'] == False:
                                   continue
                               if info.get('vni_override') is not None:
                                   info['vni'] = info['vni_override']
@@ -918,7 +940,7 @@
 
                       # map l2vlans to vnis
                       for l2vlan, info in switch_facts['tenants'][tenant]['l2vlans'].items():
-                          if l2vlan.get('vni') is None:
+                          if info.get('vni') is None or info['vxlan'] == False:
                               continue
                           config['vxlan_interface']['Vxlan1']['vxlan']['vlans'][l2vlan] = {
                               "vni": info['vni']
@@ -990,17 +1012,17 @@
           def check_config_parameters(switch_facts):
               if switch_facts.get('vtep'):
                   assert switch_facts.get('bgp_as') is not None, f"BGP ASN is not set.  Please apply a 'router_bgp.as' tag to " \
-                                                            f"{switch_facts['hostname']} in the Tags section of Provisioning " \
-                                                            f"with the appropriate workspace selected."
+                                                                 f"{switch_facts['hostname']} in the Tags section of Provisioning " \
+                                                                 f"with the appropriate workspace selected."
                   assert switch_facts.get('router_id') is not None, f"BGP Router ID is not set.  Please apply a 'router_bgp.router_id' " \
-                                                                f"tag to {switch_facts['hostname']} in the Tags section of " \
-                                                                f"Provisioning with the appropriate workspace selected."
+                                                                    f"tag to {switch_facts['hostname']} in the Tags section of " \
+                                                                    f"Provisioning with the appropriate workspace selected."
               if switch_facts.get('mlag') is True:
                   assert switch_facts.get('mlag_port_channel_id') is not None, f"MLAG Peer Link is not set.  Please apply a " \
-                                                                          f"'mlag_configuration.peer_link' tag to " \
-                                                                          f"{switch_facts['hostname']} in the Tags " \
-                                                                          f"'section of Provisioning with the appropriate " \
-                                                                          f"workspace selected"
+                                                                               f"'mlag_configuration.peer_link' tag to " \
+                                                                               f"{switch_facts['hostname']} in the Tags " \
+                                                                               f"'section of Provisioning with the appropriate " \
+                                                                               f"workspace selected"
 
 
           def get_interfaces_info(switch_facts):
@@ -1294,8 +1316,11 @@
                   vlans[tenant['name']][vlan['vlanId']] = {
                       "tenant": tenant['name'],
                       "name": vlan['name'],
+                      "vxlan": vlan['vxlan'],
+                      "l2_only": not(vlan['l3OrL2']),
                       # "svi_ip_addresses": vlan['sviIpAddresses'],
                       "svi_ip_addresses": svi_ip_info,
+                      "node_svi_details": vlan['nodes'],
                       "dhcp_server_details": vlan['dhcpServerDetails'],
                       "vni": int(vlan['vlanId']) + int(tenant['macVrfVniBase']),
                       "member_switches": vlan['switches'],
@@ -3923,6 +3948,68 @@
                 dynamic_options:
                   values:
                     - '{"fieldId":"vrfName"}'
+            vlanVxlanToggle:
+              id: vlanVxlanToggle
+              name: vxlan
+              label: VXLAN
+              description: Extend this VLAN over the VXLAN overlay. If not extending, SVI parameters are defined under VTEPs resolver.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            nodeSviIpAddress:
+              id: nodeSviIpAddress
+              name: ipAddress
+              label: IP Address
+              description: 'Enter an IP address and subnet mask in CIDR notation for the SVI (i.e. 1.1.1.1/24).'
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            nodeVirtualSviIpAddress:
+              id: nodeVirtualSviIpAddress
+              name: virtualIpAddress
+              label: Virtual IP Address
+              description: 'Enter an IP address and optionally a subnet mask for the SVI (i.e. 1.1.1.1 or 1.1.1.1/24).'
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            nodeSviIpInfo:
+              id: nodeSviIpInfo
+              name: sviIpInfo
+              label: SVI IP Info
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - nodeSviIpAddress
+                    - nodeVirtualSviIpAddress
+            nodeVlanDetails:
+              id: nodeVlanDetails
+              name: nodes
+              label: SVI Addressing
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: nodeSviIpInfo
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
             vlanBasedVlans:
               id: vlanBasedVlans
               name: vlanBasedVlaNs
@@ -3944,6 +4031,8 @@
                     - vlanSviArpDetails
                     - vlanSviEosCliStatements
                     - vlanVrf
+                    - vlanVxlanToggle
+                    - nodeVlanDetails
             vlans:
               id: vlans
               name: vlans
@@ -4172,9 +4261,11 @@
                   "vlanId",
                   "vlanMemberSwitches",
                   "vlanBasedVlanName",
+                  "vlanVxlanToggle",
                   "vlanL3OrL2",
                   "vlanVrf",
                   "vlanSVIIpAddresses",
+                  "nodeVlanDetails",
                   "vlanDhcpServerDetails",
                   "vlanSviMtu",
                   "vlanSviArpDetails",
@@ -4215,8 +4306,15 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "vlanVxlanToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
+                "dependencyType":"AND",
                 "type":"INPUT"
               },
               "vlanSviSecondaryIpAddress":{
@@ -4341,15 +4439,22 @@
                   "True":"ip address virtual",
                   "False":"ip virtual-router address"
                 },
-                "type":"INPUT",
                 "dependency":{
                   "vlanL3OrL2":{
                     "value":[
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "vlanVxlanToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               },
               "natSourceDetails":{
                 "key":"natSourceDetails",
@@ -4679,5 +4784,52 @@
                     ]
                   }
                 ]
+              },
+              "nodeVirtualSviIpAddress":{
+                "key":"nodeVirtualSviIpAddress",
+                "dependency":{
+                  "vlanVxlanToggle":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vlanL3OrL2":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "nodeSviIpAddress":{
+                "key":"nodeSviIpAddress",
+                "dependency":{
+                  "vlanVxlanToggle":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vlanL3OrL2":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "nodeVlanDetails":{
+                "key":"nodeVlanDetails",
+                "type":"INPUT",
+                "fieldOverrides":{
+                  "label":"Device",
+                  "description":"Add switches to set SVI IP addresses for.",
+                  "addButtonLabel":"Device"
+                }
               }
             }
