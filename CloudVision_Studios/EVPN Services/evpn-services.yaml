@@ -561,10 +561,10 @@
                                       }
                                       if peer_info.get('set_ipv4_next_hop'):
                                           (config['route_maps'][f"RM-{vrf}-{peer}-SET-NEXT-HOP-OUT"]
-                                          ['sequence_numbers'][10]['set']).append(peer_info['set_ipv4_next_hop'])
+                                          ['sequence_numbers'][10]['set']).append(f"ip next-hop {peer_info['set_ipv4_next_hop']}")
                                       elif peer_info.get('set_ipv6_next_hop'):
                                           (config['route_maps'][f"RM-{vrf}-{peer}-SET-NEXT-HOP-OUT"]
-                                          ['sequence_numbers'][10]['set']).append("set_ipv6_next_hop")
+                                          ['sequence_numbers'][10]['set']).append(f"ipv6 next-hop {peer_info['set_ipv6_next_hop']}")
 
                   # if mlag is enabled
                   if switch_facts.get('mlag'):
@@ -1831,6 +1831,30 @@
           %         endif
           %     endfor
           !
+          % endif
+          ## eos - Route Maps
+          % if config.get("route_maps") is not None:
+          %   for route_map in natural_sort(config["route_maps"].keys()):
+          %       for sequence in config["route_maps"][route_map]["sequence_numbers"].keys():
+          %           if config["route_maps"][route_map]["sequence_numbers"][sequence].get("type") is not None:
+          route-map ${ route_map } ${ config["route_maps"][route_map]["sequence_numbers"][sequence]["type"] } ${ sequence }
+          %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("description") is not None:
+          description ${ config["route_maps"][route_map]["sequence_numbers"][sequence]["description"] }
+          %               endif
+          %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("match") is not None:
+          %                   for match_rule in config["route_maps"][route_map]["sequence_numbers"][sequence]["match"]:
+          match ${ match_rule }
+          %                   endfor
+          %               endif
+          %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("set") is not None:
+          %                   for set_rule in config["route_maps"][route_map]["sequence_numbers"][sequence]["set"]:
+          set ${ set_rule }
+          %                   endfor
+          %               endif
+          !
+          %           endif
+          %       endfor
+          %   endfor
           % endif
           ## router-bgp
           % if config.get("router_bgp") is not None:
