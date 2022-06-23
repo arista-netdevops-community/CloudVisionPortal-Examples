@@ -1,14 +1,54 @@
-# CVP_CCM
+# Change Control Script Actions
 
-These scripts are to be used in the Change Management Workflow. They use various internal CVP libraries to execute tests on either Arista switches or Linux devices. If the tests are successful the scripts will exit cleanly otherwise they will raise an exception or assert error.
+CloudVision Change Control Script Actions (python2) were introduced in [2019.1.0](https://www.arista.com/en/support/toi/cvp-2019-1-0/14330-change-control-script-actions). The examples in this repo can be used from CloudVision 2019.1.0 to 2021.2.2.
 
-To test the scripts:
+>NOTE Starting from 2021.3.0 the new [CloudVision Python Actions](https://www.arista.com/en/support/toi/cvp-2021-3-0/14901-ui-for-custom-action-scripts) can be used (python3). Similar and additional examples can be checked in [https://github.com/aristanetworks/cloudvision-python-actions](https://github.com/aristanetworks/cloudvision-python-actions).
 
-`/cvpi/tools/script-util test -path <python file> -config <yaml file>`
+CVP requires two files for Custom Scripts:
+   - a Python script file
+   - a YAML configuration file
+
+**Change Control Script**
+
+The CC script will be associated with the device(s) modified in the Change Control and are to be used in the Change Management Workflow.
+The device information is available as globalVariables in `CVP_IP`,  `CVP_MAC`, `CVP_SERIAL`.
+The information for the user executing the Change Control is available as global variables in `CVP_USERNAME`, `CVP_PASSWORD` and `CVP_SESSION_ID`.
+The script can use the Rest Client library and Device library to extend its functionality.  
+CVP audit logging is available within scripts using the `alog()` function.
+If the tests are successful the scripts will exit cleanly, otherwise they will raise an exception or assert error.
+
+**Change Control Script Config YAML**
+
+The YAML config file should contain the following parameters:
+Name - the script name used in identifying the specific script to add to Change Controls.
+Args - optional parameter which contains a list of static arguments which can be passed to the script.
 
 To upload the scripts:
 
 `/cvpi/tools/script-util upload -path <python file> -config <yaml file>`
+
+should result in:
+
+```shell
+I0917 13:28:45.875159    2787 dial.go:123] connecting to {localhost:9900 static:///localhost:9900}...
+script uploaded successfully!!
+```
+
+To test the scripts against a device:
+
+`/cvpi/tools/script-util test -path <python file> -config <yaml file> -device <fqdn/mac address/serial num of the test device> -user <cvp username> -passwd <cvp user password>`
+
+**AbootPatch**
+
+This script will install the Aboot patch for Field Notice 044
+
+The image can be downloaded from any server using https.  File source is defined in the YAML file argument "extension_URL"
+
+If using CVP as source for the patch file, it requires that CVP has an image bundle containing that Aboot patch file in it
+
+If the installation is done over a none default VRF, change the VRF argument in the YAML config file
+
+you need to define the name of the RPM file in the YAML file argument "extention"
 
 **check_switchType**
 
@@ -16,6 +56,10 @@ Change Control script that uses the arguments provided by check_switchType.yaml 
    switchType - required model name that the switch needs to be for the change workflow to progress
 
 The script uses the internal CVP library "Device" to access the eAPI interface on the target Arista EOS switch it then executes the "show version" and "show hostname" commands to gather the required information for the script. The script will fail if the switchType does not match the modelName in the show version return.
+
+**clean-flash**
+
+Change Control script that removes all EOS images except the boot image from /mnt/flash/.
 
 **device_ping**
 
@@ -32,6 +76,56 @@ Change Control script that uses the arguments provided by device_ping.yaml to ch
 
 The script uses paramiko to access each client using SSH and then executes a ping command to each target.
 
+**force_reload**
+
+Force reloads a device and runs connectivity checks via eAPI calls until it comes back up.
+
+Required Arguments:
+   `CHECK_INTERVAL` - how long to wait between running eAPI checks to the device
+  ` MAX_CHECK_COUNT` - maximum number of check cycles to run before failing the task
+
+Smaple yaml file:
+
+```yaml
+name: Force Reload
+args:
+   CHECK_INTERVAL: 10
+   MAX_CHECK_COUNT: 120
+```
+
+**Image_preload**
+
+This script downloads an EOS image on the selected switch flash.  This is usefull to save time during a maintenance window as the image will already be on the switch ready to be installed instead of copied to each switch during the maintenance window.
+
+Users must edit the YAML file to define the correct repository, vrf and EOS file name
+
+**intf-check**
+
+This script checks the status of arbitrary interfaces.
+
+Required Arguments:
+   `interfaces` - list of interfaces on EOS
+
+Sample yaml file:
+
+```yaml
+name: intf-check
+args:
+   interfaces: "Ethernet1,Ethernet3"
+```
+
+**Migrate to CVaaS**
+
+This script will migrate the selected node to a CVaaS instance.
+
+An onboarding token needs to be generated on CVaaS and defined in the argument in the YAML file.  Onboarding tokens are generic and can be used for multiple devices.  Please generate one that will be valid for the duration of the onbording.  To update the token in the YAML file, the user-defined action needs to be removed and re-added.
+
+To validate if a token has expired, you can check here: https://jwt.io/
+
+If the node uses the non default VRF, it needs to be defined in the YAML file arguments
+
+The node will start streaming telemetry to the CVaaS instance which will automatically add the node in the inventory.
+
 **page_check**
 
 Change Control script that uses the arguments provided by page_check.yaml to check if a web page is reachable from a number of client devices. The arguments in the yaml file are as follows:
@@ -45,40 +139,6 @@ Change Control script that uses the arguments provided by page_check.yaml to che
 
 The script uses paramiko to access each client using SSH and then executes a curl command to reach the web page.
 
-**clean-flash**
-
-Change Control script that removes all EOS images except the boot image from /mnt/flash/.
-
-**AbootPatch**
-
-This script will install the Aboot patch for Field Notice 044
-
-The image can be downloaded from any server using https.  File source is defined in the YAML file argument "extension_URL"
-
-If using CVP as source for the patch file, it requires that CVP has an image bundle containing that Aboot patch file in it
-
-If the installation is done over a none default VRF, change the VRF argument in the YAML config file
-
-you need to define the name of the RPM file in the YAML file argument "extention"
-
-**Image_preload**
-
-This script downloads an EOS image on the selected switch flash.  This is usefull to save time during a maintenance window as the image will already be on the switch ready to be installed instead of copied to each switch during the maintenance window.
-
-Users must edit the YAML file to define the correct repository, vrf and EOS file name
-
 **push_token**
 
 This script is an example on how to push an onboarding token to EOS devices (can be modified to create any file on EOS too).
-
-**Migrate to CVaaS**
-
-This script will migrage the selected node to a CVaaS instance.
-
-An onboarding token needs to be generated on CVaaS and defined in the argument in the YAML file.  Onboarding tokens are generic and can be used for multiple devices.  Please generate one that will be valid for the duration of the onbording.  To update the token in the YAML file, the user-defined action needs to be removed and re-added.
-
-To validate if a token has expired, you can check here: https://jwt.io/
-
-If the node uses the non default VRF, it needs to be defined in the YAML file arguments
-
-The node will start streaming telemetry to the CVaaS instance which will automatically add the node in the inventory.
