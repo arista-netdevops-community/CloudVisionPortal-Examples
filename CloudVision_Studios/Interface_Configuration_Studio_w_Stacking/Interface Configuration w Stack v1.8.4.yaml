@@ -640,8 +640,9 @@
             %          if config.get("qos")[qi].get("service_profiles"):
             %              if vlanIntFound:
           ## some bug with this command on vlan interface
-
           ##    qos profile ${intfCfg.qosInstance}
+              service-profile ${intfCfg.qosInstance}
+            %              else:
               service-profile ${intfCfg.qosInstance}
             %              endif
             %          else:
@@ -920,9 +921,10 @@
             %          if config.get("qos")[qi].get("service_profiles"):
             %              if vlanIntFound:
           ## some bug with this command on vlan interface
-
           ##    qos profile ${intfCfg.qosInstance}
               service-profile ${groupCfg.qosInstance}
+            %              else:
+            % service-profile ${groupCfg.qosInstance}
             %              endif
             %          else:
           <% pm = config.get("qos")[qi].get("policy_maps")[0]["policyMapName"]
