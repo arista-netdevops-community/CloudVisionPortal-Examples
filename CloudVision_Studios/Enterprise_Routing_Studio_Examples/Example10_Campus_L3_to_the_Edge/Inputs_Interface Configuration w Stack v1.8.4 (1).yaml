@@ -1,0 +1,321 @@
+path: []
+inputs:
+  aclNames:
+    - aclLines:
+        - description: ''
+          destination: any
+          log: false
+          permitDenyRemark: permit
+          protocol: ip
+          seqNumber: '10'
+          source: any
+          tracked: false
+      countersPerEntry: false
+      description: ''
+      devices: []
+      name: anyany
+      type: ip
+    - aclLines:
+        - description: ''
+          destination: any
+          log: false
+          permitDenyRemark: deny
+          protocol: ip
+          seqNumber: '10'
+          source: any
+          tracked: false
+      countersPerEntry: false
+      description: ''
+      devices: []
+      name: any deny
+      type: ip
+  devices:
+    - inputs:
+        devicesGroup:
+          interface: []
+          interfaceRanges:
+            - accessVlan: 123
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/123
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 1.2.3.3/24
+                virtualRouterAddress: 1.2.3.2
+                vrf: BLUE
+              name: BLUE
+              portChannelGroup: ''
+            - accessVlan: 200
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/200
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 2.0.0.1/24
+                virtualRouterAddress: 2.0.0.99
+                vrf: GREEN
+              name: GREEN
+              portChannelGroup: ''
+            - accessVlan: 210
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/210
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 2.1.0.1/24
+                virtualRouterAddress: 2.1.0.99
+                vrf: GREEN
+              name: GREEN
+              portChannelGroup: ''
+            - accessVlan: 431
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/431
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 4.3.1.11/24
+                virtualRouterAddress: 4.3.1.99
+                vrf: BLACK
+              name: BLACK
+              portChannelGroup: ''
+            - accessVlan: 319
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan2/319
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 3.1.9.13/24
+                virtualRouterAddress: 3.1.9.99
+                vrf: RED
+              name: RED
+              portChannelGroup: ''
+            - accessVlan: 201
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan2/201
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 2.0.1.1/24
+                virtualRouterAddress: 2.0.1.99
+                vrf: GREEN
+              name: GREEN
+              portChannelGroup: ''
+            - accessVlan: 211
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan2/211
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 2.1.1.1/24
+                virtualRouterAddress: 2.1.1.99
+                vrf: GREEN
+              name: GREEN
+              portChannelGroup: ''
+            - aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: e2
+              interfaceSpeed: auto
+              ipSettings: {}
+              name: S1-F2-END-DEVICE
+              portChannelGroup: ''
+              vlanProfile: Trunk
+      tags:
+        query: >-
+          Edge-Router-Domain:Site1
+    - inputs:
+        devicesGroup:
+          interface: []
+          interfaceRanges:
+            - accessVlan: 319
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/319
+              interfaceSpeed: auto
+              ipSettings:
+                virtualRouterAddress: 3.1.9.99
+                vrf: RED
+              name: RED
+              portChannelGroup: ''
+            - accessVlan: 202
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/202
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 2.0.2.1/24
+                virtualRouterAddress: 2.0.2.99
+                vrf: GREEN
+              name: GREEN
+              portChannelGroup: ''
+            - accessVlan: 212
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/212
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 2.1.2.1/24
+                virtualRouterAddress: 2.1.2.99
+                vrf: GREEN
+              name: GREEN
+              portChannelGroup: ''
+            - accessVlan: 431
+              aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: vlan1/431
+              interfaceSpeed: auto
+              ipSettings:
+                ipPrefix: 4.3.1.9/24
+                virtualRouterAddress: 4.3.1.99
+                vrf: BLACK
+              name: BLACK
+              portChannelGroup: ''
+            - aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: e4/2,4/6
+              interfaceSpeed: auto
+              ipSettings: {}
+              name: RED-END-DEVICES
+              portChannelGroup: ''
+              vlanProfile: Trunk
+      tags:
+        query: >-
+          Edge-Router-Domain:Site2
+    - inputs:
+        devicesGroup:
+          interface: []
+          interfaceRanges:
+            - aclDirection: in
+              aclType: ip
+              description: ''
+              enabled: true
+              interfaceName: e6
+              interfaceSpeed: auto
+              ipSettings: {}
+              name: L2-TRUNK
+              portChannelGroup: ''
+              vlanProfile: Trunk
+      tags:
+        query: Edge-Router-Domain:FW-Border-Router
+  dot1XProfiles:
+    - dot1XProfileName: d
+      dot1x: {}
+      portSecurity: {}
+  loggingProfiles:
+    - logging:
+        congestionDrops: none
+        linkStatus: enabled
+        spanningTree: none
+        stormControl: none
+      loggingProfileName: L1
+  poeProfiles:
+    - description: ''
+      poe:
+        linkDownAction: maintain
+        poeNegotiationLldp: disabled
+        poeRebootAction: maintain
+        poeShutdownAction: maintain
+        poeWattsLimit: '3'
+        poeWattsLimitClass: '0'
+        priority: medium
+      poeProfileName: poe1
+  qosInstances:
+    - classMaps:
+        - classMapName: CM0
+          match: ''
+          matchValue: ''
+          type: qos
+      classification: []
+      devices: []
+      instanceName: Q1
+      policyMaps:
+        - classDefault: '3'
+          classMap:
+            - classMap: CM0
+              classMapSettings:
+                cos: none
+                drop: false
+                dropPrecedence: none
+                dscp: none
+                trafficClass: '5'
+          policyMapName: PM1
+          type: qos
+      rewriteRules: []
+      serviceProfiles:
+        - cos: ''
+          dscp: ''
+          policyMap: PM1
+          profileName: Q1
+          trust: none
+          txQueue: []
+      trafficClassToQueue: []
+    - classMaps:
+        - classMapName: CM3
+          match: ip
+          matchValue: ''
+          type: qos
+      classification:
+        - classifierValues: 34 36 48
+          trafficClass: '0'
+          type: dscp
+      devices: []
+      instanceName: Q2
+      policyMaps:
+        - classDefault: ''
+          classMap:
+            - classMap: CM3
+              classMapSettings:
+                cos: none
+                drop: false
+                dropPrecedence: none
+                dscp: none
+                trafficClass: '7'
+          policyMapName: PM3
+          type: qos
+      rewriteRules: []
+      serviceProfiles: []
+      trafficClassToQueue:
+        - dscp: ''
+          queue: '1'
+          trafficClass: '0'
+        - dscp: ''
+          queue: '0'
+          trafficClass: '1'
+  vlanProfiles:
+    - allowedVlans: ''
+      ipaddress: ''
+      lacpEnabled: true
+      mlagEnabled: false
+      mode: trunk
+      name: Trunk
+      nativeVlanId: 1
+      phoneTrunk: tagged
+      phoneVlanId: 0
+      portFastEnabled: true
+      profileDescription: ''
+      speed: auto
