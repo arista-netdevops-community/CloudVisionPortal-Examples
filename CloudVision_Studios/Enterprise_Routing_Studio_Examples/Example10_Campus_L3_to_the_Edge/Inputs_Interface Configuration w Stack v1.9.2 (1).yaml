@@ -1,0 +1,233 @@
+path: []
+inputs:
+  aclNames:
+    - aclLines:
+        - description: ''
+          destination: any
+          log: false
+          permitDenyRemark: permit
+          protocol: ip
+          seqNumber: '10'
+          source: any
+          tracked: false
+      countersPerEntry: false
+      description: ''
+      devices: []
+      name: anyany
+      type: ip
+    - aclLines:
+        - description: ''
+          destination: any
+          log: false
+          permitDenyRemark: deny
+          protocol: ip
+          seqNumber: '10'
+          source: any
+          tracked: false
+      countersPerEntry: false
+      description: ''
+      devices: []
+      name: any deny
+      type: ip
+  devices:
+    - inputs:
+        devicesGroup:
+          interfaceProfiles:
+            - aclDirection: in
+              aclType: ip
+              interfaceProfilesName: TRUNK
+              interfaceSpeed: auto
+              portChannelGroup: ''
+              vlanProfile: Trunk
+          interfaceRanges:
+            - description: BLUE End Device
+              enabled: true
+              interfaceName: e1/2
+              interfaceProfileName: TRUNK
+          vlanInterfaces:
+            - description: S1F1-GREEN
+              ipSettings:
+                ipPrefix: 2.0.0.1/24
+                vrf: GREEN
+              vlanId: 1/200
+            - description: S1F1-BLACK
+              ipSettings:
+                ipPrefix: 4.3.1.11/24
+                vrf: BLACK
+              vlanId: 1/431
+            - description: S1F2-RED
+              ipSettings:
+                ipPrefix: 3.1.9.13/24
+                vrf: RED
+              vlanId: 2/319
+            - description: S1F2-GREEN
+              ipSettings:
+                ipPrefix: 2.0.1.1/24
+                vrf: GREEN
+              vlanId: 2/201
+            - description: S1F2-GREEN
+              ipSettings:
+                ipPrefix: 2.1.1.1/24
+                vrf: GREEN
+              vlanId: 2/211
+            - description: S1F1-GREEN
+              ipSettings:
+                ipPrefix: 2.1.0.1/24
+                vrf: GREEN
+              vlanId: 1/210
+      tags:
+        query: Edge-Router-Domain:Site1
+    - inputs:
+        devicesGroup:
+          interfaceProfiles:
+            - aclDirection: in
+              aclType: ip
+              interfaceProfilesName: TRUNK
+              interfaceSpeed: auto
+              portChannelGroup: ''
+              vlanProfile: Trunk
+          interfaceRanges:
+            - description: ''
+              enabled: true
+              interfaceName: e2/2,2/6
+              interfaceProfileName: TRUNK
+          vlanInterfaces:
+            - description: S2F1-RED
+              ipSettings:
+                ipPrefix: 3.1.9.9/24
+                vrf: RED
+              vlanId: 1/319
+            - description: S2F1-GREEN
+              ipSettings:
+                ipPrefix: 2.0.2.1/24
+                vrf: GREEN
+              vlanId: 1/202
+            - description: S2F1-GREEN
+              ipSettings:
+                ipPrefix: 2.1.2.1/24
+                vrf: GREEN
+              vlanId: 1/212
+            - description: S2F1-BLACK
+              ipSettings:
+                ipPrefix: 4.3.1.9/24
+                vrf: BLACK
+              vlanId: 1/431
+            - description: D2F2-RED
+              ipSettings:
+                vrf: RED
+              vlanId: 2/319
+      tags:
+        query: Edge-Router-Domain:Site2
+    - inputs:
+        devicesGroup:
+          interfaceProfiles:
+            - aclDirection: in
+              aclType: ip
+              interfaceProfilesName: TRUNK
+              interfaceSpeed: auto
+              portChannelGroup: ''
+              vlanProfile: Trunk
+          interfaceRanges:
+            - description: ''
+              enabled: true
+              interfaceName: e6
+              interfaceProfileName: TRUNK
+      tags:
+        query: Edge-Router-Domain:FW-Border-Router
+  dot1XProfiles:
+    - dot1XProfileName: d
+      dot1x: {}
+      portSecurity: {}
+  loggingProfiles:
+    - logging:
+        congestionDrops: none
+        linkStatus: enabled
+        spanningTree: none
+        stormControl: none
+      loggingProfileName: L1
+  poeProfiles:
+    - description: ''
+      poe:
+        linkDownAction: maintain
+        poeNegotiationLldp: disabled
+        poeRebootAction: maintain
+        poeShutdownAction: maintain
+        poeWattsLimit: '3'
+        poeWattsLimitClass: '0'
+        priority: medium
+      poeProfileName: poe1
+  qosInstances:
+    - classMaps:
+        - classMapName: CM0
+          match: ''
+          matchValue: ''
+          type: qos
+      classification: []
+      devices: []
+      instanceName: Q1
+      policyMaps:
+        - classDefault: '3'
+          classMap:
+            - classMap: CM0
+              classMapSettings:
+                cos: none
+                drop: false
+                dropPrecedence: none
+                dscp: none
+                trafficClass: '5'
+          policyMapName: PM1
+          type: qos
+      rewriteRules: []
+      serviceProfiles:
+        - cos: ''
+          dscp: ''
+          policyMap: PM1
+          profileName: Q1
+          trust: none
+          txQueue: []
+      trafficClassToQueue: []
+    - classMaps:
+        - classMapName: CM3
+          match: ip
+          matchValue: ''
+          type: qos
+      classification:
+        - classifierValues: 34 36 48
+          trafficClass: '0'
+          type: dscp
+      devices: []
+      instanceName: Q2
+      policyMaps:
+        - classDefault: ''
+          classMap:
+            - classMap: CM3
+              classMapSettings:
+                cos: none
+                drop: false
+                dropPrecedence: none
+                dscp: none
+                trafficClass: '7'
+          policyMapName: PM3
+          type: qos
+      rewriteRules: []
+      serviceProfiles: []
+      trafficClassToQueue:
+        - dscp: ''
+          queue: '1'
+          trafficClass: '0'
+        - dscp: ''
+          queue: '0'
+          trafficClass: '1'
+  vlanProfiles:
+    - allowedVlans: ''
+      ipaddress: ''
+      lacpEnabled: true
+      mlagEnabled: false
+      mode: trunk
+      name: Trunk
+      nativeVlanId: 1
+      phoneTrunk: tagged
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ''
+      speed: auto
