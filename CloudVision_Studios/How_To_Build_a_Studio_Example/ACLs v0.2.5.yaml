@@ -1,0 +1,439 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: 328f4113-d71b-490a-8a21-2ba83298eb5b
+        workspace_id: 78cad3ec-f37d-47c2-913b-75bd1b754cee
+      display_name: ACLs v0.2.5
+      description: creating configs with for loops
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |
+          <%
+          import sys
+          import os
+          import json
+          import ipaddress
+          import re
+          from collections import OrderedDict
+
+          class SwitchDetails:
+              def __init__(self):
+                  self.id = None
+                  self.model = None #Model tag
+                  self.config = {
+                      "acls": {}
+                  }
+
+              def configure_acls(self, switch_acls):
+                  for acl, acl_details in switch_acls.items():
+                      self.config["acls"][acl] = {}
+                      self.config["acls"][acl]["counters_per_entry"] = acl_details["counters_per_entry"]
+                      if acl_details["name"].strip() != "":
+                          self.config["acls"][acl]["name"] = acl_details["name"]
+                      if acl_details["description"].strip() != "":
+                          self.config["acls"][acl]["description"] = acl_details["description"]
+                      if acl_details["acl_lines"]:
+                          self.config["acls"][acl]["acl_lines"] = acl_details["acl_lines"]
+                      if acl_details["devices"]:
+                          self.config["acls"][acl]["devices"] = acl_details["devices"]
+
+          def create_switch():
+              return SwitchDetails()
+
+          def get_switch(device_id):
+              switch = None
+              switch = create_switch()
+              switch.id = device_id
+              return switch
+
+          aclInputs = {}
+          workspace_id = ctx.studio.workspaceId
+          my_device = ctx.getDevice()
+          my_device_id = my_device.id
+
+          if not aclNames:
+            return
+          # Get  input
+          for acl in aclNames:
+              aclInputs[acl["name"]] = {
+                  "name": acl["name"],
+                  "description": acl["description"],
+                  "acl_lines": acl["aclLines"],
+                  "counters_per_entry": acl["countersPerEntry"],
+                  "devices": acl["devices"]
+              }
+
+          switch = get_switch(my_device_id)
+          switch_acls = {}
+          # Get only ACLs applied to this switch
+          if switch is not None:
+              for acl, acl_details in aclInputs.items():
+                  if acl_details["devices"].resolve()["interfaces"]["vlanInterfaces"]:
+                      switch_acls[acl] = acl_details
+
+          # Create config
+          if len(switch_acls) > 0:
+              switch.configure_acls(switch_acls)
+              config = switch.config
+          else:
+              config = {}
+          %>
+          ##${aclInputs}
+          ##${config}
+          %if config.get("acls"):
+              %for acl in config.get("acls"):
+          ip access-list ${config.get("acls")[acl].get("name")}
+          %        if config.get("acls")[acl].get("counters_per_entry"):
+              counters per-entry
+          %        endif
+              %    for line in config.get("acls")[acl]["acl_lines"]:
+              ${line.seqNumber} ${line.permitDenyRemark} ${line.protocol} ${line.source} ${line.destination}
+              %    endfor
+              !
+              %    if config.get("acls")[acl]["devices"].resolve()["interfaces"]["vlanInterfaces"]:
+              %        for interface in config.get("acls")[acl]["devices"].resolve()["interfaces"]["vlanInterfaces"]:
+          interface vlan${interface.vlanId}
+          %                if interface.direction == True:
+              ip access-group ${config.get("acls")[acl].get("name")} out
+              !
+          %                else:
+              ip access-group ${config.get("acls")[acl].get("name")} in
+              !
+          %                endif
+              %        endfor
+              %    endif
+              %endfor
+          %endif
+      input_schema:
+        fields:
+          values:
+            89c22dbd-5339-447b-a86c-1e7c23141ee1:
+              id: 89c22dbd-5339-447b-a86c-1e7c23141ee1
+              name: direction
+              label: Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            b3a7b838-f995-4aee-95a0-4bc52b82291e:
+              id: b3a7b838-f995-4aee-95a0-4bc52b82291e
+              name: subInterface
+              label: Sub Interface Number
+              description: optional
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            43d0fbb2-70b5-4af6-ac3c-af28b852b09c:
+              id: 43d0fbb2-70b5-4af6-ac3c-af28b852b09c
+              name: physicalInterfaceGroup
+              label: Physical Interface Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 89c22dbd-5339-447b-a86c-1e7c23141ee1
+                    - b3a7b838-f995-4aee-95a0-4bc52b82291e
+            bba360a6-ff2a-4fef-9675-64fd68f91be3:
+              id: bba360a6-ff2a-4fef-9675-64fd68f91be3
+              name: physicalInterfaces
+              label: Physical Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 43d0fbb2-70b5-4af6-ac3c-af28b852b09c
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
+                input_tag_label: interface
+                tag_filter_query: null
+            0beb2881-884c-4805-8dda-0e7a4cdb9353:
+              id: 0beb2881-884c-4805-8dda-0e7a4cdb9353
+              name: vlanId
+              label: VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            a0c6a9d7-906d-40e1-9b0f-f61f37008267:
+              id: a0c6a9d7-906d-40e1-9b0f-f61f37008267
+              name: direction
+              label: Direction
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            5c2b2ecd-66a1-4d5e-b432-2104f05f2a1f:
+              id: 5c2b2ecd-66a1-4d5e-b432-2104f05f2a1f
+              name: vlanInterfacesGroup
+              label: VLAN Interfaces Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 0beb2881-884c-4805-8dda-0e7a4cdb9353
+                    - a0c6a9d7-906d-40e1-9b0f-f61f37008267
+            ffec9376-8190-41d4-95bc-b40f8c5bcbf4:
+              id: ffec9376-8190-41d4-95bc-b40f8c5bcbf4
+              name: vlanInterfaces
+              label: VLAN Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 5c2b2ecd-66a1-4d5e-b432-2104f05f2a1f
+                key: 0beb2881-884c-4805-8dda-0e7a4cdb9353
+            12991be5-3521-4160-9864-e854ef5a5495:
+              id: 12991be5-3521-4160-9864-e854ef5a5495
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - bba360a6-ff2a-4fef-9675-64fd68f91be3
+                    - ffec9376-8190-41d4-95bc-b40f8c5bcbf4
+            a1f85247-40bd-4893-9181-2859565334c4:
+              id: a1f85247-40bd-4893-9181-2859565334c4
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 12991be5-3521-4160-9864-e854ef5a5495
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            cd959731-6dec-4fdf-b358-1aa8ec98730c:
+              id: cd959731-6dec-4fdf-b358-1aa8ec98730c
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            650fae2f-4df7-4793-98ac-678380c568e1:
+              id: 650fae2f-4df7-4793-98ac-678380c568e1
+              name: name
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1292fc2f-da1e-4313-af4f-9c8e4d111ac3:
+              id: 1292fc2f-da1e-4313-af4f-9c8e4d111ac3
+              name: seqNumber
+              label: Seq Number
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1b852dbc-ef39-4348-aa31-db00058e3a7b:
+              id: 1b852dbc-ef39-4348-aa31-db00058e3a7b
+              name: source
+              label: Source
+              description: Enter "any" or prefix. /32 = host
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            87df06d7-6980-4f4f-ad98-73cbfb53d8b7:
+              id: 87df06d7-6980-4f4f-ad98-73cbfb53d8b7
+              name: protocol
+              label: Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: ip
+                static_options:
+                  values:
+                    - ip
+                    - ahp
+                    - esp
+                    - gre
+                    - icmp
+                    - igmp
+                    - ospf
+                    - pim
+                    - rsvp
+                    - tcp
+                    - udp
+                    - vlan
+                    - vrrp
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            fa2c4029-01be-4db3-8718-a9a0e6422b6d:
+              id: fa2c4029-01be-4db3-8718-a9a0e6422b6d
+              name: destination
+              label: Destination
+              description: Enter "any" or prefix. /32 = host
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            9adcb67a-420f-45c1-91c0-9c4d7bfac29b:
+              id: 9adcb67a-420f-45c1-91c0-9c4d7bfac29b
+              name: log
+              label: Log
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            29179dda-b44e-4d1f-9518-eb8200d34641:
+              id: 29179dda-b44e-4d1f-9518-eb8200d34641
+              name: permitDenyRemark
+              label: Permit Deny Remark
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: permit
+                static_options:
+                  values:
+                    - permit
+                    - deny
+                    - remark
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            8014cd4a-52d7-4c9c-8b8a-eabaca200de3:
+              id: 8014cd4a-52d7-4c9c-8b8a-eabaca200de3
+              name: description
+              label: Description
+              description: If remark option is chosen this text is a line in the ACL
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b73b5570-b859-443e-a3b5-a7679710562c:
+              id: b73b5570-b859-443e-a3b5-a7679710562c
+              name: aclLine
+              label: Seq Number Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 1292fc2f-da1e-4313-af4f-9c8e4d111ac3
+                    - 1b852dbc-ef39-4348-aa31-db00058e3a7b
+                    - 87df06d7-6980-4f4f-ad98-73cbfb53d8b7
+                    - fa2c4029-01be-4db3-8718-a9a0e6422b6d
+                    - 9adcb67a-420f-45c1-91c0-9c4d7bfac29b
+                    - 29179dda-b44e-4d1f-9518-eb8200d34641
+                    - 8014cd4a-52d7-4c9c-8b8a-eabaca200de3
+            11917ef4-e3a2-46fd-b499-7dc5a7c5f628:
+              id: 11917ef4-e3a2-46fd-b499-7dc5a7c5f628
+              name: aclLines
+              label: ACL Lines
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: b73b5570-b859-443e-a3b5-a7679710562c
+                key: 1292fc2f-da1e-4313-af4f-9c8e4d111ac3
+            3236f491-f5f3-4a9d-88ea-2c372bd6b6cf:
+              id: 3236f491-f5f3-4a9d-88ea-2c372bd6b6cf
+              name: countersPerEntry
+              label: Counters Per Entry
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            525a7682-184b-427e-ae30-a845197f4746:
+              id: 525a7682-184b-427e-ae30-a845197f4746
+              name: aclGroup
+              label: ACL Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - a1f85247-40bd-4893-9181-2859565334c4
+                    - cd959731-6dec-4fdf-b358-1aa8ec98730c
+                    - 650fae2f-4df7-4793-98ac-678380c568e1
+                    - 11917ef4-e3a2-46fd-b499-7dc5a7c5f628
+                    - 3236f491-f5f3-4a9d-88ea-2c372bd6b6cf
+            4033ad25-d245-4d8a-a497-9ebcca9b6cc3:
+              id: 4033ad25-d245-4d8a-a497-9ebcca9b6cc3
+              name: aclNames
+              label: ACL Names
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 525a7682-184b-427e-ae30-a845197f4746
+                key: 650fae2f-4df7-4793-98ac-678380c568e1
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 4033ad25-d245-4d8a-a497-9ebcca9b6cc3
+        layout:
+          value: >-
+            {"df02e292-5fd1-4b88-8eb8-548bc2e6bba7":{"key":"df02e292-5fd1-4b88-8eb8-548bc2e6bba7","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"525a7682-184b-427e-ae30-a845197f4746":{"key":"525a7682-184b-427e-ae30-a845197f4746","type":"INPUT","order":["650fae2f-4df7-4793-98ac-678380c568e1","cd959731-6dec-4fdf-b358-1aa8ec98730c","a1f85247-40bd-4893-9181-2859565334c4","11917ef4-e3a2-46fd-b499-7dc5a7c5f628","3236f491-f5f3-4a9d-88ea-2c372bd6b6cf"]},"4033ad25-d245-4d8a-a497-9ebcca9b6cc3":{"key":"4033ad25-d245-4d8a-a497-9ebcca9b6cc3","type":"INPUT","isPageLayout":true},"89c22dbd-5339-447b-a86c-1e7c23141ee1":{"key":"89c22dbd-5339-447b-a86c-1e7c23141ee1","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"4038eac1-2d62-4f27-8f2a-6c0d9bc4a022":{"key":"4038eac1-2d62-4f27-8f2a-6c0d9bc4a022","type":"INPUT","valueToLabelMap":{"True":"Permit","False":"Deny"}},"394b7cd4-46d5-4bba-9b43-0cb35c41eabc":{"key":"394b7cd4-46d5-4bba-9b43-0cb35c41eabc","type":"INPUT","order":["12a122d4-dc8a-49cc-813d-8ddf65a8565f","26a8322f-2f0c-4f91-96a1-9157f7a5f1b3"]},"aa3400e4-09e3-44cf-81d3-65cd0dd867f8":{"key":"aa3400e4-09e3-44cf-81d3-65cd0dd867f8","type":"INPUT","isPageLayout":true},"a1f85247-40bd-4893-9181-2859565334c4":{"key":"a1f85247-40bd-4893-9181-2859565334c4","type":"INPUT","showDefaultRow":false},"feb86ea5-601c-4f0e-88a6-cd4ed61f24b0":{"key":"feb86ea5-601c-4f0e-88a6-cd4ed61f24b0","type":"INPUT","valueToLabelMap":{"True":"Permit","False":"Deny"}},"b73b5570-b859-443e-a3b5-a7679710562c":{"key":"b73b5570-b859-443e-a3b5-a7679710562c","type":"INPUT","order":["1292fc2f-da1e-4313-af4f-9c8e4d111ac3","29179dda-b44e-4d1f-9518-eb8200d34641","8014cd4a-52d7-4c9c-8b8a-eabaca200de3","87df06d7-6980-4f4f-ad98-73cbfb53d8b7","1b852dbc-ef39-4348-aa31-db00058e3a7b","fa2c4029-01be-4db3-8718-a9a0e6422b6d","9adcb67a-420f-45c1-91c0-9c4d7bfac29b"]},"a0c6a9d7-906d-40e1-9b0f-f61f37008267":{"key":"a0c6a9d7-906d-40e1-9b0f-f61f37008267","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"bba360a6-ff2a-4fef-9675-64fd68f91be3":{"key":"bba360a6-ff2a-4fef-9675-64fd68f91be3","type":"INPUT","showDefaultRow":false}}
