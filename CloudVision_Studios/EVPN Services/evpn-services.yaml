@@ -183,8 +183,7 @@
                   # normalize static routes
                   for sr in info.get('static_routes'):
                       # if static route is to be configured on switch
-                      if device_matches_resolver_query(sr['devices'].resolve(
-                              device=switch_facts['serial_number'])['devices']['hostname'], switch_facts['serial_number']):
+                      if device_matches_resolver_query(sr['devices'], switch_facts['serial_number']):
                           static_route = {}
                           static_route['destination_address_prefix'] = sr['routeDetails'].get('destinationAddressPrefix')
                           static_route['gateway'] = sr['routeDetails'].get('gateway')
@@ -202,8 +201,7 @@
                   # normalize external bgp peers
                   for bgp_peer in info.get('external_bgp_peers'):
                       # if bgp peer is to be configured on switch
-                      if device_matches_resolver_query(bgp_peer['devices'].resolve(
-                              device=switch_facts['serial_number'])['devices']['hostname'], switch_facts['serial_number']):
+                      if device_matches_resolver_query(bgp_peer['devices'], switch_facts['serial_number']):
                           peer_info = {}
                           peer_info['remote_as'] = bgp_peer['remoteAs']
                           if bgp_peer.get('description') and bgp_peer['description'].strip() != "":
@@ -218,7 +216,7 @@
                               peer_info['maximum_routes'] = bgp_peer['maxRoutes'].get('maximumRoutes')
                           if bgp_peer['maxRoutes'].get('warningLimit'):
                               peer_info['warning_limit_routes'] = bgp_peer['maxRoutes'].get('warningLimit')
-                          if bgp_peer['defaultOriginate'].get('always') and bgp_peer['defaultOriginate']['always'].strip() != "":
+                          if bgp_peer['defaultOriginate'].get('ebgpPeerDefaultOriginateEnable'):
                               peer_info['default_originate'] = {
                                   "always": bgp_peer['defaultOriginate'].get('always')
                               }
@@ -246,8 +244,7 @@
                   # normalize additional route targets
                   for rt in info.get('additional_route_targets'):
                       # if additional route target is to be configured on switch
-                      if device_matches_resolver_query(rt['devices'].resolve(
-                              device=switch_facts['serial_number'])['devices']['hostname'], switch_facts['serial_number']):
+                      if device_matches_resolver_query(rt['devices'], switch_facts['serial_number']):
                           route_target = {}
                           route_target['type'] = rt['type']
                           route_target['address_family'] = rt['addressFamily']
@@ -280,7 +277,7 @@
                       }
                   # Check if VLAN is L2 or L3
                   # If this is an L3 VLAN
-                  if info['l2_only'] == False:
+                  if not info['l2_only']:
                       if info['svi_ip_addresses'].get('vrf') and info['svi_ip_addresses']['vrf'].strip() != "None":
                           vrf = info['svi_ip_addresses'].get('vrf')
                       else:
@@ -297,8 +294,7 @@
                       # set VIP
                       if info['vxlan'] == True:
                           svi_vip = info['svi_ip_addresses']['sviVirtualIpAddress']
-                      elif info['vxlan'] == False:
-                          # assert False, f"{info['member_switches'].resolve(device=switch_facts['serial_number'])['switch']['nodes'].resolve(device=switch_facts['serial_number'])}"
+                      else:
                           if info['node_svi_details'].resolve(device=switch_facts['serial_number'])['sviIpInfo']['virtualIpAddress'].strip() != "":
                               svi_vip = info['node_svi_details'].resolve(device=switch_facts['serial_number'])['sviIpInfo']['virtualIpAddress']
                           else:
@@ -384,10 +380,19 @@
                       # normalize name
                       switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)]['name'] \
                           = info['name'] if info['name'].strip() != "" else None
+                      # normalize rd
                       switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)]['route_distinguisher'] \
                           = info['route_distinguisher']
+                      # normalize rt
                       switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)]['route_target'] = \
                           info['route_target']
+                      # normalize etree inputs
+                      if info['etree_details'].get('etreeEnable'):
+                          switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)]['etree_leaf_export_rt_offset'] = info['etree_details']['leafExportRouteTargetOffset']
+                          if info['etree_root_switches'].resolve(device=switch_facts['serial_number'])['role'] == 'Root':
+                              switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)]['etree_role'] = 'root'
+                          else:
+                              switch_facts['tenants'][info['tenant']]['l2vlans'][int(vlan)]['etree_role'] = 'leaf'
 
               # Normalize vlan_aware_bundles
               for vlan_aware_bundle, info in switch_vlan_bundles.items():
@@ -471,6 +476,8 @@
                               "tenant": tenant,
                               "name": info['name']
                           }
+                          if info.get('etree_role') and info['etree_role'] == "leaf" and switch_facts.get('vtep'):
+                              config['vlans'][vlan]['etree'] = {'role': 'leaf'}
                           # Section commented out for now until more detail is found on which platforms
                           # support dhcp snooping
                           # Create L2 SVI with helper address pointing towards CVP
@@ -645,10 +652,14 @@
                                   "tenant": tenant,
                                   "type": "underlay_peering",
                                   "shutdown": False,
+                                  "mtu": 9214,
                                   "description": f"MLAG_PEER_L3_iBGP:{vrf}",
                                   "vrf": vrf,
                                   "ip_address": f"{mlag_ip}/{ibgp_peering_subnet_mask}"
                               }
+                              # Reset mtu to 1500 if veos
+                              if re.match(veos_regex, switch_facts['platform']):
+                                  config['vlan_interfaces'][f"Vlan{ibgp_vlan}"]['mtu'] = None
                               if "MLAG_VRF_PEER" not in (config['port_channel_interfaces']
                                                         [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
                                                         ['trunk_groups']):
@@ -705,14 +716,16 @@
                                   else:
                                       switch_rd.append(rd_segment)
                               vlan_info['route_distinguisher'] = ":".join(switch_rd)
-                              # Set vlan rt
-                              switch_rt = []
-                              for rt_segment in vlan_info['route_target'].split(":"):
+                              # Set vlan rts
+                              switch_rt = []  # For both import/export rt
+
+                              for i, rt_segment in enumerate(vlan_info['route_target'].split(":")):
                                   if vlan_based_mac_vrf_admin_field_key_words.get(rt_segment) is not None:
-                                      switch_rt.append(str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])))
-                                  else:
-                                      switch_rt.append(rt_segment)
+                                      rt_segment = str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment]))
+                                  switch_rt.append(rt_segment)
+
                               vlan_info['route_target'] = ":".join(switch_rt)
+
                       # Set l2 vlans
                       for vlan, vlan_info in switch_facts['tenants'][tenant]['l2vlans'].items():
                           # Set vlan rd
@@ -724,13 +737,29 @@
                                   switch_rd.append(rd_segment)
                           vlan_info['route_distinguisher'] = ":".join(switch_rd)
                           # Set vlan rt
-                          switch_rt = []
-                          for rt_segment in vlan_info['route_target'].split(":"):
+                          switch_rt = []  # For both import/export rt
+                          switch_import_rt = []  # For only import rt
+                          switch_export_rt = []  # For only export rt
+                          for i, rt_segment in enumerate(vlan_info['route_target'].split(":")):
                               if vlan_based_mac_vrf_admin_field_key_words.get(rt_segment) is not None:
-                                  switch_rt.append(str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment])))
-                              else:
+                                  rt_segment = str(eval(vlan_based_mac_vrf_admin_field_key_words[rt_segment]))
+                              # Format for etree switches
+                              if not vlan_info.get('etree_role'):
                                   switch_rt.append(rt_segment)
-                          vlan_info['route_target'] = ":".join(switch_rt)
+                              else:
+                                  leaf_rt_segment = str(vlan_info['etree_leaf_export_rt_offset'] + int(rt_segment)) if i % 2 == 1 else rt_segment
+                                  if vlan_info["etree_role"] == 'root':
+                                      switch_rt.append(rt_segment)
+                                      switch_import_rt.append(leaf_rt_segment)
+                                  else:
+                                      switch_import_rt.append(rt_segment)
+                                      switch_export_rt.append(leaf_rt_segment)
+                                      switch_rt = []
+
+                          vlan_info['route_target'] = ":".join(switch_rt) if len(switch_rt) > 0 else None
+                          vlan_info['import_route_target'] = ":".join(switch_import_rt) if len(switch_import_rt) > 0 else None
+                          vlan_info['export_route_target'] = ":".join(switch_export_rt) if len(switch_export_rt) > 0 else None
+
                       # Set vlan_aware_bundles
                       for bundle, bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].items():
                           # Set bundle rd
@@ -818,7 +847,9 @@
                                   # Add mlag_ip to nieghbors and address family
                                   config['router_bgp']['vrfs'][vrf]['neighbors'][mlag_peer_ip] = {
                                       "remote_as": switch_facts['bgp_as'],
-                                      "description": mlag_peer_switch_facts['hostname']
+                                      "description": mlag_peer_switch_facts['hostname'],
+                                      "send_community": "all",
+                                      "next_hop_self": True,
                                   }
                                   address_family_ipv4_neighbors.append(mlag_peer_ip)
                               # set external bgp peers
@@ -835,7 +866,7 @@
                                           if peer_info.get('default_originate'):
                                               if not peer_info['default_originate'].get('route_map'):
                                                   peer_info['default_originate'].update(
-                                                      {"route_map_out": f"RM-{vrf}-{peer}-SET-NEXT-HOP-OUT"}
+                                                      {"route_map": f"RM-{vrf}-{peer}-SET-NEXT-HOP-OUT"}
                                                   )
                                           if peer_info.get('set_ipv4_next_hop'):
                                               peer_info.pop("set_ipv4_next_hop")
@@ -876,13 +907,16 @@
                                   config['router_bgp']['vlans'][vlan] = {
                                       "tenant": tenant,
                                       "rd": vlan_info['route_distinguisher'],
-                                      "route_targets": {
-                                          "both": [vlan_info['route_target']]
-                                      },
+                                      "route_targets": {},
                                       "redistribute_routes": {
                                           "learned": {}
                                       }
                                   }
+                                  # Set route targets
+                                  config['router_bgp']['vlans'][vlan]['route_targets']['both'] = [vlan_info['route_target']] if vlan_info.get('route_target') else None
+                                  config['router_bgp']['vlans'][vlan]['route_targets']['import'] = [vlan_info['import_route_target']] if vlan_info.get('import_route_target') else None
+                                  config['router_bgp']['vlans'][vlan]['route_targets']['export'] = [vlan_info['export_route_target']] if vlan_info.get('export_route_target') else None
+
                           # Set l2 vlans
                           for vlan, vlan_info in switch_facts['tenants'][tenant]['l2vlans'].items():
                               if vlan_info['vxlan'] == False:
@@ -897,13 +931,15 @@
                               config['router_bgp']['vlans'][vlan] = {
                                   "tenant": tenant,
                                   "rd": vlan_info['route_distinguisher'],
-                                  "route_targets": {
-                                      "both": [vlan_info['route_target']]
-                                  },
+                                  "route_targets": {},
                                   "redistribute_routes": {
                                       "learned": {}
                                   }
                               }
+                              # Set route targets
+                              config['router_bgp']['vlans'][vlan]['route_targets']['both'] = [vlan_info['route_target']] if vlan_info.get('route_target') else None
+                              config['router_bgp']['vlans'][vlan]['route_targets']['import'] = [vlan_info['import_route_target']] if vlan_info.get('import_route_target') else None
+                              config['router_bgp']['vlans'][vlan]['route_targets']['export'] = [vlan_info['export_route_target']] if vlan_info.get('export_route_target') else None
                           # Set vlan aware bundles
                           for bundle, bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].items():
                               config['router_bgp']['vlan_aware_bundles'][bundle] = {
@@ -940,7 +976,7 @@
 
                       # map l2vlans to vnis
                       for l2vlan, info in switch_facts['tenants'][tenant]['l2vlans'].items():
-                          if info.get('vni') is None or info['vxlan'] == False:
+                          if not info.get('vni'):
                               continue
                           config['vxlan_interface']['Vxlan1']['vxlan']['vlans'][l2vlan] = {
                               "vni": info['vni']
@@ -1012,17 +1048,17 @@
           def check_config_parameters(switch_facts):
               if switch_facts.get('vtep'):
                   assert switch_facts.get('bgp_as') is not None, f"BGP ASN is not set.  Please apply a 'router_bgp.as' tag to " \
-                                                                 f"{switch_facts['hostname']} in the Tags section of Provisioning " \
-                                                                 f"with the appropriate workspace selected."
+                                                                  f"{switch_facts['hostname']} in the Tags section of Provisioning " \
+                                                                  f"with the appropriate workspace selected."
                   assert switch_facts.get('router_id') is not None, f"BGP Router ID is not set.  Please apply a 'router_bgp.router_id' " \
-                                                                    f"tag to {switch_facts['hostname']} in the Tags section of " \
-                                                                    f"Provisioning with the appropriate workspace selected."
+                                                                  f"tag to {switch_facts['hostname']} in the Tags section of " \
+                                                                  f"Provisioning with the appropriate workspace selected."
               if switch_facts.get('mlag') is True:
                   assert switch_facts.get('mlag_port_channel_id') is not None, f"MLAG Peer Link is not set.  Please apply a " \
-                                                                               f"'mlag_configuration.peer_link' tag to " \
-                                                                               f"{switch_facts['hostname']} in the Tags " \
-                                                                               f"'section of Provisioning with the appropriate " \
-                                                                               f"workspace selected"
+                                                                              f"'mlag_configuration.peer_link' tag to " \
+                                                                              f"{switch_facts['hostname']} in the Tags " \
+                                                                              f"'section of Provisioning with the appropriate " \
+                                                                              f"workspace selected"
 
 
           def get_interfaces_info(switch_facts):
@@ -1095,19 +1131,8 @@
               switch_facts['network_services'] = {}
               tags_to_facts = {
                   "hostname": "hostname",
-                  "model": "platform",
-                  "NodeId": "id",
-                  "router_bgp.as": "bgp_as",
-                  "router_bgp.router_id": "router_id",
-                  "mlag_configuration.peer_link": "mlag_peer_link",
-                  "Campus-PoD": "group",
-                  "Leaf-Domain": "group",
-                  "group_id": "group_id",
-                  "Vtep": "vtep",
-                  "Role": "type"
+                  "model": "platform"
               }
-              # Network services is a special case
-              tags_to_facts['NetworkServices'] = None
 
               tsclient = ctx.getApiClient(tsgr.TagSearchStub)
               for label in tags_to_facts.keys():
@@ -1121,37 +1146,16 @@
                           if dev.modelName:
                               switch_facts[tags_to_facts[label]] = dev.modelName
                       continue
-                  elif label == "NetworkServices":
-                      tvsr = tspb.TagValueSearchRequest(label=label, workspace_id=workspace_id, topology_studio_request=True)
-                      for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
-                          try:
-                              query = f"{tag.label}:\"{tag.value}\" AND device:{device_id}"
-                              tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
-                              tagmresp = tsclient.GetTagMatchesV2(tagmr)
-                          except Exception:
-                              continue
-                          else:
-                              for match in tagmresp.matches:
-                                  if match.device.device_id == device_id:
-                                      if tag.value.lower() == "l2":
-                                          switch_facts['network_services']['l2'] = True
-                                      elif tag.value.lower() == "l3":
-                                          switch_facts['network_services']['l3'] = True
-                  else:
-                      tvsr = tspb.TagValueSearchRequest(label=label, workspace_id=workspace_id, topology_studio_request=True)
-                      for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
-                          try:
-                              query = f"{tag.label}:\"{tag.value}\" AND device:{device_id}"
-                              tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
-                              tagmresp = tsclient.GetTagMatchesV2(tagmr)
-                          except Exception:
-                              continue
-                          else:
-                              for match in tagmresp.matches:
-                                  if match.device.device_id == device_id:
-                                      switch_facts[tags_to_facts[tag.label]] = tag.value
-                                      break
 
+              # Set role if one exists
+              roles_applied_to_switch = role_dict.get(device_id)
+              if roles_applied_to_switch and len(roles_applied_to_switch) > 0:
+                  switch_facts['type'] = roles_applied_to_switch[0]
+              else:
+                  switch_facts['type'] = None
+
+              # Set node_id from NodeId tag
+              switch_facts['id'] = node_id_dict.get(device_id)
               # If NodeId tag isn't set, check for old leaf-number or spine-number tags
               if switch_facts.get('id') is None and switch_facts.get('type') in ["Leaf", "Spine"]:
                   id_tag_type = {"Leaf": "Leaf-Number", "Spine": "Spine-Number", "Super-Spine": None}
@@ -1159,11 +1163,18 @@
                   if node_id is not None:
                       switch_facts['id'] = int(node_id)
 
-              # Set l2 and l3 network_services if they haven't been set
-              if switch_facts['network_services'].get('l2') is None:
-                  switch_facts['network_services']['l2'] = False
-              if switch_facts['network_services'].get('l3') is None:
-                  switch_facts['network_services']['l3'] = False
+              # Set network_services
+              if network_services_dict.get(device_id):
+                  # Set l2 network_services
+                  if 'L2' in network_services_dict.get(device_id):
+                      switch_facts['network_services']['l2'] = True
+                  else:
+                      switch_facts['network_services']['l2'] = False
+                  # Set l3 network_services
+                  if 'L3' in network_services_dict.get(device_id):
+                      switch_facts['network_services']['l3'] = True
+                  else:
+                      switch_facts['network_services']['l3'] = False
 
               # Set l3 network services if not already set
               if not switch_facts['network_services'].get('l3') and switch_facts.get('type'):
@@ -1179,8 +1190,8 @@
                       switch_facts['network_services']['l2'] = False
 
               # normalize vtep
-              if switch_facts.get('vtep'):
-                  if re.match(r'true', switch_facts['vtep'], flags=re.IGNORECASE):
+              if vtep_dict.get(device_id):
+                  if re.match(r'true', vtep_dict[device_id], flags=re.IGNORECASE):
                       switch_facts['vtep'] = True
                   else:
                       switch_facts['vtep'] = False
@@ -1194,9 +1205,15 @@
                   else:
                       switch_facts['vtep'] = False
 
+              # Set BGP ASN
+              switch_facts['bgp_as'] = bgp_as_dict[device_id] if bgp_as_dict.get(device_id) else None
+
+              # Set Router ID
+              switch_facts['router_id'] = router_id_dict[device_id] if router_id_dict.get(device_id) else None
+
               # normalize mlag_port_channel_id and turn mlag on/off
-              if switch_facts.get('mlag_peer_link') and switch_facts['mlag_peer_link'].strip() != "":
-                  switch_facts['mlag_port_channel_id'] = "".join(re.findall(r'\d', switch_facts['mlag_peer_link']))
+              if mlag_peer_link_dict.get(device_id) and mlag_peer_link_dict[device_id].strip() != "":
+                  switch_facts['mlag_port_channel_id'] = "".join(re.findall(r'\d', mlag_peer_link_dict[device_id]))
                   switch_facts['mlag'] = True
               else:
                   switch_facts['mlag'] = False
@@ -1230,6 +1247,50 @@
               else:
                   switch_facts['mlag_role'] = None
               return switch_facts
+
+
+          # returns dictionary of device to label value based on workspace tag assignments
+          def populate_single_value_dict(workspace_id, label):
+              sv_dict = {}
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              tvsr = tspb.TagValueSearchRequest(
+                  label=label,
+                  workspace_id=workspace_id,
+                  topology_studio_request=True
+              )
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = f"{tag.label}:\"{tag.value}\""
+                  tagmr = tspb.TagMatchRequestV2(
+                      query=query,
+                      workspace_id=workspace_id,
+                      topology_studio_request=True
+                  )
+                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      sv_dict[match.device.device_id] = tag.value
+              return sv_dict
+
+
+          # returns dictionary of device to label values based on workspace tag assignments
+          def populate_multi_value_dict(workspace_id, label):
+              mv_dict = {}
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              tvsr = tspb.TagValueSearchRequest(
+                  label=label,
+                  workspace_id=workspace_id,
+                  topology_studio_request=True
+              )
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = f"{tag.label}:\"{tag.value}\""
+                  tagmr = tspb.TagMatchRequestV2(
+                      query=query,
+                      workspace_id=workspace_id,
+                      topology_studio_request=True
+                  )
+                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      mv_dict.setdefault(match.device.device_id, []).append(tag.value)
+              return mv_dict
 
 
           def clean_config(config):
@@ -1267,6 +1328,15 @@
               return  # type: ignore
 
           config = {}
+
+          # Pre-populate dictionaries used for getting switch facts
+          node_id_dict = populate_single_value_dict(workspace_id, 'NodeId')
+          network_services_dict = populate_multi_value_dict(workspace_id, 'NetworkServices')
+          vtep_dict = populate_single_value_dict(workspace_id, 'Vtep')
+          bgp_as_dict = populate_single_value_dict(workspace_id, 'router_bgp.as')
+          router_id_dict = populate_single_value_dict(workspace_id, 'router_bgp.router_id')
+          mlag_peer_link_dict = populate_single_value_dict(workspace_id, 'mlag_configuration.peer_link')
+          role_dict = populate_multi_value_dict(workspace_id, 'Role')
 
           my_switch_facts = get_switch_basics_from_tags(my_device_id)
           my_switch_facts = set_switch_facts(my_switch_facts)
@@ -1324,6 +1394,8 @@
                       "dhcp_server_details": vlan['dhcpServerDetails'],
                       "vni": int(vlan['vlanId']) + int(tenant['macVrfVniBase']),
                       "member_switches": vlan['switches'],
+                      "etree_details": vlan['eTreeDetails'],
+                      "etree_root_switches": vlan["eTreeRootSwitches"],
                       "arp": vlan['arp'],
                       "mtu": vlan['mtu'],
                       "eos_cli": vlan['eosCli'],
@@ -1382,8 +1454,7 @@
           for tenant in vlans.keys():
               for vlan, vlan_details in vlans[tenant].items():
                   for gateway_id in my_switch_facts['gateway_switches']:
-                      if device_matches_resolver_query(
-                              vlan_details['member_switches'].resolve(device=gateway_id)['switch']['hostname'], gateway_id) is True:
+                      if device_matches_resolver_query(vlan_details['member_switches'], gateway_id):
                           my_switch_vlans[vlan] = vlan_details
                           if vlan_details['svi_ip_addresses'].get('vrf') is not None \
                                   and vlan_details['svi_ip_addresses']['vrf'].strip() not in ["", "None"]:
@@ -1399,9 +1470,7 @@
           for tenant in vrfs.keys():
               for vrf, info in vrfs[tenant].items():
                   # check if device is specified in Applied Devices
-                  if (device_matches_resolver_query(info['devices'].resolve(
-                          device=my_switch_facts['serial_number'])['devices']['hostname'],
-                          my_switch_facts['serial_number'])):
+                  if device_matches_resolver_query(info['devices'], my_switch_facts['serial_number']):
                       my_switch_vrfs[vrf] = info
                       continue
 
@@ -1413,9 +1482,7 @@
                   # check if apply column resolves for any static routes
                   for sr in info.get('static_routes'):
                       # if static route is to be configured on switch
-                      if (device_matches_resolver_query(sr['devices'].resolve(
-                              device=my_switch_facts['serial_number'])['devices']['hostname'],
-                              my_switch_facts['serial_number'])):
+                      if device_matches_resolver_query(sr['devices'], my_switch_facts['serial_number']):
                           my_switch_vrfs[vrf] = info
                           break
                   if my_switch_vrfs.get(vrf):
@@ -1423,9 +1490,7 @@
                   # check if apply column resolves for external bgp neighbors
                   for bgp_peer in info.get('external_bgp_peers'):
                       # if bgp peer is to be configured on switch
-                      if (device_matches_resolver_query(bgp_peer['devices'].resolve(
-                              device=my_switch_facts['serial_number'])['devices']['hostname'],
-                              my_switch_facts['serial_number'])):
+                      if device_matches_resolver_query(bgp_peer['devices'], my_switch_facts['serial_number']):
                           my_switch_vrfs[vrf] = info
                           break
                   if my_switch_vrfs.get(vrf):
@@ -1433,14 +1498,11 @@
                   # check if apply column resolves for additional route targets
                   for rt in info.get('additional_route_targets'):
                       # if additional route target is to be configured on switch
-                      if (device_matches_resolver_query(rt['devices'].resolve(
-                              device=my_switch_facts['serial_number'])['devices']['hostname'],
-                              my_switch_facts['serial_number'])):
+                      if device_matches_resolver_query(rt['devices'], my_switch_facts['serial_number']):
                           my_switch_vrfs[vrf] = info
                           break
 
           my_switch_facts = normalize_tenant_info(my_switch_facts, my_switch_vrfs, my_switch_vlans, my_switch_vlan_bundles)
-
           if len(my_switch_facts['tenants'].keys()) > 0:
               my_config = {
                   "vrfs": {},
@@ -1465,9 +1527,6 @@
           switch_facts = my_switch_facts
           ctx.info(json.dumps(switch_facts, indent=2))
           %>
-          ## ${json.dumps(switch_facts, indent=2)}
-          ## -------------------------------------
-          ## ${json.dumps(config, indent=2)}
           ## eos - ip dhcp relay
           % if config.get("ip_dhcp_relay"):
           %     if config["ip_dhcp_relay"].get("information_option"):
@@ -1508,15 +1567,18 @@
           %     for vlan in natural_sort(config.get("vlans")):
           vlan ${ vlan }
           %          if config.get("vlans")[vlan].get("name") is not None:
-          name ${ config.get("vlans")[vlan].get("name") }
+             name ${ config.get("vlans")[vlan].get("name") }
           %          endif
           %          if config.get("vlans")[vlan].get("state") is not None:
-          state ${ config.get("vlans")[vlan].get("state") }
+             state ${ config.get("vlans")[vlan].get("state") }
           %          endif
           %          if config.get("vlans")[vlan].get("trunk_groups") is not None:
           %               for trunk_group in config.get("vlans")[vlan].get("trunk_groups"):
-          trunk group ${ trunk_group }
+             trunk group ${ trunk_group }
           %               endfor
+          %          endif
+          %          if config["vlans"][vlan].get("etree") is not None and config["vlans"][vlan]["etree"]["role"] == "leaf":
+             e-tree role ${ config["vlans"][vlan]["etree"]["role"] }
           %          endif
           !
           %    endfor %}
@@ -1526,7 +1588,7 @@
           %   for vrf in natural_sort(config["vrfs"].keys()):
           vrf instance ${ vrf }
           %     if config["vrfs"][vrf].get("description"):
-          description ${ config["vrfs"][vrf]["description"] }
+             description ${ config["vrfs"][vrf]["description"] }
           %     endif
           !
           %   endfor
@@ -1535,30 +1597,30 @@
           %   for port_channel_interface in natural_sort(config["port_channel_interfaces"].keys()):
           interface ${ port_channel_interface }
           %     if config["port_channel_interfaces"][port_channel_interface].get("description") is not None:
-          description ${ config["port_channel_interfaces"][port_channel_interface]["description"] }
+             description ${ config["port_channel_interfaces"][port_channel_interface]["description"] }
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("shutdown") == True:
-          shutdown
+             shutdown
           %     elif config["port_channel_interfaces"][port_channel_interface].get("shutdown") == False:
-          no shutdown
+             no shutdown
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("mtu") is not None:
-          mtu ${ config["port_channel_interfaces"][port_channel_interface]["mtu"] }
+             mtu ${ config["port_channel_interfaces"][port_channel_interface]["mtu"] }
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("type") is not None and config["port_channel_interfaces"][port_channel_interface].get("type") == "routed":
-          no switchport
+             no switchport
           %     else:
-          switchport
+             switchport
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("mode") is not None and config["port_channel_interfaces"][port_channel_interface].get("mode") == "access":
-          switchport access vlan ${ config["port_channel_interfaces"][port_channel_interface]["vlans"] }
+             switchport access vlan ${ config["port_channel_interfaces"][port_channel_interface]["vlans"] }
           %     endif %}
           %     if config["port_channel_interfaces"][port_channel_interface].get("mode") is not None and config["port_channel_interfaces"][port_channel_interface].get("mode") == "trunk":
-          switchport mode ${ config["port_channel_interfaces"][port_channel_interface]["mode"] }
+             switchport mode ${ config["port_channel_interfaces"][port_channel_interface]["mode"] }
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("trunk_groups") is not None:
           %       for trunk_group in config["port_channel_interfaces"][port_channel_interface]["trunk_groups"]:
-          switchport trunk group ${ trunk_group }
+             switchport trunk group ${ trunk_group }
           %       endfor
           %     endif
           !
@@ -1569,68 +1631,68 @@
           %for ethernet_interface in natural_sort(config["ethernet_interfaces"].keys()):
           interface ${ethernet_interface }
           %     if config["ethernet_interfaces"][ethernet_interface].get("description") is not None:
-          description ${config["ethernet_interfaces"][ethernet_interface]["description"]}
+             description ${config["ethernet_interfaces"][ethernet_interface]["description"]}
           %     endif
           %     if config["ethernet_interfaces"][ethernet_interface].get("channel_group") is not None:
-          channel-group ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["id"] } mode ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["mode"] }
+             channel-group ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["id"] } mode ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["mode"] }
           %     else:
           %         if config["ethernet_interfaces"][ethernet_interface].get("mtu") is not None:
-          mtu ${ config["ethernet_interfaces"][ethernet_interface]["mtu"] }
+             mtu ${ config["ethernet_interfaces"][ethernet_interface]["mtu"] }
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("type") is not None and config["ethernet_interfaces"][ethernet_interface].get("type") == "routed":
-          no switchport
+             no switchport
           %         elif config["ethernet_interfaces"][ethernet_interface].get("type") is not None and config["ethernet_interfaces"][ethernet_interface]["type"] == "l3dot1q" and config["ethernet_interfaces"][ethernet_interface].get("encapsulation_dot1q_vlan"):
-          encapsulation dot1q vlan ${ config["ethernet_interfaces"][ethernet_interface]["encapsulation_dot1q_vlan"] }
+             encapsulation dot1q vlan ${ config["ethernet_interfaces"][ethernet_interface]["encapsulation_dot1q_vlan"] }
           %         else:
-          switchport
+             switchport
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("mode") is not None and config["ethernet_interfaces"][ethernet_interface].get("mode") == "access":
           %             if config["ethernet_interfaces"][ethernet_interface].get("vlans") is not None:
-          switchport access vlan ${ config["ethernet_interfaces"][ethernet_interface].get("vlans") }
+             switchport access vlan ${ config["ethernet_interfaces"][ethernet_interface].get("vlans") }
           %             endif
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("mode") is not None and config["ethernet_interfaces"][ethernet_interface].get("mode") == "trunk":
           %             if config["ethernet_interfaces"][ethernet_interface].get("vlans") is not None:
-          switchport trunk allowed vlan ${ config["ethernet_interfaces"][ethernet_interface].get("vlans") }
+             switchport trunk allowed vlan ${ config["ethernet_interfaces"][ethernet_interface].get("vlans") }
           %             endif
           %             if config["ethernet_interfaces"][ethernet_interface].get("native_vlan") is not None:
-          switchport trunk native vlan ${ config["ethernet_interfaces"][ethernet_interface].get("native_vlan") }
+             switchport trunk native vlan ${ config["ethernet_interfaces"][ethernet_interface].get("native_vlan") }
           %             endif
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("mode") is not None:
-          switchport mode ${ config["ethernet_interfaces"][ethernet_interface].get("mode") }
+             switchport mode ${ config["ethernet_interfaces"][ethernet_interface].get("mode") }
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("trunk_groups") is not None:
           %             for trunk_group in config["ethernet_interfaces"][ethernet_interface].get("trunk_groups"):
-          switchport trunk group ${ trunk_group }
+             switchport trunk group ${ trunk_group }
           %             endfor
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("vrf") is not None:
-          vrf ${ config["ethernet_interfaces"][ethernet_interface].get("vrf") }
+             vrf ${ config["ethernet_interfaces"][ethernet_interface].get("vrf") }
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("ip_address") is not None:
-          ip address ${ config["ethernet_interfaces"][ethernet_interface].get("ip_address") }
+             ip address ${ config["ethernet_interfaces"][ethernet_interface].get("ip_address") }
           %             if config["ethernet_interfaces"][ethernet_interface].get("ip_address_secondaries") is not None:
           %                 for ip_address_secondary in config["ethernet_interfaces"][ethernet_interface].get("ip_address_secondaries"):
-          ip address ${ ip_address_secondary } secondary
+             ip address ${ ip_address_secondary } secondary
           %                 endfor
           %             endif
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_network_point_to_point"):
-              ip ospf network point-to-point
+             ip ospf network point-to-point
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_area"):
-              ip ospf area ${ config["ethernet_interfaces"][ethernet_interface]["ospf_area"] }
+             ip ospf area ${ config["ethernet_interfaces"][ethernet_interface]["ospf_area"] }
           %         endif
           %     endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("pim"):
           %           if config["ethernet_interfaces"][ethernet_interface]["pim"]["ipv4"].get("sparse_mode"):
-              pim ipv4 sparse-mode
+             pim ipv4 sparse-mode
           %           endif
           %         endif
           %    if config["ethernet_interfaces"][ethernet_interface].get("eos_cli"):
           %       for statement in config["ethernet_interfaces"][ethernet_interface]["eos_cli"]:
-          ${statement}
+             ${statement}
           %       endfor
           %    endif
           !
@@ -1641,21 +1703,21 @@
           %   for loopback_interface in natural_sort(config.get("loopback_interfaces").keys()):
           interface ${ loopback_interface }
           %       if config["loopback_interfaces"][loopback_interface].get("description") is not None:
-          description ${ config["loopback_interfaces"][loopback_interface].get("description") }
+             description ${ config["loopback_interfaces"][loopback_interface].get("description") }
           %       endif
           %       if config["loopback_interfaces"][loopback_interface].get("shutdown") is not None and config["loopback_interfaces"][loopback_interface].get("shutdown") == True:
-          shutdown
+             shutdown
           %       elif config["loopback_interfaces"][loopback_interface].get("shutdown") is not None and config["loopback_interfaces"][loopback_interface].get("shutdown") == False:
-          no shutdown
+             no shutdown
           %       endif
           %       if config["loopback_interfaces"][loopback_interface].get("vrf") is not None:
-          vrf ${ config["loopback_interfaces"][loopback_interface].get("vrf") }
+             vrf ${ config["loopback_interfaces"][loopback_interface].get("vrf") }
           %       endif
           %       if config["loopback_interfaces"][loopback_interface].get("ip_address") is not None:
-          ip address ${ config["loopback_interfaces"][loopback_interface].get("ip_address") }
+             ip address ${ config["loopback_interfaces"][loopback_interface].get("ip_address") }
           %           if config["loopback_interfaces"][loopback_interface].get("ip_address_secondaries") is not None:
           %               for ip_address_secondary in config["loopback_interfaces"][loopback_interface].get("ip_address_secondaries"):
-          ip address ${ ip_address_secondary } secondary
+             ip address ${ ip_address_secondary } secondary
           %               endfor
           %           endif
           %       endif
@@ -1667,37 +1729,37 @@
           %   for vlan_interface in natural_sort(config.get("vlan_interfaces").keys()):
           interface ${ vlan_interface }
           %     if config.get("vlan_interfaces")[vlan_interface].get("description") is not None:
-          description ${ config.get("vlan_interfaces")[vlan_interface].get("description") }
+             description ${ config.get("vlan_interfaces")[vlan_interface].get("description") }
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("shutdown") == True:
-          shutdown
+             shutdown
           %     elif config.get("vlan_interfaces")[vlan_interface].get("shutdown") == False:
-          no shutdown
+             no shutdown
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("mtu") is not None:
-          mtu ${ config.get("vlan_interfaces")[vlan_interface].get("mtu") }
+             mtu ${ config.get("vlan_interfaces")[vlan_interface].get("mtu") }
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("no_autostate") == True:
-          no autostate
+             no autostate
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("vrf") is not None and config.get("vlan_interfaces")[vlan_interface]["vrf"] != "default":
-          vrf ${ config.get("vlan_interfaces")[vlan_interface].get("vrf") }
+             vrf ${ config.get("vlan_interfaces")[vlan_interface].get("vrf") }
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("ip_address") is not None:
-          ip address ${ config.get("vlan_interfaces")[vlan_interface].get("ip_address") }
+             ip address ${ config.get("vlan_interfaces")[vlan_interface].get("ip_address") }
           %         if config.get("vlan_interfaces")[vlan_interface].get("ip_address_secondaries") is not None:
           %             for ip_address_secondary in config["vlan_interfaces"][vlan_interface]["ip_address_secondaries"]:
-          ip address ${ ip_address_secondary } secondary
+             ip address ${ ip_address_secondary } secondary
           %             endfor
           %         endif
           %     endif
           %     if config["vlan_interfaces"][vlan_interface].get("ip_virtual_router_addresses") is not None:
           %         for ip_virtual_router_address in config["vlan_interfaces"][vlan_interface]["ip_virtual_router_addresses"]:
-          ip virtual-router address ${ ip_virtual_router_address }
+             ip virtual-router address ${ ip_virtual_router_address }
           %         endfor
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("ip_address_virtual") is not None:
-          ip address virtual ${ config.get("vlan_interfaces")[vlan_interface].get("ip_address_virtual") }
+             ip address virtual ${ config.get("vlan_interfaces")[vlan_interface].get("ip_address_virtual") }
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("ip_helpers") is not None:
           %       for ip_helper in config["vlan_interfaces"][vlan_interface].get("ip_helpers").keys():
@@ -1708,35 +1770,35 @@
           %         if config["vlan_interfaces"][vlan_interface]["ip_helpers"][ip_helper].get("source_interface") is not None:
           <%            ip_helper_cli = ip_helper_cli + " source-interface " + config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("source_interface") %>
           %         endif %}
-          ${ ip_helper_cli }
+             ${ ip_helper_cli }
           %       endfor
           %    endif
           %    if config.get("vlan_interfaces")[vlan_interface].get("arp_aging_timeout") is not None:
-          arp aging timeout ${ config.get("vlan_interfaces")[vlan_interface]["arp_aging_timeout"] }
+             arp aging timeout ${ config.get("vlan_interfaces")[vlan_interface]["arp_aging_timeout"] }
           %    endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("igmp"):
-          ip igmp
+             ip igmp
           %       if config.get("vlan_interfaces")[vlan_interface]["igmp"].get("query_interval"):
-          ip igmp query-interval ${config.get("vlan_interfaces")[vlan_interface]["igmp"]["query_interval"]}
+             ip igmp query-interval ${config.get("vlan_interfaces")[vlan_interface]["igmp"]["query_interval"]}
           %       endif
           %     endif
           %    if config.get("vlan_interfaces")[vlan_interface].get("multicast"):
           %       if config.get("vlan_interfaces")[vlan_interface]["multicast"].get("ipv4"):
           %           if config.get("vlan_interfaces")[vlan_interface]["multicast"]["ipv4"].get("static"):
-          multicast ipv4 static
+             multicast ipv4 static
           %           endif
           %       endif
           %    endif
           %    if config.get("vlan_interfaces")[vlan_interface].get("pim"):
           %       if config.get("vlan_interfaces")[vlan_interface]["pim"].get("ipv4"):
           %           if config.get("vlan_interfaces")[vlan_interface]["multicast"]["ipv4"].get("local_interface"):
-          pim ipv4 local-interface ${config.get("vlan_interfaces")[vlan_interface]["multicast"]["ipv4"]["local_interface"]}
+             pim ipv4 local-interface ${config.get("vlan_interfaces")[vlan_interface]["multicast"]["ipv4"]["local_interface"]}
           %           endif
           %       endif
           %    endif
           %    if config["vlan_interfaces"][vlan_interface].get("eos_cli"):
           %       for statement in config["vlan_interfaces"][vlan_interface]["eos_cli"]:
-          ${statement}
+             ${statement}
           %       endfor
           %    endif
           !
@@ -1746,28 +1808,28 @@
           % if config.get("vxlan_interface"):
           interface Vxlan1
           %     if config["vxlan_interface"]["Vxlan1"].get("source_interface"):
-          vxlan source-interface ${ config["vxlan_interface"]["Vxlan1"]["source_interface"] }
+             vxlan source-interface ${ config["vxlan_interface"]["Vxlan1"]["source_interface"] }
           %     endif
           %     if config["vxlan_interface"]["Vxlan1"].get("vxlan"):
           %         if config["vxlan_interface"]["Vxlan1"]["vxlan"].get("virtual_router_encapsulation_mac_address"):
-          vxlan virtual-router encapsulation mac-address ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["virtual_router_encapsulation_mac_address"] }
+             vxlan virtual-router encapsulation mac-address ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["virtual_router_encapsulation_mac_address"] }
           %         endif
           %         if config["vxlan_interface"]["Vxlan1"].get("vxlan_udp_port"):
-          vxlan udp-port ${ config["vxlan_interface"]["Vxlan1"]["vxlan_udp_port"] }
+             vxlan udp-port ${ config["vxlan_interface"]["Vxlan1"]["vxlan_udp_port"] }
           %         endif
           %         if config["vxlan_interface"]["Vxlan1"]["vxlan"].get("vlans"):
           %             for vlan in natural_sort(config["vxlan_interface"]["Vxlan1"]["vxlan"]["vlans"].keys()):
-          vxlan vlan ${ vlan } vni ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["vlans"][vlan]["vni"] }
+             vxlan vlan ${ vlan } vni ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["vlans"][vlan]["vni"] }
           %               if config["vxlan_interface"]["Vxlan1"]["vxlan"]["vlans"][vlan].get("multicast"):
-          vxlan vlan ${ vlan } multicast group ${config["vxlan_interface"]["Vxlan1"]["vxlan"]["vlans"][vlan]["multicast"]["group"]}
+             vxlan vlan ${ vlan } multicast group ${config["vxlan_interface"]["Vxlan1"]["vxlan"]["vlans"][vlan]["multicast"]["group"]}
           %               endif
           %             endfor
           %         endif
           %         if config["vxlan_interface"]["Vxlan1"]["vxlan"].get("vrfs"):
           %             for vrf in natural_sort(config["vxlan_interface"]["Vxlan1"]["vxlan"]["vrfs"].keys()):
-          vxlan vrf ${ vrf } vni ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["vrfs"][vrf]["vni"] }
+             vxlan vrf ${ vrf } vni ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["vrfs"][vrf]["vni"] }
           %               if config["vxlan_interface"]["Vxlan1"]["vxlan"]["vrfs"][vrf].get("multicast"):
-          vxlan vlan ${ vrf } multicast group ${config["vxlan_interface"]["Vxlan1"]["vxlan"]["vrfs"][vrf]["multicast"]["group"]}
+             vxlan vlan ${ vrf } multicast group ${config["vxlan_interface"]["Vxlan1"]["vxlan"]["vrfs"][vrf]["multicast"]["group"]}
           %               endif
           %             endfor %}
           %         endif
@@ -1839,16 +1901,16 @@
           %           if config["route_maps"][route_map]["sequence_numbers"][sequence].get("type") is not None:
           route-map ${ route_map } ${ config["route_maps"][route_map]["sequence_numbers"][sequence]["type"] } ${ sequence }
           %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("description") is not None:
-          description ${ config["route_maps"][route_map]["sequence_numbers"][sequence]["description"] }
+             description ${ config["route_maps"][route_map]["sequence_numbers"][sequence]["description"] }
           %               endif
           %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("match") is not None:
           %                   for match_rule in config["route_maps"][route_map]["sequence_numbers"][sequence]["match"]:
-          match ${ match_rule }
+             match ${ match_rule }
           %                   endfor
           %               endif
           %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("set") is not None:
           %                   for set_rule in config["route_maps"][route_map]["sequence_numbers"][sequence]["set"]:
-          set ${ set_rule }
+             set ${ set_rule }
           %                   endfor
           %               endif
           !
@@ -1861,149 +1923,121 @@
           % if config["router_bgp"].get("as") is not None:
           router bgp ${ config["router_bgp"]["as"] }
           %     if config["router_bgp"].get("router_id") is not None:
-          router-id ${ config["router_bgp"]["router_id"] }
+             router-id ${ config["router_bgp"]["router_id"] }
           %     endif
           %     if config["router_bgp"].get("bgp_defaults") is not None:
           %       for bgp_default in config["router_bgp"]["bgp_defaults"]:
-          ${ bgp_default }
+             ${ bgp_default }
           %       endfor
           %     endif
           %     if config["router_bgp"].get("peer_groups") is not None:
           %       for peer_group in config["router_bgp"]["peer_groups"].keys():
           %         if config["router_bgp"]["peer_groups"][peer_group].get("bgp_listen_range_prefix") is not None and config["router_bgp"]["peer_groups"][peer_group].get("peer_filter") is not None:
-          bgp listen range ${ config["router_bgp"]["peer_groups"][peer_group]["bgp_listen_range_prefix"] } peer-group ${ peer_group } peer-filter ${ config["router_bgp"]["peer_groups"][peer_group]["peer_filter"] }
+             bgp listen range ${ config["router_bgp"]["peer_groups"][peer_group]["bgp_listen_range_prefix"] } peer-group ${ peer_group } peer-filter ${ config["router_bgp"]["peer_groups"][peer_group]["peer_filter"] }
           %         endif
           %       endfor
           %     for peer_group in config["router_bgp"]["peer_groups"].keys():
           %         if config["router_bgp"]["peer_groups"][peer_group].get("description") is not None:
-          neighbor ${ peer_group } description ${ config["router_bgp"]["peer_groups"][peer_group]["description"] }
+             neighbor ${ peer_group } description ${ config["router_bgp"]["peer_groups"][peer_group]["description"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("shutdown") == True:
-          neighbor ${ peer_group } shutdown
+             neighbor ${ peer_group } shutdown
           %         endif
-          neighbor ${ peer_group } peer group
+             neighbor ${ peer_group } peer group
           %         if config["router_bgp"]["peer_groups"][peer_group].get("remote_as") is not None:
-          neighbor ${ peer_group } remote-as ${ config["router_bgp"]["peer_groups"][peer_group]["remote_as"] }
+             neighbor ${ peer_group } remote-as ${ config["router_bgp"]["peer_groups"][peer_group]["remote_as"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("local_as") is not None:
-          neighbor ${ peer_group } local-as ${ config["router_bgp"]["peer_groups"][peer_group]["local_as"] } no-prepend replace-as
+             neighbor ${ peer_group } local-as ${ config["router_bgp"]["peer_groups"][peer_group]["local_as"] } no-prepend replace-as
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("next_hop_self") == True:
-          neighbor ${ peer_group } next-hop-self
+             neighbor ${ peer_group } next-hop-self
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("next_hop_unchanged") == True:
-          neighbor ${ peer_group } next-hop-unchanged
+             neighbor ${ peer_group } next-hop-unchanged
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("update_source") is not None:
-          neighbor ${ peer_group } update-source ${ config["router_bgp"]["peer_groups"][peer_group]["update_source"] }
+             neighbor ${ peer_group } update-source ${ config["router_bgp"]["peer_groups"][peer_group]["update_source"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("route_reflector_client") == True:
-          neighbor ${ peer_group } route-reflector-client
+             neighbor ${ peer_group } route-reflector-client
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("bfd") == True:
-          neighbor ${ peer_group } bfd
+             neighbor ${ peer_group } bfd
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("ebgp_multihop") is not None:
-          neighbor ${ peer_group } ebgp-multihop ${ config["router_bgp"]["peer_groups"][peer_group]["ebgp_multihop"] }
+             neighbor ${ peer_group } ebgp-multihop ${ config["router_bgp"]["peer_groups"][peer_group]["ebgp_multihop"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("password") is not None:
-          neighbor ${ peer_group } password 7 ${ config["router_bgp"]["peer_groups"][peer_group]["password"] }
+             neighbor ${ peer_group } password 7 ${ config["router_bgp"]["peer_groups"][peer_group]["password"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("send_community") is not None and config["router_bgp"]["peer_groups"][peer_group]["send_community"] == "all":
-          neighbor ${ peer_group } send-community
+             neighbor ${ peer_group } send-community
           %         elif config["router_bgp"]["peer_groups"][peer_group].get("send_community") is not None:
-          neighbor ${ peer_group } send-community ${ config["router_bgp"]["peer_groups"][peer_group]["send_community"] }
+             neighbor ${ peer_group } send-community ${ config["router_bgp"]["peer_groups"][peer_group]["send_community"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes") is not None and config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes_warning_limit") is not None:
-          neighbor ${ peer_group } maximum-routes ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] } warning-limit ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes_warning_limit"] }
+             neighbor ${ peer_group } maximum-routes ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] } warning-limit ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes_warning_limit"] }
           %         elif config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes") is not None:
-          neighbor ${ peer_group } maximum-routes ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] }
+             neighbor ${ peer_group } maximum-routes ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("weight") is not None:
-          neighbor ${ peer_group } weight ${ config["router_bgp"]["peer_groups"][peer_group]["weight"] }
+             neighbor ${ peer_group } weight ${ config["router_bgp"]["peer_groups"][peer_group]["weight"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("timers") is not None:
-          neighbor ${ peer_group } timers ${ config["router_bgp"]["peer_groups"][peer_group]["timers"] }
+             neighbor ${ peer_group } timers ${ config["router_bgp"]["peer_groups"][peer_group]["timers"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("route_map_in") is not None:
-          neighbor ${ peer_group } route-map ${ config["router_bgp"]["peer_groups"][peer_group]["route_map_in"] } in
+             neighbor ${ peer_group } route-map ${ config["router_bgp"]["peer_groups"][peer_group]["route_map_in"] } in
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("route_map_out") is not None:
-          neighbor ${ peer_group } route-map ${ config["router_bgp"]["peer_groups"][peer_group]["route_map_out"] } out
+             neighbor ${ peer_group } route-map ${ config["router_bgp"]["peer_groups"][peer_group]["route_map_out"] } out
           %         endif
           %       endfor
           %     endif
-          ## {%     for neighbor_interface in router_bgp.neighbor_interfaces | arista.avd.natural_sort %}
-          ## {%         set neighbor_interface_cli = "neighbor interface " ~ neighbor_interface %}
-          ## {%         if router_bgp.neighbor_interfaces[neighbor_interface].peer_group is arista.avd.defined %}
-          ## {%             set neighbor_interface_cli = neighbor_interface_cli ~ " peer-group " ~ router_bgp.neighbor_interfaces[neighbor_interface].peer_group %}
-          ## {%         endif %}
-          ## {%         if router_bgp.neighbor_interfaces[neighbor_interface].remote_as is arista.avd.defined %}
-          ## {%             set neighbor_interface_cli = neighbor_interface_cli ~ " remote-as " ~ router_bgp.neighbor_interfaces[neighbor_interface].remote_as %}
-          ## {%         endif %}
-          ## ##    {{ neighbor_interface_cli }}
-          ## {%     endfor %}
           %     if config["router_bgp"].get("neighbors") is not None:
           %       for neighbor in config["router_bgp"]["neighbors"].keys():
           %         if config["router_bgp"]["neighbors"][neighbor].get("peer_group") is not None:
-          neighbor ${ neighbor } peer group ${ config["router_bgp"]["neighbors"][neighbor]["peer_group"] }
+             neighbor ${ neighbor } peer group ${ config["router_bgp"]["neighbors"][neighbor]["peer_group"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("remote_as") is not None:
-          neighbor ${ neighbor } remote-as ${ config["router_bgp"]["neighbors"][neighbor].remote_as }
+             neighbor ${ neighbor } remote-as ${ config["router_bgp"]["neighbors"][neighbor].remote_as }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("next_hop_self") == True:
-          neighbor ${ neighbor } next-hop-self
+             neighbor ${ neighbor } next-hop-self
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("shutdown") == True:
-          neighbor ${ neighbor } shutdown
+             neighbor ${ neighbor } shutdown
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("local_as") is not None:
-          neighbor ${ neighbor } local-as ${ config["router_bgp"]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
+             neighbor ${ neighbor } local-as ${ config["router_bgp"]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("description") is not None:
-          neighbor ${ neighbor } description ${ config["router_bgp"]["neighbors"][neighbor]["description"] }
+             neighbor ${ neighbor } description ${ config["router_bgp"]["neighbors"][neighbor]["description"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("update_source") is not None:
-          neighbor ${ neighbor } update-source ${ config["router_bgp"]["neighbors"][neighbor]["update_source"] }
+             neighbor ${ neighbor } update-source ${ config["router_bgp"]["neighbors"][neighbor]["update_source"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("bfd") == True:
-          neighbor ${ neighbor } bfd
+             neighbor ${ neighbor } bfd
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("password") is not None:
-          neighbor ${ neighbor } password 7 ${ config["router_bgp"]["neighbors"][neighbor]["password"] }
+             neighbor ${ neighbor } password 7 ${ config["router_bgp"]["neighbors"][neighbor]["password"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("weight") is not None:
-          neighbor ${ neighbor } weight ${ config["router_bgp"]["neighbors"][neighbor]["weight"] }
+             neighbor ${ neighbor } weight ${ config["router_bgp"]["neighbors"][neighbor]["weight"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("timers") is not None:
-          neighbor ${ neighbor } timers ${ config["router_bgp"]["neighbors"][neighbor]["timers"] }
+             neighbor ${ neighbor } timers ${ config["router_bgp"]["neighbors"][neighbor]["timers"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("route_map_in") is not None:
-          neighbor ${ neighbor } route-map ${ config["router_bgp"]["neighbors"][neighbor]["route_map_in"] } in
+             neighbor ${ neighbor } route-map ${ config["router_bgp"]["neighbors"][neighbor]["route_map_in"] } in
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("route_map_out") is not None:
-          neighbor ${ neighbor } route-map ${ config["router_bgp"]["neighbors"][neighbor]["route_map_out"] } out
+             neighbor ${ neighbor } route-map ${ config["router_bgp"]["neighbors"][neighbor]["route_map_out"] } out
           %         endif
           %       endfor
           %     endif
-          ## {%     for aggregate_address in router_bgp.aggregate_addresses | arista.avd.natural_sort %}
-          ## {%         set aggregate_address_cli = "aggregate-address " ~ aggregate_address %}
-          ## {%         if router_bgp.aggregate_addresses[aggregate_address].as_set is arista.avd.defined(true) %}
-          ## {%             set aggregate_address_cli = aggregate_address_cli ~ " as-set" %}
-          ## {%         endif %}
-          ## {%         if router_bgp.aggregate_addresses[aggregate_address].summary_only is arista.avd.defined(true) %}
-          ## {%             set aggregate_address_cli = aggregate_address_cli ~ " summary-only" %}
-          ## {%         endif %}
-          ## {%         if router_bgp.aggregate_addresses[aggregate_address].attribute_map is arista.avd.defined %}
-          ## {%             set aggregate_address_cli = aggregate_address_cli ~  " attribute-map " ~ router_bgp.aggregate_addresses[aggregate_address].attribute_map %}
-          ## {%         endif %}
-          ## {%         if router_bgp.aggregate_addresses[aggregate_address].match_map is arista.avd.defined %}
-          ## {%             set aggregate_address_cli = aggregate_address_cli ~ " match-map " ~ router_bgp.aggregate_addresses[aggregate_address].match_map %}
-          ## {%         endif %}
-          ## {%         if router_bgp.aggregate_addresses[aggregate_address].advertise_only is arista.avd.defined(true) %}
-          ## {%             set aggregate_address_cli = aggregate_address_cli ~ " advertise-only" %}
-          ## {%         endif %}
-          ##    {{ aggregate_address_cli }}
           ## {%     endfor %}
           %     if config["router_bgp"].get("redistribute_routes") is not None:
           %       for redistribute_route in config["router_bgp"]["redistribute_routes"].keys():
@@ -2011,68 +2045,68 @@
           %         if config["router_bgp"]["redistribute_routes"][redistribute_route].get("route_map") is not None:
           <%             redistribute_route_cli = redistribute_route_cli + " route-map " + config["router_bgp"]["redistribute_routes"][redistribute_route]["route_map"] %>
           %         endif
-          ${ redistribute_route_cli }
+             ${ redistribute_route_cli }
           %       endfor
           %     endif
           ## L2VPNs - (vxlan) vlan based
           %     if config["router_bgp"].get("vlans") is not None:
           %       for vlan in natural_sort(config["router_bgp"]["vlans"]):
-          !
-          vlan ${ vlan }
+             !
+             vlan ${ vlan }
           %         if config["router_bgp"]["vlans"][vlan].get("rd") is not None:
-              rd ${ config["router_bgp"]["vlans"][vlan]["rd"] }
+                rd ${ config["router_bgp"]["vlans"][vlan]["rd"] }
           %         endif
           %         if config["router_bgp"]["vlans"][vlan].get("route_targets") is not None and config["router_bgp"]["vlans"][vlan]["route_targets"].get("both") is not None:
           %             for route_target in config["router_bgp"]["vlans"][vlan]["route_targets"]["both"]:
-              route-target both ${ route_target }
+                route-target both ${ route_target }
           %             endfor
           %         endif
           %         if config["router_bgp"]["vlans"][vlan].get("route_targets") is not None and config["router_bgp"]["vlans"][vlan]["route_targets"].get("import") is not None:
           %             for route_target in config["router_bgp"]["vlans"][vlan]["route_targets"]["import"]:
-              route-target import ${ route_target }
+                route-target import ${ route_target }
           %             endfor
           %         endif
           %         if config["router_bgp"]["vlans"][vlan].get("route_targets") is not None and config["router_bgp"]["vlans"][vlan]["route_targets"].get("export") is not None:
           %             for route_target in config["router_bgp"]["vlans"][vlan]["route_targets"]["export"]:
-              route-target export ${ route_target }
+                route-target export ${ route_target }
           %             endfor
           %         endif
           %         if config["router_bgp"]["vlans"][vlan].get("redistribute_routes") is not None:
           %           for redistribute_route in config["router_bgp"]["vlans"][vlan]["redistribute_routes"]:
-              redistribute ${ redistribute_route }
+                redistribute ${ redistribute_route }
           %           endfor
           %         endif
           %       endfor
           ## vxlan vlan aware bundles
           %       if config["router_bgp"].get("vlan_aware_bundles") is not None:
           %         for vlan_aware_bundle in config["router_bgp"]["vlan_aware_bundles"].keys():
-          !
-          vlan-aware-bundle ${ vlan_aware_bundle }
+             !
+             vlan-aware-bundle ${ vlan_aware_bundle }
           %         if  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("rd") is not None:
-              rd ${  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd"] }
+                rd ${  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd"] }
           %         endif
           %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets") is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("both") is not None:
           %             for route_target in  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["both"]:
-              route-target both ${ route_target }
+                route-target both ${ route_target }
           %             endfor
           %         endif
           %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets") is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("import") is not None:
           %             for route_target in config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["import"]:
-              route-target import ${ route_target }
+                route-target import ${ route_target }
           %             endfor
           %         endif
           %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets") is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("export") is not None:
           %             for route_target in  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["export"]:
-              route-target export ${ route_target }
+                route-target export ${ route_target }
           %             endfor
           %         endif
           %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("redistribute_routes") is not None:
           %           for redistribute_route in config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["redistribute_routes"]:
-              redistribute ${ redistribute_route }
+                redistribute ${ redistribute_route }
           %           endfor %}
           %         endif
           %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("vlan") is not None:
-              vlan ${ config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["vlan"] }
+                vlan ${ config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["vlan"] }
           %         endif
           %         endfor
           %       endif
@@ -2080,106 +2114,84 @@
           ## address families activation
           ## address family evpn activation ##
           %     if config["router_bgp"].get("address_family_evpn") is not None:
-          !
-          address-family evpn
+             !
+             address-family evpn
           %         if config["router_bgp"]["address_family_evpn"].get("evpn_hostflap_detection") is not None and config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"].get("enabled") == False:
-              no host-flap detection
+                no host-flap detection
           %         else:
           %             if config["router_bgp"]["address_family_evpn"].get("evpn_hostflap_detection") is not None and config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"].get("window") is not None:
-              host-flap detection window ${ config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"]["window"] }
+                host-flap detection window ${ config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"]["window"] }
           %             endif
           %             if config["router_bgp"]["address_family_evpn"].get("evpn_hostflap_detection") is not None and config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"].get("threshold") is not None:
-              host-flap detection threshold ${ config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"]["threshold"] }
+                host-flap detection threshold ${ config["router_bgp"]["address_family_evpn"]["evpn_hostflap_detection"]["threshold"] }
           %             endif
           %         endif
           %         if config["router_bgp"]["address_family_evpn"].get("domain_identifier") is not None:
-              domain identifier ${ config["router_bgp"]["address_family_evpn"]["domain_identifier"] }
+                domain identifier ${ config["router_bgp"]["address_family_evpn"]["domain_identifier"] }
           %         endif
           %         if config["router_bgp"]["address_family_evpn"].get("peer_groups") is not None:
           %           for peer_group in config["router_bgp"]["address_family_evpn"]["peer_groups"].keys():
           %             if config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("route_map_in") is not None:
-              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group]["route_map_in"] } in
+                neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group]["route_map_in"] } in
           %             endif
           %             if config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("route_map_out") is not None:
-              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group]["route_map_out"] } out
+                neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group]["route_map_out"] } out
           %             endif
           %             if config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("activate") == True:
-              neighbor ${ peer_group } activate
+                neighbor ${ peer_group } activate
           %             elif config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("activate") == False:
-              no neighbor ${ peer_group } activate
+                no neighbor ${ peer_group } activate
           %             endif
           %           endfor
           %         endif
           %     endif
-          ## {# address family rt-membership activation #}
-          ## {%     if router_bgp.address_family_rtc is arista.avd.defined %}
-          ##    !
-          ##    address-family rt-membership
-          ## {%         for peer_group in router_bgp.address_family_rtc.peer_groups | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_rtc.peer_groups[peer_group].activate is arista.avd.defined(true) %}
-          ##       neighbor ${ peer_group } activate
-          ## {%             elif router_bgp.address_family_rtc.peer_groups[peer_group].activate is arista.avd.defined(false) %}
-          ##       no neighbor ${ peer_group } activate
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target is defined %}
-          ## {%                 if router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target.only is arista.avd.defined(true) %}
-          ##       neighbor ${ peer_group } default-route-target only
-          ## {%                 else %}
-          ##       neighbor ${ peer_group } default-route-target
-          ## {%                 endif %}
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target.encoding_origin_as_omit is defined %}
-          ##       neighbor ${ peer_group } default-route-target encoding origin-as omit
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%     endif %}
           ## address family ipv4 activation
           %     if config["router_bgp"].get("address_family_ipv4") is not None:
-          !
-          address-family ipv4
+             !
+             address-family ipv4
           %       if config["router_bgp"]["address_family_ipv4"].get("networks") is not None:
           %         for network in config["router_bgp"]["address_family_ipv4"]["networks"].keys():
           %             if config["router_bgp"]["address_family_ipv4"]["networks"][network].get("route_map") is not None:
-              network ${ network } route-map ${ config["router_bgp"]["address_family_ipv4"]["networks"][network]["route_map"] }
+                network ${ network } route-map ${ config["router_bgp"]["address_family_ipv4"]["networks"][network]["route_map"] }
           %             else:
-              network ${ network }
+                network ${ network }
           %             endif
           %         endfor
           %       endif
           %       if config["router_bgp"]["address_family_ipv4"].get("peer_groups") is not None:
           %           for peer_group in config["router_bgp"]["address_family_ipv4"]["peer_groups"].keys():
           %             if config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("route_map_in") is not None:
-              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["route_map_in"] } in
+                neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["route_map_in"] } in
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("route_map_out") is not None:
-              neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["route_map_out"] } out
+                neighbor ${ peer_group } route-map ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["route_map_out"] } out
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("prefix_list_in") is not None:
-              neighbor ${ peer_group } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["prefix_list_in"] } in
+                neighbor ${ peer_group } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["prefix_list_in"] } in
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("prefix_list_out") is not None:
-              neighbor ${ peer_group } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["prefix_list_out"] } out
+                neighbor ${ peer_group } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group]["prefix_list_out"] } out
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("activate") == True:
-              neighbor ${ peer_group } activate
+                neighbor ${ peer_group } activate
           %             elif config["router_bgp"]["address_family_ipv4"]["peer_groups"][peer_group].get("activate") == False:
-              no neighbor ${ peer_group } activate
+                no neighbor ${ peer_group } activate
           %             endif
           %           endfor
           %       endif
           %       if config["router_bgp"]["address_family_ipv4"].get("neighbors") is not None:
           %           for neighbor in config["router_bgp"]["address_family_ipv4"]["neighbors"].keys():
           %             if config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("route_map_in") is not None:
-              neighbor ${ neighbor } route-map ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["route_map_in"] } in
+                neighbor ${ neighbor } route-map ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["route_map_in"] } in
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("route_map_out") is not None:
-              neighbor ${ neighbor } route-map ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["route_map_out"] } out
+                neighbor ${ neighbor } route-map ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["route_map_out"] } out
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("prefix_list_in") is not None:
-              neighbor ${ neighbor } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["prefix_list_in"] } in
+                neighbor ${ neighbor } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["prefix_list_in"] } in
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("prefix_list_out") is not None:
-              neighbor ${ neighbor } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["prefix_list_out"] } out
+                neighbor ${ neighbor } prefix-list ${ config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["prefix_list_out"] } out
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("default_originate") is not None:
           <%                 neighbor_default_originate_cli = "neighbor " + neighbor + " default-originate" %>
@@ -2189,201 +2201,93 @@
           %                 if config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor]["default_originate"].get("always") == True:
           <%                     neighbor_default_originate_cli = neighbor_default_originate_cli + " always" %>
           %                 endif
-              ${ neighbor_default_originate_cli }
+                ${ neighbor_default_originate_cli }
           %             endif
           %             if config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("activate") == True:
-              neighbor ${ neighbor } activate
+                neighbor ${ neighbor } activate
           %             elif config["router_bgp"]["address_family_ipv4"]["neighbors"][neighbor].get("activate") == False:
-              no neighbor ${ neighbor } activate
+                no neighbor ${ neighbor } activate
           %             endif
           %           endfor
           %       endif
           %     endif
-          ## {# address family ipv4 multicast activation #}
-          ## {%     if router_bgp.address_family_ipv4_multicast is arista.avd.defined %}
-          ##    !
-          ##    address-family ipv4 multicast
-          ## {%         for peer_group in router_bgp.address_family_ipv4_multicast.peer_groups | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_in is arista.avd.defined %}
-          ##       neighbor ${ peer_group } route-map {{ router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_in }} in
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_out is arista.avd.defined %}
-          ##       neighbor ${ peer_group } route-map {{ router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].route_map_out }} out
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].activate is arista.avd.defined(true) %}
-          ##       neighbor ${ peer_group } activate
-          ## {%             elif router_bgp.address_family_ipv4_multicast.peer_groups[peer_group].activate is arista.avd.defined(false) %}
-          ##       no neighbor ${ peer_group } activate
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%         for neighbor in router_bgp.address_family_ipv4_multicast.neighbors | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_in is arista.avd.defined %}
-          ##       neighbor {{ neighbor }} route-map {{ router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_in }} in
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_out is arista.avd.defined %}
-          ##       neighbor {{ neighbor }} route-map {{ router_bgp.address_family_ipv4_multicast.neighbors[neighbor].route_map_out }} out
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv4_multicast.neighbors[neighbor].activate is arista.avd.defined(true) %}
-          ##       neighbor {{ neighbor }} activate
-          ## {%             elif router_bgp.address_family_ipv4_multicast.neighbors[neighbor].activate is arista.avd.defined(false) %}
-          ##       no neighbor {{ neighbor }} activate
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%         for redistribute_route in router_bgp.address_family_ipv4_multicast.redistribute_routes | arista.avd.natural_sort %}
-          ## {%             set redistribute_route_cli = "redistribute " ~ redistribute_route %}
-          ## {%             if router_bgp.address_family_ipv4_multicast.redistribute_routes[redistribute_route].route_map is arista.avd.defined %}
-          ## {%                 set redistribute_route_cli = redistribute_route_cli ~ " route-map " ~ router_bgp.address_family_ipv4_multicast.redistribute_routes[redistribute_route].route_map %}
-          ## {%             endif %}
-          ##       {{ redistribute_route_cli }}
-          ## {%         endfor %}
-          ## {%     endif %}
-          ## {# address family ipv6 activation #}
-          ## {%     if router_bgp.address_family_ipv6 is arista.avd.defined %}
-          ##    !
-          ##    address-family ipv6
-          ## {%         for network in router_bgp.address_family_ipv6.networks | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_ipv6.networks[network].route_map is arista.avd.defined %}
-          ##       network {{ network }} route-map {{ router_bgp.address_family_ipv6.networks[network].route_map }}
-          ## {%             else %}
-          ##       network {{ network }}
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%         for peer_group in router_bgp.address_family_ipv6.peer_groups | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_in is arista.avd.defined %}
-          ##       neighbor ${ peer_group } route-map {{ router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_in }} in
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_out is arista.avd.defined %}
-          ##       neighbor ${ peer_group } route-map {{ router_bgp.address_family_ipv6.peer_groups[peer_group].route_map_out }} out
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv6.peer_groups[peer_group].activate is arista.avd.defined(true) %}
-          ##       neighbor ${ peer_group } activate
-          ## {%             elif router_bgp.address_family_ipv6.peer_groups[peer_group].activate is arista.avd.defined(false) %}
-          ##       no neighbor ${ peer_group } activate
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%         for neighbor in router_bgp.address_family_ipv6.neighbors | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_ipv6.neighbors[neighbor].route_map_in is arista.avd.defined %}
-          ##       neighbor {{ neighbor }} route-map {{ router_bgp.address_family_ipv6.neighbors[neighbor].route_map_in }} in
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv6.neighbors[neighbor].route_map_out is arista.avd.defined %}
-          ##       neighbor {{ neighbor }} route-map {{ router_bgp.address_family_ipv6.neighbors[neighbor].route_map_out }} out
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_ipv6.neighbors[neighbor].activate is arista.avd.defined(true) %}
-          ##       neighbor {{ neighbor }} activate
-          ## {%             elif router_bgp.address_family_ipv6.neighbors[neighbor].activate is arista.avd.defined(false) %}
-          ##       no neighbor {{ neighbor }} activate
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%         for redistribute_route in router_bgp.address_family_ipv6.redistribute_routes | arista.avd.natural_sort %}
-          ## {%             set redistribute_route_cli = "redistribute " ~ redistribute_route %}
-          ## {%             if router_bgp.address_family_ipv6.redistribute_routes[redistribute_route].route_map is arista.avd.defined %}
-          ## {%                 set redistribute_route_cli = redistribute_route_cl ~ " route-map " ~ router_bgp.address_family_ipv6.redistribute_routes[redistribute_route].route_map %}
-          ## {%             endif %}
-          ##       {{ redistribute_route_cli }}
-          ## {%         endfor %}
-          ## {%     endif %}
-          ## {# address family vpn-ipv4 activation #}
-          ## {%     if router_bgp.address_family_vpn_ipv4 is arista.avd.defined %}
-          ##    !
-          ##    address-family vpn-ipv4
-          ## {%         if router_bgp.address_family_vpn_ipv4.domain_identifier is arista.avd.defined %}
-          ##       domain identifier {{ router_bgp.address_family_vpn_ipv4.domain_identifier }}
-          ## {%         endif %}
-          ## {%         for peer_group in router_bgp.address_family_vpn_ipv4.peer_groups | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_vpn_ipv4.peer_groups[peer_group].activate is arista.avd.defined(true) %}
-          ##       neighbor ${ peer_group } activate
-          ## {%             elif router_bgp.address_family_vpn_ipv4.peer_groups[peer_group].activate is arista.avd.defined(false) %}
-          ##       no neighbor ${ peer_group } activate
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%         for neighbor in router_bgp.address_family_vpn_ipv4.neighbors | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_vpn_ipv4.neighbors[neighbor].activate is arista.avd.defined(true) %}
-          ##       neighbor {{ neighbor }} activate
-          ## {%             elif router_bgp.address_family_vpn_ipv4.neighbors[neighbor].activate is arista.avd.defined(false) %}
-          ##       no neighbor {{ neighbor }} activate
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%         if router_bgp.address_family_vpn_ipv4.neighbor_default_encapsulation_mpls_next_hop_self.source_interface is arista.avd.defined %}
-          ##       neighbor default encapsulation mpls next-hop-self source-interface {{ router_bgp.address_family_vpn_ipv4.neighbor_default_encapsulation_mpls_next_hop_self.source_interface }}
-          ## {%         endif %}
-          ## {%     endif %}
           ## L3VPNs - (vxlan) VRFs
           %     if config["router_bgp"].get("vrfs") is not None:
           %       for vrf in natural_sort(config["router_bgp"]["vrfs"].keys()):
-          !
-          vrf ${ vrf }
+             !
+             vrf ${ vrf }
           %         if config["router_bgp"]["vrfs"][vrf].get("rd") is not None:
-              rd ${ config["router_bgp"]["vrfs"][vrf]["rd"] }
+                rd ${ config["router_bgp"]["vrfs"][vrf]["rd"] }
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is not None and config["router_bgp"]["vrfs"][vrf]["route_targets"].get("import") is not None:
           %             for address_family in config["router_bgp"]["vrfs"][vrf]["route_targets"]["import"].keys():
           %                 for route_target in config["router_bgp"]["vrfs"][vrf]["route_targets"]["import"][address_family]:
-              route-target import ${ address_family } ${ route_target }
+                route-target import ${ address_family } ${ route_target }
           %                 endfor
           %             endfor
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is not None and config["router_bgp"]["vrfs"][vrf]["route_targets"].get("export") is not None:
           %             for address_family in config["router_bgp"]["vrfs"][vrf]["route_targets"]["export"].keys():
           %                 for route_target in config["router_bgp"]["vrfs"][vrf]["route_targets"]["export"][address_family]:
-              route-target export ${ address_family } ${ route_target }
+                route-target export ${ address_family } ${ route_target }
           %                 endfor
           %             endfor
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("router_id") is not None:
-              router-id ${ config["router_bgp"]["vrfs"][vrf]["router_id"] }
+                router-id ${ config["router_bgp"]["vrfs"][vrf]["router_id"] }
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("evpn_multicast"):
-              evpn multicast
+                evpn multicast
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("timers") is not None:
-              timers bgp ${ config["router_bgp"]["vrfs"][vrf]["timers"] }
+                timers bgp ${ config["router_bgp"]["vrfs"][vrf]["timers"] }
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("networks") is not None:
           %           for network in config["router_bgp"]["vrfs"][vrf]["networks"].keys():
           %             if config["router_bgp"]["vrfs"][vrf].networks[network].get("route_map") is not None:
-              network ${ network } route-map ${ config["router_bgp"]["vrfs"][vrf]["networks"][network]["route_map"] }
+                network ${ network } route-map ${ config["router_bgp"]["vrfs"][vrf]["networks"][network]["route_map"] }
           %             else:
-              network ${ network }
+                network ${ network }
           %             endif
           %           endfor
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("neighbors") is not None:
           %           for neighbor in config["router_bgp"]["vrfs"][vrf]["neighbors"].keys():
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("remote_as") is not None:
-              neighbor ${ neighbor } remote-as ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["remote_as"] }
+                neighbor ${ neighbor } remote-as ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["remote_as"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("peer_group") is not None:
-              neighbor ${ neighbor } peer group ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["peer_group"] }
+                neighbor ${ neighbor } peer group ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["peer_group"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("password") is not None:
-              neighbor ${ neighbor } password 7 ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["password"] }
+                neighbor ${ neighbor } password 7 ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["password"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("local_as") is not None:
-              neighbor ${ neighbor } local-as ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
+                neighbor ${ neighbor } local-as ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("description") is not None:
-              neighbor ${ neighbor } description ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["description"] }
+                neighbor ${ neighbor } description ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["description"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("ebgp_multihop") is not None:
           <%                 neighbor_ebgp_multihop_cli = "neighbor " + neighbor + " ebgp-multihop" %>
           %                 if type(config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["ebgp_multihop"]) is int:
           <%                     neighbor_ebgp_multihop_cli = neighbor_ebgp_multihop_cli + " " + config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["ebgp_multihop"] %>
           %                 endif
-              ${ neighbor_ebgp_multihop_cli }
+                ${ neighbor_ebgp_multihop_cli }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("next_hop_self") == True:
-              neighbor ${ neighbor } next-hop-self
+                neighbor ${ neighbor } next-hop-self
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("timers") is not None:
-              neighbor ${ neighbor } timers ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["timers"] }
+                neighbor ${ neighbor } timers ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["timers"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("send_community") is not None and config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["send_community"] == "all":
-              neighbor ${ neighbor } send-community
+                neighbor ${ neighbor } send-community
           %             elif config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("send_community") is not None:
-              neighbor ${ neighbor } send-community ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["send_community"] }
+                neighbor ${ neighbor } send-community ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["send_community"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("maximum_routes") is not None:
-              neighbor ${ neighbor } maximum-routes ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["maximum_routes"] }
+                neighbor ${ neighbor } maximum-routes ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["maximum_routes"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("default_originate") is not None:
           <%                neighbor_default_originate_cli = "neighbor " + neighbor + " default-originate" %>
@@ -2393,16 +2297,16 @@
           %                 if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["default_originate"].get("always") == True:
           <%                    neighbor_default_originate_cli = neighbor_default_originate_cli+ " always" %>
           %                 endif
-              ${ neighbor_default_originate_cli }
+                ${ neighbor_default_originate_cli }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("update_source") is not None:
-              neighbor ${ neighbor } update-source ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["update_source"] }
+                neighbor ${ neighbor } update-source ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["update_source"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("route_map_out") is not None:
-              neighbor ${ neighbor } route-map ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["route_map_out"] } out
+                neighbor ${ neighbor } route-map ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["route_map_out"] } out
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("route_map_in") is not None:
-              neighbor ${ neighbor } route-map ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["route_map_in"] } in
+                neighbor ${ neighbor } route-map ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["route_map_in"] } in
           %             endif
           %           endfor
           %         endif
@@ -2412,7 +2316,7 @@
           %              if config["router_bgp"]["vrfs"][vrf]["redistribute_routes"][redistribute_route].get("route_map") is not None:
           <%                 redistribute_cli = redistribute_cli + " route-map " + config["router_bgp"]["vrfs"][vrf]["redistribute_routes"][redistribute_route]["route_map"] %>
           %              endif
-              ${ redistribute_cli }
+                ${ redistribute_cli }
           %           endfor
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("aggregate_addresses") is not None:
@@ -2433,16 +2337,16 @@
           %             if config["router_bgp"]["vrfs"][vrf]["aggregate_addresses"][aggregate_address].get("advertise_only") == True:
           <%                 aggregate_address_cli = aggregate_address_cli + " advertise-only" %>
           %             endif
-              ${ aggregate_address_cli }
+                ${ aggregate_address_cli }
           %           endfor
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("address_families") is not None:
           %           for  address_family in config["router_bgp"]["vrfs"][vrf]["address_families"].keys():
-              !
-              address-family ${ address_family }
+                !
+                address-family ${ address_family }
           %             for neighbor in config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["neighbors"].keys():
           %                 if config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["neighbors"][neighbor].get("activate") == True:
-                  neighbor ${ neighbor } activate
+                   neighbor ${ neighbor } activate
           %                 endif
           %             endfor
           %             for network in config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["networks"].keys():
@@ -2450,7 +2354,7 @@
           %                 if config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["networks"][network].get("route_map") is not None:
           <%                     network_cli = network_cli + " route-map " + config["router_bgp"]["vrfs"][vrf]["address_families"][address_family]["networks"][network]["route_map"] %>
           %                 endif
-                  ${ network_cli }
+                   ${ network_cli }
           %             endfor
           %           endfor
           %         endif
@@ -2562,7 +2466,7 @@
               id: campusSourceNatSubnet
               name: subnet
               label: Subnet
-              description: ''
+              description: Enter an IPv4 pool in CIDR notation (i.e. 172.16.254.0/26).
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2576,7 +2480,7 @@
               id: campusSite
               name: site
               label: Site
-              description: ''
+              description: Set the source NAT interface IPv4 pool for the site. The NodeId tag is used to assign an IP address to the source NAT loopback interface for this VRF. To avoid duplicate addresses being allocated across Sites, enter a unique IPv4 pool per Site.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2589,7 +2493,7 @@
               id: sourceNatCampusResolver
               name: campus
               label: Campus Source NAT Subnets
-              description: Define an IPv4 pool used to assign IP addresses to the source NAT interface for each VTEP in a particular campus.
+              description: Select the campus for which to assign a source NAT interface IPv4 pool.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2601,8 +2505,8 @@
             dataCenterSourceNatSubnet:
               id: dataCenterSourceNatSubnet
               name: subnet
-              label: Subnet
-              description: ''
+              label: IPv4 Pool
+              description: Enter an IPv4 pool in CIDR notation (i.e. 172.16.254.0/26).
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2616,7 +2520,7 @@
               id: dataCenterPod
               name: dcPoD
               label: DC PoD
-              description: ''
+              description: Set the source NAT interface IPv4 pool for the data center Pod. The NodeId tag is used to assign an IP address to the source NAT loopback interface for this VRF. To avoid duplicate addresses being allocated across Pods, enter a unique IPv4 pool per DC-Pod.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2629,7 +2533,7 @@
               id: sourceNatDataCenterResolver
               name: dataCenter
               label: Data Center Source NAT Subnets
-              description: Define an IPv4 pool used to assign IP addresses to the source NAT interface for each VTEP in a particular data center.
+              description: Select the data center for which to assign a source NAT interface IPv4 pool.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2642,7 +2546,7 @@
               id: natSourceDetails
               name: natSourceDetails
               label: Virtual Source NAT
-              description: This will create a loopback with virtual source-nat enable to perform diagnostics from the switch.This will create a loopback with virtual source-nat enable to perform diagnostics from the switch.
+              description: This will create a loopback with virtual source-nat enable to perform diagnostics from the switch.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3157,33 +3061,35 @@
                   values:
                     - externalBgpPeersRouteMapIn
                     - externalBgpPeersRouteMapOut
+            ebgpPeerDefaultOriginateEnable:
+              id: ebgpPeerDefaultOriginateEnable
+              name: ebgpPeerDefaultOriginateEnable
+              label: Enable
+              description: Enable default-originate for the peer.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
             externalBgpPeersDefaultOriginateAlways:
               id: externalBgpPeersDefaultOriginateAlways
               name: always
               label: Always
-              description: ''
+              description: The ‘always’ option can be used to always artificially generate a default route and send this artificially generated default route to the neighbor irrespective of another default route being present in the BGP RIB.
               required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options:
-                  values:
-                    - 'True'
-                    - 'False'
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
             externalBgpPeersDefaultOriginate:
               id: externalBgpPeersDefaultOriginate
               name: defaultOriginate
               label: Default Originate
-              description: ''
+              description: The default-originate feature is used to advertise a default route to the neighbor even when a default route is not present in the BGP RIB. If a default route is present in the BGP RIB, this route will be advertised to the neighbor. When a default route is not present in the BGP RIB, one will be artificially generated and advertised to the neighbor for which this feature is configured. This artificially generated default route will not be installed in the BGP RIB.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
                 members:
                   values:
+                    - ebgpPeerDefaultOriginateEnable
                     - externalBgpPeersDefaultOriginateAlways
             externalBgpPeersNextHopIpv4:
               id: externalBgpPeersNextHopIpv4
@@ -3547,7 +3453,7 @@
               id: vrfAssignDevicesResolver
               name: devices
               label: Devices
-              description: Select the devices to apply this VRF to where the VRF won't be automatically applied from VLAN association, static route redistribution, external BGP peerings, or additional route-targets.
+              description: Select the devices to apply this VRF to where the VRF won't be automatically applied from VLAN association, static routes, external BGP peerings, or additional route-targets.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3591,7 +3497,7 @@
               id: vlanAwareBundleVlanRange
               name: vlanRange
               label: VLAN Range
-              description: Assign VLANS to this bundle with their VLAN IDs. Specify separate VLANs with a comma and series with a hyphen (e.g 1-9, 14, 23-40).
+              description: Assign VLANs to this bundle with their VLAN IDs. Specify separate VLANs with a comma and series with a hyphen (e.g 1-9, 14, 23-40).
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3813,7 +3719,7 @@
               id: vlanSviVirtualIpAddress
               name: sviVirtualIpAddress
               label: SVI Virtual IP Address
-              description: Assign a virtual IP address to be used on the VLAN's SVI. This will be the default gateway for devices behind this VTEP on this VLAN.
+              description: Assign a virtual IP address to be used on the VLAN's SVI. This will be the default gateway for devices behind this VTEP on this VLAN. If the address type is 'ip address virtual' use CIDR notation (i.e. 192.168.0.1/24). If the address type is 'ip virtual-router address', enter either just an IP address (i.e. 192.168.0.1) or an IP address in CIDR notation (192.168.0.1/24).
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3827,7 +3733,7 @@
               id: vlanVirtualAddressConfigType
               name: virtualAddressConfigType
               label: Virtual Address Config Type
-              description: ''
+              description: Set the virtual address type to be used to implement VARP.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3925,7 +3831,7 @@
               id: vlanSviArpDetails
               name: arp
               label: ARP
-              description: Set the ARP aging timeout for ARP entries for this VLAN.
+              description: Set the ARP aging timeout (seconds) for ARP entries for this VLAN.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3972,6 +3878,35 @@
                 dynamic_options:
                   values:
                     - '{"fieldId":"vrfName"}'
+            etreeRole:
+              id: etreeRole
+              name: role
+              label: Role
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Root
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            etreeRootSwitches:
+              id: etreeRootSwitches
+              name: eTreeRootSwitches
+              label: E Tree Root Switches
+              description: Specify which switches are Etree Root for this VLAN.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: etreeRole
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: ''
+                tag_filter_query: null
             vlanVxlanToggle:
               id: vlanVxlanToggle
               name: vxlan
@@ -3985,13 +3920,13 @@
               id: nodeSviIpAddress
               name: ipAddress
               label: IP Address
-              description: 'Enter an IP address and subnet mask in CIDR notation for the SVI (i.e. 1.1.1.1/24).'
+              description: Enter an IP address and subnet mask in CIDR notation for the SVI (i.e. 1.1.1.1/24).
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
                 static_options: null
-                format: null
+                format: cidr
                 length: null
                 pattern: null
                 dynamic_options: null
@@ -3999,7 +3934,7 @@
               id: nodeVirtualSviIpAddress
               name: virtualIpAddress
               label: Virtual IP Address
-              description: 'Enter an IP address and optionally a subnet mask for the SVI (i.e. 1.1.1.1 or 1.1.1.1/24).'
+              description: Enter an IP address and optionally a subnet mask for the SVI (i.e. 1.1.1.1 or 1.1.1.1/24).
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4034,6 +3969,39 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: device
                 tag_filter_query: null
+            etreeEnable:
+              id: etreeEnable
+              name: etreeEnable
+              label: Enable
+              description: Enable Etree for this VLAN.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            leafExportRouteTargetOffset:
+              id: leafExportRouteTargetOffset
+              name: leafExportRouteTargetOffset
+              label: Leaf Export Route Target Offset
+              description: This number is added to the second half of the leaf export route target.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '10000'
+                range: null
+                static_options: null
+                dynamic_options: null
+            eTreeDetails:
+              id: eTreeDetails
+              name: eTreeDetails
+              label: Etree
+              description: Enable Etree for this VLAN. All VTEPs will be a Leaf node by default. Root switches are specified below.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - etreeEnable
+                    - leafExportRouteTargetOffset
             vlanBasedVlans:
               id: vlanBasedVlans
               name: vlanBasedVlaNs
@@ -4057,6 +4025,8 @@
                     - vlanVrf
                     - vlanVxlanToggle
                     - nodeVlanDetails
+                    - eTreeDetails
+                    - etreeRootSwitches
             vlans:
               id: vlans
               name: vlans
@@ -4293,6 +4263,8 @@
                   "vlanDhcpServerDetails",
                   "vlanSviMtu",
                   "vlanSviArpDetails",
+                  "eTreeDetails",
+                  "etreeRootSwitches",
                   "vlanSviEosCliStatements",
                   "vlanOverrideVariables"
                 ]
@@ -4855,5 +4827,83 @@
                   "description":"Add switches to set SVI IP addresses for.",
                   "addButtonLabel":"Device"
                 }
+              },
+              "externalBgpPeersDefaultOriginate":{
+                "key":"externalBgpPeersDefaultOriginate",
+                "type":"INPUT",
+                "order":[
+                  "ebgpPeerDefaultOriginateEnable",
+                  "externalBgpPeersDefaultOriginateAlways"
+                ]
+              },
+              "externalBgpPeersDefaultOriginateAlways":{
+                "key":"externalBgpPeersDefaultOriginateAlways",
+                "type":"INPUT",
+                "dependency":{
+                  "ebgpPeerDefaultOriginateEnable":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "etreeRootSwitches":{
+                "key":"etreeRootSwitches",
+                "type":"INPUT",
+                "isPageLayout":false,
+                "showDefaultRow":false
+              },
+              "etreeEnable":{
+                "key":"etreeEnable",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "vlanL3OrL2":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "etreeRole":{
+                "key":"etreeRole",
+                "dependency":{
+                  "vlanL3OrL2":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "etreeEnable":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "leafExportRouteTargetOffset":{
+                "key":"leafExportRouteTargetOffset",
+                "dependency":{
+                  "vlanL3OrL2":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "etreeEnable":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
               }
             }
