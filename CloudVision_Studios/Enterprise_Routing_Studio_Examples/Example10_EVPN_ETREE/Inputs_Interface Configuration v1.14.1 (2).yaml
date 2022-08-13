@@ -1,0 +1,363 @@
+path: []
+inputs:
+  sites:
+    - aclNames: []
+      devices:
+        - inputs:
+            devicesGroup:
+              interfaceRanges:
+                - description: TO-END-DEVICES
+                  enabled: true
+                  interfaceName: e2
+                  interfaceProfileName: TRUNK
+                  ipPrefix: ''
+                  stackNumber: '1'
+                  vlanName: ''
+                  vrf: ''
+              stack:
+                - inputs:
+                    stackMember: '1'
+                  tags:
+                    query: device:431950585F6E71B91C4C7838594AA53B
+              vlanInterfaces:
+                - createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  description: blue-L3
+                  ipAddressVirtual: ''
+                  ipPrefix: 2.3.4.11/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '234'
+                  vrf: blue
+                - createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  description: green-L3-L2
+                  ipAddressVirtual: 4.3.2.1/24
+                  ipPrefix: ''
+                  secIp: []
+                  virtualRouterAddress: ''
+                  vlanId: 1/432,2/432
+                  vrf: green
+          tags:
+            query: vStack:Building-1
+        - inputs:
+            devicesGroup:
+              interfaceRanges:
+                - description: eos16
+                  enabled: true
+                  interfaceName: e6
+                  interfaceProfileName: TRUNK
+                  ipPrefix: ''
+                  stackNumber: '1'
+                  vlanName: ''
+                  vrf: ''
+                - description: eos8
+                  enabled: true
+                  interfaceName: e2
+                  interfaceProfileName: TRUNK
+                  ipPrefix: ''
+                  stackNumber: '1'
+                  vlanName: ''
+                  vrf: ''
+              stack:
+                - inputs:
+                    stackMember: '1'
+                  tags:
+                    query: device:295F68D061426D8C8E8D566B1B269C42
+                - inputs:
+                    stackMember: '2'
+                  tags:
+                    query: device:9F85DF66E2AC187076B9ADE7E7C40778
+              vlanInterfaces:
+                - createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  description: green
+                  ipAddressVirtual: 4.3.2.1/24
+                  ipPrefix: ''
+                  secIp: []
+                  virtualRouterAddress: ''
+                  vlanId: 1/432,2/432
+                  vrf: ''
+          tags:
+            query: vStack:Building-2
+        - inputs:
+            devicesGroup:
+              interfaceRanges:
+                - description: INT-FW
+                  enabled: true
+                  interfaceName: e1/2,2/2
+                  interfaceProfileName: TRUNK
+                  ipPrefix: ''
+                  vlanName: ''
+                  vrf: ''
+              stack:
+                - inputs:
+                    stackMember: '2'
+                  tags:
+                    query: device:A55505E68B1D7582DF6425F9710120BD
+                - inputs:
+                    stackMember: '1'
+                  tags:
+                    query: device:AD21B71723EFAA771380F63489B1777B
+              vlanInterfaces:
+                - createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  description: blue
+                  ipAddressVirtual: ''
+                  ipPrefix: 1.2.3.1/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '123'
+                  vrf: blue
+                - createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  description: green
+                  ipAddressVirtual: ''
+                  ipPrefix: 2.3.5.1/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '235'
+                  vrf: green
+          tags:
+            query: vStack:Internal-FW-Border-Leaf
+        - inputs:
+            devicesGroup:
+              interfaceRanges:
+                - description: EXT-FW
+                  enabled: true
+                  interfaceName: e6
+                  interfaceProfileName: TRUNK
+                  ipPrefix: ''
+                  stackNumber: '1'
+                  vlanName: ''
+                  vrf: ''
+              stack:
+                - inputs:
+                    stackMember: '1'
+                  tags:
+                    query: device:5C5D60A33CCD6D94048A80FF9CBBAFAA
+              vlanInterfaces: []
+          tags:
+            query: vStack:External-FW-Border-Leaf
+      dot1XProfiles: []
+      interfaceProfiles:
+        - interfaceProfilesName: TRUNK
+          vlanProfile: TRUNK
+      loggingProfiles: []
+      pimProfiles: []
+      poeProfiles: []
+      ptpProfiles: []
+      qosInstances: []
+      siteName: Campus-Switches
+      stormControlProfiles: []
+      switches: []
+      vlanProfiles:
+        - allowedVlans: ''
+          bpduGuardEnabled: false
+          commandLine: ''
+          dhcpHelpers: []
+          ipaddress: ''
+          lacpEnabled: false
+          mlagEnabled: false
+          mode: trunk
+          name: TRUNK
+          nativeVlanId: 1
+          phoneVlanId: 0
+          portFastEnabled: false
+          profileDescription: TRUNK
+          profileIpAddressVirtual: ''
+          vlanName: ''
+    - aclNames: []
+      devices:
+        - inputs:
+            devicesGroup:
+              interfaceRanges:
+                - description: eos11
+                  enabled: true
+                  interfaceName: e2
+                  interfaceProfileName: TRUNK
+                  ipPrefix: ''
+                  stackNumber: '1'
+                  vlanName: ''
+                  vrf: ''
+              stack:
+                - inputs:
+                    stackMember: '1'
+                  tags:
+                    query: device:75552143A92DC264F73E2B701FFEB531
+              vlanInterfaces:
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 3.1.9.7
+                  description: red
+                  ipAddressVirtual: ''
+                  ipPrefix: 3.1.9.12/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '319'
+                  vrf: red
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 3.2.0.14
+                  description: gray
+                  ipAddressVirtual: ''
+                  ipPrefix: 3.2.0.12/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '320'
+                  vrf: gray
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 2.3.4.1
+                  description: green
+                  ipAddressVirtual: ''
+                  ipPrefix: 2.3.4.12/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '234'
+                  vrf: green
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 4.3.2.1
+                  description: blue
+                  ipAddressVirtual: ''
+                  ipPrefix: 4.3.2.12/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '432'
+                  vrf: blue
+                - createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  description: black
+                  ipAddressVirtual: ''
+                  ipPrefix: 4.3.1.12/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '431'
+                  vrf: black
+          tags:
+            query: vStack:Building-1-End-Device
+        - inputs:
+            devicesGroup:
+              interfaceRanges:
+                - description: ''
+                  enabled: true
+                  interfaceName: e1
+                  interfaceProfileName: TRUNK
+                  ipPrefix: ''
+                  vlanName: ''
+                  vrf: ''
+              stack:
+                - inputs:
+                    stackMember: '1'
+                  tags:
+                    query: device:752E82E1FFCD64AF0B182B8983CD5D27
+                - inputs:
+                    stackMember: '2'
+                  tags:
+                    query: device:3DFBB351B139AECF57BFD4494F15CD2E
+              vlanInterfaces:
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 3.1.9.7
+                  description: red
+                  ipAddressVirtual: ''
+                  ipPrefix: 3.1.9.8/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '319'
+                  vrf: red
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 3.1.9.7
+                  description: red
+                  ipAddressVirtual: ''
+                  ipPrefix: 3.1.9.16/24
+                  secIp: []
+                  stackNumber: '2'
+                  virtualRouterAddress: ''
+                  vlanId: '319'
+                  vrf: red
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 3.2.0.14
+                  description: gray
+                  ipAddressVirtual: ''
+                  ipPrefix: 3.2.0.8/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '320'
+                  vrf: gray
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 3.2.0.14
+                  description: gray
+                  ipAddressVirtual: ''
+                  ipPrefix: 3.2.0.16/24
+                  secIp: []
+                  stackNumber: '2'
+                  virtualRouterAddress: ''
+                  vlanId: '320'
+                  vrf: gray
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 4.3.2.1
+                  description: green
+                  ipAddressVirtual: ''
+                  ipPrefix: 4.3.2.8/24
+                  secIp: []
+                  stackNumber: '1'
+                  virtualRouterAddress: ''
+                  vlanId: '432'
+                  vrf: green
+                - createVlanOnly: false
+                  defaultGatewayNextHop: 4.3.2.1
+                  description: green
+                  ipAddressVirtual: ''
+                  ipPrefix: 4.3.2.16/24
+                  secIp: []
+                  stackNumber: '2'
+                  virtualRouterAddress: ''
+                  vlanId: '432'
+                  vrf: green
+                - createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  description: black
+                  ipAddressVirtual: ''
+                  ipPrefix: 4.3.1.16/24
+                  secIp: []
+                  stackNumber: '2'
+                  virtualRouterAddress: ''
+                  vlanId: '431'
+                  vrf: black
+          tags:
+            query: vStack:Building-2-End-Device
+      dot1XProfiles: []
+      interfaceProfiles:
+        - interfaceProfilesName: TRUNK
+          vlanProfile: TRUNK
+      loggingProfiles: []
+      pimProfiles: []
+      poeProfiles: []
+      ptpProfiles: []
+      qosInstances: []
+      siteName: End-Devices
+      stormControlProfiles: []
+      switches: []
+      vlanProfiles:
+        - allowedVlans: ''
+          bpduGuardEnabled: false
+          commandLine: ''
+          dhcpHelpers: []
+          ipaddress: ''
+          lacpEnabled: false
+          mlagEnabled: false
+          mode: trunk
+          name: TRUNK
+          nativeVlanId: 1
+          phoneVlanId: 0
+          portFastEnabled: false
+          profileDescription: TRUNK
+          profileIpAddressVirtual: ''
+          vlanName: ''
