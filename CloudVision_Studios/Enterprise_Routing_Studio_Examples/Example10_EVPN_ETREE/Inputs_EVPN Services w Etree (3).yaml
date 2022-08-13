@@ -25,7 +25,6 @@ inputs:
           vrf: blue
         - arp: {}
           dhcpServerDetails: []
-          eTree: false
           eosCli: []
           l3OrL2: true
           mtu: 9214
@@ -63,7 +62,6 @@ inputs:
       vlans:
         - arp: {}
           dhcpServerDetails: []
-          eTree: false
           eosCli: []
           l3OrL2: true
           mtu: 9214
@@ -102,7 +100,6 @@ inputs:
           vrf: green
         - arp: {}
           dhcpServerDetails: []
-          eTree: false
           eosCli: []
           l3OrL2: true
           mtu: 9214
@@ -133,12 +130,14 @@ inputs:
       vlanAwareBundles: []
       vlans:
         - dhcpServerDetails: []
-          eTree: true
           l3OrL2: false
           mtu: 9214
           name: red
           overrideVariables: {}
-          rootSwitches:
+          eTreeDetails:
+            etreeEnable: true
+            leafExportRouteTargetOffset: 10000
+          eTreeRootSwitches:
             - inputs:
                 role: Root
               tags:
@@ -199,7 +198,6 @@ inputs:
       vlans:
         - arp: {}
           dhcpServerDetails: []
-          eTree: false
           eosCli: []
           l3OrL2: false
           mtu: 9214
@@ -266,13 +264,15 @@ inputs:
       vlans:
         - arp: {}
           dhcpServerDetails: []
-          eTree: true
           eosCli: []
           l3OrL2: false
           mtu: 9214
           name: gray
           overrideVariables: {}
-          rootSwitches:
+          eTreeDetails:
+            etreeEnable: true
+            leafExportRouteTargetOffset: 10000
+          eTreeRootSwitches:
             - inputs:
                 role: Root
               tags:
