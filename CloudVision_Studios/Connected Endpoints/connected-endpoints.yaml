@@ -5,11 +5,11 @@
       key:
         studio_id: studio-connected-endpoints
         workspace_id: &workspace_id ws-connected-endpoints
-      display_name: Connected Endpoints
+      display_name: Endpoint Connectivity
       description: 'The connected endpoints variables, define endpoints that connect to the fabric on leaf interface(s). The connected endpoints are leveraged to define any device that connects to a leaf switch ports, i.e.: servers, firewalls, routers, load balancers, and storage arrays.'
       template:
         type: TEMPLATE_TYPE_MAKO
-        body: |
+        body: |-
           <%
           import json
           import re
@@ -79,7 +79,7 @@
               # If the attribute value is set at the ethernet/port-channel interface level, use that value
               if adapter_value is not None:
                   return adapter_value
-              
+
               # Get the profile
               if profile_name is not None and profile_name.strip() != '':
                   profile = port_profiles.get(profile_name)
@@ -94,7 +94,7 @@
                   # Get port profile attributes
                   # Get profile's speed
                   port_profile_speed = port_profile["portProfileSpeed"] \
-                      if port_profile["portProfileSpeed"] is not None and \
+                  if port_profile["portProfileSpeed"] is not None and \
                       port_profile["portProfileSpeed"].strip() != '' else None
                   # Get profile's MTU
                   port_profile_mtu = port_profile["portProfileMtu"]
@@ -109,7 +109,7 @@
 
                   # Get profile's spanning tree
                   spanningTreeDetails = port_profile["portProfileSpanningTreeDetails"]
-                  
+
                   port_profile_spanning_tree_portfast = spanningTreeDetails["portProfilePortfast"]
                   port_profile_spanning_tree_bpdufilter = spanningTreeDetails["portProfileBpduFilter"]
                   port_profile_spanning_tree_bpduguard  = spanningTreeDetails["portProfileBpduGuard"]
@@ -123,7 +123,7 @@
                       port_profile_storm_control["All"]["unit"] = stormALL["portProfileStormControlAllUnit"] \
                           if stormALL["portProfileStormControlAllUnit"] is not None and \
                               stormALL["portProfileStormControlAllUnit"].strip() != '' else "percent"
-                  
+
                   stormBCast = port_profile["portProfileStormControlDetails"]["portProfileStormControlBroadcast"]
                   if stormBCast["portProfileStormControlBroadcastLevel"] is not None and \
                       stormBCast["portProfileStormControlBroadcastLevel"].strip() != '':
@@ -147,7 +147,7 @@
                       port_profile_storm_control["UnknownUnicast"]["unit"] = stormUUCast["portProfileStormControlUnknownUnicastUnit"] \
                           if stormUUCast["portProfileStormControlUnknownUnicastUnit"] is not None and \
                               stormUUCast["portProfileStormControlUnknownUnicastUnit"].strip() != '' else "percent"
-                  
+
                   # Get profile's Port-Channel
                   port_profile_port_channel = {}
                   channel_group_id = None
@@ -159,11 +159,11 @@
                       port_profile_port_channel = {}
                       if portChannelProfile["portProfilePortChannelMode"] is not None:
                           port_profile_port_channel["mode"] = portChannelProfile["portProfilePortChannelMode"]
-                      
+
                       if portChannelProfile["portProfilePortChannelDescription"] is not None and \
                               portChannelProfile["portProfilePortChannelDescription"].strip() != '':
                           port_profile_port_channel["description"] = portChannelProfile["portProfilePortChannelDescription"]
-                      
+
                       if portChannelProfile["portProfilePortChannelShortEsi"] is not None and \
                               portChannelProfile["portProfilePortChannelShortEsi"].strip() != '':
                           port_profile_port_channel["short_esi"] = portChannelProfile["portProfilePortChannelShortEsi"]
@@ -185,22 +185,12 @@
                   port_profile_qos_profile = port_profile["portProfileQosProfile"] if port_profile["portProfileQosProfile"] is not None and port_profile["portProfileQosProfile"].strip() != '' else None
                   # Get profile's PTP
                   port_profile_ptp_group = port_profile["ptpGroup"]
-                  port_profile_ptp = { 
-                      "enablePTP": port_profile_ptp_group["enablePTP"], 
-                          "enablePTP": port_profile_ptp_group["enablePTP"], 
-                      "enablePTP": port_profile_ptp_group["enablePTP"], 
-                      "master": port_profile_ptp_group["forceMaster"], 
-                          "master": port_profile_ptp_group["forceMaster"], 
-                      "master": port_profile_ptp_group["forceMaster"], 
-                      "announceInterval": port_profile_ptp_group["announceInterval"], 
-                          "announceInterval": port_profile_ptp_group["announceInterval"], 
-                      "announceInterval": port_profile_ptp_group["announceInterval"], 
-                      "announceTimeout": port_profile_ptp_group["announceTimeout"], 
-                          "announceTimeout": port_profile_ptp_group["announceTimeout"], 
-                      "announceTimeout": port_profile_ptp_group["announceTimeout"], 
-                      "delayRequestInterval": port_profile_ptp_group["delayRequestInterval"], 
-                          "delayRequestInterval": port_profile_ptp_group["delayRequestInterval"], 
-                      "delayRequestInterval": port_profile_ptp_group["delayRequestInterval"], 
+                  port_profile_ptp = {
+                      "enablePTP": port_profile_ptp_group["enablePTP"],
+                      "master": port_profile_ptp_group["forceMaster"],
+                      "announceInterval": port_profile_ptp_group["announceInterval"],
+                      "announceTimeout": port_profile_ptp_group["announceTimeout"],
+                      "delayRequestInterval": port_profile_ptp_group["delayRequestInterval"],
                       "syncMessageInterval": port_profile_ptp_group["syncMessageInterval"]}
 
                   # Set port profile attributes
@@ -248,339 +238,383 @@
                   profile["ptpDelayRequestInterval"] = port_profile_ptp["delayRequestInterval"]
                   profile["ptpSyncMessageInterval"] = port_profile_ptp["syncMessageInterval"]
                   port_profiles[port_profile["portProfileName"]] = profile
-          
+
+          %>
+          ##PortProfiles: ${ port_profiles }
+          ##endpoints:
+          ##%for ep in endpoints:
+          ##${ ep }
+          ##%endfor
+
+          <%
+          ## interfaceList = [
+          ##     "Ethernet1",
+          ##     "Ethernet2",
+          ##     "Ethernet3",
+          ##     "Ethernet4",
+          ##     "Ethernet5",
+          ##     "Ethernet6",
+          ##     "Ethernet7",
+          ##     "Ethernet8"]
+          ## <%
           # Create my_switch interface structured config dictionaries
-          my_switch_connected_interfaces = []  # For debugging
+          ## my_switch_connected_interfaces = []  # For debugging
           my_switch_ethernet_interfaces = {}  # For config generation
           my_switch_port_channel_interfaces = {}  # For config generation
           count = 0
-          # Get and Set my_switch config interfaces 
+          # Get and Set my_switch config interfaces
           my_device = ctx.getDevice()
+          # ctx.info(str(globals()))
           workspace_id = ctx.studio.workspaceId
-          my_switch_connected_interfaces.append(my_device.id)
-          if adapters:
+          ## my_switch_connected_interfaces.append(my_device.id)
+          if ((adapters) and (not adapters is None)) and (not adapters is []):
               for adapter in adapters:
-                  for ei_count, ei in enumerate(adapter["endpointInterfaces"]):
-                      for iface in my_device.getInterfaces():
-                          connected_switch_interface = ei["interfaces"].resolve(iface.name, strict=True)
-                          
-                          my_switch_connected_interfaces.append((iface.name, connected_switch_interface))
-                          count += 1
+                  connected_switch = adapter["deviceQuery"].resolve(device=my_device.id)
+                  if connected_switch is not None:
+                      ctx.info("Eth: " + str(adapter))
 
-                          if connected_switch_interface is not None:
-                              my_switch_connected_interfaces.append((iface.name, connected_switch_interface))
-                              ##Start working... 
-                              # Get ethernet interface attribute values
-                              adapter_profile = adapter["adapterPortProfile"]
-                              # Get interface speed
-                              adapter_speed = get_attribute_value("speed", adapter["adapterSpeed"], adapter_profile)
-                              # Get intereface MTU
-                              adapter_mtu = get_attribute_value("mtu", adapter["adapterMtu"], adapter_profile)
-                              # print(adapter_mtu)
-                              # Get interface administrative state
-                              # iface_status = connected_switch_interface["shutdown"]
-                              # Get interface mode
-                              adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
-                              # Get allowed/access vlans on interface 
-                              adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
-                              # Get native vlan
-                              adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
-                              # Get spanning tree details
-                              adapter_spanning_tree_portfast = get_attribute_value("spanning_tree_portfast", adapter["adapterSpanningTreeDetails"]["adapterPortfast"], adapter_profile)
-                              adapter_spanning_tree_bpdufilter = get_attribute_value("spanning_tree_bpdufilter", adapter["adapterSpanningTreeDetails"]["adapterBpduFilter"], adapter_profile)
-                              adapter_spanning_tree_bpduguard  = get_attribute_value("spanning_tree_bpduguard", adapter["adapterSpanningTreeDetails"]["adapterBpduGuard"], adapter_profile)
-                              # Get storm control details
-                              adapter_storm_control = {}
+                      ## my_switch_connected_interfaces.append((iface.name, connected_switch_interface))
+                      ##Start working...
+                      # Get ethernet interface attribute values
+                      adapter_profile = adapter["adapterPortProfile"]
+                      # Get interface speed
+                      adapter_speed = get_attribute_value("speed", adapter["adapterSpeed"], adapter_profile)
+                      # Get intereface MTU
+                      adapter_mtu = get_attribute_value("mtu", adapter["adapterMtu"], adapter_profile)
+                      # print(adapter_mtu)
+                      # Get interface administrative state
+                      # iface_status = connected_switch_interface["shutdown"]
+                      # Get interface mode
+                      adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
+                      # Get allowed/access vlans on interface
+                      adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
+                      # Get native vlan
+                      adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
+                      # Get spanning tree detaisl
+                      adapter_spanning_tree_portfast = get_attribute_value("spanning_tree_portfast", adapter["adapterSpanningTreeDetails"]["adapterPortfast"], adapter_profile)
+                      adapter_spanning_tree_bpdufilter = get_attribute_value("spanning_tree_bpdufilter", adapter["adapterSpanningTreeDetails"]["adapterBpduFilter"], adapter_profile)
+                      adapter_spanning_tree_bpduguard  = get_attribute_value("spanning_tree_bpduguard", adapter["adapterSpanningTreeDetails"]["adapterBpduGuard"], adapter_profile)
+                      # Get storm control details
+                      adapter_storm_control = {}
 
-                              adapterAll = adapter["adapterStormControlDetails"]["adapterStormControlAll"]
-                              if ["adapterStormControlAllLevel"] is not None and \
-                                  adapterAll["adapterStormControlAllLevel"].strip() != '':
-                                  adapter_storm_control["All"] = {"level": adapterAll["adapterStormControlAllLevel"]}
-                                  adapter_storm_control["All"]["unit"] = adapterAll["adapterStormControlAllUnit"] \
-                                      if adapterAll["adapterStormControlAllUnit"] is not None and \
-                                          adapterAll["adapterStormControlAllUnit"].strip() != '' else "percent"
-                              
-                              adapterBCast = adapter["adapterStormControlDetails"]["adapterStormControlBroadcast"]
-                              if adapterBCast["adapterStormControlBroadcastLevel"] is not None and \
-                                  adapterBCast["adapterStormControlBroadcastLevel"].strip() != '':
-                                  adapter_storm_control["Broadcast"] = {"level": adapterBCast["adapterStormControlBroadcastLevel"]}
-                                  adapter_storm_control["Broadcast"]["unit"] = adapterBCast["adapterStormControlBroadcastUnit"] \
-                                      if adapterBCast["adapterStormControlBroadcastUnit"] is not None and \
-                                          adapterBCast["adapterStormControlBroadcastUnit"].strip() != '' else "percent"
-                              
-                              
-                              adapterMCast = adapter["adapterStormControlDetails"]["adapterStormControlMulticast"]
-                              if adapterMCast["adapterStormControlMulticastLevel"] is not None and \
-                                  adapterMCast["adapterStormControlMulticastLevel"].strip() != '':
-                                  adapter_storm_control["Multicast"] = {"level": adapterMCast["adapterStormControlMulticastLevel"]}
-                                  adapter_storm_control["Multicast"]["unit"] = adapterMCast["adapterStormControlMulticastUnit"] \
-                                      if adapterMCast["adapterStormControlMulticastUnit"] is not None and \
-                                          adapterMCast["adapterStormControlMulticastUnit"].strip() != '' else "percent"
-                              
-                              
-                              adapterUUCast = adapter["adapterStormControlDetails"]["adapterStormControlUnknownUnicast"]
-                              if adapterUUCast["adapterStormControlUnknownUnicastLevel"] is not None and \
-                                  adapterUUCast["adapterStormControlUnknownUnicastLevel"].strip() != '':
-                                  adapter_storm_control["UnknownUnicast"] = {"level": adapterUUCast["adapterStormControlUnknownUnicastLevel"]}
-                                  adapter_storm_control["UnknownUnicast"]["unit"] = adapterUUCast["adapterStormControlUnknownUnicastUnit"] \
-                                      if adapterUUCast["adapterStormControlUnknownUnicastUnit"] is not None and \
-                                          adapterUUCast["adapterStormControlUnknownUnicastUnit"].strip() != '' else "percent"
-                              adapter_storm_control = get_attribute_value("storm_control", adapter_storm_control, adapter_profile)
-                              # Get port-channel details
-                              if adapter["adapterPortChannel"]["adapterEnablePortChannel"] == True:
-                                  adapter_channel_group_id = get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile)
-                                  adapter_port_channel_mode = get_attribute_value("port_channel_mode", adapter["adapterPortChannel"]["adapterPortChannelMode"], adapter_profile)
-                                  if adapter["adapterPortChannel"].get("adapterPortChannelLacpFallback") is not None:
-                                      adapter_lacp_fallback_mode = get_attribute_value("port_channel_lacp_fallback_mode", \
-                                                                                      adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackMode"), \
-                                                                                      adapter_profile)  
-                                  else:
-                                      adapter_lacp_fallback_mode = None
-                              else:
-                                  adapter_channel_group_id = None
-                                  adapter_lacp_fallback_mode = None
-                              # Get flow control details
-                              adapter_flow_control = {}
-                              if adapter["adapterFlowControl"]["adapterFlowControlReceived"] is not None and adapter["adapterFlowControl"]["adapterFlowControlReceived"].strip() != '':
-                                  adapter_flow_control["received"] = adapter["adapterFlowControl"]["adapterFlowControlReceived"]
-                              adapter_flow_control = get_attribute_value("flow_control", adapter_flow_control, adapter_profile)
-                              # Get QOS profile
-                              adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
-                              # Get PTP status
-                              adapter_ptp = {
-                                  "enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile), 
-                                  "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile), 
-                                  "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile), 
-                                  "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile), 
-                                  "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile), 
-                                  "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+                      adapterAll = adapter["adapterStormControlDetails"]["adapterStormControlAll"]
+                      if ["adapterStormControlAllLevel"] is not None and \
+                          adapterAll["adapterStormControlAllLevel"].strip() != '':
+                          adapter_storm_control["All"] = {"level": adapterAll["adapterStormControlAllLevel"]}
+                          adapter_storm_control["All"]["unit"] = adapterAll["adapterStormControlAllUnit"] \
+                              if adapterAll["adapterStormControlAllUnit"] is not None and \
+                                  adapterAll["adapterStormControlAllUnit"].strip() != '' else "percent"
 
-                              connected_ethernet_interface_config = {}
+                      adapterBCast = adapter["adapterStormControlDetails"]["adapterStormControlBroadcast"]
+                      if adapterBCast["adapterStormControlBroadcastLevel"] is not None and \
+                          adapterBCast["adapterStormControlBroadcastLevel"].strip() != '':
+                          adapter_storm_control["Broadcast"] = {"level": adapterBCast["adapterStormControlBroadcastLevel"]}
+                          adapter_storm_control["Broadcast"]["unit"] = adapterBCast["adapterStormControlBroadcastUnit"] \
+                              if adapterBCast["adapterStormControlBroadcastUnit"] is not None and \
+                                  adapterBCast["adapterStormControlBroadcastUnit"].strip() != '' else "percent"
+
+
+                      adapterMCast = adapter["adapterStormControlDetails"]["adapterStormControlMulticast"]
+                      if adapterMCast["adapterStormControlMulticastLevel"] is not None and \
+                          adapterMCast["adapterStormControlMulticastLevel"].strip() != '':
+                          adapter_storm_control["Multicast"] = {"level": adapterMCast["adapterStormControlMulticastLevel"]}
+                          adapter_storm_control["Multicast"]["unit"] = adapterMCast["adapterStormControlMulticastUnit"] \
+                              if adapterMCast["adapterStormControlMulticastUnit"] is not None and \
+                                  adapterMCast["adapterStormControlMulticastUnit"].strip() != '' else "percent"
+
+
+                      adapterUUCast = adapter["adapterStormControlDetails"]["adapterStormControlUnknownUnicast"]
+                      if adapterUUCast["adapterStormControlUnknownUnicastLevel"] is not None and \
+                          adapterUUCast["adapterStormControlUnknownUnicastLevel"].strip() != '':
+                          adapter_storm_control["UnknownUnicast"] = {"level": adapterUUCast["adapterStormControlUnknownUnicastLevel"]}
+                          adapter_storm_control["UnknownUnicast"]["unit"] = adapterUUCast["adapterStormControlUnknownUnicastUnit"] \
+                              if adapterUUCast["adapterStormControlUnknownUnicastUnit"] is not None and \
+                                  adapterUUCast["adapterStormControlUnknownUnicastUnit"].strip() != '' else "percent"
+                      adapter_storm_control = get_attribute_value("storm_control", adapter_storm_control, adapter_profile)
+                      # Get port-channel details
+                      if adapter["adapterPortChannel"]["adapterEnablePortChannel"] == True:
+                          adapter_channel_group_id = get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile)
+                          adapter_port_channel_mode = get_attribute_value("port_channel_mode", adapter["adapterPortChannel"]["adapterPortChannelMode"], adapter_profile)
+                          if adapter["adapterPortChannel"].get("adapterPortChannelLacpFallback") is not None:
+                              adapter_lacp_fallback_mode = get_attribute_value("port_channel_lacp_fallback_mode", \
+                                                                              adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackMode"), \
+                                                                              adapter_profile)
+                          else:
+                              adapter_lacp_fallback_mode = None
+                      else:
+                          adapter_channel_group_id = None
+                          adapter_lacp_fallback_mode = None
+                      # Get flow control details
+                      adapter_flow_control = {}
+                      if adapter["adapterFlowControl"]["adapterFlowControlReceived"] is not None and adapter["adapterFlowControl"]["adapterFlowControlReceived"].strip() != '':
+                          adapter_flow_control["received"] = adapter["adapterFlowControl"]["adapterFlowControlReceived"]
+                      adapter_flow_control = get_attribute_value("flow_control", adapter_flow_control, adapter_profile)
+                      # Get QOS profile
+                      adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
+                      # Get PTP status
+                      adapter_ptp = {
+                          "enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile),
+                          "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile),
+                          "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile),
+                          "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile),
+                          "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile),
+                          "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+
+                      connected_ethernet_interface_config = {}
 
 
 
-                              # Set interface attributes
-                              connected_ethernet_interface_config["CLI"] = []
-                              for line in adapter["cli"]:
-                                  connected_ethernet_interface_config["CLI"].append(line["portCli"])
-                              if connected_ethernet_interface_config["CLI"] == []:
-                                  connected_ethernet_interface_config["CLI"] = None
-                              
-                              connected_ethernet_interface_config["CLI"] = get_attribute_value("CLI", connected_ethernet_interface_config["CLI"], adapter_profile)
-                              connected_ethernet_interface_config["dot1xEnable"] = get_attribute_value("dot1xEnable", adapter["8021X"]["dot1xEnable"], adapter_profile)
-                              connected_ethernet_interface_config["macBasedAuthentication"] = get_attribute_value("macBasedAuthentication", adapter["8021X"]["macBasedAuthentication"], adapter_profile)
-                              connected_ethernet_interface_config["hostMode"] = get_attribute_value("hostMode", adapter["8021X"]["hostMode"], adapter_profile)
-                              connected_ethernet_interface_config["multiHostIndividualAuthentication"] = get_attribute_value("multiHostIndividualAuthentication", adapter["8021X"]["multiHostIndividualAuthentication"], adapter_profile)
-                              connected_ethernet_interface_config["authenticationFailureAction"] = get_attribute_value("authenticationFailureAction", adapter["8021X"]["authenticationFailureAction"], adapter_profile)
-                              connected_ethernet_interface_config["authenticationFailureVlan"] = get_attribute_value("authenticationFailureVlan", adapter["8021X"]["authenticationFailureVlan"], adapter_profile)
-                              connected_ethernet_interface_config["reauthentication"] = get_attribute_value("reauthentication", adapter["8021X"]["reauthentication"], adapter_profile)
-                              connected_ethernet_interface_config["reauthenticationRequestLimit"] = get_attribute_value("reauthenticationRequestLimit", adapter["8021X"]["reauthenticationRequestLimit"], adapter_profile)
-                              connected_ethernet_interface_config["reauthenticationTimer"] = get_attribute_value("reauthenticationTimer", adapter["8021X"]["reauthenticationTimer"], adapter_profile)
-                              connected_ethernet_interface_config["quietPeriodTimeout"] = get_attribute_value("quietPeriodTimeout", adapter["8021X"]["quietPeriodTimeout"], adapter_profile)
-                              connected_ethernet_interface_config["phone_enabled"] = get_attribute_value("phone_enabled", adapter["adapterVLANS"]["phoneEnabled"], adapter_profile)
-                              connected_ethernet_interface_config["phone_vlan"] = get_attribute_value("phone_vlan", adapter["adapterVLANS"]["phoneVLAN"], adapter_profile)
-                              connected_ethernet_interface_config["phone_tagging"] = get_attribute_value("phone_tagging", adapter["adapterVLANS"]["phoneTagging"], adapter_profile)
-                              
-                              ##connected_ethernet_interface_config["peer"] = ep["endpointName"]
-                              ##connected_ethernet_interface_config["peer_interface"] = ei["endpointInterfaceName"]
-                              connected_ethernet_interface_config["description"] = "{}_{}".format(adapter["adapterName"], ei["endpointInterfaceName"])
-                              connected_ethernet_interface_config["speed"] = adapter_speed
-                              connected_ethernet_interface_config["mtu"] = adapter_mtu
-                              connected_ethernet_interface_config["type"] = "switched"
-                              # connected_ethernet_interface_config["shutdown"] = iface_status
-                              connected_ethernet_interface_config["mode"] = adapter_mode
-                              connected_ethernet_interface_config["vlans"] = adapter_vlans
-                              connected_ethernet_interface_config["native_vlan"] = adapter_native_vlan
-                              connected_ethernet_interface_config["spanning_tree_portfast"] = adapter_spanning_tree_portfast
-                              connected_ethernet_interface_config["spanning_tree_bpdufilter"] = adapter_spanning_tree_bpdufilter
-                              connected_ethernet_interface_config["spanning_tree_bpduguard"] = adapter_spanning_tree_bpduguard
+                      # Set interface attributes
+                      connected_ethernet_interface_config["CLI"] = []
+                      for line in adapter["cli"]:
+                          connected_ethernet_interface_config["CLI"].append(line["portCli"])
+                      if connected_ethernet_interface_config["CLI"] == []:
+                          connected_ethernet_interface_config["CLI"] = None
+
+                      connected_ethernet_interface_config["CLI"] = get_attribute_value("CLI", connected_ethernet_interface_config["CLI"], adapter_profile)
+                      connected_ethernet_interface_config["dot1xEnable"] = get_attribute_value("dot1xEnable", adapter["8021X"]["dot1xEnable"], adapter_profile)
+                      connected_ethernet_interface_config["macBasedAuthentication"] = get_attribute_value("macBasedAuthentication", adapter["8021X"]["macBasedAuthentication"], adapter_profile)
+                      connected_ethernet_interface_config["hostMode"] = get_attribute_value("hostMode", adapter["8021X"]["hostMode"], adapter_profile)
+                      connected_ethernet_interface_config["multiHostIndividualAuthentication"] = get_attribute_value("multiHostIndividualAuthentication", adapter["8021X"]["multiHostIndividualAuthentication"], adapter_profile)
+                      connected_ethernet_interface_config["authenticationFailureAction"] = get_attribute_value("authenticationFailureAction", adapter["8021X"]["authenticationFailureAction"], adapter_profile)
+                      connected_ethernet_interface_config["authenticationFailureVlan"] = get_attribute_value("authenticationFailureVlan", adapter["8021X"]["authenticationFailureVlan"], adapter_profile)
+                      connected_ethernet_interface_config["reauthentication"] = get_attribute_value("reauthentication", adapter["8021X"]["reauthentication"], adapter_profile)
+                      connected_ethernet_interface_config["reauthenticationRequestLimit"] = get_attribute_value("reauthenticationRequestLimit", adapter["8021X"]["reauthenticationRequestLimit"], adapter_profile)
+                      connected_ethernet_interface_config["reauthenticationTimer"] = get_attribute_value("reauthenticationTimer", adapter["8021X"]["reauthenticationTimer"], adapter_profile)
+                      connected_ethernet_interface_config["quietPeriodTimeout"] = get_attribute_value("quietPeriodTimeout", adapter["8021X"]["quietPeriodTimeout"], adapter_profile)
+                      connected_ethernet_interface_config["phone_enabled"] = get_attribute_value("phone_enabled", adapter["adapterVLANS"]["phoneEnabled"], adapter_profile)
+                      connected_ethernet_interface_config["phone_vlan"] = get_attribute_value("phone_vlan", adapter["adapterVLANS"]["phoneVLAN"], adapter_profile)
+                      connected_ethernet_interface_config["phone_tagging"] = get_attribute_value("phone_tagging", adapter["adapterVLANS"]["phoneTagging"], adapter_profile)
+
+                      ##connected_ethernet_interface_config["peer"] = ep["endpointName"]
+                      ##connected_ethernet_interface_config["peer_interface"] = ei["endpointInterfaceName"]
+                      connected_ethernet_interface_config["description"] = adapter["adapterName"]
+                      connected_ethernet_interface_config["speed"] = adapter_speed
+                      connected_ethernet_interface_config["mtu"] = adapter_mtu
+                      connected_ethernet_interface_config["type"] = "switched"
+                      # connected_ethernet_interface_config["shutdown"] = iface_status
+                      connected_ethernet_interface_config["mode"] = adapter_mode
+                      connected_ethernet_interface_config["vlans"] = adapter_vlans
+                      connected_ethernet_interface_config["native_vlan"] = adapter_native_vlan
+                      connected_ethernet_interface_config["spanning_tree_portfast"] = adapter_spanning_tree_portfast
+                      connected_ethernet_interface_config["spanning_tree_bpdufilter"] = adapter_spanning_tree_bpdufilter
+                      connected_ethernet_interface_config["spanning_tree_bpduguard"] = adapter_spanning_tree_bpduguard
 
 
-                              assert (connected_ethernet_interface_config["authenticationFailureAction"] is None) or (connected_ethernet_interface_config["authenticationFailureAction"] in ["Disable", "Drop"]) or (connected_ethernet_interface_config["authenticationFailureAction"] == "Allow" and connected_ethernet_interface_config["authenticationFailureVlan"] is not None), "You need a Authentication Failure VLAN assigned!"
-                              if adapter_storm_control is not None:
-                                  connected_ethernet_interface_config["storm_control"] = adapter_storm_control
-                              # Get Port-Channel details
-                              if adapter_channel_group_id is not None:
-                                  connected_ethernet_interface_config["channel_group"] = {}
-                                  connected_ethernet_interface_config["channel_group"]["id"] = adapter_channel_group_id
-                                  connected_ethernet_interface_config["channel_group"]["mode"] = adapter_port_channel_mode
-                              # Set Flow Control
-                              if adapter_flow_control is not None:
-                                  connected_ethernet_interface_config["flowcontrol"] = {}
-                                  connected_ethernet_interface_config["flowcontrol"]["received"] = adapter_flow_control["received"]
-                              # Set QoS
-                              if adapter_qos_profile is not None:
-                                  connected_ethernet_interface_config["service_profile"] = adapter_qos_profile
-                              # Set PTP
-                              connected_ethernet_interface_config["ptp"] = adapter_ptp
-                              # Set LACP priority
-                              if adapter_lacp_fallback_mode is not None:
-                                  if ei_count == 0:
-                                      connected_ethernet_interface_config["lacp_port_priority"] = 8192
-                                  else:
-                                      connected_ethernet_interface_config["lacp_port_priority"] = 32768
-                              
-                              ## my_switch_connected_interfaces.append((iface.name, connected_ethernet_interface_config))
-                              
+                      assert (connected_ethernet_interface_config["authenticationFailureAction"] is None) or (connected_ethernet_interface_config["authenticationFailureAction"] in ["Disable", "Drop"]) or (connected_ethernet_interface_config["authenticationFailureAction"] == "Allow" and connected_ethernet_interface_config["authenticationFailureVlan"] is not None), "You need a Authentication Failure VLAN assigned!"
+                      if adapter_storm_control is not None:
+                          connected_ethernet_interface_config["storm_control"] = adapter_storm_control
+                      # Get Port-Channel details
+                      if adapter_channel_group_id is not None:
+                          connected_ethernet_interface_config["channel_group"] = {}
+                          connected_ethernet_interface_config["channel_group"]["id"] = adapter_channel_group_id
+                          connected_ethernet_interface_config["channel_group"]["mode"] = adapter_port_channel_mode
+                      # Set Flow Control
+                      if adapter_flow_control is not None:
+                          connected_ethernet_interface_config["flowcontrol"] = {}
+                          connected_ethernet_interface_config["flowcontrol"]["received"] = adapter_flow_control["received"]
+                      # Set QoS
+                      if adapter_qos_profile is not None:
+                          connected_ethernet_interface_config["service_profile"] = adapter_qos_profile
+                      # Set PTP
+                      connected_ethernet_interface_config["ptp"] = adapter_ptp
+                      # Set LACP priority
+                      if adapter_lacp_fallback_mode is not None:
+                          connected_ethernet_interface_config["lacp_port_priority"] = 8192
 
-                              # Add interface config to connected_ethernet_interface_config dictionary
-                              ## Split the interface down to allow for chassis
-                              
-                              ## assert False, connected_switch_interface
-                              if iface.name.find('/') >= 0:
-                                  splitIface = iface.name.split('/')
+                      ## my_switch_connected_interfaces.append((iface.name, connected_ethernet_interface_config))
+                      ## my_switch_ethernet_interfaces['/'.join(splitIface)] = connected_ethernet_interface_config
 
-                                  ## the starting port is the last segment in the split interface
-                                  
-                                  startingPort = int(splitIface[-1])
-                                  range_length = connected_switch_interface["rangeLength"]
-                                  ## iterate through each interface until we hit the end, starting at the start and going to iterface Start + Length - 1
-                                  for rangeInterator in range(startingPort, startingPort + range_length):
-                                      splitIface[-1] = str(rangeInterator)
-                                      my_switch_ethernet_interfaces['/'.join(splitIface)] = connected_ethernet_interface_config
-                              else:
-                                  startingPort = int(iface.name[8:])
-                                  range_length = connected_switch_interface["rangeLength"]
-                                  ## iterate through each interface until we hit the end, starting at the start and going to iterface Start + Length - 1
-                                  for rangeInterator in range(startingPort, startingPort + range_length):
-                                      my_switch_ethernet_interfaces['Ethernet' + str(rangeInterator)] = connected_ethernet_interface_config
-          if adapters:
+                      # Add interface config to connected_ethernet_interface_config dictionary
+                      ## Split the interface down to allow for chassis
+
+                      ## assert False, connected_switch_interface
+                      ## if iface.name.find('/') >= 0:
+                      ##     splitIface = iface.name.split('/')
+
+                      ##     ## the starting port is the last segment in the split interface
+
+                      ##     startingPort = int(splitIface[-1])
+                      ##     range_length = connected_switch_interface["rangeLength"]
+                      ##     ## iterate through each interface until we hit the end, starting at the start and going to iterface Start + Length - 1
+                      ##     for rangeInterator in range(startingPort, startingPort + range_length):
+                      ##         splitIface[-1] = str(rangeInterator)
+                      ##         my_switch_ethernet_interfaces['/'.join(splitIface)] = connected_ethernet_interface_config
+                      ## else:
+                      ##     startingPort = int(iface.name[8:])
+                      ##     range_length = connected_switch_interface["rangeLength"]
+                      ##     ## iterate through each interface until we hit the end, starting at the start and going to iterface Start + Length - 1
+                      ##     for rangeInterator in range(startingPort, startingPort + range_length):
+                      my_switch_ethernet_interfaces[connected_switch["interfaces"]["interfaceName"]] = connected_ethernet_interface_config
+
+          ## interface Ethernet3/10
+          ##    switchport trunk native vlan 741
+          ##    switchport phone vlan 780
+          ##    switchport phone trunk untagged
+          ##    switchport mode trunk phone
+
+
+
+          ##----dot1x Enabled bool
+          ##    dot1x pae authenticator
+          ##    dot1x port-control auto
+
+
+          ##----dot1x MAC based authentication bool
+          ##    dot1x mac based authentication
+
+          ##----dot1x Failure Action
+          ##    dot1x authentication failure action traffic drop
+
+          ##----multi/single && multi auth
+          ##    dot1x host-mode multi-host authenticated
+
+          ##----dot1x Reauth bool
+          ##    dot1x reauthentication
+          ##    dot1x timeout reauth-period server
+
+          if (adapters and (not adapters is None)) and (not adapters is []):
               for adapter in adapters:
                   # Check if adapter is using port-channels
                   if adapter["adapterPortChannel"]["adapterEnablePortChannel"] != True:
                       continue
-                  for ei in adapter["endpointInterfaces"]:
-                      ## connected_switch = ei["switches"].resolve(device=my_device.id)
-                      for iface in my_device.getInterfaces():
-                          connected_switch_interface = ei["interfaces"].resolve(iface.name, strict=True)
-                          if connected_switch_interface is not None:
-                              # Get Port-Channel attribute values
-                              # Get adapter profile
-                              adapter_profile = adapter["adapterPortProfile"]
-                              assert get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile) is not None, \
-                                  "No port-channel ID has been given to {}'s adapter {}".format(ep["endpointName"], adapter["adapterName"])
-                              # Get port-channel MTU
-                              adapter_mtu = get_attribute_value("mtu", adapter["adapterMtu"], adapter_profile)
-                              # Get port-channel mode
-                              adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
-                              # Get allowed/access vlans on port-channel 
-                              adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
-                              # Get native vlan
-                              adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
-                              # Get spanning tree details
-                              adapter_spanning_tree_portfast = get_attribute_value("spanning_tree_portfast", adapter["adapterSpanningTreeDetails"]["adapterPortfast"], adapter_profile)
-                              adapter_spanning_tree_bpdufilter = get_attribute_value("spanning_tree_bpdufilter", adapter["adapterSpanningTreeDetails"]["adapterBpduFilter"], adapter_profile)
-                              adapter_spanning_tree_bpduguard  = get_attribute_value("spanning_tree_bpduguard", adapter["adapterSpanningTreeDetails"]["adapterBpduGuard"], adapter_profile)
-                              # Get storm control details
-                              adapter_storm_control = {}
-                              
-                              adapterAll = adapter["adapterStormControlDetails"]["adapterStormControlAll"]
-                              if adapterAll["adapterStormControlAllLevel"] is not None and \
-                                  adapterAll["adapterStormControlAllLevel"].strip() != '':
-                                  adapter_storm_control["All"] = {"level": adapterAll["adapterStormControlAllLevel"]}
-                                  adapter_storm_control["All"]["unit"] = adapterAll["adapterStormControlAllUnit"] \
-                                      if adapterAll["adapterStormControlAllUnit"] is not None and \
-                                          adapterAll["adapterStormControlAllUnit"].strip() != '' else "percent"
-                              
-                              adapterBCast = adapter["adapterStormControlDetails"]["adapterStormControlBroadcast"]
-                              if adapterBCast["adapterStormControlBroadcastLevel"] is not None and \
-                                  adapterBCast["adapterStormControlBroadcastLevel"].strip() != '':
-                                  adapter_storm_control["Broadcast"] = {"level": adapterBCast["adapterStormControlBroadcastLevel"]}
-                                  adapter_storm_control["Broadcast"]["unit"] = adapterBCast["adapterStormControlBroadcastUnit"] \
-                                      if adapterBCast["adapterStormControlBroadcastUnit"] is not None and \
-                                          adapterBCast["adapterStormControlBroadcastUnit"].strip() != '' else "percent"
-                              
-                              adapterMCast = adapter["adapterStormControlDetails"]["adapterStormControlMulticast"]
-                              if adapterMCast["adapterStormControlMulticastLevel"] is not None and \
-                                  adapterMCast["adapterStormControlMulticastLevel"].strip() != '':
-                                  adapter_storm_control["Multicast"] = {"level": adapterMCast["adapterStormControlMulticastLevel"]}
-                                  adapter_storm_control["Multicast"]["unit"] = adapterMCast["adapterStormControlMulticastUnit"] \
-                                      if adapterMCast["adapterStormControlMulticastUnit"] is not None and \
-                                          adapterMCast["adapterStormControlMulticastUnit"].strip() != '' else "percent"
-                              
-                              adapterUUCast = adapter["adapterStormControlDetails"]["adapterStormControlUnknownUnicast"]
-                              if adapterUUCast["adapterStormControlUnknownUnicastLevel"] is not None and \
-                                  adapterUUCast["adapterStormControlUnknownUnicastLevel"].strip() != '':
-                                  adapter_storm_control["UnknownUnicast"] = {"level": adapterUUCast["adapterStormControlUnknownUnicastLevel"]}
-                                  adapter_storm_control["UnknownUnicast"]["unit"] = adapterUUCast["adapterStormControlUnknownUnicastUnit"] \
-                                      if adapterUUCast["adapterStormControlUnknownUnicastUnit"] is not None and \
-                                          adapterUUCast["adapterStormControlUnknownUnicastUnit"].strip() != '' else "percent"
-                              
-                              adapter_storm_control = get_attribute_value("storm_control", adapter_storm_control, adapter_profile)
-                              # Get port-channel details
-                              adapter_channel_group_id = get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile)
-                              adapter_port_channel_mode = get_attribute_value("port_channel_mode", adapter["adapterPortChannel"]["adapterPortChannelMode"], adapter_profile)
-                              adapter_port_channel_description = get_attribute_value("port_channel_description", adapter["adapterPortChannel"]["adapterPortChannelDescription"], adapter_profile)
-                              adapter_port_channel_short_esi = get_attribute_value("port_channel_short_esi", adapter["adapterPortChannel"]["adapterPortChannelShortEsi"], adapter_profile)
-                              if adapter["adapterPortChannel"].get("adapterPortChannelLacpFallback") is not None:
-                                  adapter_lacp_fallback_mode = get_attribute_value("port_channel_lacp_fallback_mode", \
-                                                                                  adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackMode"), \
-                                                                                  adapter_profile)
-                                  adapter_lacp_fallback_timeout = get_attribute_value("port_channel_lacp_fallback_timeout", \
-                                                                                  adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackTimeout"), \
-                                                                                  adapter_profile)
-                              else:
-                                  adapter_lacp_fallback_mode = None
-                                  adapter_lacp_fallback_timeout = None
-                              # Get QOS profile
-                              adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
-                              # Get PTP status
-                              adapter_ptp = {"enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile), 
-                                  "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile), 
-                                  "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile), 
-                                  "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile), 
-                                  "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile), 
-                                  "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+                  connected_switch = adapter["deviceQuery"].resolve(device=my_device.id)
+                  if connected_switch is not None and not (connected_switch["interfaces"]["interfaceName"] is ""):
+                      ctx.info("PC2: " + str(connected_switch))
+                      # Get Port-Channel attribute values
+                      # Get adapter profile
+                      adapter_profile = adapter["adapterPortProfile"]
+                      assert get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile) is not None, \
+                          "No port-channel ID has been given to {}'s adapter {}".format(ep["endpointName"], adapter["adapterName"])
+                      # Get port-channel MTU
+                      adapter_mtu = get_attribute_value("mtu", adapter["adapterMtu"], adapter_profile)
+                      # Get port-channel mode
+                      adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
+                      # Get allowed/access vlans on port-channel
+                      adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
+                      # Get native vlan
+                      adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
+                      # Get spanning tree details
+                      adapter_spanning_tree_portfast = get_attribute_value("spanning_tree_portfast", adapter["adapterSpanningTreeDetails"]["adapterPortfast"], adapter_profile)
+                      adapter_spanning_tree_bpdufilter = get_attribute_value("spanning_tree_bpdufilter", adapter["adapterSpanningTreeDetails"]["adapterBpduFilter"], adapter_profile)
+                      adapter_spanning_tree_bpduguard  = get_attribute_value("spanning_tree_bpduguard", adapter["adapterSpanningTreeDetails"]["adapterBpduGuard"], adapter_profile)
+                      # Get storm control details
+                      adapter_storm_control = {}
 
-                              # Set Port-Channel attributes
-                              connected_port_channel_interface_config = {}
-                              connected_port_channel_interface_config["description"] = "{}_{}".format(adapter["adapterName"], adapter_port_channel_description) \
-                                                                                          if port_channel_description is not None else "{}".format(adapter["adapterName"])
-                              connected_port_channel_interface_config["mtu"] = adapter_mtu
-                              connected_port_channel_interface_config["type"] = "switched"
-                              connected_port_channel_interface_config["mode"] = adapter_mode
-                              connected_port_channel_interface_config["vlans"] = adapter_vlans
-                              connected_port_channel_interface_config["native_vlan"] = adapter_native_vlan
-                              connected_port_channel_interface_config["spanning_tree_portfast"] = adapter_spanning_tree_portfast
-                              connected_port_channel_interface_config["spanning_tree_bpdufilter"] = adapter_spanning_tree_bpdufilter
-                              connected_port_channel_interface_config["spanning_tree_bpduguard"] = adapter_spanning_tree_bpduguard
-                              if adapter_storm_control is not None:
-                                  connected_port_channel_interface_config["storm_control"] = adapter_storm_control
-                              # Set QoS
-                              if adapter_qos_profile is not None:
-                                  connected_port_channel_interface_config["service_profile"] = adapter_qos_profile
-                              # Set PTP
-                              connected_port_channel_interface_config["ptp"] = adapter_ptp
+                      adapterAll = adapter["adapterStormControlDetails"]["adapterStormControlAll"]
+                      if adapterAll["adapterStormControlAllLevel"] is not None and \
+                          adapterAll["adapterStormControlAllLevel"].strip() != '':
+                          adapter_storm_control["All"] = {"level": adapterAll["adapterStormControlAllLevel"]}
+                          adapter_storm_control["All"]["unit"] = adapterAll["adapterStormControlAllUnit"] \
+                              if adapterAll["adapterStormControlAllUnit"] is not None and \
+                                  adapterAll["adapterStormControlAllUnit"].strip() != '' else "percent"
 
-                              # Set LACP Fallback details
-                              connected_port_channel_interface_config["lacp_fallback_mode"] = adapter_lacp_fallback_mode
-                              connected_port_channel_interface_config["lacp_fallback_timeout"] = adapter_lacp_fallback_timeout
+                      adapterBCast = adapter["adapterStormControlDetails"]["adapterStormControlBroadcast"]
+                      if adapterBCast["adapterStormControlBroadcastLevel"] is not None and \
+                          adapterBCast["adapterStormControlBroadcastLevel"].strip() != '':
+                          adapter_storm_control["Broadcast"] = {"level": adapterBCast["adapterStormControlBroadcastLevel"]}
+                          adapter_storm_control["Broadcast"]["unit"] = adapterBCast["adapterStormControlBroadcastUnit"] \
+                              if adapterBCast["adapterStormControlBroadcastUnit"] is not None and \
+                                  adapterBCast["adapterStormControlBroadcastUnit"].strip() != '' else "percent"
 
-                              # Add ESI or MLAG config
-                              # EXPENSIVE???
-                              if len(adapter["endpointInterfaces"]) > 1:
-                                  if adapter_port_channel_short_esi is not None:
-                                      # Configure ESI
-                                      connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
-                                      connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
-                                      if adapter_port_channel_mode == "active":
-                                          connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
-                                  else:
-                                      # Configure MLAG
-                                      connected_port_channel_interface_config["mlag"] = adapter_channel_group_id
-                              # Add interface config to connected_port_channel_interface_config dictionary
-                              my_switch_port_channel_interfaces["Port-Channel{}".format(adapter_channel_group_id)] = \
-                                  connected_port_channel_interface_config
-                              
-                              # Add input details to my_switch_connected_interfaces list 
-                              my_switch_connected_interfaces.append((ep, adapter, ei, connected_switch_interface))
-                          ## break
+                      adapterMCast = adapter["adapterStormControlDetails"]["adapterStormControlMulticast"]
+                      if adapterMCast["adapterStormControlMulticastLevel"] is not None and \
+                          adapterMCast["adapterStormControlMulticastLevel"].strip() != '':
+                          adapter_storm_control["Multicast"] = {"level": adapterMCast["adapterStormControlMulticastLevel"]}
+                          adapter_storm_control["Multicast"]["unit"] = adapterMCast["adapterStormControlMulticastUnit"] \
+                              if adapterMCast["adapterStormControlMulticastUnit"] is not None and \
+                                  adapterMCast["adapterStormControlMulticastUnit"].strip() != '' else "percent"
+
+                      adapterUUCast = adapter["adapterStormControlDetails"]["adapterStormControlUnknownUnicast"]
+                      if adapterUUCast["adapterStormControlUnknownUnicastLevel"] is not None and \
+                          adapterUUCast["adapterStormControlUnknownUnicastLevel"].strip() != '':
+                          adapter_storm_control["UnknownUnicast"] = {"level": adapterUUCast["adapterStormControlUnknownUnicastLevel"]}
+                          adapter_storm_control["UnknownUnicast"]["unit"] = adapterUUCast["adapterStormControlUnknownUnicastUnit"] \
+                              if adapterUUCast["adapterStormControlUnknownUnicastUnit"] is not None and \
+                                  adapterUUCast["adapterStormControlUnknownUnicastUnit"].strip() != '' else "percent"
+
+                      adapter_storm_control = get_attribute_value("storm_control", adapter_storm_control, adapter_profile)
+                      # Get port-channel details
+                      adapter_channel_group_id = get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile)
+                      adapter_port_channel_mode = get_attribute_value("port_channel_mode", adapter["adapterPortChannel"]["adapterPortChannelMode"], adapter_profile)
+                      adapter_port_channel_description = get_attribute_value("port_channel_description", adapter["adapterPortChannel"]["adapterPortChannelDescription"], adapter_profile)
+                      adapter_port_channel_short_esi = get_attribute_value("port_channel_short_esi", adapter["adapterPortChannel"]["adapterPortChannelShortEsi"], adapter_profile)
+                      if adapter["adapterPortChannel"].get("adapterPortChannelLacpFallback") is not None:
+                          adapter_lacp_fallback_mode = get_attribute_value("port_channel_lacp_fallback_mode", \
+                                                                          adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackMode"), \
+                                                                          adapter_profile)
+                          adapter_lacp_fallback_timeout = get_attribute_value("port_channel_lacp_fallback_timeout", \
+                                                                          adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"].get("adapterPortChannelLacpFallbackTimeout"), \
+                                                                          adapter_profile)
+                      else:
+                          adapter_lacp_fallback_mode = None
+                          adapter_lacp_fallback_timeout = None
+                      # Get QOS profile
+                      adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
+                      # Get PTP status
+                      adapter_ptp = {"enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile),
+                          "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile),
+                          "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile),
+                          "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile),
+                          "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile),
+                          "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+
+                      # Set Port-Channel attributes
+                      connected_port_channel_interface_config = {}
+                      connected_port_channel_interface_config["description"] = "{}_{}".format(adapter["adapterName"], adapter_port_channel_description) \
+                                                                                  if port_channel_description is not None else "{}".format(adapter["adapterName"])
+                      connected_port_channel_interface_config["mtu"] = adapter_mtu
+                      connected_port_channel_interface_config["type"] = "switched"
+                      connected_port_channel_interface_config["mode"] = adapter_mode
+                      connected_port_channel_interface_config["vlans"] = adapter_vlans
+                      connected_port_channel_interface_config["native_vlan"] = adapter_native_vlan
+                      connected_port_channel_interface_config["spanning_tree_portfast"] = adapter_spanning_tree_portfast
+                      connected_port_channel_interface_config["spanning_tree_bpdufilter"] = adapter_spanning_tree_bpdufilter
+                      connected_port_channel_interface_config["spanning_tree_bpduguard"] = adapter_spanning_tree_bpduguard
+                      if adapter_storm_control is not None:
+                          connected_port_channel_interface_config["storm_control"] = adapter_storm_control
+                      # Set QoS
+                      if adapter_qos_profile is not None:
+                          connected_port_channel_interface_config["service_profile"] = adapter_qos_profile
+                      # Set PTP
+                      connected_port_channel_interface_config["ptp"] = adapter_ptp
+
+                      # Set LACP Fallback details
+                      connected_port_channel_interface_config["lacp_fallback_mode"] = adapter_lacp_fallback_mode
+                      connected_port_channel_interface_config["lacp_fallback_timeout"] = adapter_lacp_fallback_timeout
+
+                      # Add ESI or MLAG config
+                      # EXPENSIVE???
+                      def interfaceCount():
+                          count = 0
+                          resolved = adapter["deviceQuery"].resolve(device=my_device.id)
+                          ctx.info(str(resolved))
+                          interfacesCombined = resolved['interfaces']['interfaceName']
+                          if interfacesCombined != '':
+                              count = sum([ (int(y.split('-')[1]) - int(y.split('-')[0]) + 1) if y.find('-') > 0 else 1 for y in str(interfacesCombined).split(',')], count)
+                          return count
+
+                      if interfaceCount() > 1:
+                          if adapter_port_channel_short_esi is not None:
+                              ## Configure ESI
+                              connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
+                              connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
+                              if adapter_port_channel_mode == "active":
+                                  connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
+
+                      ## Add interface config to connected_port_channel_interface_config dictionary
+                      my_switch_port_channel_interfaces["Port-Channel {}".format(adapter_channel_group_id)] = \
+                          connected_port_channel_interface_config
+
+                      ## Add input details to my_switch_connected_interfaces list
+                      ## my_switch_connected_interfaces.append((ep, adapter, ei, connected_switch_interface))
+                  ## break
 
           config = {
               "ethernet_interfaces": my_switch_ethernet_interfaces,
               "port_channel_interfaces": my_switch_port_channel_interfaces
           }
-
+          ctx.info("Config: " + str(config))
           %>
 
           ## ${json.dumps(port_profiles, indent=2)}
@@ -624,10 +658,6 @@
           %       for trunk_group in currentPortchannel["trunk_groups"]:
             switchport trunk group ${ trunk_group }
           %       endfor
-          %     endif
-          ## MLAG
-          %     if currentPortchannel.get("mlag") is not None:
-            mlag ${ currentPortchannel["mlag"] }
           %     endif
           %     if currentPortchannel.get("esi") is not None:
             evpn ethernet-segment
@@ -700,14 +730,15 @@
           ## eos - Ethernet Interfaces
           %if config.get("ethernet_interfaces") is not None:
           %  for ethernet_interface in natural_sort(config["ethernet_interfaces"].keys()):
+          %    if ethernet_interface != "":
           <%     lastIntCount += 1 %>
           <%     currentInt = config["ethernet_interfaces"][ethernet_interface] %>
-          ##${ currentInt }
+
           %     if currentInt.get("dot1xEnable") is not None and currentInt.get("dot1xEnable") == True:
           aaa authentication dot1x default group radius
           dot1x system-auth-control
           %     endif
-          interface ${ ethernet_interface }
+          interface Ethernet ${ ethernet_interface }
           %     if currentInt["description"] is not None:
             description ${currentInt["description"]}
           %     endif
@@ -774,7 +805,7 @@
           ##    dot1x host-mode single-host <-- false
           ##    dot1x host-mode multi-host  <-- true
 
-          ##----bool multiHostIndividualAuthentication 
+          ##----bool multiHostIndividualAuthentication
           ##    dot1x host-mode multi-host authenticated <-- true
 
 
@@ -904,7 +935,7 @@
           %             endif
           %           endfor
           %         endif
-          %         if currentInt.get("CLI") is not []:
+          %         if currentInt.get("CLI") not in ([], None):
           %           for line in currentInt.get("CLI"):
             ${ line }
           %           endfor
@@ -912,6 +943,7 @@
           %     endif
           %     if lastIntCount != len(config["ethernet_interfaces"].keys()):
           !
+          %     endif
           %     endif
           %  endfor
           %endif
@@ -1439,8 +1471,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            profileportPhoneTagging:
-              id: profileportPhoneTagging
+            90eece88-0f72-4b40-9254-e4ff92e82c84:
+              id: 90eece88-0f72-4b40-9254-e4ff92e82c84
               name: portPhoneTagging
               label: Phone Tagging
               description: ''
@@ -1463,7 +1495,7 @@
                     - portProfileMode
                     - portProfileNativeVlan
                     - portProfileVlans
-                    - profileportPhoneTagging
+                    - 90eece88-0f72-4b40-9254-e4ff92e82c84
             8021XEnabled:
               id: 8021XEnabled
               name: 8021XEnabled
@@ -1512,8 +1544,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: true
-            portauthenticationFailureAction:
-              id: portauthenticationFailureAction
+            4d07614b-f595-4231-9cfd-7e04d7badc69:
+              id: 4d07614b-f595-4231-9cfd-7e04d7badc69
               name: authenticationFailureAction
               label: Authentication Failure Action
               description: ''
@@ -1530,8 +1562,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            portauthenticationFailureVlan:
-              id: portauthenticationFailureVlan
+            a682964f-bbab-4fd7-a987-546f9008b0be:
+              id: a682964f-bbab-4fd7-a987-546f9008b0be
               name: authenticationFailureVlan
               label: Authentication Failure VLAN
               description: ''
@@ -1542,8 +1574,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            portreauthentication:
-              id: portreauthentication
+            0a222884-fb72-423f-89d5-61c21c1a3420:
+              id: 0a222884-fb72-423f-89d5-61c21c1a3420
               name: reauthentication
               label: Reauthentication Enabled
               description: ''
@@ -1551,8 +1583,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            portreauthenticationTimer:
-              id: portreauthenticationTimer
+            99c81d24-4705-49f4-b4b1-0b5672f4a05b:
+              id: 99c81d24-4705-49f4-b4b1-0b5672f4a05b
               name: reauthenticationTimer
               label: Reauthentication Timer
               description: ''
@@ -1563,8 +1595,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            portreauthenticationRequestLimit:
-              id: portreauthenticationRequestLimit
+            7b1af5a8-d911-4095-b71b-3633fd0da4cd:
+              id: 7b1af5a8-d911-4095-b71b-3633fd0da4cd
               name: reauthenticationRequestLimit
               label: Reauthentication Request Limit
               description: ''
@@ -1590,13 +1622,13 @@
                     - timeoutQuietPeriod
                     - hostType
                     - multiHostIndividualAuthentication
-                    - portauthenticationFailureAction
-                    - portauthenticationFailureVlan
-                    - portreauthentication
-                    - portreauthenticationTimer
-                    - portreauthenticationRequestLimit
-            portprofileCli:
-              id: portprofileCli
+                    - 4d07614b-f595-4231-9cfd-7e04d7badc69
+                    - a682964f-bbab-4fd7-a987-546f9008b0be
+                    - 0a222884-fb72-423f-89d5-61c21c1a3420
+                    - 99c81d24-4705-49f4-b4b1-0b5672f4a05b
+                    - 7b1af5a8-d911-4095-b71b-3633fd0da4cd
+            profileCli:
+              id: profileCli
               name: profileCli
               label: Profile CLI
               description: ''
@@ -1609,8 +1641,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            profileCliListGroup:
-              id: profileCliListGroup
+            profileCliListCollection:
+              id: profileCliListCollection
               name: value
               label: profileCliList Group
               description: Group of members for profileCliList
@@ -1619,7 +1651,7 @@
               group_props:
                 members:
                   values:
-                    - portprofileCli
+                    - profileCli
             profileCliList:
               id: profileCliList
               name: profileCliList
@@ -1628,10 +1660,10 @@
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
-                base_field_id: profileCliListGroup
+                base_field_id: profileCliListCollection
                 key: ''
-            portenablePTP:
-              id: portenablePTP
+            e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb:
+              id: e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb
               name: enablePTP
               label: Enable
               description: ''
@@ -1639,8 +1671,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            portforceMaster:
-              id: portforceMaster
+            1d7ff905-71f3-4291-b9b6-8beff7e5f8f5:
+              id: 1d7ff905-71f3-4291-b9b6-8beff7e5f8f5
               name: forceMaster
               label: Force Master
               description: ''
@@ -1648,8 +1680,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            portannounceInterval:
-              id: portannounceInterval
+            07fec9fa-b08b-47dc-9e91-5d031eb7fcf0:
+              id: 07fec9fa-b08b-47dc-9e91-5d031eb7fcf0
               name: announceInterval
               label: Announce Interval
               description: ''
@@ -1660,8 +1692,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            portannounceTimeout:
-              id: portannounceTimeout
+            fd026550-9930-47c7-bb2b-39f68959beec:
+              id: fd026550-9930-47c7-bb2b-39f68959beec
               name: announceTimeout
               label: Announce Timeout
               description: ''
@@ -1672,8 +1704,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            portdelayRequestInterval:
-              id: portdelayRequestInterval
+            delayRequestInterval:
+              id: delayRequestInterval
               name: delayRequestInterval
               label: Delay Request Interval
               description: ''
@@ -1684,8 +1716,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            portsyncMessageInterval:
-              id: portsyncMessageInterval
+            451779ac-23d4-4e77-ba14-31254e752ccd:
+              id: 451779ac-23d4-4e77-ba14-31254e752ccd
               name: syncMessageInterval
               label: Sync Message Interval
               description: ''
@@ -1696,8 +1728,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            portPTPGroup:
-              id: portPTPGroup
+            80f2d247-e2a4-4b2a-9dc9-86703baa25b2:
+              id: 80f2d247-e2a4-4b2a-9dc9-86703baa25b2
               name: ptpGroup
               label: PTP
               description: ''
@@ -1706,12 +1738,12 @@
               group_props:
                 members:
                   values:
-                    - portenablePTP
-                    - portforceMaster
-                    - portannounceInterval
-                    - portannounceTimeout
-                    - portdelayRequestInterval
-                    - portsyncMessageInterval
+                    - e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb
+                    - 1d7ff905-71f3-4291-b9b6-8beff7e5f8f5
+                    - 07fec9fa-b08b-47dc-9e91-5d031eb7fcf0
+                    - fd026550-9930-47c7-bb2b-39f68959beec
+                    - delayRequestInterval
+                    - 451779ac-23d4-4e77-ba14-31254e752ccd
             portProfileGroups:
               id: portProfileGroups
               name: portProfileGroups
@@ -1733,7 +1765,7 @@
                     - phoneSettings
                     - dot1XSettings
                     - profileCliList
-                    - portPTPGroup
+                    - 80f2d247-e2a4-4b2a-9dc9-86703baa25b2
             portProfiles:
               id: portProfiles
               name: portProfiles
@@ -1758,67 +1790,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            directRangeLength:
-              id: directRangeLength
-              name: rangeLength
-              label: Range Length
-              description: The number of ports in this range, inclusive
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: '1'
-                range: null
-                static_options: null
-                dynamic_options: null
-            directInterfaces:
-              id: directInterfaces
-              name: interfaces
-              label: Interfaces
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: directRangeLength
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
-                input_tag_label: interface
-                tag_filter_query: null
-            endpointInterfaceName:
-              id: endpointInterfaceName
-              name: endpointInterfaceName
-              label: Name
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            endpointInterfacesGroup:
-              id: endpointInterfacesGroup
-              name: endpointInterfacesGroup
-              label: Endpoint Interfaces Group
-              description: Group of members for Endpoint Interfaces
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - directInterfaces
-                    - endpointInterfaceName
-            endpointInterfaces:
-              id: endpointInterfaces
-              name: endpointInterfaces
-              label: Endpoint Interfaces
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: endpointInterfacesGroup
-                key: endpointInterfaceName
             adapterPortProfile:
               id: adapterPortProfile
               name: adapterPortProfile
@@ -2264,8 +2235,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adapterDot1xEnable:
-              id: adapterDot1xEnable
+            c60cf057-f9ed-43e9-b280-301fa2476177:
+              id: c60cf057-f9ed-43e9-b280-301fa2476177
               name: dot1xEnable
               label: Enable
               description: ''
@@ -2273,8 +2244,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            adapterMACbasedAuth:
-              id: adapterMACbasedAuth
+            6c49a0ab-4e10-4706-aec9-19d8605fb90d:
+              id: 6c49a0ab-4e10-4706-aec9-19d8605fb90d
               name: macBasedAuthentication
               label: MAC Based Authentication
               description: ''
@@ -2282,8 +2253,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: true
-            adapterDot1xauthenticationFailureAction:
-              id: adapterDot1xauthenticationFailureAction
+            76fb4c7c-7f14-48ec-b268-aa38ce10d84b:
+              id: 76fb4c7c-7f14-48ec-b268-aa38ce10d84b
               name: authenticationFailureAction
               label: Authentication Failure Action
               description: ''
@@ -2300,8 +2271,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            adapterDot1xreauthentication:
-              id: adapterDot1xreauthentication
+            bf9f2d0a-21bd-4b71-9b8e-d7306273618d:
+              id: bf9f2d0a-21bd-4b71-9b8e-d7306273618d
               name: reauthentication
               label: Reauthentication Enabled
               description: ''
@@ -2309,8 +2280,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            adapterDot1xreauthenticationTimer:
-              id: adapterDot1xreauthenticationTimer
+            91abeafa-1918-466d-ba43-e7ffb8417424:
+              id: 91abeafa-1918-466d-ba43-e7ffb8417424
               name: reauthenticationTimer
               label: Reauthentication Timer
               description: Seconds until reauthentication is requested, in seconds (1 - 65535)
@@ -2321,8 +2292,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adapterDot1xhostMode:
-              id: adapterDot1xhostMode
+            3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2:
+              id: 3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2
               name: hostMode
               label: Host Type
               description: ''
@@ -2330,8 +2301,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: true
-            adapterreauthenticationRequestLimit:
-              id: adapterreauthenticationRequestLimit
+            7b76e149-8a3a-4b47-b3ba-303e289b35f9:
+              id: 7b76e149-8a3a-4b47-b3ba-303e289b35f9
               name: reauthenticationRequestLimit
               label: Reauthentication Request Limit
               description: Number of reauthentication requests submitted by the switch (1 10)
@@ -2342,8 +2313,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adapterquietPeriodTimeout:
-              id: adapterquietPeriodTimeout
+            113fa93d-ef20-410d-96aa-fa752e4e178f:
+              id: 113fa93d-ef20-410d-96aa-fa752e4e178f
               name: quietPeriodTimeout
               label: Quiet Period Timeout
               description: ''
@@ -2354,8 +2325,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adaptermultiHostIndividualAuthentication:
-              id: adaptermultiHostIndividualAuthentication
+            4d4c6315-610d-4381-8aef-3f5483057986:
+              id: 4d4c6315-610d-4381-8aef-3f5483057986
               name: multiHostIndividualAuthentication
               label: Multi-host Individual Authentication
               description: ''
@@ -2363,8 +2334,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: true
-            adapterauthenticationFailureVlan:
-              id: adapterauthenticationFailureVlan
+            06c6cc80-c714-4abd-b8d3-9a7714947670:
+              id: 06c6cc80-c714-4abd-b8d3-9a7714947670
               name: authenticationFailureVlan
               label: Authentication Failure VLAN
               description: ''
@@ -2375,8 +2346,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adapterDot1xGroup:
-              id: adapterDot1xGroup
+            f7cb6b88-ef74-4b27-b544-6a4eaad094b1:
+              id: f7cb6b88-ef74-4b27-b544-6a4eaad094b1
               name: 8021X
               label: 802.1x
               description: ''
@@ -2385,16 +2356,16 @@
               group_props:
                 members:
                   values:
-                    - adapterDot1xEnable
-                    - adapterMACbasedAuth
-                    - adapterDot1xauthenticationFailureAction
-                    - adapterDot1xreauthentication
-                    - adapterDot1xreauthenticationTimer
-                    - adapterDot1xhostMode
-                    - adapterreauthenticationRequestLimit
-                    - adapterquietPeriodTimeout
-                    - adaptermultiHostIndividualAuthentication
-                    - adapterauthenticationFailureVlan
+                    - c60cf057-f9ed-43e9-b280-301fa2476177
+                    - 6c49a0ab-4e10-4706-aec9-19d8605fb90d
+                    - 76fb4c7c-7f14-48ec-b268-aa38ce10d84b
+                    - bf9f2d0a-21bd-4b71-9b8e-d7306273618d
+                    - 91abeafa-1918-466d-ba43-e7ffb8417424
+                    - 3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2
+                    - 7b76e149-8a3a-4b47-b3ba-303e289b35f9
+                    - 113fa93d-ef20-410d-96aa-fa752e4e178f
+                    - 4d4c6315-610d-4381-8aef-3f5483057986
+                    - 06c6cc80-c714-4abd-b8d3-9a7714947670
             adapterMode:
               id: adapterMode
               name: adapterMode
@@ -2439,8 +2410,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            adapterphoneEnabled:
-              id: adapterphoneEnabled
+            2db5b218-0a75-4720-ae5c-a96c71f6edb7:
+              id: 2db5b218-0a75-4720-ae5c-a96c71f6edb7
               name: phoneEnabled
               label: Phone VLAN Enable
               description: ''
@@ -2448,8 +2419,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            adapterphoneVLAN:
-              id: adapterphoneVLAN
+            1cacdc71-d0d3-46dd-a23a-d0df699f831a:
+              id: 1cacdc71-d0d3-46dd-a23a-d0df699f831a
               name: phoneVLAN
               label: 'Phone VLAN #'
               description: ''
@@ -2460,8 +2431,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adapterphoneTagging:
-              id: adapterphoneTagging
+            f2e5a570-3fd6-4978-b357-d5428e863d97:
+              id: f2e5a570-3fd6-4978-b357-d5428e863d97
               name: phoneTagging
               label: Phone Tagging
               description: ''
@@ -2469,8 +2440,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            adapterVLANS:
-              id: adapterVLANS
+            e0c27bfd-ef4b-4087-971b-864350b4f531:
+              id: e0c27bfd-ef4b-4087-971b-864350b4f531
               name: adapterVLANS
               label: VLANs
               description: ''
@@ -2482,11 +2453,11 @@
                     - adapterMode
                     - adapterNativeVlan
                     - adapterVlans
-                    - adapterphoneEnabled
-                    - adapterphoneVLAN
-                    - adapterphoneTagging
-            adapterportCli:
-              id: adapterportCli
+                    - 2db5b218-0a75-4720-ae5c-a96c71f6edb7
+                    - 1cacdc71-d0d3-46dd-a23a-d0df699f831a
+                    - f2e5a570-3fd6-4978-b357-d5428e863d97
+            949276bc-b472-45e4-9274-50687b0c7b65:
+              id: 949276bc-b472-45e4-9274-50687b0c7b65
               name: portCli
               label: Port CLI
               description: ''
@@ -2499,8 +2470,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            adapterCLIGroup:
-              id: adapterCLIGroup
+            aa68b081-82a6-47ae-8788-339542efe876:
+              id: aa68b081-82a6-47ae-8788-339542efe876
               name: value
               label: CLI Group
               description: Group of members for CLI
@@ -2509,19 +2480,19 @@
               group_props:
                 members:
                   values:
-                    - adapterportCli
-            adapterCLI:
-              id: adapterCLI
+                    - 949276bc-b472-45e4-9274-50687b0c7b65
+            0afbc986-4036-4153-a72f-703caca80258:
+              id: 0afbc986-4036-4153-a72f-703caca80258
               name: cli
               label: CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
-                base_field_id: adapterCLIGroup
+                base_field_id: aa68b081-82a6-47ae-8788-339542efe876
                 key: ''
-            adapterenablePTP:
-              id: adapterenablePTP
+            8f3fbc0f-e94d-4017-97e9-4108c6f22f2f:
+              id: 8f3fbc0f-e94d-4017-97e9-4108c6f22f2f
               name: enablePTP
               label: Enable
               description: ''
@@ -2529,8 +2500,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            adapterannounceInterval:
-              id: adapterannounceInterval
+            5105c809-e246-4f1a-a7ce-ff57b6339057:
+              id: 5105c809-e246-4f1a-a7ce-ff57b6339057
               name: announceInterval
               label: Announce Interval
               description: ''
@@ -2541,20 +2512,20 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adapterannounceTimeout:
-              id: adapterannounceTimeout
+            4e86adfa-183c-44ae-bd95-eea2c8a32c7e:
+              id: 4e86adfa-183c-44ae-bd95-eea2c8a32c7e
               name: announceTimeout
               label: Announce Timeout
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
-                default_value: '3'
-                range: 2..255
+                default_value: '5'
+                range: null
                 static_options: null
                 dynamic_options: null
-            adapterdelayRequestInterval:
-              id: adapterdelayRequestInterval
+            a6866cc8-d1e6-4eb1-b5c6-27f978251679:
+              id: a6866cc8-d1e6-4eb1-b5c6-27f978251679
               name: delayRequestInterval
               label: Delay Request Interval
               description: ''
@@ -2565,8 +2536,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adaptersyncMessageInterval:
-              id: adaptersyncMessageInterval
+            6c244909-7ae1-4b4f-beb5-e41c85e86397:
+              id: 6c244909-7ae1-4b4f-beb5-e41c85e86397
               name: syncMessageInterval
               label: Sync Message Interval
               description: ''
@@ -2577,8 +2548,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            adapterforceMaster:
-              id: adapterforceMaster
+            9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d:
+              id: 9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d
               name: forceMaster
               label: Force Master
               description: ''
@@ -2586,8 +2557,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            adapterptpGroup:
-              id: adapterptpGroup
+            2dbee137-6424-4296-a7bd-8ccb8035b47c:
+              id: 2dbee137-6424-4296-a7bd-8ccb8035b47c
               name: ptpGroup
               label: PTP
               description: ''
@@ -2596,14 +2567,14 @@
               group_props:
                 members:
                   values:
-                    - adapterenablePTP
-                    - adapterannounceInterval
-                    - adapterannounceTimeout
-                    - adapterdelayRequestInterval
-                    - adaptersyncMessageInterval
-                    - adapterforceMaster
-            adapteradapterName:
-              id: adapteradapterName
+                    - 8f3fbc0f-e94d-4017-97e9-4108c6f22f2f
+                    - 5105c809-e246-4f1a-a7ce-ff57b6339057
+                    - 4e86adfa-183c-44ae-bd95-eea2c8a32c7e
+                    - a6866cc8-d1e6-4eb1-b5c6-27f978251679
+                    - 6c244909-7ae1-4b4f-beb5-e41c85e86397
+                    - 9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d
+            a164ba02-f162-49a6-93de-3427ca4b40b4:
+              id: a164ba02-f162-49a6-93de-3427ca4b40b4
               name: adapterName
               label: Name
               description: ''
@@ -2616,10 +2587,48 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            0c960c4e-7da8-44f4-bf15-2950ce2f83c2:
+              id: 0c960c4e-7da8-44f4-bf15-2950ce2f83c2
+              name: interfaceName
+              label: Interface Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            32e39d40-40b4-4936-b927-ee62c1db0378:
+              id: 32e39d40-40b4-4936-b927-ee62c1db0378
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 0c960c4e-7da8-44f4-bf15-2950ce2f83c2
+            b867fb89-78d0-439e-a373-f243a67b8c8c:
+              id: b867fb89-78d0-439e-a373-f243a67b8c8c
+              name: deviceQuery
+              label: Device Query
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 32e39d40-40b4-4936-b927-ee62c1db0378
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
             adapterDetails:
               id: adapterDetails
               name: adapterDetails
-              label: Adapter Details
+              label: Collection Details
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_GROUP
@@ -2627,7 +2636,6 @@
                 members:
                   values:
                     - adapterSpeed
-                    - endpointInterfaces
                     - adapterPortProfile
                     - adapterSpanningTreeDetails
                     - adapterFlowControl
@@ -2635,21 +2643,22 @@
                     - adapterPortChannel
                     - adapterStormControlDetails
                     - adapterMtu
-                    - adapterDot1xGroup
-                    - adapterVLANS
-                    - adapterCLI
-                    - adapterptpGroup
-                    - adapteradapterName
+                    - f7cb6b88-ef74-4b27-b544-6a4eaad094b1
+                    - e0c27bfd-ef4b-4087-971b-864350b4f531
+                    - 0afbc986-4036-4153-a72f-703caca80258
+                    - 2dbee137-6424-4296-a7bd-8ccb8035b47c
+                    - a164ba02-f162-49a6-93de-3427ca4b40b4
+                    - b867fb89-78d0-439e-a373-f243a67b8c8c
             adapters:
               id: adapters
               name: adapters
-              label: Adapters
+              label: Endpoint Collection
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
                 base_field_id: adapterDetails
-                key: adapteradapterName
+                key: a164ba02-f162-49a6-93de-3427ca4b40b4
             root:
               id: root
               name: ''
@@ -2663,855 +2672,4 @@
                     - portProfiles
                     - adapters
         layout:
-          value: '{
-                "switchInterface": {
-                    "key": "switchInterface",
-                    "type": "INPUT",
-                    "isPageLayout": false
-                },
-                "endpointDetails": {
-                    "key": "endpointDetails",
-                    "type": "INPUT",
-                    "order": [
-                        "endpointName",
-                        "rack"
-                    ]
-                },
-                "endpoints": {
-                    "key": "endpoints",
-                    "type": "INPUT",
-                    "isPageLayout": true
-                },
-                "adapterDetails": {
-                    "key": "adapterDetails",
-                    "type": "INPUT",
-                    "order": [
-                        "adapteradapterName",
-                        "adapterPortProfile",
-                        "endpointInterfaces",
-                        "adapterSpeed",
-                        "adapterPortChannel",
-                        "adapterVLANS",
-                        "adapterSpanningTreeDetails",
-                        "adapterFlowControl",
-                        "adapterQosProfile",
-                        "adapterptpGroup",
-                        "adapterStormControlDetails",
-                        "adapterMtu",
-                        "adapterDot1xGroup",
-                        "adapterCLI"
-                    ]
-                },
-                "adapters": {
-                    "key": "adapters",
-                    "isPageLayout": true,
-                    "type": "INPUT"
-                },
-                "endpointInterfacesGroup": {
-                    "key": "endpointInterfacesGroup",
-                    "type": "INPUT",
-                    "order": [
-                        "endpointInterfaceName",
-                        "directInterfaces"
-                    ]
-                },
-                "endpointInterfaces": {
-                    "key": "endpointInterfaces",
-                    "type": "INPUT",
-                    "isPageLayout": false
-                },
-                "switch": {
-                    "key": "switch",
-                    "type": "INPUT",
-                    "isPageLayout": false
-                },
-                "adapterNativeVlan": {
-                    "key": "adapterNativeVlan",
-                    "type": "INPUT",
-                    "dependency": {
-                        "adapterMode": {
-                            "value": [
-                                "trunk"
-                            ],
-                            "mode": "SHOW"
-                        }
-                    }
-                },
-                "portProfileNativeVlan": {
-                    "key": "portProfileNativeVlan",
-                    "dependency": {
-                        "portProfileMode": {
-                            "value": [
-                                "trunk"
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "portProfileGroups": {
-                    "key": "portProfileGroups",
-                    "type": "INPUT",
-                    "order": [
-                        "portProfileName",
-                        "portProfileSpeed",
-                        "portProfilePortChannel",
-                        "phoneSettings",
-                        "portProfileSpanningTreeDetails",
-                        "portProfileFlowControl",
-                        "portProfileQosProfile",
-                        "portPTPGroup",
-                        "portProfileStormControlDetails",
-                        "portProfileMtu",
-                        "dot1XSettings",
-                        "profileCliList"
-                    ]
-                },
-                "adapterPortChannel": {
-                    "key": "adapterPortChannel",
-                    "type": "INPUT",
-                    "order": [
-                        "adapterEnablePortChannel",
-                        "adapterPortChannelId",
-                        "adapterPortChannelDescription",
-                        "adapterPortChannelMode",
-                        "adapterPortChannelLacpFallback",
-                        "adapterPortChannelShortEsi"
-                    ]
-                },
-                "adapterEnablePortChannel": {
-                    "key": "adapterEnablePortChannel",
-                    "type": "INPUT",
-                    "dependency": {}
-                },
-                "adapterPortChannelId": {
-                    "key": "adapterPortChannelId",
-                    "dependency": {
-                        "adapterEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterPortChannelMode": {
-                    "key": "adapterPortChannelMode",
-                    "dependency": {
-                        "adapterEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterPortChannelLacpFallbackMode": {
-                    "key": "adapterPortChannelLacpFallbackMode",
-                    "dependency": {
-                        "adapterEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterPortChannelLacpFallbackTimeout": {
-                    "key": "adapterPortChannelLacpFallbackTimeout",
-                    "dependency": {
-                        "adapterEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterPortChannelShortEsi": {
-                    "key": "adapterPortChannelShortEsi",
-                    "dependency": {
-                        "adapterEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "portProfilePortChannelMode": {
-                    "key": "portProfilePortChannelMode",
-                    "dependency": {
-                        "portProfileEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "portProfilePortChannelLacpFallbackMode": {
-                    "key": "portProfilePortChannelLacpFallbackMode",
-                    "dependency": {
-                        "portProfileEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "portProfilePortChannelLacpFallbackTimeout": {
-                    "key": "portProfilePortChannelLacpFallbackTimeout",
-                    "dependency": {
-                        "portProfileEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "portProfilePortChannelShortEsi": {
-                    "key": "portProfilePortChannelShortEsi",
-                    "dependency": {
-                        "portProfileEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "portProfiles": {
-                    "key": "portProfiles",
-                    "type": "INPUT",
-                    "isPageLayout": true
-                },
-                "portProfilePortChannelId": {
-                    "key": "portProfilePortChannelId",
-                    "type": "INPUT",
-                    "dependency": {
-                        "portProfileEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portProfilePortChannel": {
-                    "key": "portProfilePortChannel",
-                    "type": "INPUT",
-                    "order": [
-                        "portProfileEnablePortChannel",
-                        "portProfilePortChannelId",
-                        "portProfilePortChannelDescription",
-                        "portProfilePortChannelMode",
-                        "portProfilePortChannelLacpFallback",
-                        "portProfilePortChannelShortEsi"
-                    ]
-                },
-                "portProfilePortChannelDescription": {
-                    "key": "portProfilePortChannelDescription",
-                    "type": "INPUT",
-                    "dependency": {
-                        "portProfileEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "adapterPortChannelDescription": {
-                    "key": "adapterPortChannelDescription",
-                    "type": "INPUT",
-                    "dependency": {
-                        "adapterEnablePortChannel": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "adapterSpanningTreeDetails": {
-                    "key": "adapterSpanningTreeDetails",
-                    "type": "INPUT",
-                    "order": [
-                        "adapterPortfast",
-                        "adapterBpduFilter",
-                        "adapterBpduGuard"
-                    ]
-                },
-                "portProfileSpanningTreeDetails": {
-                    "key": "portProfileSpanningTreeDetails",
-                    "type": "INPUT",
-                    "order": [
-                        "portProfilePortfast",
-                        "portProfileBpduFilter",
-                        "portProfileBpduGuard"
-                    ]
-                },
-                "hostType": {
-                    "key": "hostType",
-                    "valueToLabelMap": {
-                        "True": "Multi-Host",
-                        "False": "Single-Host"
-                    },
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "reauthenticationTimerSetting": {
-                    "key": "reauthenticationTimerSetting",
-                    "type": "INPUT",
-                    "valueToLabelMap": {
-                        "True": "Server",
-                        "False": "Local"
-                    }
-                },
-                "adapterDot1xhostMode": {
-                    "key": "adapterDot1xhostMode",
-                    "valueToLabelMap": {
-                        "True": "Multi-Host",
-                        "False": "Single-Host"
-                    },
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterMACbasedAuth": {
-                    "key": "adapterMACbasedAuth",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterDot1xauthenticationFailureAction": {
-                    "key": "adapterDot1xauthenticationFailureAction",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterDot1xreauthentication": {
-                    "key": "adapterDot1xreauthentication",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterDot1xreauthenticationTimer": {
-                    "key": "adapterDot1xreauthenticationTimer",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "adapterDot1xreauthentication": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "dependencyType": "AND",
-                    "type": "INPUT"
-                },
-                "adapterreauthenticationRequestLimit": {
-                    "key": "adapterreauthenticationRequestLimit",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "adapterDot1xreauthentication": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT",
-                    "dependencyType": "AND"
-                },
-                "adapterphoneTagging": {
-                    "key": "adapterphoneTagging",
-                    "valueToLabelMap": {
-                        "True": "Tagged",
-                        "False": "Untagged"
-                    },
-                    "dependency": {
-                        "adapterphoneEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterphoneEnabled": {
-                    "key": "adapterphoneEnabled",
-                    "valueToLabelMap": {
-                        "True": "Yes",
-                        "False": "No"
-                    },
-                    "type": "INPUT"
-                },
-                "phoneSettings": {
-                    "key": "phoneSettings",
-                    "type": "INPUT",
-                    "order": [
-                        "portProfileMode",
-                        "portProfileNativeVlan",
-                        "portProfileVlans",
-                        "phoneEnabled",
-                        "phoneVlan",
-                        "profileportPhoneTagging"
-                    ]
-                },
-                "dot1XSettings": {
-                    "key": "dot1XSettings",
-                    "type": "INPUT",
-                    "order": [
-                        "8021XEnabled",
-                        "macBasedAuthentication",
-                        "hostType",
-                        "multiHostIndividualAuthentication",
-                        "portauthenticationFailureAction",
-                        "portauthenticationFailureVlan",
-                        "portreauthentication",
-                        "portreauthenticationTimer",
-                        "portreauthenticationRequestLimit",
-                        "timeoutQuietPeriod"
-                    ]
-                },
-                "phoneEnabled": {
-                    "key": "phoneEnabled",
-                    "valueToLabelMap": {
-                        "True": "Configured",
-                        "False": "Unconfigured"
-                    },
-                    "type": "INPUT",
-                    "dependency": {
-                        "portProfileMode": {
-                            "value": [
-                                "trunk"
-                            ],
-                            "mode": "SHOW"
-                        }
-                    }
-                },
-                "macBasedAuthentication": {
-                    "key": "macBasedAuthentication",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "multiHostIndividualAuthentication": {
-                    "key": "multiHostIndividualAuthentication",
-                    "type": "INPUT",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portauthenticationFailureAction": {
-                    "key": "portauthenticationFailureAction",
-                    "type": "INPUT",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portauthenticationFailureVlan": {
-                    "key": "portauthenticationFailureVlan",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "portauthenticationFailureAction": {
-                            "value": [
-                                "Allow"
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT",
-                    "dependencyType": "AND"
-                },
-                "portreauthentication": {
-                    "key": "portreauthentication",
-                    "type": "INPUT",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portreauthenticationTimer": {
-                    "key": "portreauthenticationTimer",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "portreauthentication": {
-                            "value": [
-                                false,
-                                true
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT",
-                    "dependencyType": "AND"
-                },
-                "portreauthenticationRequestLimit": {
-                    "key": "portreauthenticationRequestLimit",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "portreauthentication": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT",
-                    "dependencyType": "AND"
-                },
-                "timeoutQuietPeriod": {
-                    "key": "timeoutQuietPeriod",
-                    "dependency": {
-                        "8021XEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "dependencyType": "OR",
-                    "type": "INPUT"
-                },
-                "phoneVlan": {
-                    "key": "phoneVlan",
-                    "dependency": {
-                        "phoneEnabled": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "portProfileMode": {
-                            "value": [
-                                "trunk"
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT",
-                    "dependencyType": "AND"
-                },
-                "profileportPhoneTagging": {
-                    "key": "profileportPhoneTagging",
-                    "dependency": {
-                        "phoneEnabled": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "portProfileMode": {
-                            "value": [
-                                "trunk"
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT",
-                    "dependencyType": "AND"
-                },
-                "adapterquietPeriodTimeout": {
-                    "key": "adapterquietPeriodTimeout",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "dependencyType": "OR",
-                    "type": "INPUT"
-                },
-                "adaptermultiHostIndividualAuthentication": {
-                    "key": "adaptermultiHostIndividualAuthentication",
-                    "type": "INPUT",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "adapterDot1xGroup": {
-                    "key": "adapterDot1xGroup",
-                    "type": "INPUT",
-                    "order": [
-                        "adapterDot1xEnable",
-                        "adapterMACbasedAuth",
-                        "adapterDot1xhostMode",
-                        "adaptermultiHostIndividualAuthentication",
-                        "adapterDot1xauthenticationFailureAction",
-                        "adapterauthenticationFailureVlan",
-                        "adapterDot1xreauthentication",
-                        "adapterDot1xreauthenticationTimer",
-                        "adapterreauthenticationRequestLimit",
-                        "adapterquietPeriodTimeout"
-                    ]
-                },
-                "adapterauthenticationFailureVlan": {
-                    "key": "adapterauthenticationFailureVlan",
-                    "dependency": {
-                        "adapterDot1xEnable": {
-                            "value": [
-                                true
-                            ],
-                            "mode": "SHOW"
-                        },
-                        "adapterDot1xauthenticationFailureAction": {
-                            "value": [
-                                "Allow"
-                            ],
-                            "mode": "SHOW"
-                        }
-                    },
-                    "type": "INPUT",
-                    "dependencyType": "AND"
-                },
-                "directInterfaces": {
-                    "key": "directInterfaces",
-                    "type": "INPUT"
-                },
-                "directPorts": {
-                    "key": "directPorts",
-                    "type": "INPUT"
-                },
-                "adapterphoneVLAN": {
-                    "key": "adapterphoneVLAN",
-                    "dependency": {
-                        "adapterphoneEnabled": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterptpGroup": {
-                    "key": "adapterptpGroup",
-                    "type": "INPUT",
-                    "order": [
-                        "adapterenablePTP",
-                        "adapterforceMaster",
-                        "adapterannounceInterval",
-                        "adapterannounceTimeout",
-                        "adapterdelayRequestInterval",
-                        "adaptersyncMessageInterval"
-                    ]
-                },
-                "adapterforceMaster": {
-                    "key": "adapterforceMaster",
-                    "dependency": {
-                        "adapterenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    },
-                    "type": "INPUT"
-                },
-                "adapterannounceInterval": {
-                    "key": "adapterannounceInterval",
-                    "type": "INPUT",
-                    "dependency": {
-                        "adapterenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "adapterannounceTimeout": {
-                    "key": "adapterannounceTimeout",
-                    "type": "INPUT",
-                    "dependency": {
-                        "adapterenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "adapterdelayRequestInterval": {
-                    "key": "adapterdelayRequestInterval",
-                    "type": "INPUT",
-                    "dependency": {
-                        "adapterenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "adaptersyncMessageInterval": {
-                    "key": "adaptersyncMessageInterval",
-                    "type": "INPUT",
-                    "dependency": {
-                        "adapterenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portforceMaster": {
-                    "key": "portforceMaster",
-                    "type": "INPUT",
-                    "dependency": {
-                        "portenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portannounceInterval": {
-                    "key": "portannounceInterval",
-                    "type": "INPUT",
-                    "dependency": {
-                        "portenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portannounceTimeout": {
-                    "key": "portannounceTimeout",
-                    "type": "INPUT",
-                    "dependency": {
-                        "portenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portdelayRequestInterval": {
-                    "key": "portdelayRequestInterval",
-                    "type": "INPUT",
-                    "dependency": {
-                        "portenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                },
-                "portsyncMessageInterval": {
-                    "key": "portsyncMessageInterval",
-                    "type": "INPUT",
-                    "dependency": {
-                        "portenablePTP": {
-                            "value": [
-                                false
-                            ],
-                            "mode": "HIDE"
-                        }
-                    }
-                }
-            }'
+          value: '{"switchInterface":{"key":"switchInterface","type":"INPUT","isPageLayout":false},"endpointDetails":{"key":"endpointDetails","type":"INPUT","order":["endpointName","rack"]},"endpoints":{"key":"endpoints","type":"INPUT","isPageLayout":true},"adapterDetails":{"key":"adapterDetails","type":"INPUT","order":["a164ba02-f162-49a6-93de-3427ca4b40b4","b867fb89-78d0-439e-a373-f243a67b8c8c","adapterPortProfile","adapterSpeed","adapterPortChannel","e0c27bfd-ef4b-4087-971b-864350b4f531","adapterSpanningTreeDetails","adapterFlowControl","adapterQosProfile","2dbee137-6424-4296-a7bd-8ccb8035b47c","adapterStormControlDetails","adapterMtu","f7cb6b88-ef74-4b27-b544-6a4eaad094b1","0afbc986-4036-4153-a72f-703caca80258"]},"adapters":{"key":"adapters","isPageLayout":true,"type":"INPUT"},"endpointInterfacesGroup":{"key":"endpointInterfacesGroup","type":"INPUT","order":[]},"endpointInterfaces":{"key":"endpointInterfaces","type":"INPUT","isPageLayout":false},"switch":{"key":"switch","type":"INPUT","isPageLayout":false},"adapterNativeVlan":{"key":"adapterNativeVlan","type":"INPUT","dependency":{"adapterMode":{"value":["trunk"],"mode":"SHOW"}}},"bc00d92e-5b9c-482c-94d1-7e126533ec01":{"key":"bc00d92e-5b9c-482c-94d1-7e126533ec01","type":"INPUT","dependency":{"adapterMode":{"value":["access"],"mode":"SHOW"}}},"portProfileNativeVlan":{"key":"portProfileNativeVlan","dependency":{"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT"},"portProfileGroups":{"key":"portProfileGroups","type":"INPUT","order":["portProfileName","portProfileSpeed","portProfilePortChannel","phoneSettings","portProfileSpanningTreeDetails","portProfileFlowControl","portProfileQosProfile","80f2d247-e2a4-4b2a-9dc9-86703baa25b2","portProfileStormControlDetails","portProfileMtu","dot1XSettings","profileCliList"]},"adapterPortChannel":{"key":"adapterPortChannel","type":"INPUT","order":["adapterEnablePortChannel","adapterPortChannelId","adapterPortChannelDescription","adapterPortChannelMode","adapterPortChannelLacpFallback","adapterPortChannelShortEsi"]},"adapterEnablePortChannel":{"key":"adapterEnablePortChannel","type":"INPUT","dependency":{}},"adapterPortChannelId":{"key":"adapterPortChannelId","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelMode":{"key":"adapterPortChannelMode","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelLacpFallbackMode":{"key":"adapterPortChannelLacpFallbackMode","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelLacpFallbackTimeout":{"key":"adapterPortChannelLacpFallbackTimeout","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelShortEsi":{"key":"adapterPortChannelShortEsi","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelMode":{"key":"portProfilePortChannelMode","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelLacpFallbackMode":{"key":"portProfilePortChannelLacpFallbackMode","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelLacpFallbackTimeout":{"key":"portProfilePortChannelLacpFallbackTimeout","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelShortEsi":{"key":"portProfilePortChannelShortEsi","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfiles":{"key":"portProfiles","type":"INPUT","isPageLayout":true},"portProfilePortChannelId":{"key":"portProfilePortChannelId","type":"INPUT","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"portProfilePortChannel":{"key":"portProfilePortChannel","type":"INPUT","order":["portProfileEnablePortChannel","portProfilePortChannelId","portProfilePortChannelDescription","portProfilePortChannelMode","portProfilePortChannelLacpFallback","portProfilePortChannelShortEsi"]},"portProfilePortChannelDescription":{"key":"portProfilePortChannelDescription","type":"INPUT","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"adapterPortChannelDescription":{"key":"adapterPortChannelDescription","type":"INPUT","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"adapterSpanningTreeDetails":{"key":"adapterSpanningTreeDetails","type":"INPUT","order":["adapterPortfast","adapterBpduFilter","adapterBpduGuard"]},"portProfileSpanningTreeDetails":{"key":"portProfileSpanningTreeDetails","type":"INPUT","order":["portProfilePortfast","portProfileBpduFilter","portProfileBpduGuard"]},"hostType":{"key":"hostType","valueToLabelMap":{"True":"Multi-Host","False":"Single-Host"},"dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"35a33db5-11f9-401c-b462-f9a8cd33bfc9":{"key":"35a33db5-11f9-401c-b462-f9a8cd33bfc9","type":"INPUT","order":["4272a4b4-7c72-42a4-a1f6-f99ec617c211","9dfb8ec7-e11d-4852-bb39-f207b830e761","512e39de-8a86-4db2-b013-ff7f01f988a4","215f4f4c-f686-466e-98c6-b6acf5ca1c96","d05b3e38-630e-406d-b647-fde24d0465b4","a14cda07-9de8-4e79-a94d-0d1fe6afe05e","8ce87fb7-5f92-42ff-83e6-571974958e2b","b80eaa20-5d71-4520-8d3d-06033a85294a","76c02487-7e62-4e23-9501-56ee66d95c28","1de822f1-d47e-4a44-a092-564ba6b2c6a2"]},"reauthenticationTimerSetting":{"key":"reauthenticationTimerSetting","type":"INPUT","valueToLabelMap":{"True":"Server","False":"Local"}},"f667cf6b-c0ab-4336-af16-fef1a2b88816":{"key":"f667cf6b-c0ab-4336-af16-fef1a2b88816","dependency":{"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"value":["Drop","Disable"],"mode":"HIDE"},"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2":{"key":"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2","valueToLabelMap":{"True":"Multi-Host","False":"Single-Host"},"dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"6c49a0ab-4e10-4706-aec9-19d8605fb90d":{"key":"6c49a0ab-4e10-4706-aec9-19d8605fb90d","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"key":"76fb4c7c-7f14-48ec-b268-aa38ce10d84b","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"key":"bf9f2d0a-21bd-4b71-9b8e-d7306273618d","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"91abeafa-1918-466d-ba43-e7ffb8417424":{"key":"91abeafa-1918-466d-ba43-e7ffb8417424","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"value":[true],"mode":"SHOW"}},"dependencyType":"AND","type":"INPUT"},"7b76e149-8a3a-4b47-b3ba-303e289b35f9":{"key":"7b76e149-8a3a-4b47-b3ba-303e289b35f9","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"value":[true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"f2e5a570-3fd6-4978-b357-d5428e863d97":{"key":"f2e5a570-3fd6-4978-b357-d5428e863d97","valueToLabelMap":{"True":"Tagged","False":"Untagged"},"dependency":{"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f":{"key":"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f","type":"INPUT","order":[]},"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"key":"2db5b218-0a75-4720-ae5c-a96c71f6edb7","valueToLabelMap":{"True":"Yes","False":"No"},"type":"INPUT"},"phoneSettings":{"key":"phoneSettings","type":"INPUT","order":["portProfileMode","portProfileNativeVlan","portProfileVlans","phoneEnabled","phoneVlan","90eece88-0f72-4b40-9254-e4ff92e82c84"]},"dot1XSettings":{"key":"dot1XSettings","type":"INPUT","order":["8021XEnabled","macBasedAuthentication","hostType","multiHostIndividualAuthentication","4d07614b-f595-4231-9cfd-7e04d7badc69","a682964f-bbab-4fd7-a987-546f9008b0be","0a222884-fb72-423f-89d5-61c21c1a3420","99c81d24-4705-49f4-b4b1-0b5672f4a05b","7b1af5a8-d911-4095-b71b-3633fd0da4cd","timeoutQuietPeriod"]},"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa":{"key":"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa","valueToLabelMap":{"True":"Multi","False":"Single"},"type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"phoneEnabled":{"key":"phoneEnabled","valueToLabelMap":{"True":"Configured","False":"Unconfigured"},"type":"INPUT","dependency":{"portProfileMode":{"value":["trunk"],"mode":"SHOW"}}},"macBasedAuthentication":{"key":"macBasedAuthentication","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"multiHostIndividualAuthentication":{"key":"multiHostIndividualAuthentication","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"4d07614b-f595-4231-9cfd-7e04d7badc69":{"key":"4d07614b-f595-4231-9cfd-7e04d7badc69","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"a682964f-bbab-4fd7-a987-546f9008b0be":{"key":"a682964f-bbab-4fd7-a987-546f9008b0be","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"4d07614b-f595-4231-9cfd-7e04d7badc69":{"value":["Allow"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"key":"0a222884-fb72-423f-89d5-61c21c1a3420","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"99c81d24-4705-49f4-b4b1-0b5672f4a05b":{"key":"99c81d24-4705-49f4-b4b1-0b5672f4a05b","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"value":[false,true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"7b1af5a8-d911-4095-b71b-3633fd0da4cd":{"key":"7b1af5a8-d911-4095-b71b-3633fd0da4cd","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"value":[true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"timeoutQuietPeriod":{"key":"timeoutQuietPeriod","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"dependencyType":"OR","type":"INPUT"},"phoneVlan":{"key":"phoneVlan","dependency":{"phoneEnabled":{"value":[true],"mode":"SHOW"},"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"90eece88-0f72-4b40-9254-e4ff92e82c84":{"key":"90eece88-0f72-4b40-9254-e4ff92e82c84","dependency":{"phoneEnabled":{"value":[true],"mode":"SHOW"},"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"113fa93d-ef20-410d-96aa-fa752e4e178f":{"key":"113fa93d-ef20-410d-96aa-fa752e4e178f","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"dependencyType":"OR","type":"INPUT"},"4d4c6315-610d-4381-8aef-3f5483057986":{"key":"4d4c6315-610d-4381-8aef-3f5483057986","type":"INPUT","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}}},"f7cb6b88-ef74-4b27-b544-6a4eaad094b1":{"key":"f7cb6b88-ef74-4b27-b544-6a4eaad094b1","type":"INPUT","order":["c60cf057-f9ed-43e9-b280-301fa2476177","6c49a0ab-4e10-4706-aec9-19d8605fb90d","3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2","4d4c6315-610d-4381-8aef-3f5483057986","76fb4c7c-7f14-48ec-b268-aa38ce10d84b","06c6cc80-c714-4abd-b8d3-9a7714947670","bf9f2d0a-21bd-4b71-9b8e-d7306273618d","91abeafa-1918-466d-ba43-e7ffb8417424","7b76e149-8a3a-4b47-b3ba-303e289b35f9","113fa93d-ef20-410d-96aa-fa752e4e178f"]},"06c6cc80-c714-4abd-b8d3-9a7714947670":{"key":"06c6cc80-c714-4abd-b8d3-9a7714947670","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"value":["Allow"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"directInterfaces":{"key":"directInterfaces","type":"INPUT"},"directPorts":{"key":"directPorts","type":"INPUT"},"85540f89-cd07-492f-ac78-fdee794b82ef":{"key":"85540f89-cd07-492f-ac78-fdee794b82ef","type":"INPUT","order":["946cf29f-823e-4fc5-b1fb-42974a3e4c2b","c069ca75-3ffd-41d5-a735-72c021609b25","59a2ea8a-5dda-41b7-a655-6c2489eebe16"]},"c069ca75-3ffd-41d5-a735-72c021609b25":{"key":"c069ca75-3ffd-41d5-a735-72c021609b25","type":"INPUT","dependency":{"946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{"value":[false],"mode":"HIDE"}}},"59a2ea8a-5dda-41b7-a655-6c2489eebe16":{"key":"59a2ea8a-5dda-41b7-a655-6c2489eebe16","type":"INPUT","dependency":{"946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{"value":[false],"mode":"HIDE"}}},"1cacdc71-d0d3-46dd-a23a-d0df699f831a":{"key":"1cacdc71-d0d3-46dd-a23a-d0df699f831a","dependency":{"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"2dbee137-6424-4296-a7bd-8ccb8035b47c":{"key":"2dbee137-6424-4296-a7bd-8ccb8035b47c","type":"INPUT","order":["8f3fbc0f-e94d-4017-97e9-4108c6f22f2f","9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d","5105c809-e246-4f1a-a7ce-ff57b6339057","4e86adfa-183c-44ae-bd95-eea2c8a32c7e","a6866cc8-d1e6-4eb1-b5c6-27f978251679","6c244909-7ae1-4b4f-beb5-e41c85e86397"]},"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d":{"key":"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"5105c809-e246-4f1a-a7ce-ff57b6339057":{"key":"5105c809-e246-4f1a-a7ce-ff57b6339057","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"4e86adfa-183c-44ae-bd95-eea2c8a32c7e":{"key":"4e86adfa-183c-44ae-bd95-eea2c8a32c7e","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"a6866cc8-d1e6-4eb1-b5c6-27f978251679":{"key":"a6866cc8-d1e6-4eb1-b5c6-27f978251679","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"6c244909-7ae1-4b4f-beb5-e41c85e86397":{"key":"6c244909-7ae1-4b4f-beb5-e41c85e86397","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5":{"key":"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0":{"key":"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"fd026550-9930-47c7-bb2b-39f68959beec":{"key":"fd026550-9930-47c7-bb2b-39f68959beec","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"delayRequestInterval":{"key":"delayRequestInterval","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"451779ac-23d4-4e77-ba14-31254e752ccd":{"key":"451779ac-23d4-4e77-ba14-31254e752ccd","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"b867fb89-78d0-439e-a373-f243a67b8c8c":{"key":"b867fb89-78d0-439e-a373-f243a67b8c8c","type":"INPUT","showDefaultRow":false}}'
