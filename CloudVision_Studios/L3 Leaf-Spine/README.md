@@ -22,7 +22,7 @@ You’ll need to have the following device tags in place before you can configur
 | L2-Leaf-Domain | L2-Leaf-Domain:1 | Specifies the l2-leafs connected to same l3 leaf-domain, which is usually an MLAG pair of leafs. The value must be an integer. |
 | Super-Spine-Plane | Super-Spine-Plane:1 | Specifies the super-spines that have a common routing config. The value must be an integer. |
 
-<br> Leaf pairs are assumed to be numbered consecutively starting with an odd number (e.g. the device tagged Leaf-Number:9 and the device tagged Leaf-Number:10 are two devices in an MLAG pair of leafs).<br> If a leaf is not part of an MLAG pair, just use one number of the odd-even pair and don’t use the other number for another leaf (e.g. the device tagged Leaf-Number:1 will be configured as a standalone leaf if no other device is tagged Leaf-Number:2). |
+<br> Leaf pairs are assumed to be numbered consecutively starting with an odd number (e.g. the device tagged NodeId:9 and the device tagged NodeId:10 are two devices in an MLAG pair of leafs).<br> If a leaf is not part of an MLAG pair, just use one number of the odd-even pair and don’t use the other number for another leaf (e.g. the device tagged NodeId:1 will be configured as a standalone leaf if no other device is tagged NodeId:2). |
 
 Tag placement is illustrated in the following diagram:
 ![L3 Leaf-Spine Toplogy](./images/l3-leaf-spine-tags.png)
