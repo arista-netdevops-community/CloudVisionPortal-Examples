@@ -1,0 +1,816 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: ddf7ddd3-6c0f-412e-8a90-449d067e46ab
+        workspace_id: ''
+      display_name: 'DCI & L3 Edge '
+      description: The l3_edge data model can be used to configure extra L3 P2P links anywhere in the fabric. It can be between two switches that are already part of the fabric inventory, or it can be towards another device, where only one end of the link is on a switch in the fabric. Fabric switches can be types l3leaf, spine or super-spine.
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |+
+          <%
+          import json
+          import re
+          my_device = ctx.getDevice()
+          workspace_id = ctx.studio.workspaceId
+          switch = {} 
+          config = {}
+
+          # * l3_edge.p2p_links is pointToPointLinks,
+          # * l3_edge.p2p_links_profiles is pointToPointLinksProfiles,
+
+          ### Main ###
+          l3_edge_data = {
+             "p2p_interfaces": {},
+             "bgp_neighbors": {},
+             "ospf_interfaces": [],
+             "isis_interfaces": []
+          }
+
+          def convert(text):
+             return int(text) if text.isdigit() else text.lower()
+          def alphanum_key(key):
+             return [convert(c) for c in re.split('([0-9]+)', str(key))]
+          def natural_sort(iterable):
+             if iterable is None:
+                return list()
+             return sorted(iterable, key=alphanum_key)
+
+          ### Logic ###
+          for p2p_link in pointToPointLinks:
+             if p2p_link["linkProfile"] != None and pointToPointLinksProfiles != None:
+                p2p_profile = {}
+                for profile in pointToPointLinksProfiles:
+                   if profile['profileName'] == p2p_link['linkProfile']:
+                      p2p_profile = profile
+                      break
+             else:
+                p2p_profile = {}
+
+             #   #   #  Logic Defaults  #    #   #   
+             nodes = p2p_link["linkNodes"]
+             p2p_interface = {}
+             p2p_interface["peer_type"] = str("other")
+             p2p_interface["speed"] = p2p_profile.get("profileSpeed") #good
+             p2p_interface["mtu"] = p2p_profile.get("profileMtu") # = p2p_uplinks_mtu # good
+             p2p_interface["qos_profile"] = p2p_profile.get("profileQosProfile") # good
+             p2p_interface["macsec_profile"] = p2p_profile.get("profileMacsecProfile")
+             p2p_interface["ptp_enable"] = p2p_profile.get("profilePtpEnable")
+             asn = p2p_profile.get("profileAsns")
+             p2p_bgp_neighbor = {}
+             p2p_bgp_neighbor["bfd"] = p2p_profile.get("profileBfd")
+             #   #   #   #   #   #   #   #   #   #   #   
+             if my_device.hostName in p2p_link["linkNodes"]:  
+                node_index = nodes.index(my_device.hostName)
+                peer_index = 1 - node_index
+                ip_list = p2p_link["linkIpAddresses"] 
+                interfaces = p2p_link["linkInterfaces"] 
+                node_interface = interfaces[node_index] 
+                p2p_interface["peer"] = nodes[peer_index]   
+                p2p_interface["peer_interface"] = interfaces[peer_index]     
+                p2p_interface["speed"] = p2p_link["linkSpeed"]
+                if ip_list != None:   
+                   p2p_interface["ip_address"] = ip_list[node_index]
+                   p2p_interface["peer_ip"] = ip_list[peer_index].split("/")[0]
+                elif subnet != None:
+                   mask = subnet 
+                   p2p_interface["ip_address"] = subnet                      
+                   p2p_interface["peer_ip"] = subnet      
+                p2p_interface["mtu"] = p2p_link["linkMtu"] 
+                p2p_interface["qos_profile"] = p2p_link["linkQosProfile"]        
+                p2p_interface["macsec_profile"] = p2p_link["linkMacsecProfile"]  
+                p2p_interface["ptp_enable"] = p2p_link["linkPtpEnable"]          
+                p2p_interface["type"] = "routed"
+                p2p_interface["shutdown"] = "false"
+                p2p_interface["description"] = "P2P_LINK_TO_" + p2p_interface["peer"] + "_" + p2p_interface["peer_interface"] 
+                if p2p_link["linkRoutingDetails"]["linkIncludeInRoutingProtocol"] == True: 
+                   l3_edge_data["underlay_routing_protocol"] = p2p_link["linkRoutingDetails"]["linkUnderlayRoutingProtocol"]
+                l3_edge_data["p2p_interfaces"][node_interface] = p2p_interface       
+                if p2p_link["linkRoutingDetails"]["linkIncludeInRoutingProtocol"] == True: 
+                   if p2p_link["linkRoutingDetails"]["linkUnderlayRoutingProtocol"] == "bgp": 
+                      asn = p2p_link["linkAsns"]
+                      ctx.info(str(asn))
+                      my_asn = asn[node_index]
+                      ctx.info(str(my_asn))
+                      p2p_bgp_neighbor = {}
+                      p2p_bgp_neighbor["remote_as"] = asn[peer_index] 
+                      p2p_bgp_neighbor["description"] = p2p_interface["peer"]
+                      p2p_bgp_neighbor["bfd"] = p2p_link["linkBfd"]    
+                      l3_edge_data["bgp_neighbors"][p2p_interface["peer_ip"]] =  p2p_bgp_neighbor
+
+          ctx.info("P2P Interfaces")
+          ctx.info(json.dumps(l3_edge_data["p2p_interfaces"]))
+          ctx.info("BGP Neighbors")
+          ctx.info(json.dumps(l3_edge_data["bgp_neighbors"]))
+          ### ethernet-interfaces ###
+          ethernet_interfaces = {}
+          if len(l3_edge_data["p2p_interfaces"]) > 0:
+             for p2p_interface_key in l3_edge_data["p2p_interfaces"]:
+                p2p_interface = l3_edge_data["p2p_interfaces"][p2p_interface_key]
+                ethernet_interfaces[p2p_interface_key] = {}
+                ethernet_interfaces[p2p_interface_key]["peer"] = p2p_interface["peer"]
+                ethernet_interfaces[p2p_interface_key]["peer_interface"] = p2p_interface["peer_interface"]
+                ethernet_interfaces[p2p_interface_key]["peer_type"] = p2p_interface["peer_type"]
+                ethernet_interfaces[p2p_interface_key]["description"] = p2p_interface["description"]
+                ethernet_interfaces[p2p_interface_key]["type"] = p2p_interface["type"]
+                ethernet_interfaces[p2p_interface_key]["shutdown"] = p2p_interface["shutdown"]
+                ethernet_interfaces[p2p_interface_key]["mtu"] = p2p_interface["mtu"]
+                if p2p_interface["ip_address"] != None:
+                   ethernet_interfaces[p2p_interface_key]["ip_address"] = p2p_interface["ip_address"]
+                if p2p_interface["speed"] != None:
+                   ethernet_interfaces[p2p_interface_key]["speed"] = p2p_interface["speed"]
+                if p2p_interface["qos_profile"] != None:
+                   ethernet_interfaces[p2p_interface_key]["service_profile"] = p2p_interface["qos_profile"]
+                if p2p_interface["macsec_profile"] != None:
+                   ethernet_interfaces[p2p_interface_key]["mac_security"] = {}
+                   ethernet_interfaces[p2p_interface_key]["mac_security"]["profile"] = p2p_interface["macsec_profile"]
+                if p2p_interface["ptp_enable"] == True:
+                   ethernet_interfaces[p2p_interface_key]["ptp"] = {}
+                   ethernet_interfaces[p2p_interface_key]["ptp"]["enable"] = True
+
+
+          ### router-bgp-neighbors ###
+          router_bgp = {}
+          if len(l3_edge_data["bgp_neighbors"].keys()) > 0:
+             router_bgp["as"] = my_asn
+             router_bgp["neighbors"] = {}
+             for bgp_neighbor_key in l3_edge_data["bgp_neighbors"].keys():
+                bgp_neighbor = l3_edge_data["bgp_neighbors"][bgp_neighbor_key]
+                router_bgp["neighbors"][bgp_neighbor_key]= {}
+                router_bgp["neighbors"][bgp_neighbor_key]["remote_as"] = bgp_neighbor["remote_as"]
+                router_bgp["neighbors"][bgp_neighbor_key]["description"] = bgp_neighbor["description"]
+                if bgp_neighbor["bfd"] == True:
+                   router_bgp["neighbors"][bgp_neighbor_key]["bfd"] = True
+
+          ### Structured Config ###
+          config["ethernet_interfaces"] = ethernet_interfaces
+          config["router_bgp"] = router_bgp
+          ctx.info(json.dumps(config))
+          %>
+
+          ## eos - Ethernet Interfaces
+          %if config.get("ethernet_interfaces") is not None:
+          %for ethernet_interface in natural_sort(config["ethernet_interfaces"].keys()):
+          interface ${ethernet_interface }
+          %     if config["ethernet_interfaces"][ethernet_interface]["description"] is not None:
+          description ${config["ethernet_interfaces"][ethernet_interface]["description"]}
+          %     endif
+          %     if config["ethernet_interfaces"][ethernet_interface].get("channel_group") is not None:
+          channel-group ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["id"] } mode ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["mode"] }
+          %     else:
+          %         if config["ethernet_interfaces"][ethernet_interface].get("type") is not None and config["ethernet_interfaces"][ethernet_interface].get("type") == "routed":
+          no switchport
+          %         else:
+          switchport
+          %         endif
+          %         if config["ethernet_interfaces"][ethernet_interface].get("mtu") is not None:
+          mtu ${ config["ethernet_interfaces"][ethernet_interface]["mtu"] }
+          %         endif
+          %         if config["ethernet_interfaces"][ethernet_interface].get("ip_address") is not None:
+          ip address ${ config["ethernet_interfaces"][ethernet_interface].get("ip_address") }
+          %         endif
+          %     endif
+          !
+          %endfor
+          %endif
+
+          ## router-bgp
+          % if config.get("router_bgp") is not None:
+          % if config["router_bgp"].get("as") is not None:
+          router bgp ${config["router_bgp"]["as"]}
+          %     if config["router_bgp"].get("router_id") is not None:
+             router-id ${ config["router_bgp"]["router_id"] }
+          %     endif
+          %     if config["router_bgp"].get("bgp_defaults") is not None:
+          %       for bgp_default in config["router_bgp"]["bgp_defaults"]:
+             ${ bgp_default }
+          %       endfor
+          %     endif
+          %     if config["router_bgp"].get("peer_groups") is not None:
+          %     for peer_group in config["router_bgp"]["peer_groups"].keys():
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("description") is not None:
+             neighbor ${ peer_group } description ${ config["router_bgp"]["peer_groups"][peer_group]["description"] }
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("shutdown") == True:
+             neighbor ${ peer_group } shutdown
+          %         endif
+             neighbor ${ peer_group } peer group
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("remote_as") is not None:
+             neighbor ${ peer_group } remote-as ${ config["router_bgp"]["peer_groups"][peer_group]["remote_as"] }
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("local_as") is not None:
+             neighbor ${ peer_group } local-as ${ config["router_bgp"]["peer_groups"][peer_group]["local_as"] } no-prepend replace-as
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("next_hop_self") == True:
+             neighbor ${ peer_group } next-hop-self
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("next_hop_unchanged") == True:
+             neighbor ${ peer_group } next-hop-unchanged
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("update_source") is not None:
+             neighbor ${ peer_group } update-source ${ config["router_bgp"]["peer_groups"][peer_group]["update_source"] }
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("route_reflector_client") == True:
+             neighbor ${ peer_group } route-reflector-client
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("bfd") == True:
+             neighbor ${ peer_group } bfd
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("ebgp_multihop") is not None:
+             neighbor ${ peer_group } ebgp-multihop ${ config["router_bgp"]["peer_groups"][peer_group]["ebgp_multihop"] }
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("password") is not None:
+             neighbor ${ peer_group } password 7 ${ config["router_bgp"]["peer_groups"][peer_group]["password"] }
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("send_community") is not None and config["router_bgp"]["peer_groups"][peer_group]["send_community"] == "all":
+             neighbor ${ peer_group } send-community
+          %         elif config["router_bgp"]["peer_groups"][peer_group].get("send_community") is not None:
+             neighbor ${ peer_group } send-community ${ config["router_bgp"]["peer_groups"][peer_group]["send_community"] }
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes") is not None and config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes_warning_limit") is not None:
+             neighbor ${ peer_group } maximum-routes ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] } warning-limit ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes_warning_limit"] }
+          %         elif config["router_bgp"]["peer_groups"][peer_group].get("maximum_routes") is not None:
+             neighbor ${ peer_group } maximum-routes ${ config["router_bgp"]["peer_groups"][peer_group]["maximum_routes"] }
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("route_map_in") is not None:
+             neighbor ${ peer_group } route-map ${ config["router_bgp"]["peer_groups"][peer_group]["route_map_in"] } in
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("route_map_out") is not None:
+             neighbor ${ peer_group } route-map ${ config["router_bgp"]["peer_groups"][peer_group]["route_map_out"] } out
+          %         endif
+          %       endfor
+          %     endif
+          %     if config["router_bgp"].get("neighbors") is not None:
+          %       for neighbor in config["router_bgp"]["neighbors"].keys():
+          %         if config["router_bgp"]["neighbors"][neighbor].get("peer_group") is not None:
+             neighbor ${ neighbor } peer group ${ config["router_bgp"]["neighbors"][neighbor]["peer_group"] }
+          %         endif
+          %         if config["router_bgp"]["neighbors"][neighbor].get("remote_as") is not None:
+             neighbor ${ neighbor } remote-as ${ config["router_bgp"]["neighbors"][neighbor]["remote_as"] }
+          %         endif
+          %         if config["router_bgp"]["neighbors"][neighbor].get("next_hop_self") == True:
+             neighbor ${ neighbor } next-hop-self
+          %         endif
+          %         if config["router_bgp"]["neighbors"][neighbor].get("shutdown") == True:
+             neighbor ${ neighbor } shutdown
+          %         endif
+          %         if config["router_bgp"]["neighbors"][neighbor].get("local_as") is not None:
+             neighbor ${ neighbor } local-as ${ config["router_bgp"]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
+          %         endif
+          %         if config["router_bgp"]["neighbors"][neighbor].get("description") is not None:
+             neighbor ${ neighbor } description ${ config["router_bgp"]["neighbors"][neighbor]["description"] }
+          %         endif
+          %         if config["router_bgp"]["neighbors"][neighbor].get("bfd") == True:
+             neighbor ${ neighbor } bfd
+          %         endif
+          %       endfor
+          %     endif
+          % endif
+          % endif
+
+
+
+
+
+
+
+
+
+
+
+      input_schema:
+        fields:
+          values:
+            linkName:
+              id: linkName
+              name: linkName
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkSpeed:
+              id: linkSpeed
+              name: linkSpeed
+              label: Speed
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkIpAddress:
+              id: linkIpAddress
+              name: linkIpAddress
+              label: IP Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkIpAddresses:
+              id: linkIpAddresses
+              name: linkIpAddresses
+              label: IP Addresses
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: linkIpAddress
+                key: ''
+            linkNode:
+              id: linkNode
+              name: linkNode
+              label: Node
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkNodes:
+              id: linkNodes
+              name: linkNodes
+              label: Nodes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: linkNode
+                key: ''
+            linkInterface:
+              id: linkInterface
+              name: linkInterface
+              label: Interface
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkInterfaces:
+              id: linkInterfaces
+              name: linkInterfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: linkInterface
+                key: ''
+            linkAsn:
+              id: linkAsn
+              name: linkAsn
+              label: ASN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkAsns:
+              id: linkAsns
+              name: linkAsns
+              label: ASNs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: linkAsn
+                key: ''
+            linkIncludeInRoutingProtocol:
+              id: linkIncludeInRoutingProtocol
+              name: linkIncludeInRoutingProtocol
+              label: Include in Routing Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            linkUnderlayRoutingProtocol:
+              id: linkUnderlayRoutingProtocol
+              name: linkUnderlayRoutingProtocol
+              label: Routing Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - bgp
+                    - ospf
+                    - isis
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkRoutingDetails:
+              id: linkRoutingDetails
+              name: linkRoutingDetails
+              label: RoutingDetails
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - linkIncludeInRoutingProtocol
+                    - linkUnderlayRoutingProtocol
+            linkMtu:
+              id: linkMtu
+              name: linkMtu
+              label: MTU
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            linkBfd:
+              id: linkBfd
+              name: linkBfd
+              label: BFD
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            linkPtpEnable:
+              id: linkPtpEnable
+              name: linkPtpEnable
+              label: PTP Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            linkQosProfile:
+              id: linkQosProfile
+              name: linkQosProfile
+              label: QOS Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkMacsecProfile:
+              id: linkMacsecProfile
+              name: linkMacsecProfile
+              label: Macsec Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            linkProfile:
+              id: linkProfile
+              name: linkProfile
+              label: Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            pointToPointLinkDetails:
+              id: pointToPointLinkDetails
+              name: pointToPointLinkDetails
+              label: Point to Point Link Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - linkName
+                    - linkSpeed
+                    - linkIpAddresses
+                    - linkNodes
+                    - linkInterfaces
+                    - linkAsns
+                    - linkRoutingDetails
+                    - linkMtu
+                    - linkBfd
+                    - linkPtpEnable
+                    - linkQosProfile
+                    - linkMacsecProfile
+                    - linkProfile
+            pointToPointLinks:
+              id: pointToPointLinks
+              name: pointToPointLinks
+              label: Point to Point Links
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: pointToPointLinkDetails
+                key: linkName
+            profileName:
+              id: profileName
+              name: profileName
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileSpeed:
+              id: profileSpeed
+              name: profileSpeed
+              label: Speed
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileIpAddress:
+              id: profileIpAddress
+              name: ProfileIpAddress
+              label: IP Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileIpAddresses:
+              id: profileIpAddresses
+              name: profileIpAddresses
+              label: IP Addresses
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: profileIpAddress
+                key: ''
+            profileNode:
+              id: profileNode
+              name: profileNode
+              label: Node
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileNodes:
+              id: profileNodes
+              name: profileNodes
+              label: Nodes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: profileNode
+                key: ''
+            profileInterface:
+              id: profileInterface
+              name: profileInterface
+              label: Interface
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileInterfaces:
+              id: profileInterfaces
+              name: profileInterfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: profileInterface
+                key: ''
+            profileAsn:
+              id: profileAsn
+              name: profileAsn
+              label: ASN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileAsns:
+              id: profileAsns
+              name: profileAsns
+              label: ASNs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: profileAsn
+                key: ''
+            profileMtu:
+              id: profileMtu
+              name: profileMtu
+              label: MTU
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            profileBfd:
+              id: profileBfd
+              name: profileBfd
+              label: BFD
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            profilePtpEnable:
+              id: profilePtpEnable
+              name: profilePtpEnable
+              label: PTP Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            profileQosProfile:
+              id: profileQosProfile
+              name: profileQosProfile
+              label: QOS Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileMacsecProfile:
+              id: profileMacsecProfile
+              name: profileMacsecProfile
+              label: Macsec Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileIncludeInRoutingProtocol:
+              id: profileIncludeInRoutingProtocol
+              name: profileIncludeInRoutingProtocol
+              label: Include in Routing Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            profileUnderlayRoutingProtocol:
+              id: profileUnderlayRoutingProtocol
+              name: profileUnderlayRoutingProtocol
+              label: Routing Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            profileRoutingDetails:
+              id: profileRoutingDetails
+              name: profileRoutingDetails
+              label: Routing Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - profileIncludeInRoutingProtocol
+                    - profileUnderlayRoutingProtocol
+            pointToPointLinksProfileDetails:
+              id: pointToPointLinksProfileDetails
+              name: pointToPointLinksProfileDetails
+              label: Point to Point Links Profile Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - profileName
+                    - profileSpeed
+                    - profileIpAddresses
+                    - profileNodes
+                    - profileInterfaces
+                    - profileAsns
+                    - profileMtu
+                    - profileBfd
+                    - profilePtpEnable
+                    - profileQosProfile
+                    - profileMacsecProfile
+                    - profileRoutingDetails
+            pointToPointLinksProfiles:
+              id: pointToPointLinksProfiles
+              name: pointToPointLinksProfiles
+              label: Point to Point Links Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: pointToPointLinksProfileDetails
+                key: profileName
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - pointToPointLinks
+                    - pointToPointLinksProfiles
+        layout:
+          value: '{"e59ad7d2-bf13-4492-8fbd-0a7753e4ced7":{"key":"e59ad7d2-bf13-4492-8fbd-0a7753e4ced7","type":"INPUT","order":["4fb5612d-d868-49fb-a891-d2401998591e","049dec8d-2ece-4cd5-bb75-8e7613e0d39d","9b64149c-628b-4e8c-b109-5db5c02c8d59","832c38e1-2a10-4324-aefa-a9cf0cfa6a6e","564e83e2-65bb-4d4a-85d9-4dbbee9e1db8","c0e1dab0-5c92-4a20-b1ef-00bc492a09df","3161ada6-2810-47eb-b7ee-f403d587e922","d4823835-7837-4633-a9a6-1a01f2fc9486","371b1a9e-6921-4814-a569-dd56032bebc0","0421f72b-6006-48d8-89c9-964609408a7c","3f9116e4-7cdf-45dc-8639-8c90cfeca97a","d397a3ee-0b67-4dfe-9290-d3c1f02ff74b","7dfeb959-e4a2-4da6-b3a0-e1e84d415b97"]},"50a234fb-9821-4c15-8895-28c754b2951a":{"type":"TAGGER","parentKey":"bc166c27-d9d5-4a25-ae3d-931ebbd1aa06","key":"50a234fb-9821-4c15-8895-28c754b2951a","name":"BGP Tagger","assignmentType":"SINGLE","tagType":"DEVICE","description":"Define necessary BGP tags","columns":[{"tagLabel":"router_bgp.as","suggestedValues":[]},{"tagLabel":"router_bgp.router_id","suggestedValues":[]}]},"bb2d39cd-7579-4821-8fec-6c60d7d02076":{"type":"TAGGER","parentKey":"bc166c27-d9d5-4a25-ae3d-931ebbd1aa06","key":"bb2d39cd-7579-4821-8fec-6c60d7d02076","name":"OSPF Tagger","assignmentType":"SINGLE","tagType":"DEVICE","description":"Define necessary OSPF Tags","columns":[{"tagLabel":"router_ospf.process_id","suggestedValues":[]},{"tagLabel":"router_ospf.router_id","suggestedValues":[]}]},"60c84694-7ff9-4d9c-8961-e5dec15a29ad":{"type":"TAGGER","parentKey":"bc166c27-d9d5-4a25-ae3d-931ebbd1aa06","key":"60c84694-7ff9-4d9c-8961-e5dec15a29ad","name":"ISIS Tagger","assignmentType":"SINGLE","tagType":"DEVICE","description":"","columns":[{"tagLabel":"router_isis.instance","suggestedValues":[]},{"tagLabel":"router_isis.net","suggestedValues":[]},{"tagLabel":"router_isis.router_id","suggestedValues":[]}]},"0bb64239-5a95-4864-a6cd-3dc865514c7a":{"key":"0bb64239-5a95-4864-a6cd-3dc865514c7a","dependency":{"fd3d09d2-a839-423f-844a-cfa7b72b45fb":{"value":["bgp"],"mode":"SHOW"}},"type":"INPUT"},"67240b66-1d59-418a-a68a-9f46a835c321":{"key":"67240b66-1d59-418a-a68a-9f46a835c321","type":"INPUT","isPageLayout":true},"fa04d6b9-14d6-403c-a9a6-c0e1fc9489a1":{"key":"fa04d6b9-14d6-403c-a9a6-c0e1fc9489a1","isPageLayout":false,"type":"INPUT"},"3ca4dd8e-e7ed-4692-ae0b-0d4ce0370975":{"key":"3ca4dd8e-e7ed-4692-ae0b-0d4ce0370975","type":"INPUT","isPageLayout":true},"7ff70318-36cc-4a33-843a-898e48e735d1":{"key":"7ff70318-36cc-4a33-843a-898e48e735d1","type":"INPUT","order":["1012f97b-b69d-46cd-8bd1-d977f8bd1a1c","67d91f5c-32fd-4de5-8a76-b017aa1a90b7","10283ad8-78d7-4c58-8687-8d00edf12633","e17e568d-8b9e-44ba-ae81-220f0e969bf5","4bf0145a-d1ce-45fa-8434-8cd6528d5ba8","e36e246a-044a-42d3-9063-cf2de874ec20","8768a969-98c6-482a-b0d1-e0394af47725","7e63d7c6-ede1-49c5-8f14-e63114feb266","2aff779d-895f-4cd3-8d74-6263889c72fe","f8d7e884-b7e0-4dfc-adea-5f375f074b60","f4537776-0c5c-414e-bc28-575325e5d9a0","b96a8b88-a930-41d2-bfef-44eacbcdb402","cb550911-a731-4420-a783-813652a6f501","cda4c15c-1eb2-4230-8069-413393232000","68372a8a-26dc-42a5-b7f3-084f8152677e","be34d296-97f5-4736-9a30-331277d4b06c"]},"bc166c27-d9d5-4a25-ae3d-931ebbd1aa06":{"key":"bc166c27-d9d5-4a25-ae3d-931ebbd1aa06","type":"INPUT","order":["2d129ce2-4485-4794-ac83-bf5b4e72da39","2d3cfc02-9397-4f4c-946a-f08093c64ba7","50a234fb-9821-4c15-8895-28c754b2951a","bb2d39cd-7579-4821-8fec-6c60d7d02076","60c84694-7ff9-4d9c-8961-e5dec15a29ad"]},"564e83e2-65bb-4d4a-85d9-4dbbee9e1db8":{"key":"564e83e2-65bb-4d4a-85d9-4dbbee9e1db8","type":"INPUT","dependency":{"832c38e1-2a10-4324-aefa-a9cf0cfa6a6e":{"value":["Select..."],"mode":"HIDE"}}},"c0e1dab0-5c92-4a20-b1ef-00bc492a09df":{"key":"c0e1dab0-5c92-4a20-b1ef-00bc492a09df","type":"INPUT","order":["dcaae2e1-36b8-4d9c-869a-8e6e3618bed8","fd3d09d2-a839-423f-844a-cfa7b72b45fb"]},"0a22fb5d-41d5-433d-b047-c89aeceb8033":{"key":"0a22fb5d-41d5-433d-b047-c89aeceb8033","type":"INPUT","order":["b2b283b8-c3b7-4748-80ca-787c3575c3d6"]},"pointToPointLinks":{"key":"pointToPointLinks","type":"INPUT","isPageLayout":true},"pointToPointLinksProfiles":{"key":"pointToPointLinksProfiles","type":"INPUT","isPageLayout":true},"pointToPointLinksProfileDetails":{"key":"pointToPointLinksProfileDetails","type":"INPUT","order":["profileName","profileSpeed","profileIpAddresses","profileNodes","profileInterfaces","profileAsns","profileRoutingDetails","profileMtu","profileBfd","profilePtpEnable","profileQosProfile","profileMacsecProfile"]},"pointToPointLinkDetails":{"key":"pointToPointLinkDetails","type":"INPUT","order":["linkName","880e3ec6-c0c7-46f0-9fc8-d64d07d83a38","linkNodes","linkInterfaces","linkIpAddresses","linkAsns","linkRoutingDetails","linkMtu","linkBfd","linkPtpEnable","linkQosProfile","linkMacsecProfile","linkProfile"]}}'
