@@ -1,0 +1,326 @@
+path: []
+inputs:
+  sites:
+    - aclNames:
+        - name: ACL1-ANYANY
+          description: ANYANY
+          type: ip
+          countersPerEntry: true
+          devices: []
+          aclLines:
+            - seqNumber: '10'
+              permitDenyRemark: permit
+              description: ANY
+              source: any
+              destination: any
+              log: false
+              tracked: false
+              protocol: ip
+      devices:
+        - inputs:
+            devicesGroup:
+              interfaceRanges: null
+              stack:
+                - inputs:
+                    stackMember: '4'
+                  tags:
+                    query: device:JPE19332666
+                - tags:
+                    query: device:JPE19501793
+                  inputs:
+                    stackMember: '2'
+                - tags:
+                    query: device:SGD20240054
+                  inputs:
+                    stackMember: '3'
+                - tags:
+                    query: device:JPE16112401
+                  inputs:
+                    stackMember: '1'
+                - tags:
+                    query: device:JAS17510139
+                  inputs:
+                    stackMember: '5'
+                - tags:
+                    query: device:JAS17510143
+                  inputs:
+                    stackMember: '6'
+              vlanInterfaces:
+                - vlanId: '3'
+                  ipPrefix: 3.3.3.2/24
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: IP-ADDRESS
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  stackNumber: '1'
+                - vlanId: '4'
+                  ipPrefix: ''
+                  virtualRouterAddress: 4.4.4.1/24
+                  ipAddressVirtual: ''
+                  description: VIRTUAL-ROUTER
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  stackNumber: all-switches
+                - vlanId: '5'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: 5.5.5.4/24
+                  description: IP-ADDRESS-VIRTUAL
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  stackNumber: all-switches
+                - vlanId: '6'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: VRF
+                  vrf: VRF
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  stackNumber: all-switches
+                - vlanId: '7'
+                  ipPrefix: 7.7.7.7/24
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: GATEWAY
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: 7.7.7.1
+                  secIp: []
+                  stackNumber: all-switches
+                - vlanId: '8'
+                  ipPrefix: 8.8.8.8/24
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: SECONDARY IPS
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp:
+                    - secPrefix: 8.8.8.1/24
+                    - secPrefix: 8.8.8.2/24
+                    - secPrefix: 8.8.8.3/24
+                  stackNumber: all-switches
+                - vlanId: '9'
+                  ipPrefix: 9.9.9.9/24
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: DHCP-HELPERS
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  interfaceProfileName: DHCP-HELPERS
+                  stackNumber: all-switches
+                - vlanId: '10'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: VLAN ONLY
+                  vrf: ''
+                  createVlanOnly: true
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  stackNumber: all-switches
+                - vlanId: '11'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: MTU
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  interfaceProfileName: MTU
+                  stackNumber: all-switches
+                - vlanId: '12'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: RPF
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  interfaceProfileName: RPF
+                  stackNumber: all-switches
+                - vlanId: '13'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: COMMAND LINE
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  interfaceProfileName: COMMAND-LINE-INPUT
+                  stackNumber: all-switches
+                - vlanId: '14'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: ACL
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  interfaceProfileName: ACL1
+                  stackNumber: all-switches
+                - vlanId: '15'
+                  ipPrefix: ''
+                  virtualRouterAddress: ''
+                  ipAddressVirtual: ''
+                  description: QOS
+                  vrf: ''
+                  createVlanOnly: false
+                  defaultGatewayNextHop: ''
+                  secIp: []
+                  interfaceProfileName: ''
+                  stackNumber: all-switches
+              all: all-switches
+          tags:
+            query: vStack:ALL-Devices
+      dot1XProfiles: []
+      interfaceProfiles:
+        - interfaceProfilesName: DHCP-HELPERS
+          vlanProfile: DHCP-HELPERS
+        - interfaceProfilesName: MTU
+          vlanProfile: MTU
+        - interfaceProfilesName: RPF
+          vlanProfile: RPF
+        - interfaceProfilesName: COMMAND-LINE-INPUT
+          vlanProfile: COMMAND-LINE-INPUT
+        - interfaceProfilesName: ACL1
+          acl: ACL1-ANYANY
+          aclType: ip
+          aclDirection: in
+        - interfaceProfilesName: QOS1
+          qosInstance: QOS1
+      loggingProfiles: []
+      pimProfiles: []
+      poeProfiles: []
+      ptpProfiles: []
+      qosInstances:
+        - instanceName: QOS1
+          classMaps:
+            - classMapName: ANY
+              match: ip
+              matchValue: ''
+              type: qos
+              acl: ACL1-ANYANY
+          policyMaps:
+            - policyMapName: ANY-Q-2
+              type: qos
+              classDefault: '0'
+              policyMapclassMaps:
+                - pmclassMap: ANY
+                  classMapSettings:
+                    cos: null
+                    drop: false
+                    dropPrecedence: null
+                    trafficClass: '2'
+                    dscp: null
+          serviceProfiles:
+            - profileName: QP-ANY-Q-2
+              trust: none
+              dscp: '46'
+              cos: ''
+              txQueue:
+                - queue: 0
+                  bandwidth: ''
+                  priorityStrict: false
+                  randomDetectType: ''
+                  minThresholdMetric: ''
+                - queue: 2
+                  bandwidth: ''
+                  priorityStrict: true
+                  randomDetectType: ''
+                  minThresholdMetric: ''
+              policyMap: ANY-Q-2
+          devices: []
+          classification: []
+          rewriteRules: []
+          trafficClassToQueue:
+            - trafficClass: '0'
+              dscp: ''
+              queue: '0'
+            - trafficClass: '2'
+              dscp: ''
+              queue: '2'
+      siteName: VLAN-INTERFACES
+      stormControlProfiles: []
+      vlanProfiles:
+        - allowedVlans: ''
+          bpduGuardEnabled: false
+          commandLine: ''
+          ipaddress: ''
+          lacpEnabled: false
+          mlagEnabled: false
+          mode: routed
+          name: DHCP-HELPERS
+          nativeVlanId: 1
+          phoneVlanId: 0
+          portFastEnabled: false
+          profileDescription: DHCP-HELPERS
+          profileIpAddressVirtual: ''
+          vlanName: ''
+          dhcpHelpers:
+            - helperAddress: 3.4.5.6
+            - helperAddress: 3.4.5.7
+            - helperAddress: 3.4.5.8
+        - allowedVlans: ''
+          bpduGuardEnabled: false
+          commandLine: ''
+          ipaddress: ''
+          lacpEnabled: false
+          mlagEnabled: false
+          mode: routed
+          name: MTU
+          nativeVlanId: 1
+          phoneVlanId: 0
+          portFastEnabled: false
+          profileDescription: MTU
+          profileIpAddressVirtual: ''
+          vlanName: ''
+          ipmtu: 1500
+          dhcpHelpers: []
+        - name: RPF
+          profileDescription: RPF
+          mode: routed
+          vlanName: ''
+          nativeVlanId: 1
+          phoneVlanId: 0
+          allowedVlans: ''
+          portFastEnabled: false
+          bpduGuardEnabled: false
+          ipaddress: ''
+          profileIpAddressVirtual: ''
+          mlagEnabled: false
+          lacpEnabled: false
+          commandLine: ''
+          dhcpHelpers: []
+          reversePathForwardingMode: loose-mode
+        - name: COMMAND-LINE-INPUT
+          profileDescription: COMMAND-LINE-INPUT
+          mode: access
+          vlanName: ''
+          nativeVlanId: 1
+          phoneVlanId: 0
+          allowedVlans: ''
+          portFastEnabled: false
+          bpduGuardEnabled: false
+          ipaddress: ''
+          profileIpAddressVirtual: ''
+          mlagEnabled: false
+          lacpEnabled: false
+          commandLine: '!!!!!!!!!!!!!!!!!!!'
+          dhcpHelpers: []
+      switches: []
