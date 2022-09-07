@@ -1,142 +1,140 @@
 path: []
 inputs:
   sites:
-    - aclNames: []
+    - aclNames:
+        - countersPerEntry: true
+          aclLines:
+            - log: false
+              permitDenyRemark: permit
+              destination: any
+              source: any
+              protocol: ip
+              seqNumber: '10'
+              tracked: false
+              description: ''
+          type: ip
+          devices: []
+          name: ACL1
+          description: ACL1
+        - aclLines:
+            - source: any
+              seqNumber: '2'
+              log: false
+              description: ''
+              protocol: ip
+              destination: any
+              permitDenyRemark: permit
+              tracked: false
+          name: ACL2
+          description: ACL2
+          devices: []
+          countersPerEntry: false
+          type: ip
       devices:
         - inputs:
             devicesGroup:
               interfaceRanges:
-                - description: ACCESS
+                - description: ACCESS-PROFILES
                   enabled: true
-                  interfaceName: ethernet4-8
-                  interfaceProfileName: ACCESS-PORTS
+                  interfaceName: ethernet 4-8
+                  interfaceProfileName: ACCESS-PORTS-PROFILES
                   ipPrefix: ''
                   stackNumber: '1'
-                  vlanName: v2
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 2
-                  speed: 1gfull
-                - description: ACCESS
+                - description: ACCESS-DOT1X
                   enabled: true
                   interfaceName: ethernet 51/1-52/1
-                  interfaceProfileName: ACCESS-PORTS
+                  interfaceProfileName: ACCESS-DOT1x
                   ipPrefix: ''
                   stackNumber: '1'
-                  vlanName: v3
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 3
-                - description: ACCESS
-                  enabled: true
+                - enabled: true
+                  vlanName: ''
+                  interfaceProfileName: ACCESS-PORTS-PROFILES
                   interfaceName: ethernet7 - 8
-                  interfaceProfileName: ACCESS-PORTS
-                  ipPrefix: ''
                   stackNumber: '2'
-                  vlanName: v4
-                  vrf: ''
-                  accessVlan: 4
-                - description: ACCESS
-                  enabled: true
-                  interfaceName: ethernet 7- 8
-                  interfaceProfileName: ACCESS-PORTS
                   ipPrefix: ''
+                  description: ACCESS-PROFILES
+                  vrf: GREEN
+                - enabled: true
+                  ipPrefix: ''
+                  vrf: ''
+                  vlanName: ''
                   stackNumber: '3'
-                  vlanName: v5
+                  interfaceName: ethernet 7- 8
+                  interfaceProfileName: ACCESS-DOT1x
+                  description: ACCESS-DOT1X
+                - enabled: true
                   vrf: ''
-                  accessVlan: 5
-                - description: ACCESS
-                  enabled: true
-                  interfaceName: ethernet 7-8
-                  interfaceProfileName: ACCESS-PORTS
+                  vlanName: ''
+                  interfaceProfileName: ACCESS-POE
+                  description: ACCESS-POE
                   ipPrefix: ''
+                  interfaceName: ethernet 7-8
                   stackNumber: '4'
-                  vlanName: v6
-                  vrf: ''
-                  accessVlan: 6
-                  speed: 1gfull
-                - description: ACCESS
+                - description: ACCESS-PROFILES
                   enabled: true
                   interfaceName: ethernet 7/1-8/1
-                  interfaceProfileName: ACCESS-PORTS
+                  interfaceProfileName: ACCESS-PORTS-PROFILES
                   ipPrefix: ''
                   stackNumber: '5'
-                  vlanName: v7
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 7
-                - description: ACCESS
+                - description: ACCESS-DOT1X
                   enabled: true
                   interfaceName: ethernet 7/1-8/1
-                  interfaceProfileName: ACCESS-PORTS
+                  interfaceProfileName: ACCESS-DOT1x
                   ipPrefix: ''
                   stackNumber: '6'
-                  vlanName: v8
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 8
-                - description: PCACCESS
+                - description: ACCESS-PC-DOT1X
                   enabled: true
                   interfaceName: ethernet 9-10
-                  interfaceProfileName: PORT-CHANNEL-ACCESS
+                  interfaceProfileName: ACCESS-PC-DOT1X
                   ipPrefix: ''
                   stackNumber: '1'
-                  vlanName: v9
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 9
-                  channelGroup: 999
-                  mlagEnabled: false
-                - description: PCACCESS
+                - description: PC-ACCESS
                   enabled: true
                   interfaceName: ethernet9-10
                   interfaceProfileName: PORT-CHANNEL-ACCESS
                   ipPrefix: ''
                   stackNumber: '2'
-                  vlanName: v10
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 10
-                - description: PCACCESS
+                - description: ACCESS-PC-DOT1X
                   enabled: true
                   interfaceName: ethernet9-10
-                  interfaceProfileName: PORT-CHANNEL-ACCESS
+                  interfaceProfileName: ACCESS-PC-DOT1X
                   ipPrefix: ''
                   stackNumber: '3'
-                  vlanName: v11
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 11
-                  speed: 1gfull
-                  channelGroup: 999
-                  mlagEnabled: true
-                - description: PCACCESS
+                - description: ACCESS-PC-POE
                   enabled: true
                   interfaceName: ethernet9-10
-                  interfaceProfileName: PORT-CHANNEL-ACCESS
+                  interfaceProfileName: ACCESS-PC-POE
                   ipPrefix: ''
                   stackNumber: '4'
-                  vlanName: v12
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 12
-                - description: PCACCESS
+                - description: ACCESS-PC-DOT1X
                   enabled: true
                   interfaceName: ethernet 9/1-10/1
-                  interfaceProfileName: PORT-CHANNEL-ACCESS
-                  ipPrefix: ''
-                  stackNumber: '5'
-                  vlanName: v13
-                  vrf: ''
-                  accessVlan: 13
-                  channelGroup: 999
-                - description: PCACCESS
-                  enabled: true
-                  interfaceName: ethernet 9/1-10/1
-                  interfaceProfileName: PORT-CHANNEL-ACCESS
+                  interfaceProfileName: ACCESS-PC-DOT1X
                   ipPrefix: ''
                   stackNumber: '6'
-                  vlanName: v14
+                  vlanName: ''
                   vrf: ''
-                  accessVlan: 14
-                  speed: 1gfull
               stack:
-                - inputs:
-                    stackMember: '4'
-                  tags:
+                - tags:
                     query: device:JPE19332666
+                  inputs:
+                    stackMember: '4'
                 - tags:
                     query: device:JPE19501793
                   inputs:
@@ -158,41 +156,249 @@ inputs:
                   inputs:
                     stackMember: '6'
               vlanInterfaces: []
+              all: all-switches
           tags:
             query: vStack:ALL-Devices
-      dot1XProfiles: []
+      dot1XProfiles:
+        - dot1XProfileName: DOT1X-1
+          portSecurity:
+            portSecurityViolations: protect
+            portSecurityAllowedMacCount: 1
+          dot1x:
+            eapolAuthenticationFailureFallbackMba: enabled
+            portControl: force-authorized
+            timeoutReauthTimeoutIgnore: enabled
+            unauthorizedNativeVlanMembershipEgress: enabled
+            unauthorizedAccessVlanMembershipEgress: Enabled
+            authenticationFailureAction: drop
+            hostMode: single-host
+            eapol: enabled
+            timeoutReauthPeriod: '66'
+            reauthentication: enabled
+            macBasedAuthentication: enable
+            timeoutTxPeriod: '1000'
+            reauthorizationRequestLimit: '4'
+            timeoutQuietPeriod: '300'
+        - dot1XProfileName: DOT1X-2
+          portSecurity:
+            portSecurityViolations: shutdown
+            portSecurityAllowedMacCount: 5
+            allowVlanId: 3
+          dot1x:
+            reauthentication: disabled
+            eapolAuthenticationFailureFallbackMba: disabled
+            portControl: auto
+            eapol: enabled
+            unauthorizedNativeVlanMembershipEgress: enabled
+            timeoutReauthTimeoutIgnore: disabled
+            unauthorizedAccessVlanMembershipEgress: Enabled
+            authenticationFailureAction: drop
+            macBasedAuthentication: host-mode-common
+            timeoutTxPeriod: '500'
+            hostMode: multi-host
+            timeoutQuietPeriod: '2'
+            reauthorizationRequestLimit: '9'
+            timeoutReauthPeriod: '70'
       interfaceProfiles:
-        - interfaceProfilesName: ACCESS-PORTS
-          vlanProfile: ACCESS-PORTS
+        - interfaceProfilesName: ACCESS-PORTS-PROFILES
+          vlanProfile: ACCESS-PORTS-PROFILES
+          dot1XProfile: ''
+          acl: ''
+          aclDirection: in
+          aclType: ip
+          stormControlProfile: STORM-CONTROL-1
+          qosInstance: QOS1
+          loggingProfile: LOGGING1
+          ptpProfile: PTP-ACCESS-PORT
         - interfaceProfilesName: PORT-CHANNEL-ACCESS
           vlanProfile: PORT-CHANNEL-ACCESS
-      loggingProfiles: []
+          dot1XProfile: ''
+          aclDirection: out
+          aclType: ip
+          acl: ''
+          stormControlProfile: STORM-CONTROL-1
+          qosInstance: QOS2
+          ptpProfile: PTP-ACCESS-PORT
+          loggingProfile: LOGGING1
+        - interfaceProfilesName: ACCESS-DOT1x
+          vlanProfile: ACCESS-PORTS-PROFILES
+          qosInstance: ''
+          aclDirection: in
+          aclType: ip
+          acl: ACL1
+          stormControlProfile: STORM-CONTROL-1
+          loggingProfile: LOGGING1
+          ptpProfile: PTP-ACCESS-PORT
+          dot1XProfile: DOT1X-1
+        - interfaceProfilesName: ACCESS-PC-DOT1X
+          vlanProfile: PORT-CHANNEL-ACCESS
+          qosInstance: ''
+          aclDirection: out
+          aclType: ip
+          acl: ACL2
+          stormControlProfile: STORM-CONTROL-1
+          loggingProfile: LOGGING1
+          dot1XProfile: DOT1X-2
+          ptpProfile: PTP-ACCESS-PORT
+        - interfaceProfilesName: ACCESS-POE
+          vlanProfile: ACCESS-PORTS-PROFILES
+          poeProfile: POE1
+          dot1XProfile: ''
+          acl: ACL1
+          aclType: ip
+          aclDirection: in
+          qosInstance: QOS1
+          loggingProfile: LOGGING1
+          stormControlProfile: STORM-CONTROL-1
+          ptpProfile: PTP-ACCESS-PORT
+        - interfaceProfilesName: ACCESS-PC-POE
+          vlanProfile: PORT-CHANNEL-ACCESS
+          poeProfile: POE2
+          acl: ACL2
+          aclType: ip
+          aclDirection: out
+          qosInstance: QOS2
+          loggingProfile: LOGGING1
+          stormControlProfile: STORM-CONTROL-1
+          ptpProfile: PTP-ACCESS-PORT
+      loggingProfiles:
+        - loggingProfileName: LOGGING1
+          logging:
+            linkStatus: enabled
       pimProfiles: []
-      poeProfiles: []
-      ptpProfiles: []
-      qosInstances: []
-      siteName: ACCESS-PORTS
-      stormControlProfiles: []
+      poeProfiles:
+        - poeProfileName: POE1
+          description: POE1
+          poe:
+            linkDownAction: maintain
+            poeWattsLimit: '30'
+            poeWattsLimitClass: '4'
+            poeShutdownAction: power-off
+            priority: low
+            legacyDetect: enabled
+            poeNegotiationLldp: disabled
+            poeRebootAction: maintain
+        - poeProfileName: POE2
+          description: ''
+          poe:
+            linkDownAction: power-off
+            poeWattsLimit: '60'
+            poeRebootAction: maintain
+            poeWattsLimitClass: '0'
+            poeShutdownAction: maintain
+            priority: medium
+            poeNegotiationLldp: enabled
+            legacyDetect: enabled
+      ptpProfiles:
+        - ptpProfileName: PTP-ACCESS-PORT
+          ptpGlobalCommands:
+            sourceIp: 1.2.3.4
+            mode: boundary
+            priority1: 220
+            priority2: 221
+            monitorThresholdOffsetFromMaster: 500
+          ptpPorts:
+            enable: true
+            errorCorrectionEncoding: false
+            syncMessageInterval: -3
+            announceInterval: 0
+            delayReqInterval: -3
+            role: master
+          ptpvlanInterfaces: {}
+      qosInstances:
+        - trafficClassToQueue: []
+          classMaps:
+            - matchValue: ''
+              type: qos
+              match: ip
+              acl: ACL1
+              classMapName: CL1
+            - classMapName: CL2
+              match: ip
+              matchValue: ''
+              type: qos
+              acl: ACL2
+          classification: []
+          rewriteRules: []
+          policyMaps:
+            - policyMapclassMaps:
+                - classMapSettings: {}
+                  pmclassMap: CL1
+                - pmclassMap: CL2
+                  classMapSettings:
+                    drop: false
+                    trafficClass: '2'
+              classDefault: '0'
+              type: qos
+              policyMapName: PM1
+          devices: []
+          serviceProfiles: []
+          instanceName: QOS1
+        - instanceName: QOS2
+          classMaps:
+            - classMapName: CM3
+              match: ip
+              matchValue: ''
+              type: qos
+              acl: ACL3
+            - classMapName: CM4
+              match: ip
+              matchValue: ''
+              type: qos
+              acl: ACL4
+          policyMaps:
+            - policyMapName: PM3
+              type: qos
+              classDefault: ''
+              policyMapclassMaps:
+                - pmclassMap: CM3
+                  classMapSettings:
+                    drop: false
+                    trafficClass: '3'
+                - pmclassMap: CM4
+                  classMapSettings:
+                    drop: false
+                    trafficClass: '4'
+          serviceProfiles:
+            - profileName: QOSP3
+              trust: dscp
+              dscp: ''
+              cos: ''
+              txQueue: []
+              policyMap: PM3
+          devices: []
+          classification: []
+          rewriteRules: []
+          trafficClassToQueue: []
+      siteName: ACCESS-PORTS-PROFILES
+      stormControlProfiles:
+        - stormControlProfileName: STORM-CONTROL-1
+          stormControl:
+            stormControlBroadcastType: level
+            stormControlUnknownUnicastType: level
+            stormControlUnknownUnicastValue: 3
+            stormControlMulticastType: level
+            stormControlMulticastValue: 4
+            stormControlBroadcastValue: 5
       vlanProfiles:
-        - accessVlanId: 101
-          allowedVlans: ''
+        - allowedVlans: ''
           bpduGuardEnabled: true
           commandLine: '!!!!!!!'
           ipaddress: ''
           lacpEnabled: false
           mlagEnabled: false
           mode: access
-          name: ACCESS-PORTS
+          name: ACCESS-PORTS-PROFILES
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: true
-          profileDescription: null
+          profileDescription: ACCESS PORTS int desc -> $1
           profileIpAddressVirtual: ''
           vlanName: V101
-        - accessVlanId: 102
-          allowedVlans: ''
+          accessVlanId: 101
+          speed: 1gfull
+        - allowedVlans: ''
           bpduGuardEnabled: false
-          channelGroup: 2
           commandLine: '!!!!!!!'
           ipaddress: ''
           lacpEnabled: true
@@ -202,25 +408,13 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: PORT-CHANNEL-ACCESS  int desc -> $1
           profileIpAddressVirtual: ''
-          speed: null
           vlanName: V102
+          speed: 1gfull
+          accessVlanId: 102
+          channelGroup: '2'
       switches:
-        - tags:
-            query: device:JPE16112401
-          inputs:
-            interface:
-              - tags:
-                  query: interface:Ethernet3@JPE16112401
-                inputs:
-                  intfConfig:
-                    ipPrefix: ''
-                    mlagEnabled: false
-                    vrf: ''
-                    enabled: true
-                    description: SIMPLE-ACCESS
-                    interfaceProfileName: ACCESS-PORTS
         - tags:
             query: device:JPE19501793
           inputs:
@@ -230,13 +424,56 @@ inputs:
                 inputs:
                   intfConfig:
                     description: SIMPLE-ACCESS-PC
+                    ipPrefix: ''
+                    interfaceProfileName: PORT-CHANNEL-ACCESS
+                    mlagEnabled: true
+                    enabled: true
+                    vrf: ''
+                    accessVlan: 39
+                    channelGroup: '39'
+        - tags:
+            query: device:JPE16112401
+          inputs:
+            interface:
+              - tags:
+                  query: interface:Ethernet3@JPE16112401
+                inputs:
+                  intfConfig:
+                    description: SIMPLE-ACCESS
                     enabled: true
                     mlagEnabled: false
                     ipPrefix: ''
                     vrf: ''
-                    interfaceProfileName: PORT-CHANNEL-ACCESS
-                    channelGroup: 32
-    - aclNames: []
+                    interfaceProfileName: ACCESS-PORTS-PROFILES
+    - aclNames:
+        - name: ACL11
+          description: ANY
+          type: ip
+          countersPerEntry: true
+          devices: []
+          aclLines:
+            - seqNumber: '10'
+              permitDenyRemark: permit
+              description: any
+              source: any
+              destination: any
+              log: false
+              tracked: false
+              protocol: ip
+        - name: ACL12
+          description: ACL12
+          type: ip
+          countersPerEntry: false
+          devices: []
+          aclLines:
+            - seqNumber: '12'
+              permitDenyRemark: permit
+              description: ''
+              protocol: ip
+              source: any
+              destination: any
+              log: false
+              tracked: false
       devices:
         - inputs:
             devicesGroup:
@@ -246,18 +483,17 @@ inputs:
                   interfaceName: e11
                   interfaceProfileName: ROUTED-PORT_profile_w_IP
                   ipPrefix: ''
-                  stackNumber: '1'
                   vlanName: ''
                   vrf: ''
-                  speed: 1gfull
+                  stackNumber: '1'
                 - description: ROUTED-PORT_wo_IP
                   enabled: true
                   interfaceName: e12
                   interfaceProfileName: ROUTED-PORT_profile_wo_IP
                   ipPrefix: 34.34.34.1/24
-                  stackNumber: '1'
                   vlanName: ''
                   vrf: ''
+                  stackNumber: '1'
                 - description: ROUTED-PORT_wo_IP
                   enabled: true
                   interfaceName: E13
@@ -304,9 +540,10 @@ inputs:
                   ipPrefix: 35.35.35.2/24
                   vlanName: ''
                   vrf: ''
+                  stackNumber: ''
                 - description: ROUTED-PORT_wo_IP
                   enabled: true
-                  interfaceName: e5/13/1,6/13/1
+                  interfaceName: e5/13/1,e6/13/1
                   interfaceProfileName: ROUTED-PORT_profile_wo_IP
                   ipPrefix: 36.36.36.2/24
                   vlanName: ''
@@ -318,9 +555,8 @@ inputs:
                   interfaceProfileName: ROUTED-SUBINT_profile_w_IP
                   ipPrefix: ''
                   stackNumber: '1'
-                  vlanName: v302
+                  vlanName: v301
                   vrf: ''
-                  speed: 1gfull
                 - accessVlan: 302
                   description: ROUTED-SUBINT_wo_IP
                   enabled: true
@@ -328,7 +564,7 @@ inputs:
                   interfaceProfileName: ROUTED-SUBINT_profile_wo_IP
                   ipPrefix: 22.22.22.1/24
                   stackNumber: '1'
-                  vlanName: v301
+                  vlanName: v302
                   vrf: ''
                 - accessVlan: 302
                   description: ROUTED-SUBINT_wo_IP
@@ -363,46 +599,47 @@ inputs:
                   ipPrefix: 52.52.52.1/24
                   vlanName: v503
                   vrf: ''
-                - accessVlan: 401
-                  description: ROUTED-SUBINT_w_IP
+                - description: ROUTED-SUBINT_w_IP
                   enabled: true
                   interfaceName: e2/14,3/14,4/14
                   interfaceProfileName: ROUTED-SUBINT_profile_w_IP
                   ipPrefix: ''
                   vlanName: v401
                   vrf: ''
-                - accessVlan: 402
-                  description: ROUTED-SUBINT_wo_IP
+                  accessVlan: 401
+                - description: ROUTED-SUBINT_wo_IP
                   enabled: true
                   interfaceName: e2/14,3/14,4/14
                   interfaceProfileName: ROUTED-SUBINT_profile_wo_IP
                   ipPrefix: 21.21.21.1/24
+                  stackNumber: ''
                   vlanName: v402
-                  vrf: ''
-                - accessVlan: 403
-                  description: ROUTED-SUBINT_wo_IP
+                  vrf: BLUE
+                  accessVlan: 402
+                - description: ROUTED-SUBINT_wo_IP
                   enabled: true
                   interfaceName: e2/14,3/14,4/14
                   interfaceProfileName: ROUTED-SUBINT_profile_wo_IP
                   ipPrefix: 19.19.19.1/24
                   vlanName: V403
                   vrf: RED
-                - accessVlan: 304
-                  description: ROUTED-SUBINT_wo_IP
+                  accessVlan: 403
+                - description: ROUTED-SUBINT_wo_IP
                   enabled: true
                   interfaceName: 5/14/1,6/14/1
                   interfaceProfileName: ROUTED-SUBINT_profile_w_IP
-                  ipPrefix: ''
+                  ipPrefix: 63.63.63.1/24
                   vlanName: v304
                   vrf: ''
-                - accessVlan: 305
-                  description: ROUTED-SUBINT_wo_IP
+                  accessVlan: 304
+                - description: ROUTED-SUBINT_wo_IP
                   enabled: true
                   interfaceName: 5/14/1,6/14/1
                   interfaceProfileName: ROUTED-SUBINT_profile_wo_IP
                   ipPrefix: 28.28.28.1/24
                   vlanName: v305
                   vrf: ''
+                  accessVlan: 305
                 - accessVlan: 306
                   description: ROUTED-SUBINT_wo_IP
                   enabled: true
@@ -419,7 +656,6 @@ inputs:
                   stackNumber: '1'
                   vlanName: ''
                   vrf: ''
-                  channelGroup: 999
                 - description: ROUTED-PC-NO-IP
                   enabled: true
                   interfaceName: '17'
@@ -450,7 +686,6 @@ inputs:
                   ipPrefix: 63.63.63.1/24
                   vlanName: ''
                   vrf: ''
-                  channelGroup: 999
                 - description: ROUTED-PC-NO-IP
                   enabled: true
                   interfaceName: 2/18,3/18,4/18
@@ -488,7 +723,6 @@ inputs:
                   stackNumber: ''
                   vlanName: V701
                   vrf: ''
-                  channelGroup: 999
                 - accessVlan: 702
                   description: ROUTED-PC-SUBINR-NO-IP
                   enabled: true
@@ -540,58 +774,190 @@ inputs:
                     stackMember: '2'
                   tags:
                     query: device:JPE19501793
-                - tags:
-                    query: device:SGD20240054
-                  inputs:
+                - inputs:
                     stackMember: '3'
-                - tags:
-                    query: device:JPE16112401
-                  inputs:
+                  tags:
+                    query: device:SGD20240054
+                - inputs:
                     stackMember: '1'
-                - tags:
-                    query: device:JAS17510139
-                  inputs:
+                  tags:
+                    query: device:JPE16112401
+                - inputs:
                     stackMember: '5'
-                - tags:
-                    query: device:JAS17510143
-                  inputs:
+                  tags:
+                    query: device:JAS17510139
+                - inputs:
                     stackMember: '6'
+                  tags:
+                    query: device:JAS17510143
               vlanInterfaces: []
+              all: all-switches
           tags:
             query: vStack:ALL-Devices
       dot1XProfiles: []
       interfaceProfiles:
         - interfaceProfilesName: ROUTED-PORT_profile_w_IP
           vlanProfile: ROUTED-PORT_w_IP
+          dot1XProfile: ''
+          acl: ''
+          aclType: ''
+          aclDirection: ''
+          qosInstance: QOS11
+          pimProfile: PIM
+          ptpProfile: PTP-ROUTED
         - interfaceProfilesName: ROUTED-PORT_profile_wo_IP
           vlanProfile: ROUTED-PORT_wo_IP
+          dot1XProfile: ''
+          acl: ACL12
+          aclType: ip
+          aclDirection: out
+          qosInstance: ''
+          ptpProfile: PTP-ROUTED
+          pimProfile: PIM
         - interfaceProfilesName: ROUTED-SUBINT_profile_w_IP
           vlanProfile: ROUTED-SUBINT_w_IP
+          dot1XProfile: ''
+          ptpProfile: ''
+          pimProfile: PIM
+          qosInstance: ''
+          aclDirection: in
+          aclType: ip
+          acl: ACL12
         - interfaceProfilesName: ROUTED-SUBINT_profile_wo_IP
           vlanProfile: ROUTED-SUBINT_wo_IP
+          dot1XProfile: ''
+          ptpProfile: ''
+          pimProfile: PIM
+          qosInstance: ''
+          aclDirection: out
+          aclType: ip
+          acl: ACL12
+          stormControlProfile: ''
         - interfaceProfilesName: ROUTED-SUBINT_profile-OTHER-IP
           vlanProfile: ROUTED-SUBINT_w_OTHER-IP
+          ptpProfile: ''
+          pimProfile: PIM
+          qosInstance: QOS11
+          aclDirection: ''
+          aclType: ''
+          acl: ''
+          dot1XProfile: ''
         - interfaceProfilesName: ROUTED-PC_profile_w_IP
           vlanProfile: ROUTED-PC_w_IP
+          ptpProfile: PTP-ROUTED
+          pimProfile: PIM
+          qosInstance: ''
+          aclDirection: out
+          aclType: ''
+          acl: ''
         - interfaceProfilesName: ROUTED-PC_profile_wo_IP
           vlanProfile: ROUTED-PC_wo_IP
+          ptpProfile: PTP-ROUTED
+          pimProfile: PIM
+          qosInstance: ''
+          aclDirection: in
+          aclType: ip
+          acl: ACL12
         - interfaceProfilesName: ROUTED-PC-SUBINT_profile_w_other_IP
           vlanProfile: ROUTED-PC-SUBINT-OTHER-IP
+          ptpProfile: ''
+          pimProfile: PIM
+          qosInstance: QOS11
+          aclDirection: ''
+          aclType: ''
+          acl: ''
         - interfaceProfilesName: ROUTED-PC-SUBINT_profile_wo_IP
           vlanProfile: ROUTED-PC-SUBINT-NO-IP
-      loggingProfiles: []
-      pimProfiles: []
-      poeProfiles: []
-      ptpProfiles: []
-      qosInstances: []
-      siteName: ROUTED-PORTS
+          ptpProfile: ''
+          pimProfile: PIM
+          qosInstance: QOS11
+          aclDirection: in
+          aclType: ip
+          acl: ACL12
+      loggingProfiles:
+        - loggingProfileName: LOGGING
+          logging:
+            linkStatus: use-global
+      pimProfiles:
+        - pimProfileName: PIM
+          pimInterfaceCommands:
+            pimMode: sparse-mode
+            pimType: ipv4
+          routerPimCommands:
+            rpOverride: false
+            mode: sparse-mode
+            type: ipv4
+            rpAddress: 1.1.1.1
+            priority: 100
+          routerMulticastCommands:
+            routing: true
+            type: ipv4
+            countersMetric: packets
+            countersRatePeriodDecay: 0
+      poeProfiles:
+        - poeProfileName: POE2
+          description: ''
+          poe:
+            linkDownAction: power-off
+            poeWattsLimit: '60'
+            poeWattsLimitClass: '0'
+            poeShutdownAction: maintain
+            priority: medium
+            legacyDetect: enabled
+            poeNegotiationLldp: enabled
+            poeRebootAction: maintain
+      ptpProfiles:
+        - ptpProfileName: PTP-ROUTED
+          ptpGlobalCommands:
+            mode: boundary
+            sourceIp: 1.1.1.1
+            ttl: 200
+            priority1: 220
+            priority2: 221
+            monitorThresholdOffsetFromMaster: 500
+          ptpPorts:
+            enable: true
+            role: master
+            announceInterval: 0
+            syncMessageInterval: -3
+            delayReqInterval: -3
+            errorCorrectionEncoding: true
+          ptpvlanInterfaces: {}
+      qosInstances:
+        - instanceName: QOS11
+          classMaps:
+            - classMapName: CM11
+              match: ip
+              matchValue: ''
+              acl: ACL11
+              type: qos
+          policyMaps:
+            - policyMapName: PM11
+              type: qos
+              classDefault: '0'
+              policyMapclassMaps:
+                - pmclassMap: CM11
+                  classMapSettings:
+                    trafficClass: '1'
+                    drop: false
+          serviceProfiles:
+            - profileName: QOSP11
+              trust: dscp
+              dscp: ''
+              cos: ''
+              txQueue: []
+              policyMap: PM11
+          devices: []
+          classification: []
+          rewriteRules: []
+          trafficClassToQueue: []
+      siteName: ROUTED-PORTS-PROFILES
       stormControlProfiles: []
       vlanProfiles:
         - allowedVlans: ''
           bpduGuardEnabled: false
           commandLine: '!!!!!!!'
           ipaddress: 23.23.23.2/24
-          ipmtu: 9024
           lacpEnabled: false
           mlagEnabled: false
           mode: routed
@@ -599,15 +965,15 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-PORT_w_IP int desc -> $1
           profileIpAddressVirtual: 23.23.23.1/24
-          reversePathForwardingMode: loose-mode
           vlanName: ''
+          ipmtu: 9024
+          reversePathForwardingMode: loose-mode
         - allowedVlans: ''
           bpduGuardEnabled: false
           commandLine: '!!!!!!!'
           ipaddress: ''
-          ipmtu: 9024
           lacpEnabled: false
           mlagEnabled: false
           mode: routed
@@ -615,12 +981,14 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-PORT_wo_IP int desc -> $1
           profileIpAddressVirtual: ''
-          reversePathForwardingMode: strict-mode
           vlanName: ''
+          ipmtu: 9024
+          reversePathForwardingMode: strict-mode
         - allowedVlans: ''
           bpduGuardEnabled: false
+          channelGroup: '61'
           commandLine: '!!!!!!!'
           ipaddress: 20.20.20.2/24
           ipmtu: 9024
@@ -631,12 +999,13 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-SUBINT_w_IP int desc -> $1
           profileIpAddressVirtual: 20.20.20.1/24
           reversePathForwardingMode: loose-mode
           vlanName: ''
         - allowedVlans: ''
           bpduGuardEnabled: false
+          channelGroup: '54'
           commandLine: '!!!!!!!'
           ipaddress: ''
           ipmtu: 9024
@@ -647,12 +1016,13 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-SUBINT_wo_IP  int desc -> $1
           profileIpAddressVirtual: ''
           reversePathForwardingMode: strict-mode
           vlanName: ''
         - allowedVlans: ''
           bpduGuardEnabled: false
+          channelGroup: '55'
           commandLine: '!!!!!!!'
           ipaddress: 50.50.50.1/24
           lacpEnabled: false
@@ -662,13 +1032,13 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTER-SUBINT_w_OTHER-IP  int desc -> $1
           profileIpAddressVirtual: ''
           reversePathForwardingMode: strict-mode
           vlanName: ''
         - allowedVlans: ''
           bpduGuardEnabled: false
-          channelGroup: 60
+          channelGroup: '60'
           commandLine: '!!!!!!!'
           ipaddress: 60.60.60.1/24
           ipmtu: 9024
@@ -679,13 +1049,13 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-PC_w_IP int desc -> $1
           profileIpAddressVirtual: 60.60.60.2/24
           reversePathForwardingMode: loose-mode
           vlanName: ''
         - allowedVlans: ''
           bpduGuardEnabled: false
-          channelGroup: 61
+          channelGroup: '61'
           commandLine: '!!!!!!!'
           ipaddress: ''
           ipmtu: 9024
@@ -696,41 +1066,41 @@ inputs:
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-PC_wo_IP int desc -> $1
           profileIpAddressVirtual: ''
           reversePathForwardingMode: strict-mode
           vlanName: ''
         - allowedVlans: ''
           bpduGuardEnabled: false
-          channelGroup: 54
+          channelGroup: '54'
           commandLine: '!!!!!!!'
           ipaddress: 54.54.54.1/24
           ipmtu: 9024
-          lacpEnabled: true
+          lacpEnabled: false
           mlagEnabled: false
           mode: routed
           name: ROUTED-PC-SUBINT-OTHER-IP
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-PC-SUBINT-OTHER-IP int desc -> $1
           profileIpAddressVirtual: ''
           reversePathForwardingMode: loose-mode
           vlanName: ''
         - allowedVlans: ''
           bpduGuardEnabled: false
-          channelGroup: 55
+          channelGroup: '55'
           commandLine: '!!!!!!!'
           ipaddress: ''
           ipmtu: 9024
-          lacpEnabled: true
+          lacpEnabled: false
           mlagEnabled: false
           mode: routed
           name: ROUTED-PC-SUBINT-NO-IP
           nativeVlanId: 1
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: ROUTED-PC-SUBINT-OTHER-IP int desc -> $1
           profileIpAddressVirtual: ''
           reversePathForwardingMode: loose-mode
           vlanName: ''
@@ -744,21 +1114,22 @@ inputs:
                 inputs:
                   intfConfig:
                     description: SIMPLE-ROUTED-PC
-                    ipPrefix: 54.65.76.3/24
                     interfaceProfileName: ROUTED-PC_profile_wo_IP
                     mlagEnabled: false
                     enabled: true
-                    vrf: RED
+                    ipPrefix: 45.34.23.1/24
+                    vrf: GREEN
+                    channelGroup: '40'
               - tags:
                   query: interface:Ethernet5/1@JAS17510139
                 inputs:
                   intfConfig:
-                    description: SIMPLE-ROUTED
-                    mlagEnabled: false
-                    interfaceProfileName: ROUTED-PORT_profile_wo_IP
-                    ipPrefix: 76.54.43.1/24
                     enabled: true
                     vrf: ''
+                    mlagEnabled: false
+                    description: SIMPLE-ROUTED
+                    ipPrefix: 98.76.54.1/24
+                    interfaceProfileName: ROUTED-PORT_profile_wo_IP
         - tags:
             query: device:JAS17510143
           inputs:
@@ -770,11 +1141,39 @@ inputs:
                     description: SIMPLE-ROUTED-SUBINT
                     enabled: true
                     mlagEnabled: false
-                    ipPrefix: 79.54.34.1/24
+                    ipPrefix: 23.65.34.1/24
                     vrf: ''
                     interfaceProfileName: ROUTED-SUBINT_profile_wo_IP
-                    accessVlan: 79
-    - aclNames: []
+                    accessVlan: 78
+    - aclNames:
+        - name: ACL21
+          description: ANYANY
+          type: ip
+          countersPerEntry: false
+          devices: []
+          aclLines:
+            - seqNumber: '10'
+              permitDenyRemark: permit
+              description: any
+              source: any
+              destination: any
+              log: true
+              tracked: false
+              protocol: ip
+        - name: ACL22
+          description: ACL22
+          type: ip
+          countersPerEntry: false
+          devices: []
+          aclLines:
+            - seqNumber: '22'
+              permitDenyRemark: deny
+              description: ''
+              source: any
+              destination: any
+              log: false
+              tracked: false
+              protocol: ip
       devices:
         - inputs:
             devicesGroup:
@@ -787,27 +1186,26 @@ inputs:
                   stackNumber: '1'
                   vlanName: ''
                   vrf: ''
-                  speed: 1gfull
-                - description: TRUNK
+                - description: TRUNK-POE
                   enabled: true
                   interfaceName: ethernet20
-                  interfaceProfileName: TRUNK
+                  interfaceProfileName: TRUNK-POE
                   ipPrefix: ''
                   stackNumber: '2'
                   vlanName: ''
                   vrf: ''
-                - description: TRUNK
+                - description: TRUNK-POE
                   enabled: true
                   interfaceName: ethernet20
-                  interfaceProfileName: TRUNK
+                  interfaceProfileName: TRUNK-POE
                   ipPrefix: ''
                   stackNumber: '3'
                   vlanName: ''
                   vrf: ''
-                - description: TRUNK
+                - description: TRUNK-POE
                   enabled: true
                   interfaceName: ethernet20
-                  interfaceProfileName: TRUNK
+                  interfaceProfileName: TRUNK-POE
                   ipPrefix: ''
                   stackNumber: '4'
                   vlanName: ''
@@ -836,9 +1234,6 @@ inputs:
                   stackNumber: '1'
                   vlanName: ''
                   vrf: ''
-                  speed: 1gfull
-                  channelGroup: 999
-                  mlagEnabled: true
                 - description: PC TRUNK
                   enabled: true
                   interfaceName: ethernet 54/1
@@ -847,28 +1242,26 @@ inputs:
                   stackNumber: '1'
                   vlanName: ''
                   vrf: ''
-                - description: PC TRUNK
+                - description: PC TRUNK-POE
                   enabled: true
                   interfaceName: ethernet21
-                  interfaceProfileName: PORT-CHANNEL-MLAG-TRUNK
+                  interfaceProfileName: TRUNK PC-MLAG-POE
                   ipPrefix: ''
                   stackNumber: '2'
                   vlanName: ''
                   vrf: ''
-                - description: PC TRUNK
+                - description: PC TRUNK-POE
                   enabled: true
                   interfaceName: ethernet21
-                  interfaceProfileName: PORT-CHANNEL-MLAG-TRUNK
+                  interfaceProfileName: TRUNK PC-MLAG-POE
                   ipPrefix: ''
                   stackNumber: '3'
                   vlanName: ''
                   vrf: ''
-                  channelGroup: 999
-                  mlagEnabled: true
-                - description: PC TRUNK
+                - description: PC TRUNK-POE
                   enabled: true
                   interfaceName: ethernet21
-                  interfaceProfileName: PORT-CHANNEL-MLAG-TRUNK
+                  interfaceProfileName: TRUNK PC-MLAG-POE
                   ipPrefix: ''
                   stackNumber: '4'
                   vlanName: ''
@@ -889,7 +1282,6 @@ inputs:
                   stackNumber: '6'
                   vlanName: ''
                   vrf: ''
-                  mlagEnabled: false
               stack:
                 - inputs:
                     stackMember: '4'
@@ -916,21 +1308,162 @@ inputs:
                   tags:
                     query: device:JAS17510143
               vlanInterfaces: []
+              all: all-switches
           tags:
             query: vStack:ALL-Devices
-      dot1XProfiles: []
+      dot1XProfiles:
+        - dot1XProfileName: DOT1X-1
+          portSecurity:
+            portSecurityViolations: protect
+            portSecurityAllowedMacCount: 2
+            allowVlanId: 2
+          dot1x:
+            eapolAuthenticationFailureFallbackMba: disabled
+            portControl: force-authorized
+            timeoutReauthTimeoutIgnore: disabled
+            unauthorizedNativeVlanMembershipEgress: disabled
+            unauthorizedAccessVlanMembershipEgress: Disabled
+            authenticationFailureAction: allow
+            authenticationFailureActionAllowVlan: '2'
+            hostMode: single-host
+            eapol: enabled
+            timeoutReauthPeriod: '60'
+            reauthentication: enabled
+            reauthorizationRequestLimit: '9'
+        - dot1XProfileName: DOT1X-2
+          portSecurity:
+            portSecurityViolations: shutdown
+            portSecurityAllowedMacCount: 10
+          dot1x:
+            reauthentication: disabled
+            eapolAuthenticationFailureFallbackMba: disabled
+            portControl: force-unauthorized
+            eapol: disabled
+            unauthorizedNativeVlanMembershipEgress: disabled
+            timeoutReauthTimeoutIgnore: disabled
+            unauthorizedAccessVlanMembershipEgress: Disabled
+            authenticationFailureAction: drop
+            macBasedAuthentication: enable
+            timeoutTxPeriod: '1'
       interfaceProfiles:
         - interfaceProfilesName: TRUNK
           vlanProfile: TRUNK-PORT
+          dot1XProfile: ''
+          poeProfile: ''
+          pimProfile: ''
+          ptpProfile: PTP-TRUNK-PORT
+          qosInstance: ''
+          aclDirection: in
+          aclType: ip
+          acl: ACL22
+          stormControlProfile: STORM-CONTROL-1
+          loggingProfile: LOGGING
         - interfaceProfilesName: PORT-CHANNEL-MLAG-TRUNK
           vlanProfile: PORT-CHANNEL-MLAG-TRUNK
-      loggingProfiles: []
+          dot1XProfile: ''
+          poeProfile: ''
+          ptpProfile: PTP-TRUNK-PORT
+          qosInstance: ''
+          aclDirection: out
+          aclType: ip
+          acl: ACL22
+          stormControlProfile: STORM-CONTROL-1
+          loggingProfile: LOGGING
+        - interfaceProfilesName: TRUNK-POE
+          vlanProfile: TRUNK-PORT
+          poeProfile: POE-9
+          qosInstance: QOS21
+          aclDirection: in
+          aclType: ip
+          acl: ACL22
+          stormControlProfile: STORM-CONTROL-1
+          loggingProfile: LOGGING
+        - interfaceProfilesName: TRUNK PC-MLAG-POE
+          vlanProfile: PORT-CHANNEL-MLAG-TRUNK
+          poeProfile: POE-9
+          qosInstance: QOS21
+          aclDirection: out
+          aclType: ip
+          acl: ACL22
+          stormControlProfile: STORM-CONTROL-1
+          loggingProfile: LOGGING
+      loggingProfiles:
+        - loggingProfileName: LOGGING
+          logging:
+            linkStatus: use-global
+            spanningTree: enabled
       pimProfiles: []
-      poeProfiles: []
-      ptpProfiles: []
-      qosInstances: []
-      siteName: TRUNK-PORTS
-      stormControlProfiles: []
+      poeProfiles:
+        - poeProfileName: POE-9
+          description: POE9
+          poe:
+            linkDownAction: power-off
+            poeWattsLimit: '60'
+            poeRebootAction: maintain
+            poeWattsLimitClass: '1'
+            poeShutdownAction: maintain
+            legacyDetect: enabled
+            poeNegotiationLldp: enabled
+            priority: critical
+      ptpProfiles:
+        - ptpProfileName: PTP-TRUNK-PORT
+          ptpGlobalCommands:
+            sourceIp: 1.2.3.4
+            mode: boundary
+            priority1: 220
+            priority2: 221
+            monitorThresholdOffsetFromMaster: 500
+          ptpPorts:
+            enable: true
+            errorCorrectionEncoding: false
+            syncMessageInterval: -3
+            announceInterval: 0
+            delayReqInterval: -3
+            role: master
+          ptpvlanInterfaces: {}
+      qosInstances:
+        - instanceName: QOS21
+          classMaps:
+            - classMapName: CM21
+              match: ip
+              matchValue: ''
+              acl: ACL21
+              type: qos
+          policyMaps:
+            - policyMapName: PM21
+              type: qos
+              classDefault: ''
+              policyMapclassMaps:
+                - pmclassMap: CM21
+                  classMapSettings:
+                    drop: false
+                    trafficClass: '6'
+          serviceProfiles:
+            - profileName: QOSp21
+              trust: none
+              dscp: ''
+              cos: ''
+              txQueue:
+                - queue: 0
+                  priorityStrict: true
+                  bandwidth: ''
+                  randomDetectType: ''
+                  minThresholdMetric: ''
+              policyMap: PM21
+          devices: []
+          classification: []
+          rewriteRules: []
+          trafficClassToQueue: []
+      siteName: TRUNK-PORTS-PROFILES
+      stormControlProfiles:
+        - stormControlProfileName: STORM-CONTROL-1
+          stormControl:
+            stormControlBroadcastType: level
+            stormControlUnknownUnicastType: level
+            stormControlUnknownUnicastValue: 3
+            stormControlMulticastType: level
+            stormControlMulticastValue: 4
+            stormControlBroadcastValue: 5
       vlanProfiles:
         - allowedVlans: 100-3000
           bpduGuardEnabled: false
@@ -943,13 +1476,13 @@ inputs:
           nativeVlanId: 86
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: TRUNK PORT int desc -> $1
           profileIpAddressVirtual: ''
           vlanName: ''
-          speed: 1gfull
+          phoneTrunk: tagged
         - allowedVlans: 100-3000
           bpduGuardEnabled: false
-          channelGroup: 700
+          channelGroup: '700'
           commandLine: '!!!!!!!'
           ipaddress: ''
           lacpEnabled: true
@@ -959,10 +1492,10 @@ inputs:
           nativeVlanId: 700
           phoneVlanId: 0
           portFastEnabled: false
-          profileDescription: null
+          profileDescription: PORT-CHANNEL-TRUNK-MLAG int desc -> $1
           profileIpAddressVirtual: ''
           vlanName: ''
-          speed: auto
+          phoneTrunk: untagged
       switches:
         - tags:
             query: device:JAS17510143
@@ -978,28 +1511,39 @@ inputs:
                     ipPrefix: ''
                     vrf: ''
                     interfaceProfileName: PORT-CHANNEL-MLAG-TRUNK
-                    speed: 10gfull
-    - aclNames: []
+    - aclNames:
+        - name: ACL31
+          description: ANYANY
+          type: ip
+          countersPerEntry: false
+          devices: []
+          aclLines:
+            - seqNumber: '10'
+              permitDenyRemark: permit
+              description: any
+              source: any
+              destination: any
+              log: true
+              tracked: false
+              protocol: ip
       devices:
         - inputs:
             devicesGroup:
               interfaceRanges:
-                - description: PHONE TR T
+                - description: PHONE TRUNK TAGGED
                   enabled: true
                   interfaceName: 2/22,3/22,4/22
                   interfaceProfileName: PHONE-TRUNK-TAGGED
                   ipPrefix: ''
                   vlanName: ''
                   vrf: ''
-                  speed: 1gfull
-                - description: PHONE TR U
+                - description: PHONE TRUNK UUNTAGGED
                   enabled: true
                   interfaceName: 2/23,3/23,4/23
                   interfaceProfileName: PHONE-TRUNK-UNTAGGED
                   ipPrefix: ''
                   vlanName: ''
                   vrf: ''
-                  speed: 1gfull
               stack:
                 - inputs:
                     stackMember: '4'
@@ -1026,21 +1570,110 @@ inputs:
                   tags:
                     query: device:JAS17510143
               vlanInterfaces: []
+              all: all-switches
           tags:
             query: vStack:ALL-Devices
-      dot1XProfiles: []
+      dot1XProfiles:
+        - dot1XProfileName: DOT1X-2
+          portSecurity:
+            allowVlanId: 3
+            portSecurityAllowedMacCount: 5
+            portSecurityViolations: shutdown
+          dot1x:
+            timeoutReauthTimeoutIgnore: disabled
+            eapolAuthenticationFailureFallbackMba: disabled
+            eapol: enabled
+            reauthentication: disabled
+            portControl: auto
+            timeoutTxPeriod: '500'
+            reauthorizationRequestLimit: '9'
+            unauthorizedNativeVlanMembershipEgress: enabled
+            unauthorizedAccessVlanMembershipEgress: Enabled
+            hostMode: multi-host
+            macBasedAuthentication: host-mode-common
+            timeoutReauthPeriod: '70'
+            timeoutQuietPeriod: '2'
+            authenticationFailureAction: drop
       interfaceProfiles:
         - interfaceProfilesName: PHONE-TRUNK-TAGGED
           vlanProfile: PHONE-TRUNK-TAGGED
+          dot1XProfile: DOT1X-2
+          poeProfile: POE1
+          acl: ''
+          aclType: ip
+          aclDirection: in
+          qosInstance: QOS31
+          loggingProfile: LOGGING1
         - interfaceProfilesName: PHONE-TRUNK-UNTAGGED
           vlanProfile: PHONE-TRUNK-UNTAGGED
-      loggingProfiles: []
+          dot1XProfile: DOT1X-2
+          poeProfile: POE2
+          acl: ACL31
+          aclType: ip
+          aclDirection: out
+          qosInstance: ''
+          loggingProfile: LOGGING1
+      loggingProfiles:
+        - loggingProfileName: LOGGING1
+          logging:
+            linkStatus: enabled
       pimProfiles: []
-      poeProfiles: []
+      poeProfiles:
+        - poeProfileName: POE1
+          description: POE1
+          poe:
+            linkDownAction: maintain
+            poeWattsLimit: '30'
+            poeWattsLimitClass: '4'
+            poeShutdownAction: power-off
+            priority: low
+            legacyDetect: enabled
+            poeNegotiationLldp: disabled
+        - poeProfileName: POE2
+          description: ''
+          poe:
+            linkDownAction: power-off
+            poeWattsLimit: '60'
+            poeRebootAction: maintain
+            poeWattsLimitClass: '0'
+            poeShutdownAction: maintain
+            priority: medium
+            poeNegotiationLldp: enabled
+            legacyDetect: enabled
       ptpProfiles: []
-      qosInstances: []
-      siteName: PHONE-PORTS
-      stormControlProfiles: []
+      qosInstances:
+        - instanceName: QOS31
+          classMaps:
+            - classMapName: CM31
+              match: ip
+              matchValue: ''
+              acl: ACL31
+              type: qos
+          policyMaps:
+            - policyMapName: PM31
+              type: qos
+              classDefault: '0'
+              policyMapclassMaps:
+                - pmclassMap: CM31
+                  classMapSettings:
+                    dropPrecedence: '1'
+                    drop: true
+                    shapeRate: 5000
+          serviceProfiles: []
+          devices: []
+          classification: []
+          rewriteRules: []
+          trafficClassToQueue: []
+      siteName: PHONE-PORTS-PROFILES
+      stormControlProfiles:
+        - stormControlProfileName: STORM-CONTROL-1
+          stormControl:
+            stormControlBroadcastType: level
+            stormControlUnknownUnicastType: level
+            stormControlUnknownUnicastValue: 3
+            stormControlMulticastType: level
+            stormControlMulticastValue: 4
+            stormControlBroadcastValue: 5
       vlanProfiles:
         - allowedVlans: ''
           bpduGuardEnabled: true
@@ -1054,7 +1687,7 @@ inputs:
           phoneTrunk: tagged
           phoneVlanId: 200
           portFastEnabled: true
-          profileDescription: null
+          profileDescription: PHONE-TRUNK-TAGGED int desc -> $1
           profileIpAddressVirtual: ''
           vlanName: ''
         - allowedVlans: ''
@@ -1069,7 +1702,7 @@ inputs:
           phoneTrunk: untagged
           phoneVlanId: 0
           portFastEnabled: true
-          profileDescription: null
+          profileDescription: PHONE-TRUNK--UNTAGGED int desc -> $1
           profileIpAddressVirtual: ''
           vlanName: ''
       switches:
@@ -1082,17 +1715,17 @@ inputs:
                 inputs:
                   intfConfig:
                     description: SIMPLE-PHONE-TR-U
-                    ipPrefix: ''
-                    enabled: false
-                    vrf: ''
                     interfaceProfileName: PHONE-TRUNK-UNTAGGED
                     mlagEnabled: false
+                    enabled: true
+                    ipPrefix: ''
+                    vrf: ''
         - tags:
             query: device:SGD20240054
           inputs:
             interface:
               - tags:
-                  query: interface:Ethernet3@SGD20240054
+                  query: interface:Ethernet6@SGD20240054
                 inputs:
                   intfConfig:
                     description: SIMPLE-PHONE-TR-T

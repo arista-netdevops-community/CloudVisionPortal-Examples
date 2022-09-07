@@ -4,8 +4,8 @@
     value:
       key:
         studio_id: studio-campus-interfaces
-        workspace_id: &workspace_id ws-campus-interfaces
-      display_name: Campus Interfaces v2.7
+        workspace_id: 3db6a7cf-cc45-4eb3-b10a-9818e893e545
+      display_name: Campus Interfaces Sites list, Profiles at Stack level, Stack single tag v2.7.2
       description: Configure device interfaces and interface profiles, and assign administrative state, VLANs, and other attributes
       template:
         type: TEMPLATE_TYPE_MAKO
@@ -101,14 +101,22 @@
                                 item = item.replace(lookformystacknum,"",1)
                                 normalizedlist.append(item)
                           else:
-                                normalizedlist.append(item)
+                              return 0
+           #                     normalizedlist.append(item)
+                   # rejoin list with stack numbers removed
                       if normalizedlist:
-                  # rejoin list
                           intfName = ",".join(normalizedlist)
                       else:
                           return 0
+                  # / is not stack notation (might be a chassis)
+                  elif intfStackNum == "all-switches":
+                      intfName = ",".join(splitlist)
+                  # do not process if interface stack number is not this switch
                   elif intfStackNum != myStackNumber:
                       return 0
+              # do not process if not a stack but interface stack number is used
+              elif intfStackNum:
+                  return 0 
               # do not process if not a stack but input stack notation is used
               else:
                   searchreturn = intfName.find("/")
@@ -426,14 +434,14 @@
             intf.groupNum = intfCfg.get('channelGroup')
             accessVlan = None
             accessVlan = intfCfg.get('accessVlan')
-            mode = None
+            mode = "access"
             vlanName = None
             intf.acl = intfCfg.get('acl')
             intf.aclDirection = intfCfg.get('aclDirection')
             intf.aclType = intfCfg.get('aclType')
             intf.qosInstance = intfCfg.get('qosInstance')
             desc = intfCfg.get('description')
-            if vlanProfileCfg or dot1xProfileCfg or loggingProfileCfg or poeProfileCfg or stormControlProfileCfg or ptpProfileCfg or pimProfileCfg:
+            if vlanProfileCfg or dot1xProfileCfg or loggingProfileCfg or poeProfileCfg or stormControlProfileCfg or ptpProfileCfg or pimProfileCfg or intf.groupNum:
                 if ptpProfileCfg and not intf.groupNum:
                     intf.ptpGlobalCommands = ptpProfileCfg.get('ptpGlobalCommands')
                     intf.ptpvlanInterfaces = ptpProfileCfg.get('ptpvlanInterfaces')
@@ -454,7 +462,9 @@
                 if vlanProfileCfg:
                     if not intf.speed:
                         intf.speed = vlanProfileCfg.get('speed')
-                    intf.groupNum = vlanProfileCfg.get('channelGroup')
+                    profileGrouNum = vlanProfileCfg.get('channelGroup')
+                    if profileGrouNum:
+                        intf.groupNum = profileGrouNum
                     mode = vlanProfileCfg.get('mode')
                     intf.commandLine = vlanProfileCfg.get('commandLine')
                     if mode == 'access':
@@ -503,6 +513,8 @@
                             group.ipmtu = vlanProfileCfg.get('ipmtu')
                             group.rpfMode = vlanProfileCfg.get('reversePathForwardingMode')
                             group.helper = vlanProfileCfg.get('dhcpHelpers')
+                            if group.accessVlan:
+                              intf.groupNum = intf.groupNum + "." + str(group.accessVlan)
                         mlagEnabled = vlanProfileCfg.get('mlagEnabled')
                         intf.lacpEnabled = vlanProfileCfg.get('lacpEnabled')
                     if loggingProfileCfg:
@@ -540,7 +552,10 @@
             intf.vrf = intfCfg["vrf"]
             if intf.groupNum:
               # interface channel group inputs overrides general profile
-              groupNum = intfCfg.get('channelGroup')
+              if group.mode == "routed" and group.accessVlan:
+                  groupNum = intfCfg.get('channelGroup') + "." + str(group.accessVlan)
+              else:
+                  groupNum = intfCfg.get('channelGroup')
               if groupNum:
                 intf.groupNum = groupNum
                 group.mlagEnabled = intfCfg.get('mlagEnabled')
@@ -865,6 +880,7 @@
               %>
           <%
           intfName = stripSubInt(intfName)
+          intfCfg.groupNum = stripSubInt(intfCfg.groupNum)
           %>
           interface ${intfName}
           %if intfCfg.enabled:
@@ -893,6 +909,15 @@
               <%
                 # config for the port channel interfaces
               %>
+          %if groupCfg.mode == 'routed':
+            %if groupCfg.vrf:
+          vrf instance ${groupCfg.vrf}
+          ip routing vrf ${groupCfg.vrf}
+            %endif
+          %endif
+          <%
+          groupNum = stripSubInt(groupNum)
+          %>
           !
           interface Port-Channel ${groupNum}
           %if groupCfg.enabled:
@@ -931,6 +956,9 @@
           %    if groupCfg.accessVlan:
             interface Port-Channel ${groupNum}.${groupCfg.accessVlan}
               encapsulation dot1q vlan  ${groupCfg.accessVlan}
+          %    endif
+          %    if groupCfg.vrf:
+              vrf ${groupCfg.vrf}
           %    endif
           %    if groupCfg.ipaddress:
               ip address ${groupCfg.ipaddress}
@@ -1266,9 +1294,10 @@
           %  endif
           %endif
           </%def>\
+
           ## Main Configuration Loops
           % for intfName, intfCfg in sorted(interfaces.items()):
-          % if intfCfg.groupNum and intfCfg.groupNum > 0:
+          % if intfCfg.groupNum and intfCfg.groupNum is not None:
           ${makeChannelMemberCfg(intfName, intfCfg)}
           % else:
           ${makeIntfCfg(intfName, intfCfg)}
@@ -4322,18 +4351,6 @@
                 range: 68..65535
                 static_options: null
                 dynamic_options: null
-            profileChannelGroup:
-              id: profileChannelGroup
-              name: channelGroup
-              label: Port Channel Group
-              description: Enter a Port Channel ID if the interface is in a Link Aggregation Group (LAG)
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: 0..999999
-                static_options: null
-                dynamic_options: null
             profileMlagEnabled:
               id: profileMlagEnabled
               name: mlagEnabled
@@ -4472,6 +4489,20 @@
               collection_props:
                 base_field_id: generalprofilehelperAddressGroup
                 key: ''
+            26a4e291-d071-4af3-a7c0-c7c113b8b7cd:
+              id: 26a4e291-d071-4af3-a7c0-c7c113b8b7cd
+              name: channelGroup
+              label: Channel Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             profileValue:
               id: profileValue
               name: value
@@ -4493,7 +4524,6 @@
                     - profilePortFastEnabled
                     - ipaddress
                     - ipmtu
-                    - profileChannelGroup
                     - profileMlagEnabled
                     - profileLACPEnabled
                     - generalprofilephoneTrunk
@@ -4503,6 +4533,7 @@
                     - generalprofilevlanName
                     - generalprofilereversePathForwardingMode
                     - generalprofiledhcpHelpers
+                    - 26a4e291-d071-4af3-a7c0-c7c113b8b7cd
             profiles:
               id: profiles
               name: vlanProfiles
@@ -4806,7 +4837,7 @@
               id: interfacerangesstackNumber
               name: stackNumber
               label: Stack Number
-              description: Optional. Leave blank configures all devices in the stack
+              description: Optional. Leave blank and configure stack notation (1/1)
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4817,6 +4848,7 @@
                 pattern: null
                 dynamic_options:
                   values:
+                    - '{"fieldId":"ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0"}'
                     - '{"fieldId":"stackMember"}'
             interfacerangesvlanName:
               id: interfacerangesvlanName
@@ -4884,18 +4916,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            interfacerangeschaannelGroup:
-              id: interfacerangeschaannelGroup
-              name: channelGroup
-              label: Port Channel Group
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
             interfacesrangesmlagEnabled:
               id: interfacesrangesmlagEnabled
               name: mlagEnabled
@@ -4905,6 +4925,20 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
+            07fa4b5d-79d5-4734-9c6d-4f1b43ff9cd1:
+              id: 07fa4b5d-79d5-4734-9c6d-4f1b43ff9cd1
+              name: channelGroup
+              label: Channel Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             interfaceRangesGroup:
               id: interfaceRangesGroup
               name: interfaceRangesGroup
@@ -4925,8 +4959,8 @@
                     - interfacerangesipPrefix
                     - interfacerangesvrf
                     - interfacerangesspeed
-                    - interfacerangeschaannelGroup
                     - interfacesrangesmlagEnabled
+                    - 07fa4b5d-79d5-4734-9c6d-4f1b43ff9cd1
             interfaceRanges:
               id: interfaceRanges
               name: interfaceRanges
@@ -4985,7 +5019,7 @@
               id: vlaninterfacesstackNumber
               name: stackNumber
               label: Stack Number
-              description: Optional. Leave blank configures all member in the stack
+              description: Optional. Leave blank and configure stack notation (1/1)
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4996,6 +5030,7 @@
                 pattern: null
                 dynamic_options:
                   values:
+                    - '{"fieldId":"ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0"}'
                     - '{"fieldId":"stackMember"}'
             vlaninterfacessipPrefix:
               id: vlaninterfacessipPrefix
@@ -5146,7 +5181,7 @@
               id: stackMember
               name: stackMember
               label: Stack Number
-              description: 'Assign a unique number to each member of the stack.'
+              description: Assign a unique number to each member of the stack.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5179,6 +5214,20 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: ''
                 tag_filter_query: null
+            ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0:
+              id: ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0
+              name: all
+              label: all switches
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: all-switches
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             devicesGroupdevicesGroup:
               id: devicesGroupdevicesGroup
               name: devicesGroup
@@ -5192,6 +5241,7 @@
                     - interfaceRanges
                     - vlanInterfaces
                     - stack
+                    - ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0
             devices:
               id: devices
               name: devices
@@ -5202,8 +5252,8 @@
               resolver_props:
                 base_field_id: devicesGroupdevicesGroup
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: vStack
                 tag_filter_query: null
             siteName:
               id: siteName
@@ -5852,18 +5902,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            deviceschannelGroup:
-              id: deviceschannelGroup
-              name: channelGroup
-              label: Port Channel Group
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
             devicesmlagEnabled:
               id: devicesmlagEnabled
               name: mlagEnabled
@@ -5901,6 +5939,20 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            04cc45d1-9bd3-4c4d-a0a5-a2a634b0bb31:
+              id: 04cc45d1-9bd3-4c4d-a0a5-a2a634b0bb31
+              name: channelGroup
+              label: Channel Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             intfConfig:
               id: intfConfig
               name: intfConfig
@@ -5916,10 +5968,10 @@
                     - devicesenabled
                     - devicesaccessVlan
                     - devicesspeed
-                    - deviceschannelGroup
                     - devicesmlagEnabled
                     - devicesipPrefix
                     - devicesipvrf
+                    - 04cc45d1-9bd3-4c4d-a0a5-a2a634b0bb31
             interfaceinterface:
               id: interfaceinterface
               name: interface
@@ -5991,4 +6043,4 @@
                   values:
                     - sites
         layout:
-          value: '{"accessVlanId":{"key":"accessVlanId","dependency":{"mode":{"value":["access"],"mode":"SHOW"}},"type":"INPUT"},"nativeVlanId":{"key":"nativeVlanId","dependency":{"mode":{"value":["trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"allowedVlans":{"key":"allowedVlans","dependency":{"mode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT"},"phoneVlanId":{"key":"phoneVlanId","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}},"type":"INPUT"},"ipaddress":{"key":"ipaddress","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"ipmtu":{"key":"ipmtu","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"profilePortFastEnabled":{"key":"profilePortFastEnabled","dependency":{"mode":{"value":["access","trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"profileMlagEnabled":{"key":"profileMlagEnabled","dependency":{"mode":{"value":["routed","phone"],"mode":"HIDE"}},"dependencyType":"AND","type":"INPUT"},"profileLACPEnabled":{"key":"profileLACPEnabled","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}},"type":"INPUT"},"intfConfig":{"key":"intfConfig","type":"INPUT","order":["devicesinterfaceProfileName","devicesdescription","devicesenabled","devicesaccessVlan","devicesspeed","deviceschannelGroup","devicesmlagEnabled","devicesipPrefix","devicesipvrf"]},"profiles":{"key":"profiles","type":"INPUT","isPageLayout":true},"interfaceRangesGroup":{"key":"interfaceRangesGroup","type":"INPUT","order":["interfacerangesdescription","interfacerangesinterfaceProfileName","interfacerangesinterfaceName","interfacerangesstackNumber","interfacerangesaccessVlan","interfacerangesvlanName","interfacerangesenabled","interfacerangesspeed","interfacerangeschaannelGroup","interfacesrangesmlagEnabled","interfacerangesipPrefix","interfacerangesvrf"]},"devicesGroupdevicesGroup":{"key":"devicesGroupdevicesGroup","type":"INPUT","order":["stack","interfaceRanges","vlanInterfaces"]},"dot1XGroup":{"key":"dot1XGroup","type":"INPUT","order":["dot1XProfileName","portSecurity","dot1xdot1x"]},"poeGroup":{"key":"poeGroup","type":"INPUT","order":["poepoeProfileName","aclacledescription","poe"]},"poeProfiles":{"key":"poeProfiles","type":"INPUT","isPageLayout":true},"aclaclNames":{"key":"aclaclNames","type":"INPUT","isPageLayout":true},"qosInstances":{"key":"qosInstances","type":"INPUT","isPageLayout":true},"dot1XProfiles":{"key":"dot1XProfiles","type":"INPUT","isPageLayout":true},"acldirection":{"key":"acldirection","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"aclinterfacedirection":{"key":"aclinterfacedirection","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"policyMaps":{"key":"policyMaps","isPageLayout":false,"type":"INPUT"},"483b1c5f-0424-40a2-aaf5-db91db145de9":{"key":"483b1c5f-0424-40a2-aaf5-db91db145de9","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"835c430a-c64d-47fa-a520-ee896cf06d17":{"key":"835c430a-c64d-47fa-a520-ee896cf06d17","type":"INPUT","valueToLabelMap":{"True":"protect","False":"shutdown"}},"portSecurity":{"key":"portSecurity","type":"INPUT","order":["portSecurityViolations","portSecurityAllowedMacCount","portSecurityallowVlanId"]},"profileValue":{"key":"profileValue","type":"INPUT","order":["profileName","mode","profileDescription","profileSpeed","accessVlanId","generalprofilevlanName","nativeVlanId","phoneVlanId","generalprofilephoneTrunk","allowedVlans","profilePortFastEnabled","generalprofilebpduGuardEnabled","ipaddress","generalprofileprofileIpAddressVirtual","generalprofiledhcpHelpers","generalprofilereversePathForwardingMode","ipmtu","profileChannelGroup","profileMlagEnabled","profileLACPEnabled","generalprofilecommandLine"]},"generalprofilephoneTrunk":{"key":"generalprofilephoneTrunk","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}}},"portSecurityallowVlanId":{"key":"portSecurityallowVlanId","dependency":{},"type":"INPUT"},"loggingGroup":{"key":"loggingGroup","type":"INPUT","order":["loggingProfileName","logging"]},"loggingProfiles":{"key":"loggingProfiles","type":"INPUT","isPageLayout":true},"policyMapclassMapSettings":{"key":"policyMapclassMapSettings","type":"INPUT","order":["policyMapshapeRate","policyMapbandwidth","policyMapbanddrop","policyMapdropPrecedence","policyMapdscp","policyMapcos","policyMaptrafficClass","policyMappolicerRate","policyMappolicerBc","policyMappolicerBurstSize","policyMappolicerCir"]},"policyMappmClassMapGroup":{"key":"policyMappmClassMapGroup","type":"INPUT","order":["classMap","policyMapclassMapSettings"]},"f9758ef0-476e-4fd2-9b7f-85f232e04eb5":{"key":"f9758ef0-476e-4fd2-9b7f-85f232e04eb5","type":"INPUT","isPageLayout":true},"qosprofileserviceProfileGroup":{"key":"qosprofileserviceProfileGroup","type":"INPUT","order":["qosprofileName","qosprofilepolicyMap","qosprofileshapeRate","qosprofiletrust","qosprofiletrustdscp","qosprofiletrustcos","qosprofilequeuetxQueue"]},"qosprofiledevicetxQueueGroup":{"key":"qosprofiledevicetxQueueGroup","type":"INPUT","order":["qosprofiledevicequeue","qosprofiledeviceshapeRate","qosprofiledevicebandwidth","qosprofiledevicebandwidthType","qosprofiledevicepriorityStrict","qosprofiledevicerandomDetectType","qosprofiledevicerdMinThreshold","qosprofiledeviceminThresholdMetric","qosprofiledevicerdMaxThreshold","qosprofiledevicedropProbability"]},"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887":{"key":"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887","isPageLayout":false,"type":"INPUT"},"c193f31f-e3b5-4583-8244-519b3a5e933f":{"key":"c193f31f-e3b5-4583-8244-519b3a5e933f","type":"INPUT","order":["2fc54fc9-4f0d-46a9-8d3f-cbc7e2a94af6","87ecb8f9-44d1-4042-b2c3-c897db77b2e4"]},"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6":{"key":"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6","type":"INPUT","isPageLayout":false},"vlaninterfacesssecIp":{"key":"vlaninterfacesssecIp","type":"INPUT","isPageLayout":false},"interface":{"key":"interface","isPageLayout":false,"type":"INPUT"},"interfaceProfilesGroup":{"key":"interfaceProfilesGroup","type":"INPUT","order":["interfaceProfilesName","interfaceProfilesvlanProfile","interfaceProfilesdot1XProfile","interfaceProfilespoeProfile","interfaceProfilesacl","interfaceProfileaclType","interfaceProfileaclDirection","interfaceProfileqosInstance","interfaceProfilesloggingProfile","interfaceProfilestormControlProfile","interfaceProfileptpProfile","interfaceProfilepimProfile"]},"vlaninterfacessvlanInterfacesGroup":{"key":"vlaninterfacessvlanInterfacesGroup","type":"INPUT","order":["vlaninterfacesdescription","vlaninterfacesinterfaceProfileName","vlaninterfacesvlanId","vlaninterfacesstackNumber","vlaninterfacessipPrefix","vlaninterfacessvirtualRouterAddress","vlaninterfacessipAddressVirtual","vlaninterfacessvrf","vlaninterfacesscreateVlanOnly","vlaninterfacesssecIp","vlaninterfacessdefaultGatewayNextHop"]},"2a6c7292-7231-4036-9372-22e8ac584b38":{"key":"2a6c7292-7231-4036-9372-22e8ac584b38","type":"INPUT","order":[]},"b0e43563-603c-46f2-8480-12733aa2f7cd":{"key":"b0e43563-603c-46f2-8480-12733aa2f7cd","type":"INPUT","order":[]},"generalprofileprofileIpAddressVirtual":{"key":"generalprofileprofileIpAddressVirtual","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"dot1xdot1x":{"key":"dot1xdot1x","type":"INPUT","order":["portControl","dot1xauthenticationFailureAction","dot1xauthenticationFailureActionAllowVlan","dot1xhostMode","dot1xmacBasedAuthentication","dot1xeapol","dot1xeapolAuthenticationFailureFallbackMba","dot1xunauthorizedAccessVlanMembershipEgress","dot1xunauthorizedNativeVlanMembershipEgress","dot1xreauthorizationRequestLimit","dot1xtimeoutTxPeriod","dot1xtimeoutReauthTimeoutIgnore","dot1xtimeoutReauthPeriod","dot1xtimeoutQuietPeriod","dot1xreauthentication","dot1xidleHost"]},"stormControlProfilesGroup":{"key":"stormControlProfilesGroup","type":"INPUT","order":["stormControlProfileName","stormControl"]},"stormControlProfiles":{"key":"stormControlProfiles","type":"INPUT","isPageLayout":true},"stormControl":{"key":"stormControl","type":"INPUT","order":["stormControlLevelAllType","stormControlLevelAllValue","stormControlUnknownUnicastType","stormControlUnknownUnicastValue","stormControlMulticastType","stormControlMulticastValue","stormControlBroadcastType","stormControlBroadcastValue"]},"profileChannelGroup":{"key":"profileChannelGroup","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}}},"generalprofilevlanName":{"key":"generalprofilevlanName","type":"INPUT","dependency":{"mode":{"value":["access"],"mode":"SHOW"}}},"sitesGroup":{"key":"sitesGroup","type":"INPUT","order":["siteName","switchesswitches","devices","interfacerangesinterfaceProfiles","profiles","dot1XProfiles","poeProfiles","aclaclNames","qosInstances","loggingProfiles","stormControlProfiles","ptpProfiles","pimProfilespimProfiles"]},"sites":{"key":"sites","type":"INPUT","isPageLayout":true},"ptpProfilesGroup":{"key":"ptpProfilesGroup","type":"INPUT","order":["ptpProfileName","ptpGlobalCommands","ptpPorts","ea827941-c038-4f84-a751-5ee9badad1c9"]},"pimProfilesGroup":{"key":"pimProfilesGroup","type":"INPUT","order":["pimProfileName","pimInterfaceCommands","routerPimCommands","routerMulticastCommands"]},"ptpProfiles":{"key":"ptpProfiles","type":"INPUT","isPageLayout":true},"pimProfilespimProfiles":{"key":"pimProfilespimProfiles","type":"INPUT","isPageLayout":true},"generalprofilebpduGuardEnabled":{"key":"generalprofilebpduGuardEnabled","dependency":{"mode":{"value":["access","phone","trunk"],"mode":"SHOW"}},"type":"INPUT"},"generalprofilereversePathForwardingMode":{"key":"generalprofilereversePathForwardingMode","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"routerPimCommands":{"key":"routerPimCommands","type":"INPUT","order":["pimmode","pimpimtype","pimvrf","pimrpAddress","pimrpOverride","pimgroupAccessList","pimpriority"]},"routerMulticastCommands":{"key":"routerMulticastCommands","type":"INPUT","order":["multicastrouting","multicastroutingtype","multicastvrf","multicastroutingcountersMetric","multicastroutingcountersRatePeriodDecay"]},"generalprofilehelperAddress":{"key":"generalprofilehelperAddress","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"switchesswitches":{"key":"switchesswitches","type":"INPUT","showDefaultRow":false},"interfaceinterface":{"key":"interfaceinterface","type":"INPUT","showDefaultRow":false},"devices":{"key":"devices","type":"INPUT","showDefaultRow":false},"qosprofilequeuetxQueueGroup":{"key":"qosprofilequeuetxQueueGroup","type":"INPUT","order":["qosprofilequeue","qosprofilequeuepriorityStrict","qosprofilequeueshapeRate","qosprofilequeuebandwidthType","qosprofilequeuebandwidth","qosprofilequeuerandomDetectType","qosprofilequeuerdMinThreshold","qosprofilequeueminThresholdMetric","qosprofilequeuerdMaxThreshold","qosprofilequeuedropProbability"]},"dot1xunauthorizedAccessVlanMembershipEgress":{"key":"dot1xunauthorizedAccessVlanMembershipEgress","type":"INPUT","valueToLabelMap":{"Disabled":"disabled","Enabled":"enabled"}},"policyMapclassMap":{"key":"policyMapclassMap","type":"INPUT","isPageLayout":false}}'
+          value: '{"accessVlanId":{"key":"accessVlanId","dependency":{"mode":{"value":["access"],"mode":"SHOW"}},"type":"INPUT"},"nativeVlanId":{"key":"nativeVlanId","dependency":{"mode":{"value":["trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"allowedVlans":{"key":"allowedVlans","dependency":{"mode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT"},"phoneVlanId":{"key":"phoneVlanId","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}},"type":"INPUT"},"ipaddress":{"key":"ipaddress","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"ipmtu":{"key":"ipmtu","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"profilePortFastEnabled":{"key":"profilePortFastEnabled","dependency":{"mode":{"value":["access","trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"profileMlagEnabled":{"key":"profileMlagEnabled","dependency":{"mode":{"value":["routed","phone"],"mode":"HIDE"}},"dependencyType":"AND","type":"INPUT"},"profileLACPEnabled":{"key":"profileLACPEnabled","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}},"type":"INPUT"},"intfConfig":{"key":"intfConfig","type":"INPUT","order":["devicesinterfaceProfileName","devicesdescription","devicesenabled","devicesaccessVlan","devicesspeed","04cc45d1-9bd3-4c4d-a0a5-a2a634b0bb31","devicesmlagEnabled","devicesipPrefix","devicesipvrf"]},"profiles":{"key":"profiles","type":"INPUT","isPageLayout":true},"interfaceRangesGroup":{"key":"interfaceRangesGroup","type":"INPUT","order":["interfacerangesdescription","interfacerangesinterfaceProfileName","interfacerangesinterfaceName","interfacerangesstackNumber","interfacerangesaccessVlan","interfacerangesvlanName","interfacerangesenabled","interfacerangesspeed","07fa4b5d-79d5-4734-9c6d-4f1b43ff9cd1","interfacesrangesmlagEnabled","interfacerangesipPrefix","interfacerangesvrf"]},"devicesGroupdevicesGroup":{"key":"devicesGroupdevicesGroup","type":"INPUT","order":["stack","interfaceRanges","vlanInterfaces","ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0"]},"dot1XGroup":{"key":"dot1XGroup","type":"INPUT","order":["dot1XProfileName","portSecurity","dot1xdot1x"]},"poeGroup":{"key":"poeGroup","type":"INPUT","order":["poepoeProfileName","aclacledescription","poe"]},"poeProfiles":{"key":"poeProfiles","type":"INPUT","isPageLayout":true},"aclaclNames":{"key":"aclaclNames","type":"INPUT","isPageLayout":true},"qosInstances":{"key":"qosInstances","type":"INPUT","isPageLayout":true},"dot1XProfiles":{"key":"dot1XProfiles","type":"INPUT","isPageLayout":true},"acldirection":{"key":"acldirection","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"aclinterfacedirection":{"key":"aclinterfacedirection","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"policyMaps":{"key":"policyMaps","isPageLayout":false,"type":"INPUT"},"483b1c5f-0424-40a2-aaf5-db91db145de9":{"key":"483b1c5f-0424-40a2-aaf5-db91db145de9","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"835c430a-c64d-47fa-a520-ee896cf06d17":{"key":"835c430a-c64d-47fa-a520-ee896cf06d17","type":"INPUT","valueToLabelMap":{"True":"protect","False":"shutdown"}},"portSecurity":{"key":"portSecurity","type":"INPUT","order":["portSecurityViolations","portSecurityAllowedMacCount","portSecurityallowVlanId"]},"profileValue":{"key":"profileValue","type":"INPUT","order":["profileName","mode","profileDescription","profileSpeed","accessVlanId","generalprofilevlanName","nativeVlanId","phoneVlanId","generalprofilephoneTrunk","allowedVlans","profilePortFastEnabled","generalprofilebpduGuardEnabled","ipaddress","generalprofileprofileIpAddressVirtual","generalprofiledhcpHelpers","generalprofilereversePathForwardingMode","ipmtu","26a4e291-d071-4af3-a7c0-c7c113b8b7cd","profileMlagEnabled","profileLACPEnabled","generalprofilecommandLine"]},"generalprofilephoneTrunk":{"key":"generalprofilephoneTrunk","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}}},"portSecurityallowVlanId":{"key":"portSecurityallowVlanId","dependency":{},"type":"INPUT"},"loggingGroup":{"key":"loggingGroup","type":"INPUT","order":["loggingProfileName","logging"]},"loggingProfiles":{"key":"loggingProfiles","type":"INPUT","isPageLayout":true},"policyMapclassMapSettings":{"key":"policyMapclassMapSettings","type":"INPUT","order":["policyMapshapeRate","policyMapbandwidth","policyMapbanddrop","policyMapdropPrecedence","policyMapdscp","policyMapcos","policyMaptrafficClass","policyMappolicerRate","policyMappolicerBc","policyMappolicerBurstSize","policyMappolicerCir"]},"policyMappmClassMapGroup":{"key":"policyMappmClassMapGroup","type":"INPUT","order":["classMap","policyMapclassMapSettings"]},"f9758ef0-476e-4fd2-9b7f-85f232e04eb5":{"key":"f9758ef0-476e-4fd2-9b7f-85f232e04eb5","type":"INPUT","isPageLayout":true},"qosprofileserviceProfileGroup":{"key":"qosprofileserviceProfileGroup","type":"INPUT","order":["qosprofileName","qosprofilepolicyMap","qosprofileshapeRate","qosprofiletrust","qosprofiletrustdscp","qosprofiletrustcos","qosprofilequeuetxQueue"]},"qosprofiledevicetxQueueGroup":{"key":"qosprofiledevicetxQueueGroup","type":"INPUT","order":["qosprofiledevicequeue","qosprofiledeviceshapeRate","qosprofiledevicebandwidth","qosprofiledevicebandwidthType","qosprofiledevicepriorityStrict","qosprofiledevicerandomDetectType","qosprofiledevicerdMinThreshold","qosprofiledeviceminThresholdMetric","qosprofiledevicerdMaxThreshold","qosprofiledevicedropProbability"]},"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887":{"key":"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887","isPageLayout":false,"type":"INPUT"},"c193f31f-e3b5-4583-8244-519b3a5e933f":{"key":"c193f31f-e3b5-4583-8244-519b3a5e933f","type":"INPUT","order":["2fc54fc9-4f0d-46a9-8d3f-cbc7e2a94af6","87ecb8f9-44d1-4042-b2c3-c897db77b2e4"]},"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6":{"key":"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6","type":"INPUT","isPageLayout":false},"vlaninterfacesssecIp":{"key":"vlaninterfacesssecIp","type":"INPUT","isPageLayout":false},"interface":{"key":"interface","isPageLayout":false,"type":"INPUT"},"interfaceProfilesGroup":{"key":"interfaceProfilesGroup","type":"INPUT","order":["interfaceProfilesName","interfaceProfilesvlanProfile","interfaceProfilesdot1XProfile","interfaceProfilespoeProfile","interfaceProfilesacl","interfaceProfileaclType","interfaceProfileaclDirection","interfaceProfileqosInstance","interfaceProfilesloggingProfile","interfaceProfilestormControlProfile","interfaceProfileptpProfile","interfaceProfilepimProfile"]},"vlaninterfacessvlanInterfacesGroup":{"key":"vlaninterfacessvlanInterfacesGroup","type":"INPUT","order":["vlaninterfacesdescription","vlaninterfacesinterfaceProfileName","vlaninterfacesvlanId","vlaninterfacesstackNumber","vlaninterfacessipPrefix","vlaninterfacessvirtualRouterAddress","vlaninterfacessipAddressVirtual","vlaninterfacessvrf","vlaninterfacesscreateVlanOnly","vlaninterfacesssecIp","vlaninterfacessdefaultGatewayNextHop"]},"2a6c7292-7231-4036-9372-22e8ac584b38":{"key":"2a6c7292-7231-4036-9372-22e8ac584b38","type":"INPUT","order":[]},"b0e43563-603c-46f2-8480-12733aa2f7cd":{"key":"b0e43563-603c-46f2-8480-12733aa2f7cd","type":"INPUT","order":[]},"generalprofileprofileIpAddressVirtual":{"key":"generalprofileprofileIpAddressVirtual","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"dot1xdot1x":{"key":"dot1xdot1x","type":"INPUT","order":["portControl","dot1xauthenticationFailureAction","dot1xauthenticationFailureActionAllowVlan","dot1xhostMode","dot1xmacBasedAuthentication","dot1xeapol","dot1xeapolAuthenticationFailureFallbackMba","dot1xunauthorizedAccessVlanMembershipEgress","dot1xunauthorizedNativeVlanMembershipEgress","dot1xreauthorizationRequestLimit","dot1xtimeoutTxPeriod","dot1xtimeoutReauthTimeoutIgnore","dot1xtimeoutReauthPeriod","dot1xtimeoutQuietPeriod","dot1xreauthentication","dot1xidleHost"]},"stormControlProfilesGroup":{"key":"stormControlProfilesGroup","type":"INPUT","order":["stormControlProfileName","stormControl"]},"stormControlProfiles":{"key":"stormControlProfiles","type":"INPUT","isPageLayout":true},"stormControl":{"key":"stormControl","type":"INPUT","order":["stormControlLevelAllType","stormControlLevelAllValue","stormControlUnknownUnicastType","stormControlUnknownUnicastValue","stormControlMulticastType","stormControlMulticastValue","stormControlBroadcastType","stormControlBroadcastValue"]},"profileChannelGroup":{"key":"profileChannelGroup","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}}},"generalprofilevlanName":{"key":"generalprofilevlanName","type":"INPUT","dependency":{"mode":{"value":["access"],"mode":"SHOW"}}},"sitesGroup":{"key":"sitesGroup","type":"INPUT","order":["siteName","switchesswitches","devices","interfacerangesinterfaceProfiles","profiles","dot1XProfiles","poeProfiles","aclaclNames","qosInstances","loggingProfiles","stormControlProfiles","ptpProfiles","pimProfilespimProfiles"]},"sites":{"key":"sites","type":"INPUT","isPageLayout":true},"ptpProfilesGroup":{"key":"ptpProfilesGroup","type":"INPUT","order":["ptpProfileName","ptpGlobalCommands","ptpPorts","ea827941-c038-4f84-a751-5ee9badad1c9"]},"pimProfilesGroup":{"key":"pimProfilesGroup","type":"INPUT","order":["pimProfileName","pimInterfaceCommands","routerPimCommands","routerMulticastCommands"]},"ptpProfiles":{"key":"ptpProfiles","type":"INPUT","isPageLayout":true},"pimProfilespimProfiles":{"key":"pimProfilespimProfiles","type":"INPUT","isPageLayout":true},"generalprofilebpduGuardEnabled":{"key":"generalprofilebpduGuardEnabled","dependency":{"mode":{"value":["access","phone","trunk"],"mode":"SHOW"}},"type":"INPUT"},"generalprofilereversePathForwardingMode":{"key":"generalprofilereversePathForwardingMode","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"routerPimCommands":{"key":"routerPimCommands","type":"INPUT","order":["pimmode","pimpimtype","pimvrf","pimrpAddress","pimrpOverride","pimgroupAccessList","pimpriority"]},"routerMulticastCommands":{"key":"routerMulticastCommands","type":"INPUT","order":["multicastrouting","multicastroutingtype","multicastvrf","multicastroutingcountersMetric","multicastroutingcountersRatePeriodDecay"]},"generalprofilehelperAddress":{"key":"generalprofilehelperAddress","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"switchesswitches":{"key":"switchesswitches","type":"INPUT","showDefaultRow":false},"interfaceinterface":{"key":"interfaceinterface","type":"INPUT","showDefaultRow":false},"devices":{"key":"devices","type":"INPUT","showDefaultRow":false},"qosprofilequeuetxQueueGroup":{"key":"qosprofilequeuetxQueueGroup","type":"INPUT","order":["qosprofilequeue","qosprofilequeuepriorityStrict","qosprofilequeueshapeRate","qosprofilequeuebandwidthType","qosprofilequeuebandwidth","qosprofilequeuerandomDetectType","qosprofilequeuerdMinThreshold","qosprofilequeueminThresholdMetric","qosprofilequeuerdMaxThreshold","qosprofilequeuedropProbability"]},"dot1xunauthorizedAccessVlanMembershipEgress":{"key":"dot1xunauthorizedAccessVlanMembershipEgress","type":"INPUT","valueToLabelMap":{"Disabled":"disabled","Enabled":"enabled"}},"policyMapclassMap":{"key":"policyMapclassMap","type":"INPUT","isPageLayout":false},"ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0":{"key":"ac84878d-5a9e-42cc-80ee-f0d2bcfb5af0","type":"INPUT","dependency":{}},"26a4e291-d071-4af3-a7c0-c7c113b8b7cd":{"key":"26a4e291-d071-4af3-a7c0-c7c113b8b7cd","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}}}}'
