@@ -4,7 +4,7 @@
     value:
       key:
         studio_id: studio-connected-endpoints
-        workspace_id: &workspace_id ws-connected-endpoints
+        workspace_id: ''
       display_name: Endpoint Connectivity
       description: 'The connected endpoints variables, define endpoints that connect to the fabric on leaf interface(s). The connected endpoints are leveraged to define any device that connects to a leaf switch ports, i.e.: servers, firewalls, routers, load balancers, and storage arrays.'
       template:
@@ -94,16 +94,16 @@
                   # Get port profile attributes
                   # Get profile's speed
                   port_profile_speed = port_profile["portProfileSpeed"] \
-                  if port_profile["portProfileSpeed"] is not None and \
-                      port_profile["portProfileSpeed"].strip() != '' else None
+                          if port_profile["portProfileSpeed"] is not None and \
+                          port_profile["portProfileSpeed"].strip() != '' else None
                   # Get profile's MTU
                   port_profile_mtu = port_profile["portProfileMtu"]
                   # Get profile's mode
                   port_profile_mode = port_profile['vlanSettings']["portProfileMode"]
                   # Get profile's allowed/access vlans
                   port_profile_vlans = port_profile['vlanSettings']["portProfileVlans"] \
-                      if port_profile['vlanSettings']["portProfileVlans"] is not None and \
-                      port_profile['vlanSettings']["portProfileVlans"].strip() != '' else None
+                          if port_profile['vlanSettings']["portProfileVlans"] is not None and \
+                          port_profile['vlanSettings']["portProfileVlans"].strip() != '' else None
                   # Get profile's native vlan
                   port_profile_native_vlan = port_profile['vlanSettings']["portProfileNativeVlan"]
 
@@ -148,7 +148,7 @@
                           if stormUUCast["portProfileStormControlUnknownUnicastUnit"] is not None and \
                               stormUUCast["portProfileStormControlUnknownUnicastUnit"].strip() != '' else "percent"
 
-                  # Get profile's Port-Channel
+                  # Get profile's Port-Channel 
                   port_profile_port_channel = {}
                   channel_group_id = None
                   port_profile_lacp_fallback_mode = None
@@ -594,14 +594,14 @@
                               count = sum([ (int(y.split('-')[1]) - int(y.split('-')[0]) + 1) if y.find('-') > 0 else 1 for y in str(interfacesCombined).split(',')], count)
                           return count
 
-                      if interfaceCount() > 1:
-                          if adapter_port_channel_short_esi is not None:
-                              ## Configure ESI
-                              connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
-                              connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
-                              if adapter_port_channel_mode == "active":
-                                  connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
-
+                      if adapter_port_channel_short_esi is not None and adapter_port_channel_short_esi.strip() != "":
+                          ## Configure ESI
+                          connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
+                          connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
+                          if adapter_port_channel_mode == "active":
+                              connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
+                      else:
+                          connected_port_channel_interface_config["mlag"] = adapter_channel_group_id
                       ## Add interface config to connected_port_channel_interface_config dictionary
                       my_switch_port_channel_interfaces["Port-Channel {}".format(adapter_channel_group_id)] = \
                           connected_port_channel_interface_config
@@ -675,6 +675,9 @@
           %     if currentPortchannel.get("lacp_fallback_mode") is not None:
             port-channel lacp fallback ${ currentPortchannel["lacp_fallback_mode"] }
           %     endif
+          %     if currentPortchannel.get("mlag") is not None:
+            mlag ${ currentPortchannel.get("mlag") }
+          %     endif %}
           %     if currentPortchannel.get("spanning_tree_portfast") is not None:
           %       if currentPortchannel["spanning_tree_portfast"] == "edge":
             spanning-tree portfast
@@ -761,7 +764,10 @@
             switchport access vlan ${ currentInt.get("vlans") }
           %             endif
           %         endif
-
+          ## Speed
+          %         if config["ethernet_interfaces"][ethernet_interface].get('speed'):
+            speed ${ config["ethernet_interfaces"][ethernet_interface]["speed"] }
+          %         endif
           ## Phone VLAN
           %         if currentInt.get("phone_enabled") is True and currentInt.get("phone_vlan") is not None:
             switchport phone vlan ${ currentInt.get("phone_vlan") }
@@ -959,6 +965,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -973,6 +980,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: edge
+                is_secret: false
                 static_options:
                   values:
                     - edge
@@ -990,6 +998,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1007,6 +1016,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1037,6 +1047,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - received
@@ -1066,6 +1077,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1080,6 +1092,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1094,6 +1107,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1123,6 +1137,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1137,6 +1152,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1166,6 +1182,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1180,6 +1197,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1209,6 +1227,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1223,6 +1242,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1287,6 +1307,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - active
@@ -1305,6 +1326,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - static
@@ -1345,6 +1367,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1371,6 +1394,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1401,6 +1425,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1436,6 +1461,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: access
+                is_secret: false
                 static_options:
                   values:
                     - access
@@ -1466,6 +1492,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1553,6 +1580,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Allow
@@ -1636,6 +1664,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1785,6 +1814,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1799,6 +1829,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1815,6 +1846,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - None
@@ -1833,6 +1865,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1850,6 +1883,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1880,6 +1914,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - received
@@ -1909,6 +1944,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1935,6 +1971,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - active
@@ -1953,6 +1990,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - static
@@ -1993,6 +2031,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2016,6 +2055,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2046,6 +2086,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2060,6 +2101,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2089,6 +2131,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2103,6 +2146,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2132,6 +2176,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2146,6 +2191,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2175,6 +2221,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2189,6 +2236,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: percent
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2262,6 +2310,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Drop
+                is_secret: false
                 static_options:
                   values:
                     - Allow
@@ -2375,6 +2424,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - access
@@ -2405,6 +2455,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2465,6 +2516,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2582,6 +2634,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2596,6 +2649,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
