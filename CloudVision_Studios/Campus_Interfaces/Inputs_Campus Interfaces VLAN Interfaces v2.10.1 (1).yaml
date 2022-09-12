@@ -1,287 +1,13 @@
 path: []
 inputs:
-  vlanProfiles:
-    - name: DHCP-HELPERS
-      mode: routed
-      profileDescription: DHCP-HELPERS $1
-      vlanName: ''
-      nativeVlanId: 1
-      phoneVlanId: 0
-      allowedVlans: ''
-      portFastEnabled: false
-      bpduGuardEnabled: false
-      ipaddress: ''
-      profileIpAddressVirtual: ''
-      channelGroup: ''
-      mlagEnabled: false
-      lacpEnabled: true
-      commandLine: ''
-      dhcpHelpers:
-        - helperAddress: 1.2.3.4
-        - helperAddress: 2.3.4.5
-        - helperAddress: 3.4.5.6
-    - name: MTU
-      mode: routed
-      profileDescription: MTU $1
-      vlanName: ''
-      nativeVlanId: 1
-      phoneVlanId: 0
-      allowedVlans: ''
-      portFastEnabled: false
-      bpduGuardEnabled: false
-      ipaddress: ''
-      profileIpAddressVirtual: ''
-      channelGroup: ''
-      mlagEnabled: false
-      lacpEnabled: true
-      commandLine: ''
-      dhcpHelpers: []
-      ipmtu: 1500
-    - name: RPF
-      mode: routed
-      profileDescription: RPF LOOSE $1
-      vlanName: ''
-      nativeVlanId: 1
-      phoneVlanId: 0
-      allowedVlans: ''
-      portFastEnabled: false
-      bpduGuardEnabled: false
-      ipaddress: ''
-      profileIpAddressVirtual: ''
-      channelGroup: ''
-      mlagEnabled: false
-      lacpEnabled: true
-      commandLine: ''
-      dhcpHelpers: []
-      reversePathForwardingMode: loose-mode
-    - name: COMMAND-LINE-INPUT
-      mode: routed
-      profileDescription: COMMAND-LINE-INPUT $1
-      vlanName: ''
-      nativeVlanId: 1
-      phoneVlanId: 0
-      allowedVlans: ''
-      portFastEnabled: false
-      bpduGuardEnabled: false
-      ipaddress: ''
-      profileIpAddressVirtual: ''
-      channelGroup: ''
-      mlagEnabled: false
-      lacpEnabled: true
-      commandLine: '!!! L3 command line !!!!!!!!!!'
-      dhcpHelpers: []
-    - name: ALL-L3-KNOBS
-      mode: routed
-      profileDescription: ALL-L3-KNOBS $1
-      vlanName: ''
-      nativeVlanId: 1
-      phoneVlanId: 0
-      allowedVlans: ''
-      portFastEnabled: false
-      bpduGuardEnabled: false
-      ipaddress: null
-      profileIpAddressVirtual: 66.66.66.1/24
-      channelGroup: ''
-      mlagEnabled: false
-      lacpEnabled: true
-      commandLine: '!!!!!!!!!!!!!!!!!!!!!!!'
-      dhcpHelpers:
-        - helperAddress: 23.34.45.56
-        - helperAddress: 45.56.67.78
-      reversePathForwardingMode: strict-mode
-      ipmtu: 1500
-  aclNames:
-    - name: ACL1
-      description: ACL1 $1
-      type: ip
-      countersPerEntry: true
-      devices: []
-      aclLines:
-        - seqNumber: '10'
-          permitDenyRemark: permit
-          description: any
-          source: any
-          destination: any
-          log: true
-          tracked: false
-          protocol: ip
-        - seqNumber: '20'
-          permitDenyRemark: deny
-          description: deny
-          source: any
-          destination: any
-          log: false
-          tracked: false
-          protocol: ip
-        - seqNumber: '30'
-          permitDenyRemark: remark
-          description: ACL1
-          source: ''
-          destination: ''
-          log: false
-          tracked: false
-    - name: ACL2
-      description: ACL2 $1
-      type: ip
-      countersPerEntry: false
-      devices: []
-      aclLines:
-        - seqNumber: '10'
-          permitDenyRemark: deny
-          description: deny
-          source: any
-          destination: any
-          log: false
-          tracked: true
-          protocol: ip
-        - seqNumber: '20'
-          permitDenyRemark: permit
-          description: permit
-          source: any
-          destination: any
-          log: false
-          tracked: false
-          protocol: ip
-        - seqNumber: '30'
-          permitDenyRemark: remark
-          description: ACL2
-          source: ''
-          destination: ''
-          log: false
-          tracked: false
-  qosInstances:
-    - instanceName: QOS-POLICY-MAP1
-      classMaps:
-        - classMapName: CMPM1-ACL1
-          match: ip
-          matchValue: ''
-          type: qos
-          acl: ACL1
-        - classMapName: CMPM1-ACL2
-          match: ip
-          matchValue: ''
-          type: qos
-          acl: ACL2
-      policyMaps:
-        - policyMapName: QOSPM1-PM
-          type: qos
-          classDefault: '1'
-          policyMapclassMaps:
-            - pmclassMap: CMPM1-ACL1
-              classMapSettings:
-                drop: false
-                trafficClass: '2'
-            - pmclassMap: CMPM1-ACL2
-              classMapSettings:
-                drop: false
-                trafficClass: '3'
-      serviceProfiles: []
-      devices: []
-      classification: []
-      rewriteRules: []
-      trafficClassToQueue: []
-    - instanceName: QOS-POLICY-MAP2
-      classMaps:
-        - classMapName: CMSP2
-          match: ip
-          matchValue: ''
-          acl: ACL2
-          type: qos
-      policyMaps:
-        - policyMapName: QOSSP2PM1
-          type: qos
-          classDefault: ''
-          policyMapclassMaps:
-            - pmclassMap: CMSP2
-              classMapSettings:
-                drop: false
-                trafficClass: '7'
-                bandwidth: 500
-      serviceProfiles: []
-      devices: []
-      classification: []
-      rewriteRules: []
-      trafficClassToQueue: []
-  interfaceProfiles:
-    - interfaceProfilesName: DHCP-HELPERS
-      vlanProfile: DHCP-HELPERS
-    - interfaceProfilesName: MTU
-      vlanProfile: MTU
-    - interfaceProfilesName: RPF
-      vlanProfile: RPF
-    - interfaceProfilesName: COMMAND-LINE-INPUT
-      vlanProfile: COMMAND-LINE-INPUT
-    - interfaceProfilesName: ACL1
-      acl: ACL1
-      aclType: ip
-      aclDirection: in
-    - interfaceProfilesName: ACL2
-      acl: ACL2
-      aclType: ip
-      aclDirection: out
-    - interfaceProfilesName: QOS-POLICY-MAP1
-      qosInstance: QOS-POLICY-MAP1
-    - interfaceProfilesName: LOGGING
-      loggingProfile: LOGGING1
-    - interfaceProfilesName: ALL
-      loggingProfile: LOGGING1
-      vlanProfile: ALL-L3-KNOBS
-      qosInstance: QOS-POLICY-MAP2
-      aclType: ip
-      acl: ACL1
-      aclDirection: in
-    - interfaceProfilesName: PIM-ACL1
-      pimProfile: PIM1-ACL1
-    - interfaceProfilesName: PIM-ACL2
-      pimProfile: PIM2-ACL2-VRF
-    - interfaceProfilesName: QOS-POLICY-MAP2
-      qosInstance: QOS-POLICY-MAP2
-  loggingProfiles:
-    - loggingProfileName: LOGGING1
-      logging:
-        linkStatus: enabled
-  pimProfiles:
-    - pimProfileName: PIM1-ACL1
-      pimInterfaceCommands:
-        pimMode: sparse-mode
-        pimType: ipv4
-      routerPimCommands:
-        mode: sparse-mode
-        rpOverride: false
-        type: ipv4
-        rpAddress: 51.51.51.51
-        priority: 110
-        groupAccessList: ACL1
-      routerMulticastCommands:
-        routing: true
-        type: ipv4
-        countersRatePeriodDecay: 600
-        countersMetric: bytes
-    - pimProfileName: PIM2-ACL2-VRF
-      pimInterfaceCommands:
-        pimType: ipv4
-        pimMode: sparse-mode
-      routerPimCommands:
-        groupAccessList: ACL2
-        rpOverride: false
-        rpAddress: 76.76.76.76
-        mode: sparse-mode
-        type: ipv4
-        vrf: GREEN
-      routerMulticastCommands:
-        type: ipv4
-        countersRatePeriodDecay: 100
-        routing: true
-        vrf: GREEN
   sites:
     - tags:
         query: dc3:switches
       inputs:
         sitesGroup:
-          switches: []
           devices:
             - tags:
-                query: vStack:ALL-Devices
+                query: Switch-Group:ALL-Devices
               inputs:
                 devicesGroup:
                   all: all-switches
@@ -495,3 +221,292 @@ inputs:
                       secIp: []
                       interfaceProfileName: QOS-POLICY-MAP2
                       stackNumber: '4'
+                  groupMemberNotation: group-member-notation
+                  loopbackInterfaces:
+                    - description: sdf
+                      vrf: ''
+                      interfaceProfileName: COMMAND-LINE-INPUT
+                      number: 2
+                      stackNumber: '1'
+                      ipPrefix: 2.2.2.2
+                    - description: wef
+                      ipPrefix: 3.3.3.3
+                      vrf: ''
+                      interfaceProfileName: MTU
+                      number: 3
+                      stackNumber: '2'
+                    - description: srg
+                      ipPrefix: 4.4.4.4
+                      vrf: GREEN
+                      interfaceProfileName: LOGGING
+                      number: 4
+                      stackNumber: '3'
+  aclNames:
+    - name: ACL1
+      description: ACL1 $1
+      type: ip
+      countersPerEntry: true
+      devices: []
+      aclLines:
+        - seqNumber: '10'
+          permitDenyRemark: permit
+          description: any
+          source: any
+          destination: any
+          log: true
+          tracked: false
+          protocol: ip
+        - seqNumber: '20'
+          permitDenyRemark: deny
+          description: deny
+          source: any
+          destination: any
+          log: false
+          tracked: false
+          protocol: ip
+        - seqNumber: '30'
+          permitDenyRemark: remark
+          description: ACL1
+          source: ''
+          destination: ''
+          log: false
+          tracked: false
+    - name: ACL2
+      description: ACL2 $1
+      type: ip
+      countersPerEntry: false
+      devices: []
+      aclLines:
+        - seqNumber: '10'
+          permitDenyRemark: deny
+          description: deny
+          source: any
+          destination: any
+          log: false
+          tracked: true
+          protocol: ip
+        - seqNumber: '20'
+          permitDenyRemark: permit
+          description: permit
+          source: any
+          destination: any
+          log: false
+          tracked: false
+          protocol: ip
+        - seqNumber: '30'
+          permitDenyRemark: remark
+          description: ACL2
+          source: ''
+          destination: ''
+          log: false
+          tracked: false
+  interfaceProfiles:
+    - interfaceProfilesName: DHCP-HELPERS
+      vlanProfile: DHCP-HELPERS
+    - interfaceProfilesName: MTU
+      vlanProfile: MTU
+    - interfaceProfilesName: RPF
+      vlanProfile: RPF
+    - interfaceProfilesName: COMMAND-LINE-INPUT
+      vlanProfile: COMMAND-LINE-INPUT
+    - interfaceProfilesName: ACL1
+      aclType: ip
+    - interfaceProfilesName: ACL2
+      aclType: ip
+    - interfaceProfilesName: QOS-POLICY-MAP1
+      qosInstance: QOS-POLICY-MAP1
+    - interfaceProfilesName: LOGGING
+      loggingProfile: LOGGING1
+    - interfaceProfilesName: ALL
+      loggingProfile: LOGGING1
+      vlanProfile: ALL-L3-KNOBS
+      qosInstance: QOS-POLICY-MAP2
+      aclType: ip
+    - interfaceProfilesName: PIM-ACL1
+      pimProfile: PIM1-ACL1
+    - interfaceProfilesName: PIM-ACL2
+      pimProfile: PIM2-ACL2-VRF
+    - interfaceProfilesName: QOS-POLICY-MAP2
+      qosInstance: QOS-POLICY-MAP2
+  qosInstances:
+    - instanceName: QOS-POLICY-MAP1
+      classMaps:
+        - classMapName: CMPM1-ACL1
+          match: ip
+          matchValue: ''
+          type: qos
+          acl: ACL1
+        - classMapName: CMPM1-ACL2
+          match: ip
+          matchValue: ''
+          type: qos
+          acl: ACL2
+      policyMaps:
+        - policyMapName: QOSPM1-PM
+          type: qos
+          classDefault: '1'
+          policyMapclassMaps:
+            - pmclassMap: CMPM1-ACL1
+              classMapSettings:
+                drop: false
+                trafficClass: '2'
+            - pmclassMap: CMPM1-ACL2
+              classMapSettings:
+                drop: false
+                trafficClass: '3'
+      serviceProfiles: []
+      devices: []
+      classification: []
+      rewriteRules: []
+      trafficClassToQueue: []
+    - instanceName: QOS-POLICY-MAP2
+      classMaps:
+        - classMapName: CMSP2
+          match: ip
+          matchValue: ''
+          acl: ACL2
+          type: qos
+      policyMaps:
+        - policyMapName: QOSSP2PM1
+          type: qos
+          classDefault: ''
+          policyMapclassMaps:
+            - pmclassMap: CMSP2
+              classMapSettings:
+                drop: false
+                trafficClass: '7'
+                bandwidth: 500
+      serviceProfiles: []
+      devices: []
+      classification: []
+      rewriteRules: []
+      trafficClassToQueue: []
+  loggingProfiles:
+    - loggingProfileName: LOGGING1
+      logging:
+        linkStatus: enabled
+  pimProfiles:
+    - pimProfileName: PIM1-ACL1
+      pimInterfaceCommands:
+        pimMode: sparse-mode
+        pimType: ipv4
+        drPriority: 5000
+      routerPimCommands:
+        mode: sparse-mode
+        rpOverride: false
+        type: ipv4
+        rpAddress: 51.51.51.51
+        priority: 110
+        groupAccessList: ACL1
+      routerMulticastCommands:
+        routing: true
+        type: ipv4
+        countersRatePeriodDecay: 600
+        countersMetric: bytes
+    - pimProfileName: PIM2-ACL2-VRF
+      pimInterfaceCommands:
+        pimType: ipv4
+        pimMode: sparse-mode
+        drPriority: 6000
+      routerPimCommands:
+        groupAccessList: ACL2
+        rpOverride: false
+        rpAddress: 76.76.76.76
+        mode: sparse-mode
+        type: ipv4
+        vrf: GREEN
+      routerMulticastCommands:
+        type: ipv4
+        countersRatePeriodDecay: 100
+        routing: true
+        vrf: GREEN
+  vlanProfiles:
+    - name: DHCP-HELPERS
+      mode: routed
+      profileDescription: DHCP-HELPERS $1
+      vlanName: ''
+      nativeVlanId: 1
+      phoneVlanId: 0
+      allowedVlans: ''
+      portFastEnabled: false
+      bpduGuardEnabled: false
+      ipaddress: ''
+      profileIpAddressVirtual: ''
+      channelGroup: ''
+      mlagEnabled: null
+      lacpEnabled: null
+      commandLine: ''
+      dhcpHelpers:
+        - helperAddress: 1.2.3.4
+        - helperAddress: 2.3.4.5
+        - helperAddress: 3.4.5.6
+    - name: MTU
+      mode: routed
+      profileDescription: MTU $1
+      vlanName: ''
+      nativeVlanId: 1
+      phoneVlanId: 0
+      allowedVlans: ''
+      portFastEnabled: false
+      bpduGuardEnabled: false
+      ipaddress: ''
+      profileIpAddressVirtual: ''
+      channelGroup: ''
+      mlagEnabled: null
+      lacpEnabled: null
+      commandLine: ''
+      dhcpHelpers: []
+      ipmtu: 1500
+    - name: RPF
+      mode: routed
+      profileDescription: RPF LOOSE $1
+      vlanName: ''
+      nativeVlanId: 1
+      phoneVlanId: 0
+      allowedVlans: ''
+      portFastEnabled: false
+      bpduGuardEnabled: false
+      ipaddress: ''
+      profileIpAddressVirtual: ''
+      channelGroup: ''
+      mlagEnabled: null
+      lacpEnabled: null
+      commandLine: ''
+      dhcpHelpers: []
+      reversePathForwardingMode: loose-mode
+    - name: COMMAND-LINE-INPUT
+      mode: routed
+      profileDescription: COMMAND-LINE-INPUT $1
+      vlanName: ''
+      nativeVlanId: 1
+      phoneVlanId: 0
+      allowedVlans: ''
+      portFastEnabled: false
+      bpduGuardEnabled: false
+      ipaddress: ''
+      profileIpAddressVirtual: ''
+      channelGroup: ''
+      mlagEnabled: null
+      lacpEnabled: null
+      commandLine: '!!! L3 command line !!!!!!!!!!'
+      dhcpHelpers: []
+    - name: ALL-L3-KNOBS
+      mode: routed
+      profileDescription: ALL-L3-KNOBS $1
+      vlanName: ''
+      nativeVlanId: 1
+      phoneVlanId: 0
+      allowedVlans: ''
+      portFastEnabled: false
+      bpduGuardEnabled: false
+      ipaddress: null
+      profileIpAddressVirtual: 66.66.66.1/24
+      channelGroup: ''
+      mlagEnabled: null
+      lacpEnabled: null
+      commandLine: '!!!!!!!!!!!!!!!!!!!!!!!'
+      dhcpHelpers:
+        - helperAddress: 23.34.45.56
+        - helperAddress: 45.56.67.78
+      reversePathForwardingMode: strict-mode
+      ipmtu: 1500

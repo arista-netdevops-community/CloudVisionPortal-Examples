@@ -3,9 +3,9 @@
   body:
     value:
       key:
-        studio_id: 8ca899c4-0901-44cc-9370-c237ea6ba814
-        workspace_id: c1ccac50-9b77-4249-afde-696db1a38e09
-      display_name: Campus Interfaces Sites multi tag, Profiles at Sites level, Stack single tag v2.9.1
+        studio_id: studio-campus-interfaces
+        workspace_id: &workspace_id ws-campus-interfaces
+      display_name: Campus Interfaces v2.10.4
       description: Configure device interfaces and interface profiles, and assign administrative state, VLANs, and other attributes
       template:
         type: TEMPLATE_TYPE_MAKO
@@ -91,7 +91,7 @@
                   [nodups.append(x) for x in splitlist if x not in nodups]
                   splitlist = nodups
                   # remove stack numbers
-                  if not intfStackNum:
+                  if intfStackNum == "vstack-notation":
                       for item in splitlist:
                         #return index for first / in input
                           foundslash = item.find("/")
@@ -116,7 +116,7 @@
                       return 0
               # do not process if not a stack but interface stack number is used
               elif intfStackNum:
-                  return 0 
+                  return 0
               # do not process if not a stack but input stack notation is used
               else:
                   searchreturn = intfName.find("/")
@@ -140,7 +140,7 @@
                           if InterfaceProfileName:
                               for iprofile in interfaceProfiles:
                                   if iprofile.interfaceProfilesName == InterfaceProfileName:
-                                      aclNameFound = iprofile["acl"]
+                                      aclNameFound = iprofile["aclin"] or iprofile["aclout"]
                                       pimProfileFound = iprofile["pimProfile"]
                           if acl == aclNameFound:
                             switch_acls[acl] = acl_details
@@ -305,10 +305,13 @@
               self.logging = []
               self.poe = []
               self.stormControl = []
+              self.igmpSnooping = []
+              self.igmpPortSettings = []
+              self.igmpStaticGroups = []
               self.ptpGlobalCommands = []
               self.ptpPorts = []
               self.ptpvlanInterfaces = []
-              self.pimInterfaceCommands = []
+              self.pimInterfaceCommands = {}
               self.routerPimCommands = []
               self.routerMulticastCommands = []
               self.pim = []
@@ -332,8 +335,8 @@
               self.vripaddress = None
               self.helper = []
               self.ipmtu = None
-              self.acl = None
-              self.aclDirection = None
+              self.aclin = None
+              self.aclout = None
               self.aclType = None
               self.qosInstance = None
           class interface(baseInterface):
@@ -341,7 +344,7 @@
               super().__init__()
               self.speed = None
               self.groupNum = None
-              self.lacpEnabled = True
+              self.lacpEnabled = None
           class channelGroup(baseInterface):
             def __init__(self):
               super().__init__()
@@ -352,8 +355,8 @@
                 if InterfaceProfileName:
                     for iprofile in interfaceProfiles:
                         if iprofile.interfaceProfilesName == InterfaceProfileName:
-                            intfCfg.acl = iprofile["acl"]
-                            intfCfg.aclDirection = iprofile["aclDirection"]
+                            intfCfg.aclin = iprofile["aclin"]
+                            intfCfg.aclout = iprofile["aclout"]
                             intfCfg.aclType = iprofile["aclType"]
                             intfCfg.qosInstance = iprofile["qosInstance"]
                 ptpProfileName = None
@@ -426,9 +429,19 @@
                     matchedStormControlProfile = next((p for p in stormControlProfiles if stormControlProfileName == p['stormControlProfileName']), None)
                     if not matchedStormControlProfile:
                         raise Exception('Found no matching stormControlProfile "%s" for interface %s' % (stormControlProfileName, intfName))
-                processInterface(intfName, intfCfg, matchedVlanProfile, matchedDot1xProfile, matchedLoggingProfile, matchedPoeProfile, matchedStormControlProfile, matchedptpProfile, matchedpimProfile)
+                igmpProfileName = None
+                if InterfaceProfileName:
+                    for iprofile in interfaceProfiles:
+                        if iprofile.interfaceProfilesName == InterfaceProfileName:
+                            igmpProfileName = iprofile["igmpProfile"]
+                matchedigmpProfile = None
+                if igmpProfileName:
+                    matchedigmpProfile = next((p for p in igmpProfiles if igmpProfileName == p['igmpProfileName']), None)
+                    if not matchedigmpProfile:
+                        raise Exception('Found no matching igmpProfile "%s" for interface %s' % (igmpProfileName, intfName))
+                processInterface(intfName, intfCfg, matchedVlanProfile, matchedDot1xProfile, matchedLoggingProfile, matchedPoeProfile, matchedStormControlProfile, matchedptpProfile, matchedpimProfile, matchedigmpProfile)
 
-          def processInterface(intfName, intfCfg, vlanProfileCfg, dot1xProfileCfg, loggingProfileCfg, poeProfileCfg, stormControlProfileCfg, ptpProfileCfg, pimProfileCfg):
+          def processInterface(intfName, intfCfg, vlanProfileCfg, dot1xProfileCfg, loggingProfileCfg, poeProfileCfg, stormControlProfileCfg, ptpProfileCfg, pimProfileCfg, igmpProfileCfg):
             intf = interfaces.get(intfName, interface())
             intf.enabled = intfCfg.get('enabled')
             intf.speed = intfCfg.get('speed')
@@ -437,12 +450,12 @@
             accessVlan = intfCfg.get('accessVlan')
             mode = "access"
             vlanName = None
-            intf.acl = intfCfg.get('acl')
-            intf.aclDirection = intfCfg.get('aclDirection')
+            intf.aclin = intfCfg.get('aclin')
+            intf.aclout = intfCfg.get('aclout')
             intf.aclType = intfCfg.get('aclType')
             intf.qosInstance = intfCfg.get('qosInstance')
             desc = intfCfg.get('description')
-            if vlanProfileCfg or dot1xProfileCfg or loggingProfileCfg or poeProfileCfg or stormControlProfileCfg or ptpProfileCfg or pimProfileCfg or intf.groupNum:
+            if vlanProfileCfg or dot1xProfileCfg or loggingProfileCfg or poeProfileCfg or stormControlProfileCfg or ptpProfileCfg or pimProfileCfg or igmpProfileCfg or intf.groupNum:
                 if ptpProfileCfg and not intf.groupNum:
                     intf.ptpGlobalCommands = ptpProfileCfg.get('ptpGlobalCommands')
                     intf.ptpvlanInterfaces = ptpProfileCfg.get('ptpvlanInterfaces')
@@ -460,6 +473,10 @@
                     intf.dot1x = dot1xProfileCfg.get('dot1x')
                 if stormControlProfileCfg and not intf.groupNum:
                     intf.stormControl = stormControlProfileCfg.get('stormControl')
+                if igmpProfileCfg and not intf.groupNum:
+                    intf.igmpSnooping = igmpProfileCfg.get('igmpSnooping')
+                    intf.igmpPortSettings = igmpProfileCfg.get('igmpPortSettings')
+                    intf.igmpStaticGroups = igmpProfileCfg.get('staticGroup')
                 if vlanProfileCfg:
                     if not intf.speed:
                         intf.speed = vlanProfileCfg.get('speed')
@@ -495,6 +512,7 @@
                             desc = profileDesc
                 if intf.groupNum:
                     mlagEnabled = None
+                    lacpEnabled = None
                     group = groups.get(intf.groupNum, channelGroup())
                     group.enabled = True
                     group.mode = mode
@@ -517,7 +535,7 @@
                             if group.accessVlan:
                               intf.groupNum = intf.groupNum + "." + str(group.accessVlan)
                         mlagEnabled = vlanProfileCfg.get('mlagEnabled')
-                        intf.lacpEnabled = vlanProfileCfg.get('lacpEnabled')
+                        lacpEnabled = vlanProfileCfg.get('lacpEnabled')
                     if loggingProfileCfg:
                         group.logging = loggingProfileCfg.get('logging')
                     if dot1xProfileCfg:
@@ -528,13 +546,18 @@
                         group.pimInterfaceCommands = pimProfileCfg.get('pimInterfaceCommands')
                         group.routerPimCommands = pimProfileCfg.get('routerPimCommands')
                         group.routerMulticastCommands = pimProfileCfg.get('routerMulticastCommands')
+                    if igmpProfileCfg:
+                        group.igmpSnooping = igmpProfileCfg.get('igmpSnooping')
+                        group.igmpPortSettings = igmpProfileCfg.get('igmpPortSettings')
+                        group.igmpStaticGroups = igmpProfileCfg.get('staticGroup')
                     group.desc = desc
                     group.vlanName = vlanName
-                    group.acl = intfCfg.get('acl')
-                    group.aclDirection = intfCfg.get('aclDirection')
+                    group.aclin = intfCfg.get('aclin')
+                    group.aclout = intfCfg.get('aclout')
                     group.aclType = intfCfg.get('aclType')
                     group.qosInstance = intfCfg.get('qosInstance')
                     group.mlagEnabled = mlagEnabled or intfCfg.get('mlagEnabled')
+                    intf.lacpEnabled = lacpEnabled or intfCfg.get('lacpEnabled')
                 else:
                     intf.mode = mode
                     intf.accessVlan = accessVlan
@@ -557,7 +580,6 @@
               if group.mode == "routed" and group.accessVlan:
                   groupNum = intfCfg.get('channelGroup') + "." + str(group.accessVlan)
               intf.groupNum = groupNum
-              group.mlagEnabled = intfCfg.get('mlagEnabled')
               group.vlanName = vlanName
               group.vrf = intfCfg["vrf"]
             vlanName = intfCfg.get('vlanName')
@@ -566,7 +588,7 @@
               if intf.groupNum:
                 group.vlanName = vlanName
             # if a vlan interface
-            vlanlist = ['Vlan','vlan']
+           ## vlanlist = ['Vlan','vlan']
             if containsWord(intfName, vlanlist):
               intf.mode = "routed"
               intf.desc = intfCfg["description"]
@@ -579,6 +601,17 @@
               intf.vrf = intfCfg["vrf"]
               intf.gateway = intfCfg["defaultGatewayNextHop"]
               intf.secIP = intfCfg["secIp"]
+
+            # if a loopback interface
+          ##  loopbacklist = ['loopback','Loopback']
+            if containsWord(intfName, loopbacklist):
+              intf.mode = "routed"
+              intf.desc = intfCfg["description"]
+              if intfCfg["ipPrefix"]:
+                  intf.ipaddress = intfCfg["ipPrefix"]
+              intf.vrf = intfCfg["vrf"]
+
+            # Finished processing interfaces
             interfaces[intfName] = intf
             if intf.groupNum:
               groups[intf.groupNum] = group
@@ -593,6 +626,7 @@
           if site:
             myStackNumber = site["sitesGroup"]["devices"].resolve()["devicesGroup"]["stack"].resolve()["stackMember"]
             vlanlist = ["Vlan","vlan"]
+            loopbacklist = ['loopback','Loopback']
             InterfaceProfiles = None
             vlanProfileName = None
 
@@ -611,7 +645,7 @@
                 if len(intfCfg) == 0 or len(intfName) == 0:
                   continue
                 processProfiles(intName, intCfg)
-            ### Stack VLAN Interface
+            ### Stack VLAN Interfaces
             for vlanIntf in site["sitesGroup"]["devices"].resolve().devicesGroup.vlanInterfaces:
                 intfName = vlanIntf["vlanId"]
                 intfStackNum = vlanIntf["stackNumber"]
@@ -625,27 +659,31 @@
                 intfCfg.accessVlan = intfName
                 intfName = "vlan" + intfName
                 processProfiles(intName, intCfg)
-            ## Devices
-            for intf in my_device.getInterfaces():
-                intfName = intf.name
-                intfVal = site["sitesGroup"]["switches"].resolve().interface.resolve(intfName, strict=True)
-                if not intfVal or not intfVal.get('intfConfig'):
+            ### Stack Loopback Interfaces
+            for lbIntf in site["sitesGroup"]["devices"].resolve().devicesGroup.loopbackInterfaces:
+                intfName = str(lbIntf["number"])
+                intfStackNum = lbIntf["stackNumber"]
+                intfName = process_interface_input(intfName, intfStackNum)
+                if intfName == 0:
                   continue
-                intfCfg = intfVal['intfConfig']
+                intfCfg = lbIntf
                 ## Don't output config if nothing interesting is set
-                if len(intfCfg) == 0 or not intfCfg.get('enabled'):
+                if len(intfCfg) == 0 or len(intfName) == 0:
                   continue
+                intfCfg.accessVlan = intfName
+                intfName = "loopback" + intfName
                 processProfiles(intName, intCfg)
           %>\
 
           <%def name="makeIntfCfg(intfName, intfCfg)">
               <%
-                # Interface-specific settings (intfCfg) override profile settings (vlanProfileCfg)
+                # Interface-specific settings (intfCfg) override profile settings
                 # Speed is always taken from profile if not set at interface level.
                 # Description is always taken from profile, and template-substituted with interface description
               %>
           <%
           vlanIntFound = containsWord(intfName, vlanlist)
+          loopbackIntFound = containsWord(intfName, loopbacklist)
           %>
           %if intfCfg.mode == 'routed':
             %if intfCfg.vrf:
@@ -695,8 +733,18 @@
               switchport trunk allowed vlan ${intfCfg.allowedVlans}
             %    endif
             %elif intfCfg.mode == 'routed':
+            %  if loopbackIntFound:
+            %    if intfCfg.desc:
+              description ${intfCfg.desc}
+            %    endif
+            %    if intfCfg.vrf:
+              vrf ${intfCfg.vrf}
+            %    endif
+            %    if intfCfg.ipaddress:
+              ip address ${intfCfg.ipaddress}/32
+            %    endif
             ## Routed Port
-            %  if not vlanIntFound:
+            %  elif not vlanIntFound:
               no switchport
               no switchport mode
             %    if intfCfg.ipmtu:
@@ -781,8 +829,11 @@
               switchport access vlan ${intfCfg.accessVlan}
             %endif
             ## ACL
-            %if intfCfg.acl:
-              ${intfCfg.aclType} access-group ${intfCfg.acl} ${intfCfg.aclDirection}
+            %if intfCfg.aclin:
+              ${intfCfg.aclType} access-group ${intfCfg.aclin} in
+            %endif
+            %if intfCfg.aclout:
+              ${intfCfg.aclType} access-group ${intfCfg.aclout} out
             %endif
             ## Spanning Tree
             %if intfCfg.portFastEnabled:
@@ -811,18 +862,30 @@
             %if intfCfg.stormControl and intfCfg.mode != "routed":
             ${makeStormControl(intfCfg)}
             %endif
+            ## IGMP
+            %if intfCfg.mode != "routed":
+            %  if intfCfg.igmpPortSettings or intfCfg.igmpStaticGroups:
+            ${makeIGMP(intfCfg)}
+            %  endif
+            %endif
               ## PTP
             %if intfCfg.ptpPorts and not vlanIntFound:
             ${makePTP(intfCfg)}
             %endif
-            ## PIM
-            %if intfCfg.pimInterfaceCommands:
-              pim ${intfCfg.pimInterfaceCommands.pimType} ${intfCfg.pimInterfaceCommands.pimMode}
-            %endif
+            ## COMMAND LINE
             %if intfCfg.commandLine:
               ${intfCfg.commandLine}
             %endif
-           ## exit
+             ## PIM
+            %if intfCfg.mode == "routed":
+            %  if intfCfg.pimInterfaceCommands:
+              pim ${intfCfg.pimInterfaceCommands.pimType} ${intfCfg.pimInterfaceCommands.pimMode}
+            %    if intfCfg.pimInterfaceCommands.drPriority != None:
+              pim ${intfCfg.pimInterfaceCommands.pimType} dr-priority ${intfCfg.pimInterfaceCommands.drPriority}
+            %    endif
+            %  endif
+            %endif
+              exit
             !
           %endif
           ## Global PTP
@@ -832,6 +895,10 @@
           ## Global PIM and Multicast
           %if intfCfg.routerPimCommands:
           ${makeGlobalPIM(intfCfg)}
+          %endif
+          ## Global IGMP
+          %if intfCfg.igmpSnooping:
+          ${makeGlobalIGMP(intfCfg)}
           %endif
           ## Global VLAN
           %if intfCfg.accessVlan:
@@ -899,7 +966,7 @@
           %if intfCfg.desc:
               description ${intfCfg.desc}
           %endif
-          %if intfCfg.lacpEnabled:
+          %if intfCfg.lacpEnabled == "enabled":
               channel-group ${intfCfg.groupNum} mode active
           %else:
               channel-group ${intfCfg.groupNum} mode on
@@ -934,7 +1001,7 @@
           ${makeQOS(groupCfg)}
           %endif
             ## VLANs
-          %if groupCfg.mlagEnabled and groupCfg.mode != 'routed':
+          %if groupCfg.mlagEnabled == "enabled" and groupCfg.mode != 'routed':
               mlag ${groupNum}
           %endif
           %if groupCfg.mode == 'access':
@@ -983,8 +1050,11 @@
           %    endif
           %endif
           ## ACL
-          %if groupCfg.acl:
-              ${groupCfg.aclType} access-group ${groupCfg.acl} ${groupCfg.aclDirection}
+          %if groupCfg.aclin:
+              ${groupCfg.aclType} access-group ${groupCfg.aclin} in
+          %endif
+          %if groupCfg.aclout:
+              ${groupCfg.aclType} access-group ${groupCfg.aclout} out
           %endif
           ## Spanning Tree
           %if groupCfg.portFastEnabled:
@@ -1005,13 +1075,22 @@
           %if groupCfg.logging:
           ${makeLogging(groupCfg)}
           %endif
+          ## IGMP
+          %if groupCfg.mode != "routed":
+          %  if groupCfg.igmpPortSettings or groupCfg.igmpStaticGroups:
+          ${makeIGMP(groupCfg)}
+          %  endif
+          %endif
           ## PIM
-          %if groupCfg.pimInterfaceCommands:
+          %if groupCfg.mode == "routed":
+          %  if groupCfg.pimInterfaceCommands:
               pim ${groupCfg.pimInterfaceCommands.pimType} ${groupCfg.pimInterfaceCommands.pimMode}
+          %    if groupCfg.pimInterfaceCommands.drPriority != None:
+              pim ${groupCfg.pimInterfaceCommands.pimType} dr-priority ${groupCfg.pimInterfaceCommands.drPriority}
+          %    endif
+          %  endif
           %endif
-          %if groupCfg.commandLine:
-              ${groupCfg.commandLine}
-          %endif
+              exit
           ## Global VLAN
           %if groupCfg.accessVlan:
           !
@@ -1020,7 +1099,12 @@
               name ${groupCfg.vlanName}
           %  endif
           %endif
+          ## Global IGMP
+          %if groupCfg.igmpSnooping:
+          ${makeGlobalIGMP(groupCfg)}
+          %endif
           </%def>\
+
           ## Profiles Configuration
           <%def name="makePTP(intfCfg)">
           %  if intfCfg.ptpPorts.enable == True:
@@ -1176,8 +1260,12 @@
               storm-control all level ${intfCfg.stormControl.stormControlLevelAllValue}
           %  elif intfCfg.stormControl.stormControlLevelAllType == "percent":
               storm-control all level ${intfCfg.stormControl.stormControlLevelAllType} ${intfCfg.stormControl.stormControlLevelAllValue}
-          %  elif intfCfg.stormControl.stormControlLevelAllType == "rate":
-              storm-control all level ${intfCfg.stormControl.stormControlLevelAllType} ${intfCfg.stormControl.stormControlLevelAllValue}
+          %  elif intfCfg.stormControl.stormControlLevelAllType == "rate kbps":
+              storm-control all level rate ${intfCfg.stormControl.stormControlLevelAllValue} kbps
+          %  elif intfCfg.stormControl.stormControlLevelAllType == "rate mbps":
+              storm-control all level rate ${intfCfg.stormControl.stormControlLevelAllValue} mbps
+          %  elif intfCfg.stormControl.stormControlLevelAllType == "rate gbps":
+              storm-control all level rate ${intfCfg.stormControl.stormControlLevelAllValue} gbps
           %  elif intfCfg.stormControl.stormControlLevelAllType == "pps":
               storm-control all level ${intfCfg.stormControl.stormControlLevelAllType} ${intfCfg.stormControl.stormControlLevelAllValue}
           %  endif
@@ -1187,8 +1275,12 @@
               storm-control broadcast level ${intfCfg.stormControl.stormControlBroadcastValue}
           %  elif intfCfg.stormControl.stormControlBroadcastType == "percent":
               storm-control broadcast level ${intfCfg.stormControl.stormControlBroadcastType} ${intfCfg.stormControl.stormControlBroadcastValue}
-          %  elif intfCfg.stormControl.stormControlBroadcastType == "rate":
-              storm-control broadcast level ${intfCfg.stormControl.stormControlBroadcastType} ${intfCfg.stormControl.stormControlBroadcastValue}
+          %  elif intfCfg.stormControl.stormControlBroadcastType == "rate kbps":
+              storm-control broadcast level rate ${intfCfg.stormControl.stormControlBroadcastValue} kbps
+          %  elif intfCfg.stormControl.stormControlBroadcastType == "rate mbps":
+              storm-control broadcast level rate ${intfCfg.stormControl.stormControlBroadcastValue} mbps
+          %  elif intfCfg.stormControl.stormControlBroadcastType == "rate gbps":
+              storm-control broadcast level rate ${intfCfg.stormControl.stormControlBroadcastValue} gbps
           %  elif intfCfg.stormControl.stormControlBroadcastType == "pps":
               storm-control broadcast level ${intfCfg.stormControl.stormControlBroadcastType} ${intfCfg.stormControl.stormControlBroadcastValue}
           %  endif
@@ -1198,8 +1290,12 @@
               storm-control multicast level ${intfCfg.stormControl.stormControlMulticastValue}
           %  elif intfCfg.stormControl.stormControlMulticastType == "percent":
               storm-control multicast level ${intfCfg.stormControl.stormControlMulticastType} ${intfCfg.stormControl.stormControlMulticastValue}
-          %  elif intfCfg.stormControl.stormControlMulticastType == "rate":
-              storm-control multicast level ${intfCfg.stormControl.stormControlMulticastType} ${intfCfg.stormControl.stormControlMulticastValue}
+          %  elif intfCfg.stormControl.stormControlMulticastType == "rate kbps":
+              storm-control multicast level rate ${intfCfg.stormControl.stormControlMulticastValue} kbps
+          %  elif intfCfg.stormControl.stormControlMulticastType == "rate mbps":
+              storm-control multicast level rate ${intfCfg.stormControl.stormControlMulticastValue} mbps
+          %  elif intfCfg.stormControl.stormControlMulticastType == "rate gbps":
+              storm-control multicast level rate ${intfCfg.stormControl.stormControlMulticastValue} gbps
           %  elif intfCfg.stormControl.stormControlMulticastType == "pps":
               storm-control multicast level ${intfCfg.stormControl.stormControlMulticastType} ${intfCfg.stormControl.stormControlMulticastValue}
           %  endif
@@ -1209,10 +1305,14 @@
               storm-control unknown-unicast level ${intfCfg.stormControl.stormControlUnknownUnicastValue}
           %  elif intfCfg.stormControl.stormControlUnknownUnicastType == "percent":
               storm-control unknown-unicast level ${intfCfg.stormControl.stormControlUnknownUnicastType} ${intfCfg.stormControl.stormControlUnknownUnicastValue}
-          %  elif intfCfg.stormControl.stormControlUnknownUnicastType == "rate":
-              storm-control unknown-unciast level ${intfCfg.stormControl.stormControlUnknownUnicastType} ${intfCfg.stormControl.stormControlUnknownUnicastValue}
+          %  elif intfCfg.stormControl.stormControlUnknownUnicastType == "rate kbps":
+              storm-control unknown-unicast level rate ${intfCfg.stormControl.stormControlUnknownUnicastValue} kbps
+          %  elif intfCfg.stormControl.stormControlUnknownUnicastType == "rate mbps":
+              storm-control unknown-unicast level rate ${intfCfg.stormControl.stormControlUnknownUnicastValue} mbps
+          %  elif intfCfg.stormControl.stormControlUnknownUnicastType == "rate gbps":
+              storm-control unknown-unicast level rate ${intfCfg.stormControl.stormControlUnknownUnicastValue} gbps
           %  elif intfCfg.stormControl.stormControlUnknownUnicastType == "pps":
-              storm-control unknown-unciast level ${intfCfg.stormControl.stormControlUnknownUnicastType} ${intfCfg.stormControl.stormControlUnknownUnicastValue}
+              storm-control unknown-unicast level ${intfCfg.stormControl.stormControlUnknownUnicastType} ${intfCfg.stormControl.stormControlUnknownUnicastValue}
           %  endif
           %endif
           </%def>\
@@ -1295,6 +1395,44 @@
               routing
           %    endif
           %  endif
+          %endif
+          </%def>\
+
+          <%def name="makeIGMP(intfCfg)">
+          % if intfCfg.igmpPortSettings.igmpVersion:
+              ip igmp version ${intfCfg.igmpPortSettings.igmpVersion}
+          % endif
+          % if intfCfg.igmpPortSettings.lastMemberQueryInterval:
+              ip igmp last-member-query-interval ${intfCfg.igmpPortSettings.lastMemberQueryInterval}
+          % endif
+          % if intfCfg.igmpPortSettings.lastMemberQueryCount:
+              ip igmp last-member-query-count ${intfCfg.igmpPortSettings.lastMemberQueryCount}
+          % endif
+          % if intfCfg.igmpPortSettings.startupQueryInterval:
+              ip igmp startup-query-interval ${intfCfg.igmpPortSettings.startupQueryInterval}
+          % endif
+          % if intfCfg.igmpPortSettings.startupQueryCount:
+              ip igmp startup-query-count ${intfCfg.igmpPortSettings.startupQueryCount}
+          % endif
+          % if intfCfg.igmpPortSettings.queryInterval:
+              ip igmp query-interval ${intfCfg.igmpPortSettings.queryInterval}
+          % endif
+          % if intfCfg.igmpPortSettings.queryMaxResponseTime:
+              igmp query-max-response-time ${intfCfg.igmpPortSettings.queryMaxResponseTime}
+          % endif
+          % if intfCfg.igmpStaticGroups:
+          %   for staticGroup in intfCfg.igmpStaticGroups:
+              ip igmp static-group ${staticGroup.mulicastGroup} ${staticGroup.source}
+          %   endfor
+          % endif
+
+          </%def>\
+          <%def name="makeGlobalIGMP(intfCfg)">
+          %if intfCfg.igmpSnooping.enable == False:
+          no ip igmp snooping
+          %endif
+          %if intfCfg.igmpSnooping.enable == True and intfCfg.igmpSnooping.disableIgmpSnoopingForVlaNs:
+          no ip igmp snooping vlan ${intfCfg.igmpSnooping.disableIgmpSnoopingForVlaNs}
           %endif
           </%def>\
 
@@ -1388,20 +1526,20 @@
           %                    endif
           %                    if queue.bandwidthType:
           %                        if queue.bandwidthType == "guaranteed":
-                  bandwidth ${bandwidthType} ${queue.bandwidth}
+                  bandwidth ${queue.bandwidthType} ${queue.bandwidth}
           %                        elif queue.bandwidthType == "percent":
-                  bandwidth ${bandwidthType} ${queue.bandwidth}
+                  bandwidth ${queue.bandwidthType} ${queue.bandwidth}
           %                        endif
           %                    endif
           %                    if queue.shapeRate:
                   shape rate ${queue.shapeRate}
           %                    endif
           %                    if queue.randomDetectType == "drop":
-                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes drop-probability ${queue.dropProbability}
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.rdMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.rdMaxThreshold} ${queue.minThresholdMetric} drop-probability ${queue.dropProbability}
           %                    elif queue.randomDetectType == "ecn":
-                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.rdMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.rdMaxThreshold} ${queue.minThresholdMetric}
           %                    elif queue.randomDetectType == "non-ect":
-                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.rdMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.rdMaxThreshold} ${queue.minThresholdMetric}
           %                    endif
           %                endfor
           %                if interface.servicePolicyName and interface.servicePolicyType == "qos":
@@ -1417,7 +1555,7 @@
           %                if interface.shapeRate:
               shape rate ${interface.shapeRate}
           %                endif
-          %                if interface.trust != "none":
+          %                if interface.trust == "dscp" or interface.trust == "cos" :
               qos trust ${interface.trust}
           %                endif
           %                if interface.dscp:
@@ -1475,7 +1613,7 @@
           %                    if class_map.classMapSettings.drop:
                   drop
           %                    endif
-          %                    if class_map.classMapSettings.policerCir and not class_map.policerBc:
+          %                    if class_map.classMapSettings.policerCir and not class_map.classMapSettings.policerBc:
                   police cir ${class_map.classMapSettings.policerCir}
           %                    endif
           %                    if class_map.classMapSettings.policerBc:
@@ -1574,7 +1712,7 @@
                   no priority
           %                    endif
           %                    if queue.dropPrecedence:
-                  drop-precedence ${queue.dropPrecedence}
+                  drop-precedence ${queue.dropPrecedence} drop-threshold percent ${queue.dropPrecedencePercent}
           %                    endif
           %                    if queue.bandwidthType:
           %                        if queue.bandwidthType == "guaranteed":
@@ -1587,11 +1725,11 @@
                   shape rate ${queue.shapeRate}
           %                    endif
           %                    if queue.randomDetectType == "drop":
-                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes drop-probability ${queue.dropProbability}
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.rdMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.rdMaxThreshold} ${queue.minThresholdMetric} drop-probability ${queue.dropProbability}
           %                    elif queue.randomDetectType == "ecn":
-                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.rdMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.rdMaxThreshold} ${queue.minThresholdMetric}
           %                    elif queue.randomDetectType == "non-ect":
-                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.randomDetectMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.randomDetectMaxThreshold} bytes
+                  random-detect ${queue.randomDetectType} minimum-threshold ${queue.rdMinThreshold} ${queue.minThresholdMetric} maximum-threshold ${queue.rdMaxThreshold} ${queue.minThresholdMetric}
           %                    endif
           %                endfor
           %            endfor
@@ -1699,7 +1837,7 @@
             interfacerangesstackNumber:
               id: interfacerangesstackNumber
               name: stackNumber
-              label: Stack Number
+              label: Member Number
               description: Optional. Leave blank and configure stack notation (1/1)
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -1711,8 +1849,9 @@
                 pattern: null
                 dynamic_options:
                   values:
-                    - '{"fieldId":"ff47cfa6-76dd-43a6-8b68-dd3197c76133"}'
+                    - '{"fieldId":"allSwitches"}'
                     - '{"fieldId":"stackMember"}'
+                    - '{"fieldId":"groupMemberNotation"}'
             interfacerangesvlanName:
               id: interfacerangesvlanName
               name: vlanName
@@ -1780,17 +1919,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            interfacesrangesmlagEnabled:
-              id: interfacesrangesmlagEnabled
-              name: mlagEnabled
-              label: MLAG
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            da7e3001-b7f3-49c3-a042-c9a05f22e501:
-              id: da7e3001-b7f3-49c3-a042-c9a05f22e501
+            interfacerangeschannelGroup:
+              id: interfacerangeschannelGroup
               name: channelGroup
               label: Channel Group
               description: ''
@@ -1799,6 +1929,40 @@
               string_props:
                 default_value: null
                 static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            interfacerangeslacpEnabled:
+              id: interfacerangeslacpEnabled
+              name: lacpEnabled
+              label: LACP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - enabled
+                    - disabled
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            interfacerangesmlagEnabled:
+              id: interfacerangesmlagEnabled
+              name: mlagEnabled
+              label: MLAG
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - enabled
+                    - disabled
                 format: null
                 length: null
                 pattern: null
@@ -1823,13 +1987,14 @@
                     - interfacerangesipPrefix
                     - interfacerangesvrf
                     - interfacerangesspeed
-                    - interfacesrangesmlagEnabled
-                    - da7e3001-b7f3-49c3-a042-c9a05f22e501
+                    - interfacerangeschannelGroup
+                    - interfacerangeslacpEnabled
+                    - interfacerangesmlagEnabled
             interfaceRanges:
               id: interfaceRanges
               name: interfaceRanges
               label: Ports
-              description: 'Configure L2 port ranges and routed ports. Examples: Ethernet1 + Stack number (Interface configured only on single stack member). Ethernet1 + No Stack Number (Interface  configured on all members of the Stack). 1/Ethernet1 , 2/Ethernet2 + No Stack Number (Interface configured only on specified Stack members)'
+              description: 'Configure L2 ports, port ranges and routed port properties (requires mode routed in general profiles).'
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -1882,7 +2047,7 @@
             vlaninterfacesstackNumber:
               id: vlaninterfacesstackNumber
               name: stackNumber
-              label: Stack Number
+              label: Member Number
               description: Optional. Leave blank and configure stack notation (1/1)
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -1894,8 +2059,9 @@
                 pattern: null
                 dynamic_options:
                   values:
-                    - '{"fieldId":"ff47cfa6-76dd-43a6-8b68-dd3197c76133"}'
+                    - '{"fieldId":"allSwitches"}'
                     - '{"fieldId":"stackMember"}'
+                    - '{"fieldId":"groupMemberNotation"}'
             vlaninterfacessipPrefix:
               id: vlaninterfacessipPrefix
               name: ipPrefix
@@ -1942,7 +2108,7 @@
               id: vlaninterfacesscreateVlanOnly
               name: createVlanOnly
               label: Create VLAN only
-              description: No SVI will be written
+              description: No SVI will be configured
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -2035,7 +2201,7 @@
               id: vlanInterfaces
               name: vlanInterfaces
               label: VLAN Interfaces
-              description: 'Configure SVIs. Examples: VLAN ID + Stack number (VLAN interface only on single stack member). VLAN ID + No Stack Number (VLAN interface configured on all members of the Stack). Stack1/VLAN ID, Stack2/VLAN ID + No Stack Number (VLAN interface configured only on specified Stack members)'
+              description: 'Configure SVIs and IP properties. Optional create vlan only.'
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -2044,8 +2210,8 @@
             stackMember:
               id: stackMember
               name: stackMember
-              label: Stack Number
-              description: Assign a unique number to each member of the stack.
+              label: Member Number
+              description: Optionaly assign a unique number to each member of the virtual stack.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2068,8 +2234,8 @@
             stack:
               id: stack
               name: stack
-              label: Stack Members
-              description: Form a virtual Stack by giving each member a unique Stack Number
+              label: Switch Group Members
+              description: Optionaly assign a unique member number to form a virtual Stack.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -2078,8 +2244,8 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: ''
                 tag_filter_query: null
-            ff47cfa6-76dd-43a6-8b68-dd3197c76133:
-              id: ff47cfa6-76dd-43a6-8b68-dd3197c76133
+            allSwitches:
+              id: allSwitches
               name: all
               label: all switches
               description: ''
@@ -2092,35 +2258,92 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            devicesGroupdevicesGroup:
-              id: devicesGroupdevicesGroup
-              name: devicesGroup
-              label: Devices Group
+            groupMemberNotation:
+              id: groupMemberNotation
+              name: groupMemberNotation
+              label: group member notation
               description: ''
               required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - interfaceRanges
-                    - vlanInterfaces
-                    - stack
-                    - ff47cfa6-76dd-43a6-8b68-dd3197c76133
-            devices:
-              id: devices
-              name: devices
-              label: Virtual Stacks
-              description: Group Devices into virtual stacks and configure L2 and L3 properties and profiles.
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: vstack-notation
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            loopbackdescription:
+              id: loopbackdescription
+              name: description
+              label: Description
+              description: ''
               required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: devicesGroupdevicesGroup
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: vStack
-                tag_filter_query: null
-            devicesinterfaceProfileName:
-              id: devicesinterfaceProfileName
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            loopbacknumber:
+              id: loopbacknumber
+              name: number
+              label: Loopback Number
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            loopbackvrf:
+              id: loopbackvrf
+              name: vrf
+              label: VRF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            loopbackipPrefix:
+              id: loopbackipPrefix
+              name: ipPrefix
+              label: IP Address
+              description: /32 will be added
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: ip
+                length: null
+                pattern: null
+                dynamic_options: null
+            loopbackstackNumber:
+              id: loopbackstackNumber
+              name: stackNumber
+              label: Member Number
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"stackMember"}'
+            loopbackinterfaceProfileName:
+              id: loopbackinterfaceProfileName
               name: interfaceProfileName
               label: Profile of Profiles
               description: ''
@@ -2135,161 +2358,60 @@
                 dynamic_options:
                   values:
                     - '{"fieldId":"interfaceProfilesName"}'
-            devicesdescription:
-              id: devicesdescription
-              name: description
-              label: Description
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            devicesenabled:
-              id: devicesenabled
-              name: enabled
-              label: Enabled
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            devicesaccessVlan:
-              id: devicesaccessVlan
-              name: accessVlan
-              label: VLAN ID
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
-            devicesspeed:
-              id: devicesspeed
-              name: speed
-              label: Speed
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options:
-                  values:
-                    - auto
-                    - 10half
-                    - 10full
-                    - 100full
-                    - 1gfull
-                    - 10gfull
-                    - 25g
-                    - 40g
-                    - 50g
-                    - 100g
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            devicesmlagEnabled:
-              id: devicesmlagEnabled
-              name: mlagEnabled
-              label: MLAG
-              description: Enable or disable the MLAG ID if this interface is in a Link Aggregation Group (LAG)
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            devicesipPrefix:
-              id: devicesipPrefix
-              name: ipPrefix
-              label: IP Address
-              description: CIDR notation, Routed mode profile must also be applied
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: cidr
-                length: null
-                pattern: null
-                dynamic_options: null
-            devicesipvrf:
-              id: devicesipvrf
-              name: vrf
-              label: VRF
-              description: Routed mode profile must also be applied
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            445e90bd-d503-4f95-8b39-9454c5b27558:
-              id: 445e90bd-d503-4f95-8b39-9454c5b27558
-              name: channelGroup
-              label: Channel Group
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            intfConfig:
-              id: intfConfig
-              name: intfConfig
-              label: intfConfig
+            loopbackInterfacesGroup:
+              id: loopbackInterfacesGroup
+              name: loopbackInterfacesGroup
+              label: Loopback Interfaces Group
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
                 members:
                   values:
-                    - devicesinterfaceProfileName
-                    - devicesdescription
-                    - devicesenabled
-                    - devicesaccessVlan
-                    - devicesspeed
-                    - devicesmlagEnabled
-                    - devicesipPrefix
-                    - devicesipvrf
-                    - 445e90bd-d503-4f95-8b39-9454c5b27558
-            interfaceinterface:
-              id: interfaceinterface
-              name: interface
-              label: Interface
-              description: Enable the Interface to configure it on the device.
+                    - loopbackdescription
+                    - loopbacknumber
+                    - loopbackvrf
+                    - loopbackipPrefix
+                    - loopbackstackNumber
+                    - loopbackinterfaceProfileName
+            loopbackInterfaces:
+              id: loopbackInterfaces
+              name: loopbackInterfaces
+              label: Loopback Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: loopbackInterfacesGroup
+                key: ''
+            devicesGroupdevicesGroup:
+              id: devicesGroupdevicesGroup
+              name: devicesGroup
+              label: Devices Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - interfaceRanges
+                    - vlanInterfaces
+                    - stack
+                    - allSwitches
+                    - groupMemberNotation
+                    - loopbackInterfaces
+            devices:
+              id: devices
+              name: devices
+              label: Switch Groups
+              description: Group Devices and configure L2 and L3 properties and profiles for the group.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
-                base_field_id: intfConfig
+                base_field_id: devicesGroupdevicesGroup
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
-                input_tag_label: interface
-                tag_filter_query: null
-            switchesswitches:
-              id: switchesswitches
-              name: switches
-              label: Devices
-              description: Select a device to configure its ports and routed interfaces and to assign profiles.
-              required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: interfaceinterface
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Switch-Group
                 tag_filter_query: null
             sitesGroup:
               id: sitesGroup
@@ -2302,9 +2424,8 @@
                 members:
                   values:
                     - devices
-                    - switchesswitches
-            30b4e9e4-b1bf-40da-be99-263a841ca2e2:
-              id: 30b4e9e4-b1bf-40da-be99-263a841ca2e2
+            sites:
+              id: sites
               name: sites
               label: Sites
               description: Start here. Add a site  and click in tthe box to choose devices tag to assign to this site.
@@ -2396,9 +2517,9 @@
                     - '{"fieldId":"loggingProfileName"}'
             interfaceProfilesacl:
               id: interfaceProfilesacl
-              name: acl
-              label: ACL
-              description: ''
+              name: aclin
+              label: ACL In
+              description: ACL type must also be configured
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2423,23 +2544,6 @@
                   values:
                     - ip
                     - ipv6
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            interfaceProfileaclDirection:
-              id: interfaceProfileaclDirection
-              name: aclDirection
-              label: ACL Direction
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options:
-                  values:
-                    - in
-                    - out
                 format: null
                 length: null
                 pattern: null
@@ -2508,6 +2612,38 @@
                 dynamic_options:
                   values:
                     - '{"fieldId":"pimProfileName"}'
+            interfaceProfileaclout:
+              id: interfaceProfileaclout
+              name: aclout
+              label: ACL Out
+              description: ACL type must also be configured
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"aclname"}'
+            interfaceProfileigmpProfile:
+              id: interfaceProfileigmpProfile
+              name: igmpProfile
+              label: IGMP Profile
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"igmpProfileName"}'
             interfaceProfilesGroup:
               id: interfaceProfilesGroup
               name: interfaceProfilesGroup
@@ -2525,11 +2661,12 @@
                     - interfaceProfilesloggingProfile
                     - interfaceProfilesacl
                     - interfaceProfileaclType
-                    - interfaceProfileaclDirection
                     - interfaceProfileqosInstance
                     - interfaceProfilestormControlProfile
                     - interfaceProfileptpProfile
                     - interfaceProfilepimProfile
+                    - interfaceProfileaclout
+                    - interfaceProfileigmpProfile
             interfacerangesinterfaceProfiles:
               id: interfacerangesinterfaceProfiles
               name: interfaceProfiles
@@ -2696,24 +2833,6 @@
                 range: 68..65535
                 static_options: null
                 dynamic_options: null
-            profileMlagEnabled:
-              id: profileMlagEnabled
-              name: mlagEnabled
-              label: Enable MLAG
-              description: Enable or disable the MLAG ID on the Link Aggregation Group (LAG)
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            profileLACPEnabled:
-              id: profileLACPEnabled
-              name: lacpEnabled
-              label: Enable LACP
-              description: Enable or disable the LACP mode on the member ports of the Link Aggregation Group (LAG)
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: true
             generalprofilephoneTrunk:
               id: generalprofilephoneTrunk
               name: phoneTrunk
@@ -2834,8 +2953,8 @@
               collection_props:
                 base_field_id: generalprofilehelperAddressGroup
                 key: ''
-            8e5db58a-ba0c-44e2-8833-183a6e4fb61e:
-              id: 8e5db58a-ba0c-44e2-8833-183a6e4fb61e
+            generalprofilechannelGroup:
+              id: generalprofilechannelGroup
               name: channelGroup
               label: Channel Group
               description: ''
@@ -2844,6 +2963,40 @@
               string_props:
                 default_value: null
                 static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            generalprofilemlagEnabled:
+              id: generalprofilemlagEnabled
+              name: mlagEnabled
+              label: MLAG
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - enabled
+                    - disabled
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            generalprofilelacpEnabled:
+              id: generalprofilelacpEnabled
+              name: lacpEnabled
+              label: LACP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - enabled
+                    - disabled
                 format: null
                 length: null
                 pattern: null
@@ -2869,8 +3022,6 @@
                     - profilePortFastEnabled
                     - ipaddress
                     - ipmtu
-                    - profileMlagEnabled
-                    - profileLACPEnabled
                     - generalprofilephoneTrunk
                     - generalprofilecommandLine
                     - generalprofileprofileIpAddressVirtual
@@ -2878,7 +3029,9 @@
                     - generalprofilevlanName
                     - generalprofilereversePathForwardingMode
                     - generalprofiledhcpHelpers
-                    - 8e5db58a-ba0c-44e2-8833-183a6e4fb61e
+                    - generalprofilechannelGroup
+                    - generalprofilemlagEnabled
+                    - generalprofilelacpEnabled
             profiles:
               id: profiles
               name: vlanProfiles
@@ -2907,11 +3060,11 @@
               id: portSecurityAllowedMacCount
               name: portSecurityAllowedMacCount
               label: Port Security Allowed MAC count
-              description: ''
+              description: ' <1-1000>  MAC address limit'
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
-                default_value: '5'
+                default_value: null
                 range: null
                 static_options: null
                 dynamic_options: null
@@ -3979,7 +4132,16 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - '0'
+                    - '1'
+                    - '2'
+                    - '3'
+                    - '4'
+                    - '5'
+                    - '6'
+                    - '7'
                 format: null
                 length: null
                 pattern: null
@@ -4379,7 +4541,11 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - drop
+                    - ecn
+                    - non-ecn
                 format: null
                 length: null
                 pattern: null
@@ -4399,7 +4565,7 @@
             qosprofilequeueminThresholdMetric:
               id: qosprofilequeueminThresholdMetric
               name: minThresholdMetric
-              label: Min Threshold Metric
+              label: Threshold Metric
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -4428,8 +4594,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            qosprofilequeuedropProbability:
-              id: qosprofilequeuedropProbability
+            qosprofilequeuedropPrecedence:
+              id: qosprofilequeuedropPrecedence
               name: dropPrecedence
               label: Drop Precedence
               description: ''
@@ -4442,6 +4608,30 @@
                   values:
                     - '1'
                     - '2'
+                dynamic_options: null
+            qosprofilequeuedropProbability:
+              id: qosprofilequeuedropProbability
+              name: dropProbability
+              label: Drop Probability
+              description: <1-100>
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            qosprofilequeuedropPrecedencePercent:
+              id: qosprofilequeuedropPrecedencePercent
+              name: dropPrecedencePercent
+              label: Drop Threshold Percent
+              description: <1-100>
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
                 dynamic_options: null
             qosprofilequeuetxQueueGroup:
               id: qosprofilequeuetxQueueGroup
@@ -4462,7 +4652,9 @@
                     - qosprofilequeuerdMinThreshold
                     - qosprofilequeueminThresholdMetric
                     - qosprofilequeuerdMaxThreshold
+                    - qosprofilequeuedropPrecedence
                     - qosprofilequeuedropProbability
+                    - qosprofilequeuedropPrecedencePercent
             qosprofilequeuetxQueue:
               id: qosprofilequeuetxQueue
               name: txQueue
@@ -4481,12 +4673,11 @@
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
-                default_value: none
+                default_value: null
                 static_options:
                   values:
                     - dscp
                     - cos
-                    - none
                 format: null
                 length: null
                 pattern: null
@@ -4550,7 +4741,7 @@
               id: qosprofiledeviceinterfaceName
               name: interfaceName
               label: Interface Name
-              description: ''
+              description: Configure interface or interface range
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4746,7 +4937,7 @@
               id: qosprofiledevicebandwidth
               name: bandwidth
               label: Bandwidth
-              description: percent, Kbps, PPS
+              description: '  percent        Bandwidth Guaranteed in Percent   <1-150000000>  Bandwidth Guaranteed in Pps   <8-100000000>  Bandwidth Guaranteed in Kbps'
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4769,7 +4960,7 @@
               id: qosprofiledevicerandomDetectType
               name: randomDetectType
               label: Random Detect Type
-              description: ''
+              description: If Random Detect then min and max threshold values are required
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4787,7 +4978,7 @@
               id: qosprofiledevicerdMinThreshold
               name: rdMinThreshold
               label: RD Min Threshold
-              description: ''
+              description: '  <1-10240>      Threshold value (in microseconds)   <1-10>         Threshold value (in milliseconds)   <1-512000000>  Threshold value (in bytes)   <1-512000>     Threshold value (in kbytes)   <1-512>        Threshold value (in mbytes)'
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -4798,8 +4989,8 @@
             qosprofiledeviceminThresholdMetric:
               id: qosprofiledeviceminThresholdMetric
               name: minThresholdMetric
-              label: Min Threshold Metric
-              description: bytes
+              label: Threshold Metric
+              description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4818,7 +5009,7 @@
               id: qosprofiledevicerdMaxThreshold
               name: rdMaxThreshold
               label: RD Max Threshold
-              description: ''
+              description: '  <1-10240>      Threshold value (in microseconds)   <1-10>         Threshold value (in milliseconds)   <1-512000000>  Threshold value (in bytes)   <1-512000>     Threshold value (in kbytes)   <1-512>        Threshold value (in mbytes)'
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -4841,6 +5032,18 @@
                     - '1'
                     - '2'
                 dynamic_options: null
+            qosprofiledevicedProbability:
+              id: qosprofiledevicedProbability
+              name: dropProbability
+              label: Drop Probability
+              description: <1-100>  Specify maximum drop rate
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
             qosprofiledevicetxQueueGroup:
               id: qosprofiledevicetxQueueGroup
               name: txQueueGroup
@@ -4861,6 +5064,7 @@
                     - qosprofiledeviceminThresholdMetric
                     - qosprofiledevicerdMaxThreshold
                     - qosprofiledevicedropProbability
+                    - qosprofiledevicedProbability
             qosprofiledevicetxQueue:
               id: qosprofiledevicetxQueue
               name: txQueue
@@ -4916,7 +5120,7 @@
               id: qosprofiledevicedevices
               name: devices
               label: Devices
-              description: ''
+              description: Optional. Applying QOS to devices here can be used if interface level QOS commands are required.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -5319,7 +5523,7 @@
               id: stormControlUnknownUnicastValue
               name: stormControlUnknownUnicastValue
               label: Storm Control Unknown Unicast Value
-              description: level, percent, pps value, or rate in (g|m|k)bits per second
+              description: level, percent, pps value, or rate specify (g|m|k)bps per second
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -5331,7 +5535,7 @@
               id: stormControlMulticastValue
               name: stormControlMulticastValue
               label: Storm Control Multicast Value
-              description: level, percent, pps value, or rate in (g|m|k)bits per second
+              description: level, percent, pps value, or rate specify (g|m|k)bps per second
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -5343,7 +5547,7 @@
               id: stormControlBroadcastType
               name: stormControlBroadcastType
               label: Storm Control Broadcast Type
-              description: ''
+              description: '  LEVEL  Maximum bandwidth percentage allowed by storm control   pps    Configure the maximum storm control level in packets per second   rate   Configure the maximum storm control level in (g|m|k)bits per second'
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5352,8 +5556,10 @@
                   values:
                     - percent
                     - pps
-                    - rate
                     - level
+                    - rate kbps
+                    - rate mbps
+                    - rate gbps
                 format: null
                 length: null
                 pattern: null
@@ -5362,7 +5568,7 @@
               id: stormControlLevelAllType
               name: stormControlLevelAllType
               label: Storm Control Level All Type
-              description: ''
+              description: '  LEVEL  Maximum bandwidth percentage allowed by storm control   pps    Configure the maximum storm control level in packets per second   rate   Configure the maximum storm control level in (g|m|k)bits per second'
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5371,8 +5577,10 @@
                   values:
                     - percent
                     - pps
-                    - rate
                     - level
+                    - rate kbps
+                    - rate mbps
+                    - rate gbps
                 format: null
                 length: null
                 pattern: null
@@ -5381,7 +5589,7 @@
               id: stormControlLevelAllValue
               name: stormControlLevelAllValue
               label: Storm Control Level All Value
-              description: level, percent, pps value, or rate in (g|m|k)bits per second
+              description: level, percent, pps value, or rate specify (g|m|k)bps per second
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -5393,7 +5601,7 @@
               id: stormControlBroadcastValue
               name: stormControlBroadcastValue
               label: Storm Control Broadcast Value
-              description: level, percent, pps value, or rate in (g|m|k)bits per second
+              description: level, percent, pps value, or rate specify (g|m|k)bps per second
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -5405,7 +5613,7 @@
               id: stormControlMulticastType
               name: stormControlMulticastType
               label: Storm Control Multicast Type
-              description: ''
+              description: '  LEVEL  Maximum bandwidth percentage allowed by storm control   pps    Configure the maximum storm control level in packets per second   rate   Configure the maximum storm control level in (g|m|k)bits per second'
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5414,8 +5622,8 @@
                   values:
                     - percent
                     - pps
-                    - rate
                     - level
+                    - rate gbps
                 format: null
                 length: null
                 pattern: null
@@ -5424,7 +5632,7 @@
               id: stormControlUnknownUnicastType
               name: stormControlUnknownUnicastType
               label: Storm Control Unknown Unicast Type
-              description: ''
+              description: '  LEVEL  Maximum bandwidth percentage allowed by storm control   pps    Configure the maximum storm control level in packets per second   rate   Configure the maximum storm control level in (g|m|k)bits per second'
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5433,8 +5641,10 @@
                   values:
                     - percent
                     - pps
-                    - rate
                     - level
+                    - rate kbps
+                    - rate mbps
+                    - rate gbps
                 format: null
                 length: null
                 pattern: null
@@ -5507,8 +5717,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            ea827941-c038-4f84-a751-5ee9badad1c9:
-              id: ea827941-c038-4f84-a751-5ee9badad1c9
+            ptpptpvlanInterfaces:
+              id: ptpptpvlanInterfaces
               name: ptpvlanInterfaces
               label: VLAN Interfaces
               description: ''
@@ -5743,7 +5953,7 @@
                 members:
                   values:
                     - ptpProfileName
-                    - ea827941-c038-4f84-a751-5ee9badad1c9
+                    - ptpptpvlanInterfaces
                     - ptpPorts
                     - ptpGlobalCommands
             ptpProfiles:
@@ -5778,7 +5988,7 @@
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
-                default_value: null
+                default_value: sparse-mode
                 static_options:
                   values:
                     - sparse-mode
@@ -5803,6 +6013,18 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            pimdrPriority:
+              id: pimdrPriority
+              name: drPriority
+              label: DR Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
             pimInterfaceCommands:
               id: pimInterfaceCommands
               name: pimInterfaceCommands
@@ -5815,6 +6037,7 @@
                   values:
                     - pimMode
                     - pimType
+                    - pimdrPriority
             pimmode:
               id: pimmode
               name: mode
@@ -6040,6 +6263,236 @@
               collection_props:
                 base_field_id: pimProfilesGroup
                 key: pimProfileName
+            igmpProfileName:
+              id: igmpProfileName
+              name: igmpProfileName
+              label: IGMP Profile Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            igmpmulicastGroup:
+              id: igmpmulicastGroup
+              name: mulicastGroup
+              label: Mulicast Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: ip
+                length: null
+                pattern: null
+                dynamic_options: null
+            igmpsource:
+              id: igmpsource
+              name: source
+              label: Source
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: ip
+                length: null
+                pattern: null
+                dynamic_options: null
+            igmpstaticGroupGroup:
+              id: igmpstaticGroupGroup
+              name: staticGroupGroup
+              label: Static Group Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - igmpmulicastGroup
+                    - igmpsource
+            igmpstaticGroup:
+              id: igmpstaticGroup
+              name: staticGroup
+              label: Static Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: igmpstaticGroupGroup
+                key: ''
+            igmplastMemberQueryCount:
+              id: igmplastMemberQueryCount
+              name: lastMemberQueryCount
+              label: Last Member Query Count
+              description: <0-3>  Last member query count
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            igmplastMemberQueryInterval:
+              id: igmplastMemberQueryInterval
+              name: lastMemberQueryInterval
+              label: 'Last Member Query Interval '
+              description: <10-317440>  query interval in deciseconds
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            igmpqueryMaxResponseTime:
+              id: igmpqueryMaxResponseTime
+              name: queryMaxResponseTime
+              label: Query Max Response Time
+              description: <10-31744>  query response value in deciseconds
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            igmpqueryInterval:
+              id: igmpqueryInterval
+              name: queryInterval
+              label: Query Interval
+              description: <1-3175>  Time between queries in units of seconds
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            igmpstartupQueryCount:
+              id: igmpstartupQueryCount
+              name: startupQueryCount
+              label: Startup Query Count
+              description: <1-65535>  Startup query count
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            igmpVersion:
+              id: igmpVersion
+              name: igmpVersion
+              label: IGMP Version
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: '3'
+                static_options:
+                  values:
+                    - '1'
+                    - '2'
+                    - '3'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            igmpstartupQueryInterval:
+              id: igmpstartupQueryInterval
+              name: startupQueryInterval
+              label: Startup Query Interval
+              description: <10-317440>  query interval in deciseconds
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            igmpPortSettings:
+              id: igmpPortSettings
+              name: igmpPortSettings
+              label: IGMP Port Settings
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - igmplastMemberQueryCount
+                    - igmplastMemberQueryInterval
+                    - igmpqueryMaxResponseTime
+                    - igmpqueryInterval
+                    - igmpstartupQueryCount
+                    - igmpVersion
+                    - igmpstartupQueryInterval
+            igmpsnoopingenable:
+              id: igmpsnoopingenable
+              name: enable
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            disableIgmpSnoopingForVlaNs:
+              id: disableIgmpSnoopingForVlaNs
+              name: disableIgmpSnoopingForVlaNs
+              label: Disable IGMP Snooping for VLANs
+              description: Specify VLAN or VLAN range
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            igmpigmpSnooping:
+              id: igmpigmpSnooping
+              name: igmpSnooping
+              label: IGMP Snooping
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - igmpsnoopingenable
+                    - disableIgmpSnoopingForVlaNs
+            igmpProfilesGroup:
+              id: igmpProfilesGroup
+              name: igmpProfilesGroup
+              label: IGMP Profiles Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - igmpProfileName
+                    - igmpstaticGroup
+                    - igmpPortSettings
+                    - igmpigmpSnooping
+            igmpProfiles:
+              id: igmpProfiles
+              name: igmpProfiles
+              label: IGMP Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: igmpProfilesGroup
+                key: igmpProfileName
             root:
               id: root
               name: ''
@@ -6050,7 +6503,7 @@
               group_props:
                 members:
                   values:
-                    - 30b4e9e4-b1bf-40da-be99-263a841ca2e2
+                    - sites
                     - interfacerangesinterfaceProfiles
                     - profiles
                     - dot1XProfiles
@@ -6061,5 +6514,941 @@
                     - stormControlProfiles
                     - ptpProfiles
                     - pimProfilespimProfiles
+                    - igmpProfiles
         layout:
-          value: '{"accessVlanId":{"key":"accessVlanId","dependency":{"mode":{"value":["access"],"mode":"SHOW"}},"type":"INPUT"},"nativeVlanId":{"key":"nativeVlanId","dependency":{"mode":{"value":["trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"allowedVlans":{"key":"allowedVlans","dependency":{"mode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT"},"phoneVlanId":{"key":"phoneVlanId","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}},"type":"INPUT"},"ipaddress":{"key":"ipaddress","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"ipmtu":{"key":"ipmtu","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}},"type":"INPUT"},"profilePortFastEnabled":{"key":"profilePortFastEnabled","dependency":{"mode":{"value":["access","trunk","phone"],"mode":"SHOW"}},"type":"INPUT"},"profileMlagEnabled":{"key":"profileMlagEnabled","dependency":{"mode":{"value":["routed","phone"],"mode":"HIDE"}},"dependencyType":"AND","type":"INPUT"},"profileLACPEnabled":{"key":"profileLACPEnabled","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}},"type":"INPUT"},"intfConfig":{"key":"intfConfig","type":"INPUT","order":["devicesinterfaceProfileName","devicesdescription","devicesenabled","devicesaccessVlan","devicesspeed","445e90bd-d503-4f95-8b39-9454c5b27558","devicesmlagEnabled","devicesipPrefix","devicesipvrf"]},"profiles":{"key":"profiles","type":"INPUT","isPageLayout":true},"interfaceRangesGroup":{"key":"interfaceRangesGroup","type":"INPUT","order":["interfacerangesdescription","interfacerangesinterfaceProfileName","interfacerangesinterfaceName","interfacerangesstackNumber","interfacerangesaccessVlan","interfacerangesvlanName","interfacerangesenabled","interfacerangesspeed","da7e3001-b7f3-49c3-a042-c9a05f22e501","interfacesrangesmlagEnabled","interfacerangesipPrefix","interfacerangesvrf"]},"devicesGroupdevicesGroup":{"key":"devicesGroupdevicesGroup","type":"INPUT","order":["stack","interfaceRanges","vlanInterfaces","ff47cfa6-76dd-43a6-8b68-dd3197c76133"]},"dot1XGroup":{"key":"dot1XGroup","type":"INPUT","order":["dot1XProfileName","portSecurity","dot1xdot1x"]},"poeGroup":{"key":"poeGroup","type":"INPUT","order":["poepoeProfileName","aclacledescription","poe"]},"poeProfiles":{"key":"poeProfiles","type":"INPUT","isPageLayout":true},"aclaclNames":{"key":"aclaclNames","type":"INPUT","isPageLayout":true},"qosInstances":{"key":"qosInstances","type":"INPUT","isPageLayout":true},"dot1XProfiles":{"key":"dot1XProfiles","type":"INPUT","isPageLayout":true},"acldirection":{"key":"acldirection","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"aclinterfacedirection":{"key":"aclinterfacedirection","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"policyMaps":{"key":"policyMaps","isPageLayout":false,"type":"INPUT"},"483b1c5f-0424-40a2-aaf5-db91db145de9":{"key":"483b1c5f-0424-40a2-aaf5-db91db145de9","type":"INPUT","valueToLabelMap":{"True":"In","False":"Out"}},"835c430a-c64d-47fa-a520-ee896cf06d17":{"key":"835c430a-c64d-47fa-a520-ee896cf06d17","type":"INPUT","valueToLabelMap":{"True":"protect","False":"shutdown"}},"portSecurity":{"key":"portSecurity","type":"INPUT","order":["portSecurityViolations","portSecurityAllowedMacCount","portSecurityallowVlanId"]},"profileValue":{"key":"profileValue","type":"INPUT","order":["profileName","mode","profileDescription","profileSpeed","accessVlanId","generalprofilevlanName","nativeVlanId","phoneVlanId","generalprofilephoneTrunk","allowedVlans","profilePortFastEnabled","generalprofilebpduGuardEnabled","ipaddress","generalprofileprofileIpAddressVirtual","generalprofiledhcpHelpers","generalprofilereversePathForwardingMode","ipmtu","8e5db58a-ba0c-44e2-8833-183a6e4fb61e","profileMlagEnabled","profileLACPEnabled","generalprofilecommandLine"]},"generalprofilephoneTrunk":{"key":"generalprofilephoneTrunk","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"SHOW"}}},"portSecurityallowVlanId":{"key":"portSecurityallowVlanId","dependency":{},"type":"INPUT"},"loggingGroup":{"key":"loggingGroup","type":"INPUT","order":["loggingProfileName","logging"]},"loggingProfiles":{"key":"loggingProfiles","type":"INPUT","isPageLayout":true},"policyMapclassMapSettings":{"key":"policyMapclassMapSettings","type":"INPUT","order":["policyMapshapeRate","policyMapbandwidth","policyMapbanddrop","policyMapdropPrecedence","policyMapdscp","policyMapcos","policyMaptrafficClass","policyMappolicerRate","policyMappolicerBc","policyMappolicerBurstSize","policyMappolicerCir"]},"policyMappmClassMapGroup":{"key":"policyMappmClassMapGroup","type":"INPUT","order":["classMap","policyMapclassMapSettings"]},"f9758ef0-476e-4fd2-9b7f-85f232e04eb5":{"key":"f9758ef0-476e-4fd2-9b7f-85f232e04eb5","type":"INPUT","isPageLayout":true},"qosprofileserviceProfileGroup":{"key":"qosprofileserviceProfileGroup","type":"INPUT","order":["qosprofileName","qosprofilepolicyMap","qosprofileshapeRate","qosprofiletrust","qosprofiletrustdscp","qosprofiletrustcos","qosprofilequeuetxQueue"]},"qosprofiledevicetxQueueGroup":{"key":"qosprofiledevicetxQueueGroup","type":"INPUT","order":["qosprofiledevicequeue","qosprofiledeviceshapeRate","qosprofiledevicebandwidth","qosprofiledevicebandwidthType","qosprofiledevicepriorityStrict","qosprofiledevicerandomDetectType","qosprofiledevicerdMinThreshold","qosprofiledeviceminThresholdMetric","qosprofiledevicerdMaxThreshold","qosprofiledevicedropProbability"]},"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887":{"key":"92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887","isPageLayout":false,"type":"INPUT"},"c193f31f-e3b5-4583-8244-519b3a5e933f":{"key":"c193f31f-e3b5-4583-8244-519b3a5e933f","type":"INPUT","order":["2fc54fc9-4f0d-46a9-8d3f-cbc7e2a94af6","87ecb8f9-44d1-4042-b2c3-c897db77b2e4"]},"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6":{"key":"1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6","type":"INPUT","isPageLayout":false},"vlaninterfacesssecIp":{"key":"vlaninterfacesssecIp","type":"INPUT","isPageLayout":false},"interface":{"key":"interface","isPageLayout":false,"type":"INPUT"},"interfaceProfilesGroup":{"key":"interfaceProfilesGroup","type":"INPUT","order":["interfaceProfilesName","interfaceProfilesvlanProfile","interfaceProfilesdot1XProfile","interfaceProfilespoeProfile","interfaceProfilesacl","interfaceProfileaclType","interfaceProfileaclDirection","interfaceProfileqosInstance","interfaceProfilesloggingProfile","interfaceProfilestormControlProfile","interfaceProfileptpProfile","interfaceProfilepimProfile"]},"vlaninterfacessvlanInterfacesGroup":{"key":"vlaninterfacessvlanInterfacesGroup","type":"INPUT","order":["vlaninterfacesdescription","vlaninterfacesinterfaceProfileName","vlaninterfacesvlanId","vlaninterfacesstackNumber","vlaninterfacessipPrefix","vlaninterfacessvirtualRouterAddress","vlaninterfacessipAddressVirtual","vlaninterfacessvrf","vlaninterfacesscreateVlanOnly","vlaninterfacesssecIp","vlaninterfacessdefaultGatewayNextHop"]},"2a6c7292-7231-4036-9372-22e8ac584b38":{"key":"2a6c7292-7231-4036-9372-22e8ac584b38","type":"INPUT","order":[]},"b0e43563-603c-46f2-8480-12733aa2f7cd":{"key":"b0e43563-603c-46f2-8480-12733aa2f7cd","type":"INPUT","order":[]},"generalprofileprofileIpAddressVirtual":{"key":"generalprofileprofileIpAddressVirtual","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"dot1xdot1x":{"key":"dot1xdot1x","type":"INPUT","order":["portControl","dot1xauthenticationFailureAction","dot1xauthenticationFailureActionAllowVlan","dot1xhostMode","dot1xmacBasedAuthentication","dot1xeapol","dot1xeapolAuthenticationFailureFallbackMba","dot1xunauthorizedAccessVlanMembershipEgress","dot1xunauthorizedNativeVlanMembershipEgress","dot1xreauthorizationRequestLimit","dot1xtimeoutTxPeriod","dot1xtimeoutReauthTimeoutIgnore","dot1xtimeoutReauthPeriod","dot1xtimeoutQuietPeriod","dot1xreauthentication","dot1xidleHost"]},"stormControlProfilesGroup":{"key":"stormControlProfilesGroup","type":"INPUT","order":["stormControlProfileName","stormControl"]},"stormControlProfiles":{"key":"stormControlProfiles","type":"INPUT","isPageLayout":true},"stormControl":{"key":"stormControl","type":"INPUT","order":["stormControlLevelAllType","stormControlLevelAllValue","stormControlUnknownUnicastType","stormControlUnknownUnicastValue","stormControlMulticastType","stormControlMulticastValue","stormControlBroadcastType","stormControlBroadcastValue"]},"profileChannelGroup":{"key":"profileChannelGroup","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}}},"generalprofilevlanName":{"key":"generalprofilevlanName","type":"INPUT","dependency":{"mode":{"value":["access"],"mode":"SHOW"}}},"sitesGroup":{"key":"sitesGroup","type":"INPUT","order":["switchesswitches","devices"]},"sites":{"key":"sites","type":"INPUT","isPageLayout":true},"ptpProfilesGroup":{"key":"ptpProfilesGroup","type":"INPUT","order":["ptpProfileName","ptpGlobalCommands","ptpPorts","ea827941-c038-4f84-a751-5ee9badad1c9"]},"pimProfilesGroup":{"key":"pimProfilesGroup","type":"INPUT","order":["pimProfileName","pimInterfaceCommands","routerPimCommands","routerMulticastCommands"]},"ptpProfiles":{"key":"ptpProfiles","type":"INPUT","isPageLayout":true},"pimProfilespimProfiles":{"key":"pimProfilespimProfiles","type":"INPUT","isPageLayout":true},"generalprofilebpduGuardEnabled":{"key":"generalprofilebpduGuardEnabled","dependency":{"mode":{"value":["access","phone","trunk"],"mode":"SHOW"}},"type":"INPUT"},"generalprofilereversePathForwardingMode":{"key":"generalprofilereversePathForwardingMode","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"routerPimCommands":{"key":"routerPimCommands","type":"INPUT","order":["pimmode","pimpimtype","pimvrf","pimrpAddress","pimrpOverride","pimgroupAccessList","pimpriority"]},"routerMulticastCommands":{"key":"routerMulticastCommands","type":"INPUT","order":["multicastrouting","multicastroutingtype","multicastvrf","multicastroutingcountersMetric","multicastroutingcountersRatePeriodDecay"]},"generalprofilehelperAddress":{"key":"generalprofilehelperAddress","type":"INPUT","dependency":{"mode":{"value":["routed"],"mode":"SHOW"}}},"switchesswitches":{"key":"switchesswitches","type":"INPUT","showDefaultRow":false},"interfaceinterface":{"key":"interfaceinterface","type":"INPUT","showDefaultRow":false},"devices":{"key":"devices","type":"INPUT","showDefaultRow":false},"qosprofilequeuetxQueueGroup":{"key":"qosprofilequeuetxQueueGroup","type":"INPUT","order":["qosprofilequeue","qosprofilequeuepriorityStrict","qosprofilequeueshapeRate","qosprofilequeuebandwidthType","qosprofilequeuebandwidth","qosprofilequeuerandomDetectType","qosprofilequeuerdMinThreshold","qosprofilequeueminThresholdMetric","qosprofilequeuerdMaxThreshold","qosprofilequeuedropProbability"]},"dot1xunauthorizedAccessVlanMembershipEgress":{"key":"dot1xunauthorizedAccessVlanMembershipEgress","type":"INPUT","valueToLabelMap":{"Disabled":"disabled","Enabled":"enabled"}},"policyMapclassMap":{"key":"policyMapclassMap","type":"INPUT","isPageLayout":false},"30b4e9e4-b1bf-40da-be99-263a841ca2e2":{"key":"30b4e9e4-b1bf-40da-be99-263a841ca2e2","order":["sitesGroup"],"type":"INPUT","showDefaultRow":false},"b2ed77ff-1b28-4edd-827a-d350b2b066b5":{"key":"b2ed77ff-1b28-4edd-827a-d350b2b066b5","type":"INPUT","order":["65e7cde4-295f-41d0-8f95-4fdca44ff777"]},"ff47cfa6-76dd-43a6-8b68-dd3197c76133":{"key":"ff47cfa6-76dd-43a6-8b68-dd3197c76133","dependency":{"stackMember":{"value":["__ANY__"],"mode":"HIDE"}},"type":"INPUT"},"8e5db58a-ba0c-44e2-8833-183a6e4fb61e":{"key":"8e5db58a-ba0c-44e2-8833-183a6e4fb61e","type":"INPUT","dependency":{"mode":{"value":["phone"],"mode":"HIDE"}}}}'
+          value: |
+            {
+               "accessVlanId": {
+                  "key": "accessVlanId",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "access"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "nativeVlanId": {
+                  "key": "nativeVlanId",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "trunk",
+                           "phone"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "allowedVlans": {
+                  "key": "allowedVlans",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "trunk"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "phoneVlanId": {
+                  "key": "phoneVlanId",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "phone"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "ipaddress": {
+                  "key": "ipaddress",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "routed"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "ipmtu": {
+                  "key": "ipmtu",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "routed"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "profilePortFastEnabled": {
+                  "key": "profilePortFastEnabled",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "access",
+                           "trunk",
+                           "phone"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "profileMlagEnabled": {
+                  "key": "profileMlagEnabled",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "routed",
+                           "phone"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  },
+                  "dependencyType": "AND",
+                  "type": "INPUT"
+               },
+               "profileLACPEnabled": {
+                  "key": "profileLACPEnabled",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "phone"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "intfConfig": {
+                  "key": "intfConfig",
+                  "type": "INPUT",
+                  "order": [
+                     "devicesinterfaceProfileName",
+                     "devicesdescription",
+                     "devicesenabled",
+                     "devicesaccessVlan",
+                     "devicesspeed",
+                     "445e90bd-d503-4f95-8b39-9454c5b27558",
+                     "devicesmlagEnabled",
+                     "devicesipPrefix",
+                     "devicesipvrf"
+                  ]
+               },
+               "profiles": {
+                  "key": "profiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "interfaceRangesGroup": {
+                  "key": "interfaceRangesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "interfacerangesdescription",
+                     "interfacerangesinterfaceProfileName",
+                     "interfacerangesinterfaceName",
+                     "interfacerangesstackNumber",
+                     "interfacerangesaccessVlan",
+                     "interfacerangesvlanName",
+                     "interfacerangesenabled",
+                     "interfacerangesspeed",
+                     "interfacerangeschannelGroup",
+                     "interfacerangeslacpEnabled",
+                     "interfacerangesmlagEnabled",
+                     "interfacerangesipPrefix",
+                     "interfacerangesvrf"
+                  ]
+               },
+               "devicesGroupdevicesGroup": {
+                  "key": "devicesGroupdevicesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "stack",
+                     "interfaceRanges",
+                     "vlanInterfaces",
+                     "loopbackInterfaces",
+                     "allSwitches",
+                     "groupMemberNotation"
+                  ]
+               },
+               "dot1XGroup": {
+                  "key": "dot1XGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "dot1XProfileName",
+                     "portSecurity",
+                     "dot1xdot1x"
+                  ]
+               },
+               "poeGroup": {
+                  "key": "poeGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "poepoeProfileName",
+                     "aclacledescription",
+                     "poe"
+                  ]
+               },
+               "poeProfiles": {
+                  "key": "poeProfiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "aclaclNames": {
+                  "key": "aclaclNames",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "qosInstances": {
+                  "key": "qosInstances",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "dot1XProfiles": {
+                  "key": "dot1XProfiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "acldirection": {
+                  "key": "acldirection",
+                  "valueToLabelMap": {
+                     "True": "In",
+                     "False": "Out"
+                  },
+                  "type": "INPUT",
+                  "dependency": {
+                     "aclname": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "aclinterfacedirection": {
+                  "key": "aclinterfacedirection",
+                  "valueToLabelMap": {
+                     "True": "In",
+                     "False": "Out"
+                  },
+                  "type": "INPUT",
+                  "dependency": {
+                     "aclname": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "policyMaps": {
+                  "key": "policyMaps",
+                  "isPageLayout": false,
+                  "type": "INPUT"
+               },
+               "483b1c5f-0424-40a2-aaf5-db91db145de9": {
+                  "key": "483b1c5f-0424-40a2-aaf5-db91db145de9",
+                  "type": "INPUT",
+                  "valueToLabelMap": {
+                     "True": "In",
+                     "False": "Out"
+                  }
+               },
+               "835c430a-c64d-47fa-a520-ee896cf06d17": {
+                  "key": "835c430a-c64d-47fa-a520-ee896cf06d17",
+                  "type": "INPUT",
+                  "valueToLabelMap": {
+                     "True": "protect",
+                     "False": "shutdown"
+                  }
+               },
+               "portSecurity": {
+                  "key": "portSecurity",
+                  "type": "INPUT",
+                  "order": [
+                     "portSecurityViolations",
+                     "portSecurityAllowedMacCount",
+                     "portSecurityallowVlanId"
+                  ]
+               },
+               "profileValue": {
+                  "key": "profileValue",
+                  "type": "INPUT",
+                  "order": [
+                     "profileName",
+                     "mode",
+                     "profileDescription",
+                     "profileSpeed",
+                     "accessVlanId",
+                     "generalprofilevlanName",
+                     "nativeVlanId",
+                     "phoneVlanId",
+                     "generalprofilephoneTrunk",
+                     "allowedVlans",
+                     "profilePortFastEnabled",
+                     "generalprofilebpduGuardEnabled",
+                     "ipaddress",
+                     "generalprofileprofileIpAddressVirtual",
+                     "generalprofiledhcpHelpers",
+                     "generalprofilereversePathForwardingMode",
+                     "ipmtu",
+                     "generalprofilechannelGroup",
+                     "generalprofilemlagEnabled",
+                     "generalprofilelacpEnabled",
+                     "generalprofilecommandLine"
+                  ]
+               },
+               "generalprofilephoneTrunk": {
+                  "key": "generalprofilephoneTrunk",
+                  "type": "INPUT",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "phone"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  }
+               },
+               "portSecurityallowVlanId": {
+                  "key": "portSecurityallowVlanId",
+                  "dependency": {},
+                  "type": "INPUT"
+               },
+               "loggingGroup": {
+                  "key": "loggingGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "loggingProfileName",
+                     "logging"
+                  ]
+               },
+               "loggingProfiles": {
+                  "key": "loggingProfiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "policyMapclassMapSettings": {
+                  "key": "policyMapclassMapSettings",
+                  "type": "INPUT",
+                  "order": [
+                     "policyMapshapeRate",
+                     "policyMapbandwidth",
+                     "policyMapbanddrop",
+                     "policyMapdropPrecedence",
+                     "policyMapdscp",
+                     "policyMapcos",
+                     "policyMaptrafficClass",
+                     "policyMappolicerRate",
+                     "policyMappolicerBc",
+                     "policyMappolicerBurstSize",
+                     "policyMappolicerCir"
+                  ]
+               },
+               "policyMappmClassMapGroup": {
+                  "key": "policyMappmClassMapGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "classMap",
+                     "policyMapclassMapSettings"
+                  ]
+               },
+               "f9758ef0-476e-4fd2-9b7f-85f232e04eb5": {
+                  "key": "f9758ef0-476e-4fd2-9b7f-85f232e04eb5",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "qosprofileserviceProfileGroup": {
+                  "key": "qosprofileserviceProfileGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "qosprofileName",
+                     "qosprofilepolicyMap",
+                     "qosprofileshapeRate",
+                     "qosprofiletrust",
+                     "qosprofiletrustdscp",
+                     "qosprofiletrustcos",
+                     "qosprofilequeuetxQueue"
+                  ]
+               },
+               "qosprofiledevicetxQueueGroup": {
+                  "key": "qosprofiledevicetxQueueGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "qosprofiledevicequeue",
+                     "qosprofiledevicedropProbability",
+                     "qosprofiledevicebandwidth",
+                     "qosprofiledevicebandwidthType",
+                     "qosprofiledevicepriorityStrict",
+                     "qosprofiledevicerandomDetectType",
+                     "qosprofiledevicerdMinThreshold",
+                     "qosprofiledeviceminThresholdMetric",
+                     "qosprofiledevicerdMaxThreshold",
+                     "qosprofilshapeRate",
+                     "qosprofiledevicedProbability"
+                  ]
+               },
+               "92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887": {
+                  "key": "92e8d9d0-b9c3-4f39-97bb-fa7a0a9c2887",
+                  "isPageLayout": false,
+                  "type": "INPUT"
+               },
+               "c193f31f-e3b5-4583-8244-519b3a5e933f": {
+                  "key": "c193f31f-e3b5-4583-8244-519b3a5e933f",
+                  "type": "INPUT",
+                  "order": [
+                     "2fc54fc9-4f0d-46a9-8d3f-cbc7e2a94af6",
+                     "87ecb8f9-44d1-4042-b2c3-c897db77b2e4"
+                  ]
+               },
+               "1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6": {
+                  "key": "1ac0c7c4-1853-4a54-ad6b-4a60ca0bfbf6",
+                  "type": "INPUT",
+                  "isPageLayout": false
+               },
+               "vlaninterfacesssecIp": {
+                  "key": "vlaninterfacesssecIp",
+                  "type": "INPUT",
+                  "isPageLayout": false
+               },
+               "interface": {
+                  "key": "interface",
+                  "isPageLayout": false,
+                  "type": "INPUT"
+               },
+               "interfaceProfilesGroup": {
+                  "key": "interfaceProfilesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "interfaceProfilesName",
+                     "interfaceProfilesvlanProfile",
+                     "interfaceProfilesdot1XProfile",
+                     "interfaceProfilespoeProfile",
+                     "interfaceProfilesacl",
+                     "interfaceProfileaclout",
+                     "interfaceProfileaclType",
+                     "interfaceProfileqosInstance",
+                     "interfaceProfilesloggingProfile",
+                     "interfaceProfilestormControlProfile",
+                     "interfaceProfileptpProfile",
+                     "interfaceProfilepimProfile",
+                     "interfaceProfileigmpProfile"
+                  ]
+               },
+               "vlaninterfacessvlanInterfacesGroup": {
+                  "key": "vlaninterfacessvlanInterfacesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "vlaninterfacesdescription",
+                     "vlaninterfacesinterfaceProfileName",
+                     "vlaninterfacesvlanId",
+                     "vlaninterfacessipPrefix",
+                     "vlaninterfacesstackNumber",
+                     "vlaninterfacessvirtualRouterAddress",
+                     "vlaninterfacessipAddressVirtual",
+                     "vlaninterfacessvrf",
+                     "vlaninterfacesscreateVlanOnly",
+                     "vlaninterfacesssecIp",
+                     "vlaninterfacessdefaultGatewayNextHop"
+                  ]
+               },
+               "2a6c7292-7231-4036-9372-22e8ac584b38": {
+                  "key": "2a6c7292-7231-4036-9372-22e8ac584b38",
+                  "type": "INPUT",
+                  "order": []
+               },
+               "b0e43563-603c-46f2-8480-12733aa2f7cd": {
+                  "key": "b0e43563-603c-46f2-8480-12733aa2f7cd",
+                  "type": "INPUT",
+                  "order": []
+               },
+               "generalprofileprofileIpAddressVirtual": {
+                  "key": "generalprofileprofileIpAddressVirtual",
+                  "type": "INPUT",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "routed"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  }
+               },
+               "dot1xdot1x": {
+                  "key": "dot1xdot1x",
+                  "type": "INPUT",
+                  "order": [
+                     "portControl",
+                     "dot1xauthenticationFailureAction",
+                     "dot1xauthenticationFailureActionAllowVlan",
+                     "dot1xhostMode",
+                     "dot1xmacBasedAuthentication",
+                     "dot1xeapol",
+                     "dot1xeapolAuthenticationFailureFallbackMba",
+                     "dot1xunauthorizedAccessVlanMembershipEgress",
+                     "dot1xunauthorizedNativeVlanMembershipEgress",
+                     "dot1xreauthorizationRequestLimit",
+                     "dot1xtimeoutTxPeriod",
+                     "dot1xtimeoutReauthTimeoutIgnore",
+                     "dot1xtimeoutReauthPeriod",
+                     "dot1xtimeoutQuietPeriod",
+                     "dot1xreauthentication",
+                     "dot1xidleHost"
+                  ]
+               },
+               "stormControlProfilesGroup": {
+                  "key": "stormControlProfilesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "stormControlProfileName",
+                     "stormControl"
+                  ]
+               },
+               "stormControlProfiles": {
+                  "key": "stormControlProfiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "stormControl": {
+                  "key": "stormControl",
+                  "type": "INPUT",
+                  "order": [
+                     "stormControlLevelAllType",
+                     "stormControlLevelAllValue",
+                     "stormControlUnknownUnicastType",
+                     "stormControlUnknownUnicastValue",
+                     "stormControlMulticastType",
+                     "stormControlMulticastValue",
+                     "stormControlBroadcastType",
+                     "stormControlBroadcastValue"
+                  ]
+               },
+               "profileChannelGroup": {
+                  "key": "profileChannelGroup",
+                  "type": "INPUT",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "phone"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "generalprofilevlanName": {
+                  "key": "generalprofilevlanName",
+                  "type": "INPUT",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "access"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  }
+               },
+               "sitesGroup": {
+                  "key": "sitesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "devices"
+                  ]
+               },
+               "sites": {
+                  "key": "sites",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "ptpProfilesGroup": {
+                  "key": "ptpProfilesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "ptpProfileName",
+                     "ptpGlobalCommands",
+                     "ptpPorts",
+                     "ptpptpvlanInterfaces"
+                  ]
+               },
+               "pimProfilesGroup": {
+                  "key": "pimProfilesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "pimProfileName",
+                     "pimInterfaceCommands",
+                     "routerPimCommands",
+                     "routerMulticastCommands"
+                  ]
+               },
+               "ptpProfiles": {
+                  "key": "ptpProfiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "pimProfilespimProfiles": {
+                  "key": "pimProfilespimProfiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "generalprofilebpduGuardEnabled": {
+                  "key": "generalprofilebpduGuardEnabled",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "access",
+                           "phone",
+                           "trunk"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "generalprofilereversePathForwardingMode": {
+                  "key": "generalprofilereversePathForwardingMode",
+                  "type": "INPUT",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "routed"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  }
+               },
+               "routerPimCommands": {
+                  "key": "routerPimCommands",
+                  "type": "INPUT",
+                  "order": [
+                     "pimmode",
+                     "pimpimtype",
+                     "pimvrf",
+                     "pimrpAddress",
+                     "pimrpOverride",
+                     "pimgroupAccessList",
+                     "pimpriority"
+                  ]
+               },
+               "routerMulticastCommands": {
+                  "key": "routerMulticastCommands",
+                  "type": "INPUT",
+                  "order": [
+                     "multicastrouting",
+                     "multicastroutingtype",
+                     "multicastvrf",
+                     "multicastroutingcountersMetric",
+                     "multicastroutingcountersRatePeriodDecay"
+                  ]
+               },
+               "generalprofilehelperAddress": {
+                  "key": "generalprofilehelperAddress",
+                  "type": "INPUT",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "routed"
+                        ],
+                        "mode": "SHOW"
+                     }
+                  }
+               },
+               "switchesswitches": {
+                  "key": "switchesswitches",
+                  "type": "INPUT",
+                  "showDefaultRow": false
+               },
+               "interfaceinterface": {
+                  "key": "interfaceinterface",
+                  "type": "INPUT",
+                  "showDefaultRow": false
+               },
+               "devices": {
+                  "key": "devices",
+                  "type": "INPUT",
+                  "showDefaultRow": false
+               },
+               "qosprofilequeuetxQueueGroup": {
+                  "key": "qosprofilequeuetxQueueGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "qosprofilequeue",
+                     "qosprofilequeuedropPrecedence",
+                     "qosprofilequeuedropPrecedencePercent",
+                     "qosprofilequeuepriorityStrict",
+                     "qosprofilequeueshapeRate",
+                     "qosprofilequeuebandwidthType",
+                     "qosprofilequeuebandwidth",
+                     "qosprofilequeuerandomDetectType",
+                     "qosprofilequeuerdMinThreshold",
+                     "qosprofilequeueminThresholdMetric",
+                     "qosprofilequeuerdMaxThreshold",
+                     "qosprofilequeuedropProbability"
+                  ]
+               },
+               "dot1xunauthorizedAccessVlanMembershipEgress": {
+                  "key": "dot1xunauthorizedAccessVlanMembershipEgress",
+                  "type": "INPUT",
+                  "valueToLabelMap": {
+                     "Disabled": "disabled",
+                     "Enabled": "enabled"
+                  }
+               },
+               "policyMapclassMap": {
+                  "key": "policyMapclassMap",
+                  "type": "INPUT",
+                  "isPageLayout": false
+               },
+               "sites": {
+                  "key": "sites",
+                  "order": [
+                     "sitesGroup"
+                  ],
+                  "type": "INPUT",
+                  "showDefaultRow": false
+               },
+               "b2ed77ff-1b28-4edd-827a-d350b2b066b5": {
+                  "key": "b2ed77ff-1b28-4edd-827a-d350b2b066b5",
+                  "type": "INPUT",
+                  "order": [
+                     "65e7cde4-295f-41d0-8f95-4fdca44ff777"
+                  ]
+               },
+               "allSwitches": {
+                  "key": "allSwitches",
+                  "dependency": {
+                     "stackMember": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "generalprofilechannelGroup": {
+                  "key": "generalprofilechannelGroup",
+                  "type": "INPUT",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "phone"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "ptpvlaninterfaceplaceholder": {
+                  "key": "ptpvlaninterfaceplaceholder",
+                  "type": "INPUT",
+                  "dependency": {
+                     "ptpProfileName": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "aclvlanId": {
+                  "key": "aclvlanId",
+                  "type": "INPUT",
+                  "dependency": {
+                     "aclname": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "aclinterfaceName": {
+                  "key": "aclinterfaceName",
+                  "type": "INPUT",
+                  "dependency": {
+                     "aclname": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "aclcontrolPlaneAcl": {
+                  "key": "aclcontrolPlaneAcl",
+                  "type": "INPUT",
+                  "dependency": {
+                     "aclname": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "policyMapshapeRate": {
+                  "key": "policyMapshapeRate",
+                  "type": "INPUT",
+                  "dependency": {
+                     "classMap": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "policyMapbandwidth": {
+                  "key": "policyMapbandwidth",
+                  "type": "INPUT",
+                  "dependency": {
+                     "classMap": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  }
+               },
+               "groupMemberNotation": {
+                  "key": "groupMemberNotation",
+                  "dependency": {
+                     "stackMember": {
+                        "value": [
+                           "__ANY__"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "devicesipvrf": {
+                  "key": "devicesipvrf",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "devicesipPrefix": {
+                  "key": "devicesipPrefix",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "devicesmlagEnabled": {
+                  "key": "devicesmlagEnabled",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "445e90bd-d503-4f95-8b39-9454c5b27558": {
+                  "key": "445e90bd-d503-4f95-8b39-9454c5b27558",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "devicesspeed": {
+                  "key": "devicesspeed",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "devicesaccessVlan": {
+                  "key": "devicesaccessVlan",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "devicesenabled": {
+                  "key": "devicesenabled",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "devicesdescription": {
+                  "key": "devicesdescription",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "devicesinterfaceProfileName": {
+                  "key": "devicesinterfaceProfileName",
+                  "type": "INPUT",
+                  "dependency": {}
+               },
+               "generalprofilemlagEnabled": {
+                  "key": "generalprofilemlagEnabled",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "phone",
+                           "routed"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "generalprofilelacpEnabled": {
+                  "key": "generalprofilelacpEnabled",
+                  "dependency": {
+                     "mode": {
+                        "value": [
+                           "phone"
+                        ],
+                        "mode": "HIDE"
+                     }
+                  },
+                  "type": "INPUT"
+               },
+               "igmpProfiles": {
+                  "key": "igmpProfiles",
+                  "type": "INPUT",
+                  "isPageLayout": true
+               },
+               "igmpstaticGroup": {
+                  "key": "igmpstaticGroup",
+                  "isPageLayout": false,
+                  "type": "INPUT"
+               },
+               "igmpProfilesGroup": {
+                  "key": "igmpProfilesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "igmpProfileName",
+                     "igmpPortSettings",
+                     "igmpstaticGroup",
+                     "igmpigmpSnooping"
+                  ]
+               },
+               "igmpPortSettings": {
+                  "key": "igmpPortSettings",
+                  "type": "INPUT",
+                  "order": [
+                     "igmpVersion",
+                     "igmplastMemberQueryInterval",
+                     "igmplastMemberQueryCount",
+                     "igmpqueryInterval",
+                     "igmpstartupQueryCount",
+                     "igmpstartupQueryInterval",
+                     "igmpqueryMaxResponseTime"
+                  ]
+               },
+               "loopbackInterfaces": {
+                  "key": "loopbackInterfaces",
+                  "type": "INPUT",
+                  "isPageLayout": false
+               },
+               "loopbackInterfacesGroup": {
+                  "key": "loopbackInterfacesGroup",
+                  "type": "INPUT",
+                  "order": [
+                     "loopbackdescription",
+                     "loopbackinterfaceProfileName",
+                     "loopbacknumber",
+                     "loopbackipPrefix",
+                     "loopbackstackNumber",
+                     "loopbackvrf"
+                  ]
+               }
+            }
