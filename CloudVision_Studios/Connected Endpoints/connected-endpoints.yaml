@@ -94,16 +94,16 @@
                   # Get port profile attributes
                   # Get profile's speed
                   port_profile_speed = port_profile["portProfileSpeed"] \
-                  if port_profile["portProfileSpeed"] is not None and \
-                      port_profile["portProfileSpeed"].strip() != '' else None
+                          if port_profile["portProfileSpeed"] is not None and \
+                          port_profile["portProfileSpeed"].strip() != '' else None
                   # Get profile's MTU
                   port_profile_mtu = port_profile["portProfileMtu"]
                   # Get profile's mode
                   port_profile_mode = port_profile['vlanSettings']["portProfileMode"]
                   # Get profile's allowed/access vlans
                   port_profile_vlans = port_profile['vlanSettings']["portProfileVlans"] \
-                      if port_profile['vlanSettings']["portProfileVlans"] is not None and \
-                      port_profile['vlanSettings']["portProfileVlans"].strip() != '' else None
+                          if port_profile['vlanSettings']["portProfileVlans"] is not None and \
+                          port_profile['vlanSettings']["portProfileVlans"].strip() != '' else None
                   # Get profile's native vlan
                   port_profile_native_vlan = port_profile['vlanSettings']["portProfileNativeVlan"]
 
@@ -148,7 +148,7 @@
                           if stormUUCast["portProfileStormControlUnknownUnicastUnit"] is not None and \
                               stormUUCast["portProfileStormControlUnknownUnicastUnit"].strip() != '' else "percent"
 
-                  # Get profile's Port-Channel
+                  # Get profile's Port-Channel 
                   port_profile_port_channel = {}
                   channel_group_id = None
                   port_profile_lacp_fallback_mode = None
@@ -594,14 +594,14 @@
                               count = sum([ (int(y.split('-')[1]) - int(y.split('-')[0]) + 1) if y.find('-') > 0 else 1 for y in str(interfacesCombined).split(',')], count)
                           return count
 
-                      if interfaceCount() > 1:
-                          if adapter_port_channel_short_esi is not None:
-                              ## Configure ESI
-                              connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
-                              connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
-                              if adapter_port_channel_mode == "active":
-                                  connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
-
+                      if adapter_port_channel_short_esi is not None and adapter_port_channel_short_esi.strip() != "":
+                          ## Configure ESI
+                          connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
+                          connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
+                          if adapter_port_channel_mode == "active":
+                              connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
+                      else:
+                          connected_port_channel_interface_config["mlag"] = adapter_channel_group_id
                       ## Add interface config to connected_port_channel_interface_config dictionary
                       my_switch_port_channel_interfaces["Port-Channel {}".format(adapter_channel_group_id)] = \
                           connected_port_channel_interface_config
@@ -675,6 +675,9 @@
           %     if currentPortchannel.get("lacp_fallback_mode") is not None:
             port-channel lacp fallback ${ currentPortchannel["lacp_fallback_mode"] }
           %     endif
+          %     if currentPortchannel.get("mlag") is not None:
+            mlag ${ currentPortchannel.get("mlag") }
+          %     endif %}
           %     if currentPortchannel.get("spanning_tree_portfast") is not None:
           %       if currentPortchannel["spanning_tree_portfast"] == "edge":
             spanning-tree portfast
@@ -761,7 +764,10 @@
             switchport access vlan ${ currentInt.get("vlans") }
           %             endif
           %         endif
-
+          ## Speed
+          %         if config["ethernet_interfaces"][ethernet_interface].get('speed'):
+            speed ${ config["ethernet_interfaces"][ethernet_interface]["speed"] }
+          %         endif
           ## Phone VLAN
           %         if currentInt.get("phone_enabled") is True and currentInt.get("phone_vlan") is not None:
             switchport phone vlan ${ currentInt.get("phone_vlan") }
@@ -959,6 +965,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -973,6 +980,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: edge
+                is_secret: false
                 static_options:
                   values:
                     - edge
@@ -990,6 +998,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1007,6 +1016,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1037,6 +1047,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - received
@@ -1066,6 +1077,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1080,6 +1092,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1094,6 +1107,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1123,6 +1137,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1137,6 +1152,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1166,6 +1182,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1180,6 +1197,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1209,6 +1227,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1223,6 +1242,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1287,6 +1307,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - active
@@ -1305,6 +1326,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - static
@@ -1345,6 +1367,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1371,6 +1394,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1401,6 +1425,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1436,6 +1461,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: access
+                is_secret: false
                 static_options:
                   values:
                     - access
@@ -1466,6 +1492,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1553,6 +1580,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Allow
@@ -1636,6 +1664,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1785,6 +1814,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1799,6 +1829,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1815,6 +1846,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - None
@@ -1833,6 +1865,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1850,6 +1883,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1880,6 +1914,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - received
@@ -1909,6 +1944,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1935,6 +1971,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - active
@@ -1953,6 +1990,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - static
@@ -1993,6 +2031,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2016,6 +2055,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2046,6 +2086,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2060,6 +2101,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2089,6 +2131,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2103,6 +2146,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2132,6 +2176,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2146,6 +2191,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2175,6 +2221,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2189,6 +2236,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: percent
+                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2262,6 +2310,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Drop
+                is_secret: false
                 static_options:
                   values:
                     - Allow
@@ -2375,6 +2424,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - access
@@ -2405,6 +2455,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2465,6 +2516,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2582,6 +2634,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2596,6 +2649,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2672,4 +2726,965 @@
                     - portProfiles
                     - adapters
         layout:
-          value: '{"switchInterface":{"key":"switchInterface","type":"INPUT","isPageLayout":false},"endpointDetails":{"key":"endpointDetails","type":"INPUT","order":["endpointName","rack"]},"endpoints":{"key":"endpoints","type":"INPUT","isPageLayout":true},"adapterDetails":{"key":"adapterDetails","type":"INPUT","order":["a164ba02-f162-49a6-93de-3427ca4b40b4","b867fb89-78d0-439e-a373-f243a67b8c8c","adapterPortProfile","adapterSpeed","adapterPortChannel","e0c27bfd-ef4b-4087-971b-864350b4f531","adapterSpanningTreeDetails","adapterFlowControl","adapterQosProfile","2dbee137-6424-4296-a7bd-8ccb8035b47c","adapterStormControlDetails","adapterMtu","f7cb6b88-ef74-4b27-b544-6a4eaad094b1","0afbc986-4036-4153-a72f-703caca80258"]},"adapters":{"key":"adapters","isPageLayout":true,"type":"INPUT"},"endpointInterfacesGroup":{"key":"endpointInterfacesGroup","type":"INPUT","order":[]},"endpointInterfaces":{"key":"endpointInterfaces","type":"INPUT","isPageLayout":false},"switch":{"key":"switch","type":"INPUT","isPageLayout":false},"adapterNativeVlan":{"key":"adapterNativeVlan","type":"INPUT","dependency":{"adapterMode":{"value":["trunk"],"mode":"SHOW"}}},"bc00d92e-5b9c-482c-94d1-7e126533ec01":{"key":"bc00d92e-5b9c-482c-94d1-7e126533ec01","type":"INPUT","dependency":{"adapterMode":{"value":["access"],"mode":"SHOW"}}},"portProfileNativeVlan":{"key":"portProfileNativeVlan","dependency":{"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT"},"portProfileGroups":{"key":"portProfileGroups","type":"INPUT","order":["portProfileName","portProfileSpeed","portProfilePortChannel","phoneSettings","portProfileSpanningTreeDetails","portProfileFlowControl","portProfileQosProfile","80f2d247-e2a4-4b2a-9dc9-86703baa25b2","portProfileStormControlDetails","portProfileMtu","dot1XSettings","profileCliList"]},"adapterPortChannel":{"key":"adapterPortChannel","type":"INPUT","order":["adapterEnablePortChannel","adapterPortChannelId","adapterPortChannelDescription","adapterPortChannelMode","adapterPortChannelLacpFallback","adapterPortChannelShortEsi"]},"adapterEnablePortChannel":{"key":"adapterEnablePortChannel","type":"INPUT","dependency":{}},"adapterPortChannelId":{"key":"adapterPortChannelId","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelMode":{"key":"adapterPortChannelMode","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelLacpFallbackMode":{"key":"adapterPortChannelLacpFallbackMode","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelLacpFallbackTimeout":{"key":"adapterPortChannelLacpFallbackTimeout","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelShortEsi":{"key":"adapterPortChannelShortEsi","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelMode":{"key":"portProfilePortChannelMode","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelLacpFallbackMode":{"key":"portProfilePortChannelLacpFallbackMode","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelLacpFallbackTimeout":{"key":"portProfilePortChannelLacpFallbackTimeout","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelShortEsi":{"key":"portProfilePortChannelShortEsi","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfiles":{"key":"portProfiles","type":"INPUT","isPageLayout":true},"portProfilePortChannelId":{"key":"portProfilePortChannelId","type":"INPUT","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"portProfilePortChannel":{"key":"portProfilePortChannel","type":"INPUT","order":["portProfileEnablePortChannel","portProfilePortChannelId","portProfilePortChannelDescription","portProfilePortChannelMode","portProfilePortChannelLacpFallback","portProfilePortChannelShortEsi"]},"portProfilePortChannelDescription":{"key":"portProfilePortChannelDescription","type":"INPUT","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"adapterPortChannelDescription":{"key":"adapterPortChannelDescription","type":"INPUT","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"adapterSpanningTreeDetails":{"key":"adapterSpanningTreeDetails","type":"INPUT","order":["adapterPortfast","adapterBpduFilter","adapterBpduGuard"]},"portProfileSpanningTreeDetails":{"key":"portProfileSpanningTreeDetails","type":"INPUT","order":["portProfilePortfast","portProfileBpduFilter","portProfileBpduGuard"]},"hostType":{"key":"hostType","valueToLabelMap":{"True":"Multi-Host","False":"Single-Host"},"dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"35a33db5-11f9-401c-b462-f9a8cd33bfc9":{"key":"35a33db5-11f9-401c-b462-f9a8cd33bfc9","type":"INPUT","order":["4272a4b4-7c72-42a4-a1f6-f99ec617c211","9dfb8ec7-e11d-4852-bb39-f207b830e761","512e39de-8a86-4db2-b013-ff7f01f988a4","215f4f4c-f686-466e-98c6-b6acf5ca1c96","d05b3e38-630e-406d-b647-fde24d0465b4","a14cda07-9de8-4e79-a94d-0d1fe6afe05e","8ce87fb7-5f92-42ff-83e6-571974958e2b","b80eaa20-5d71-4520-8d3d-06033a85294a","76c02487-7e62-4e23-9501-56ee66d95c28","1de822f1-d47e-4a44-a092-564ba6b2c6a2"]},"reauthenticationTimerSetting":{"key":"reauthenticationTimerSetting","type":"INPUT","valueToLabelMap":{"True":"Server","False":"Local"}},"f667cf6b-c0ab-4336-af16-fef1a2b88816":{"key":"f667cf6b-c0ab-4336-af16-fef1a2b88816","dependency":{"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"value":["Drop","Disable"],"mode":"HIDE"},"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2":{"key":"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2","valueToLabelMap":{"True":"Multi-Host","False":"Single-Host"},"dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"6c49a0ab-4e10-4706-aec9-19d8605fb90d":{"key":"6c49a0ab-4e10-4706-aec9-19d8605fb90d","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"key":"76fb4c7c-7f14-48ec-b268-aa38ce10d84b","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"key":"bf9f2d0a-21bd-4b71-9b8e-d7306273618d","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"91abeafa-1918-466d-ba43-e7ffb8417424":{"key":"91abeafa-1918-466d-ba43-e7ffb8417424","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"value":[true],"mode":"SHOW"}},"dependencyType":"AND","type":"INPUT"},"7b76e149-8a3a-4b47-b3ba-303e289b35f9":{"key":"7b76e149-8a3a-4b47-b3ba-303e289b35f9","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"value":[true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"f2e5a570-3fd6-4978-b357-d5428e863d97":{"key":"f2e5a570-3fd6-4978-b357-d5428e863d97","valueToLabelMap":{"True":"Tagged","False":"Untagged"},"dependency":{"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f":{"key":"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f","type":"INPUT","order":[]},"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"key":"2db5b218-0a75-4720-ae5c-a96c71f6edb7","valueToLabelMap":{"True":"Yes","False":"No"},"type":"INPUT"},"phoneSettings":{"key":"phoneSettings","type":"INPUT","order":["portProfileMode","portProfileNativeVlan","portProfileVlans","phoneEnabled","phoneVlan","90eece88-0f72-4b40-9254-e4ff92e82c84"]},"dot1XSettings":{"key":"dot1XSettings","type":"INPUT","order":["8021XEnabled","macBasedAuthentication","hostType","multiHostIndividualAuthentication","4d07614b-f595-4231-9cfd-7e04d7badc69","a682964f-bbab-4fd7-a987-546f9008b0be","0a222884-fb72-423f-89d5-61c21c1a3420","99c81d24-4705-49f4-b4b1-0b5672f4a05b","7b1af5a8-d911-4095-b71b-3633fd0da4cd","timeoutQuietPeriod"]},"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa":{"key":"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa","valueToLabelMap":{"True":"Multi","False":"Single"},"type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"phoneEnabled":{"key":"phoneEnabled","valueToLabelMap":{"True":"Configured","False":"Unconfigured"},"type":"INPUT","dependency":{"portProfileMode":{"value":["trunk"],"mode":"SHOW"}}},"macBasedAuthentication":{"key":"macBasedAuthentication","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"multiHostIndividualAuthentication":{"key":"multiHostIndividualAuthentication","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"4d07614b-f595-4231-9cfd-7e04d7badc69":{"key":"4d07614b-f595-4231-9cfd-7e04d7badc69","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"a682964f-bbab-4fd7-a987-546f9008b0be":{"key":"a682964f-bbab-4fd7-a987-546f9008b0be","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"4d07614b-f595-4231-9cfd-7e04d7badc69":{"value":["Allow"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"key":"0a222884-fb72-423f-89d5-61c21c1a3420","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"99c81d24-4705-49f4-b4b1-0b5672f4a05b":{"key":"99c81d24-4705-49f4-b4b1-0b5672f4a05b","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"value":[false,true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"7b1af5a8-d911-4095-b71b-3633fd0da4cd":{"key":"7b1af5a8-d911-4095-b71b-3633fd0da4cd","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"value":[true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"timeoutQuietPeriod":{"key":"timeoutQuietPeriod","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"dependencyType":"OR","type":"INPUT"},"phoneVlan":{"key":"phoneVlan","dependency":{"phoneEnabled":{"value":[true],"mode":"SHOW"},"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"90eece88-0f72-4b40-9254-e4ff92e82c84":{"key":"90eece88-0f72-4b40-9254-e4ff92e82c84","dependency":{"phoneEnabled":{"value":[true],"mode":"SHOW"},"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"113fa93d-ef20-410d-96aa-fa752e4e178f":{"key":"113fa93d-ef20-410d-96aa-fa752e4e178f","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"dependencyType":"OR","type":"INPUT"},"4d4c6315-610d-4381-8aef-3f5483057986":{"key":"4d4c6315-610d-4381-8aef-3f5483057986","type":"INPUT","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}}},"f7cb6b88-ef74-4b27-b544-6a4eaad094b1":{"key":"f7cb6b88-ef74-4b27-b544-6a4eaad094b1","type":"INPUT","order":["c60cf057-f9ed-43e9-b280-301fa2476177","6c49a0ab-4e10-4706-aec9-19d8605fb90d","3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2","4d4c6315-610d-4381-8aef-3f5483057986","76fb4c7c-7f14-48ec-b268-aa38ce10d84b","06c6cc80-c714-4abd-b8d3-9a7714947670","bf9f2d0a-21bd-4b71-9b8e-d7306273618d","91abeafa-1918-466d-ba43-e7ffb8417424","7b76e149-8a3a-4b47-b3ba-303e289b35f9","113fa93d-ef20-410d-96aa-fa752e4e178f"]},"06c6cc80-c714-4abd-b8d3-9a7714947670":{"key":"06c6cc80-c714-4abd-b8d3-9a7714947670","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"value":["Allow"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"directInterfaces":{"key":"directInterfaces","type":"INPUT"},"directPorts":{"key":"directPorts","type":"INPUT"},"85540f89-cd07-492f-ac78-fdee794b82ef":{"key":"85540f89-cd07-492f-ac78-fdee794b82ef","type":"INPUT","order":["946cf29f-823e-4fc5-b1fb-42974a3e4c2b","c069ca75-3ffd-41d5-a735-72c021609b25","59a2ea8a-5dda-41b7-a655-6c2489eebe16"]},"c069ca75-3ffd-41d5-a735-72c021609b25":{"key":"c069ca75-3ffd-41d5-a735-72c021609b25","type":"INPUT","dependency":{"946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{"value":[false],"mode":"HIDE"}}},"59a2ea8a-5dda-41b7-a655-6c2489eebe16":{"key":"59a2ea8a-5dda-41b7-a655-6c2489eebe16","type":"INPUT","dependency":{"946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{"value":[false],"mode":"HIDE"}}},"1cacdc71-d0d3-46dd-a23a-d0df699f831a":{"key":"1cacdc71-d0d3-46dd-a23a-d0df699f831a","dependency":{"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"2dbee137-6424-4296-a7bd-8ccb8035b47c":{"key":"2dbee137-6424-4296-a7bd-8ccb8035b47c","type":"INPUT","order":["8f3fbc0f-e94d-4017-97e9-4108c6f22f2f","9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d","5105c809-e246-4f1a-a7ce-ff57b6339057","4e86adfa-183c-44ae-bd95-eea2c8a32c7e","a6866cc8-d1e6-4eb1-b5c6-27f978251679","6c244909-7ae1-4b4f-beb5-e41c85e86397"]},"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d":{"key":"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"5105c809-e246-4f1a-a7ce-ff57b6339057":{"key":"5105c809-e246-4f1a-a7ce-ff57b6339057","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"4e86adfa-183c-44ae-bd95-eea2c8a32c7e":{"key":"4e86adfa-183c-44ae-bd95-eea2c8a32c7e","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"a6866cc8-d1e6-4eb1-b5c6-27f978251679":{"key":"a6866cc8-d1e6-4eb1-b5c6-27f978251679","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"6c244909-7ae1-4b4f-beb5-e41c85e86397":{"key":"6c244909-7ae1-4b4f-beb5-e41c85e86397","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5":{"key":"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0":{"key":"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"fd026550-9930-47c7-bb2b-39f68959beec":{"key":"fd026550-9930-47c7-bb2b-39f68959beec","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"delayRequestInterval":{"key":"delayRequestInterval","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"451779ac-23d4-4e77-ba14-31254e752ccd":{"key":"451779ac-23d4-4e77-ba14-31254e752ccd","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"b867fb89-78d0-439e-a373-f243a67b8c8c":{"key":"b867fb89-78d0-439e-a373-f243a67b8c8c","type":"INPUT","showDefaultRow":false}}'
+          value: |
+            {
+              "switchInterface":{
+                "key":"switchInterface",
+                "type":"INPUT",
+                "isPageLayout":false
+              },
+              "endpointDetails":{
+                "key":"endpointDetails",
+                "type":"INPUT",
+                "order":[
+                  "endpointName",
+                  "rack"
+                ]
+              },
+              "endpoints":{
+                "key":"endpoints",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "adapterDetails":{
+                "key":"adapterDetails",
+                "type":"INPUT",
+                "order":[
+                  "a164ba02-f162-49a6-93de-3427ca4b40b4",
+                  "b867fb89-78d0-439e-a373-f243a67b8c8c",
+                  "adapterPortProfile",
+                  "adapterSpeed",
+                  "adapterPortChannel",
+                  "e0c27bfd-ef4b-4087-971b-864350b4f531",
+                  "adapterSpanningTreeDetails",
+                  "adapterFlowControl",
+                  "adapterQosProfile",
+                  "2dbee137-6424-4296-a7bd-8ccb8035b47c",
+                  "adapterStormControlDetails",
+                  "adapterMtu",
+                  "f7cb6b88-ef74-4b27-b544-6a4eaad094b1",
+                  "0afbc986-4036-4153-a72f-703caca80258"
+                ]
+              },
+              "adapters":{
+                "key":"adapters",
+                "isPageLayout":true,
+                "type":"INPUT"
+              },
+              "endpointInterfacesGroup":{
+                "key":"endpointInterfacesGroup",
+                "type":"INPUT",
+                "order":[
+                  
+                ]
+              },
+              "endpointInterfaces":{
+                "key":"endpointInterfaces",
+                "type":"INPUT",
+                "isPageLayout":false
+              },
+              "switch":{
+                "key":"switch",
+                "type":"INPUT",
+                "isPageLayout":false
+              },
+              "adapterNativeVlan":{
+                "key":"adapterNativeVlan",
+                "type":"INPUT",
+                "dependency":{
+                  "adapterMode":{
+                    "value":[
+                      "trunk"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "bc00d92e-5b9c-482c-94d1-7e126533ec01":{
+                "key":"bc00d92e-5b9c-482c-94d1-7e126533ec01",
+                "type":"INPUT",
+                "dependency":{
+                  "adapterMode":{
+                    "value":[
+                      "access"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfileNativeVlan":{
+                "key":"portProfileNativeVlan",
+                "dependency":{
+                  "portProfileMode":{
+                    "value":[
+                      "trunk"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "portProfileGroups":{
+                "key":"portProfileGroups",
+                "type":"INPUT",
+                "order":[
+                  "portProfileName",
+                  "portProfileSpeed",
+                  "portProfilePortChannel",
+                  "phoneSettings",
+                  "portProfileSpanningTreeDetails",
+                  "portProfileFlowControl",
+                  "portProfileQosProfile",
+                  "80f2d247-e2a4-4b2a-9dc9-86703baa25b2",
+                  "portProfileStormControlDetails",
+                  "portProfileMtu",
+                  "dot1XSettings",
+                  "profileCliList"
+                ]
+              },
+              "adapterPortChannel":{
+                "key":"adapterPortChannel",
+                "type":"INPUT",
+                "order":[
+                  "adapterEnablePortChannel",
+                  "adapterPortChannelId",
+                  "adapterPortChannelDescription",
+                  "adapterPortChannelMode",
+                  "adapterPortChannelLacpFallback",
+                  "adapterPortChannelShortEsi"
+                ]
+              },
+              "adapterEnablePortChannel":{
+                "key":"adapterEnablePortChannel",
+                "type":"INPUT",
+                "dependency":{
+                  
+                }
+              },
+              "adapterPortChannelId":{
+                "key":"adapterPortChannelId",
+                "dependency":{
+                  "adapterEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "adapterPortChannelMode":{
+                "key":"adapterPortChannelMode",
+                "dependency":{
+                  "adapterEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "adapterPortChannelLacpFallbackMode":{
+                "key":"adapterPortChannelLacpFallbackMode",
+                "dependency":{
+                  "adapterEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "adapterPortChannelLacpFallbackTimeout":{
+                "key":"adapterPortChannelLacpFallbackTimeout",
+                "dependency":{
+                  "adapterEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "adapterPortChannelShortEsi":{
+                "key":"adapterPortChannelShortEsi",
+                "dependency":{
+                  "adapterEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "portProfilePortChannelMode":{
+                "key":"portProfilePortChannelMode",
+                "dependency":{
+                  "portProfileEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "portProfilePortChannelLacpFallbackMode":{
+                "key":"portProfilePortChannelLacpFallbackMode",
+                "dependency":{
+                  "portProfileEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "portProfilePortChannelLacpFallbackTimeout":{
+                "key":"portProfilePortChannelLacpFallbackTimeout",
+                "dependency":{
+                  "portProfileEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "portProfilePortChannelShortEsi":{
+                "key":"portProfilePortChannelShortEsi",
+                "dependency":{
+                  "portProfileEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "portProfiles":{
+                "key":"portProfiles",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "portProfilePortChannelId":{
+                "key":"portProfilePortChannelId",
+                "type":"INPUT",
+                "dependency":{
+                  "portProfileEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "portProfilePortChannel":{
+                "key":"portProfilePortChannel",
+                "type":"INPUT",
+                "order":[
+                  "portProfileEnablePortChannel",
+                  "portProfilePortChannelId",
+                  "portProfilePortChannelDescription",
+                  "portProfilePortChannelMode",
+                  "portProfilePortChannelLacpFallback",
+                  "portProfilePortChannelShortEsi"
+                ]
+              },
+              "portProfilePortChannelDescription":{
+                "key":"portProfilePortChannelDescription",
+                "type":"INPUT",
+                "dependency":{
+                  "portProfileEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "adapterPortChannelDescription":{
+                "key":"adapterPortChannelDescription",
+                "type":"INPUT",
+                "dependency":{
+                  "adapterEnablePortChannel":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "adapterSpanningTreeDetails":{
+                "key":"adapterSpanningTreeDetails",
+                "type":"INPUT",
+                "order":[
+                  "adapterPortfast",
+                  "adapterBpduFilter",
+                  "adapterBpduGuard"
+                ]
+              },
+              "portProfileSpanningTreeDetails":{
+                "key":"portProfileSpanningTreeDetails",
+                "type":"INPUT",
+                "order":[
+                  "portProfilePortfast",
+                  "portProfileBpduFilter",
+                  "portProfileBpduGuard"
+                ]
+              },
+              "hostType":{
+                "key":"hostType",
+                "valueToLabelMap":{
+                  "True":"Multi-Host",
+                  "False":"Single-Host"
+                },
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "35a33db5-11f9-401c-b462-f9a8cd33bfc9":{
+                "key":"35a33db5-11f9-401c-b462-f9a8cd33bfc9",
+                "type":"INPUT",
+                "order":[
+                  "4272a4b4-7c72-42a4-a1f6-f99ec617c211",
+                  "9dfb8ec7-e11d-4852-bb39-f207b830e761",
+                  "512e39de-8a86-4db2-b013-ff7f01f988a4",
+                  "215f4f4c-f686-466e-98c6-b6acf5ca1c96",
+                  "d05b3e38-630e-406d-b647-fde24d0465b4",
+                  "a14cda07-9de8-4e79-a94d-0d1fe6afe05e",
+                  "8ce87fb7-5f92-42ff-83e6-571974958e2b",
+                  "b80eaa20-5d71-4520-8d3d-06033a85294a",
+                  "76c02487-7e62-4e23-9501-56ee66d95c28",
+                  "1de822f1-d47e-4a44-a092-564ba6b2c6a2"
+                ]
+              },
+              "reauthenticationTimerSetting":{
+                "key":"reauthenticationTimerSetting",
+                "type":"INPUT",
+                "valueToLabelMap":{
+                  "True":"Server",
+                  "False":"Local"
+                }
+              },
+              "f667cf6b-c0ab-4336-af16-fef1a2b88816":{
+                "key":"f667cf6b-c0ab-4336-af16-fef1a2b88816",
+                "dependency":{
+                  "76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{
+                    "value":[
+                      "Drop",
+                      "Disable"
+                    ],
+                    "mode":"HIDE"
+                  },
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2":{
+                "key":"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2",
+                "valueToLabelMap":{
+                  "True":"Multi-Host",
+                  "False":"Single-Host"
+                },
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "6c49a0ab-4e10-4706-aec9-19d8605fb90d":{
+                "key":"6c49a0ab-4e10-4706-aec9-19d8605fb90d",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{
+                "key":"76fb4c7c-7f14-48ec-b268-aa38ce10d84b",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{
+                "key":"bf9f2d0a-21bd-4b71-9b8e-d7306273618d",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "91abeafa-1918-466d-ba43-e7ffb8417424":{
+                "key":"91abeafa-1918-466d-ba43-e7ffb8417424",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "7b76e149-8a3a-4b47-b3ba-303e289b35f9":{
+                "key":"7b76e149-8a3a-4b47-b3ba-303e289b35f9",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "f2e5a570-3fd6-4978-b357-d5428e863d97":{
+                "key":"f2e5a570-3fd6-4978-b357-d5428e863d97",
+                "valueToLabelMap":{
+                  "True":"Tagged",
+                  "False":"Untagged"
+                },
+                "dependency":{
+                  "2db5b218-0a75-4720-ae5c-a96c71f6edb7":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f":{
+                "key":"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f",
+                "type":"INPUT",
+                "order":[
+                  
+                ]
+              },
+              "2db5b218-0a75-4720-ae5c-a96c71f6edb7":{
+                "key":"2db5b218-0a75-4720-ae5c-a96c71f6edb7",
+                "valueToLabelMap":{
+                  "True":"Yes",
+                  "False":"No"
+                },
+                "type":"INPUT"
+              },
+              "phoneSettings":{
+                "key":"phoneSettings",
+                "type":"INPUT",
+                "order":[
+                  "portProfileMode",
+                  "portProfileNativeVlan",
+                  "portProfileVlans",
+                  "phoneEnabled",
+                  "phoneVlan",
+                  "90eece88-0f72-4b40-9254-e4ff92e82c84"
+                ]
+              },
+              "dot1XSettings":{
+                "key":"dot1XSettings",
+                "type":"INPUT",
+                "order":[
+                  "8021XEnabled",
+                  "macBasedAuthentication",
+                  "hostType",
+                  "multiHostIndividualAuthentication",
+                  "4d07614b-f595-4231-9cfd-7e04d7badc69",
+                  "a682964f-bbab-4fd7-a987-546f9008b0be",
+                  "0a222884-fb72-423f-89d5-61c21c1a3420",
+                  "99c81d24-4705-49f4-b4b1-0b5672f4a05b",
+                  "7b1af5a8-d911-4095-b71b-3633fd0da4cd",
+                  "timeoutQuietPeriod"
+                ]
+              },
+              "7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa":{
+                "key":"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa",
+                "valueToLabelMap":{
+                  "True":"Multi",
+                  "False":"Single"
+                },
+                "type":"INPUT",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "phoneEnabled":{
+                "key":"phoneEnabled",
+                "valueToLabelMap":{
+                  "True":"Configured",
+                  "False":"Unconfigured"
+                },
+                "type":"INPUT",
+                "dependency":{
+                  "portProfileMode":{
+                    "value":[
+                      "trunk"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "macBasedAuthentication":{
+                "key":"macBasedAuthentication",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "multiHostIndividualAuthentication":{
+                "key":"multiHostIndividualAuthentication",
+                "type":"INPUT",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "4d07614b-f595-4231-9cfd-7e04d7badc69":{
+                "key":"4d07614b-f595-4231-9cfd-7e04d7badc69",
+                "type":"INPUT",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "a682964f-bbab-4fd7-a987-546f9008b0be":{
+                "key":"a682964f-bbab-4fd7-a987-546f9008b0be",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "4d07614b-f595-4231-9cfd-7e04d7badc69":{
+                    "value":[
+                      "Allow"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "0a222884-fb72-423f-89d5-61c21c1a3420":{
+                "key":"0a222884-fb72-423f-89d5-61c21c1a3420",
+                "type":"INPUT",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "99c81d24-4705-49f4-b4b1-0b5672f4a05b":{
+                "key":"99c81d24-4705-49f4-b4b1-0b5672f4a05b",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "0a222884-fb72-423f-89d5-61c21c1a3420":{
+                    "value":[
+                      false,
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "7b1af5a8-d911-4095-b71b-3633fd0da4cd":{
+                "key":"7b1af5a8-d911-4095-b71b-3633fd0da4cd",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "0a222884-fb72-423f-89d5-61c21c1a3420":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "timeoutQuietPeriod":{
+                "key":"timeoutQuietPeriod",
+                "dependency":{
+                  "8021XEnabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
+              },
+              "phoneVlan":{
+                "key":"phoneVlan",
+                "dependency":{
+                  "phoneEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "portProfileMode":{
+                    "value":[
+                      "trunk"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "90eece88-0f72-4b40-9254-e4ff92e82c84":{
+                "key":"90eece88-0f72-4b40-9254-e4ff92e82c84",
+                "dependency":{
+                  "phoneEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "portProfileMode":{
+                    "value":[
+                      "trunk"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "113fa93d-ef20-410d-96aa-fa752e4e178f":{
+                "key":"113fa93d-ef20-410d-96aa-fa752e4e178f",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
+              },
+              "4d4c6315-610d-4381-8aef-3f5483057986":{
+                "key":"4d4c6315-610d-4381-8aef-3f5483057986",
+                "type":"INPUT",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "f7cb6b88-ef74-4b27-b544-6a4eaad094b1":{
+                "key":"f7cb6b88-ef74-4b27-b544-6a4eaad094b1",
+                "type":"INPUT",
+                "order":[
+                  "c60cf057-f9ed-43e9-b280-301fa2476177",
+                  "6c49a0ab-4e10-4706-aec9-19d8605fb90d",
+                  "3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2",
+                  "4d4c6315-610d-4381-8aef-3f5483057986",
+                  "76fb4c7c-7f14-48ec-b268-aa38ce10d84b",
+                  "06c6cc80-c714-4abd-b8d3-9a7714947670",
+                  "bf9f2d0a-21bd-4b71-9b8e-d7306273618d",
+                  "91abeafa-1918-466d-ba43-e7ffb8417424",
+                  "7b76e149-8a3a-4b47-b3ba-303e289b35f9",
+                  "113fa93d-ef20-410d-96aa-fa752e4e178f"
+                ]
+              },
+              "06c6cc80-c714-4abd-b8d3-9a7714947670":{
+                "key":"06c6cc80-c714-4abd-b8d3-9a7714947670",
+                "dependency":{
+                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{
+                    "value":[
+                      "Allow"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "directInterfaces":{
+                "key":"directInterfaces",
+                "type":"INPUT"
+              },
+              "directPorts":{
+                "key":"directPorts",
+                "type":"INPUT"
+              },
+              "85540f89-cd07-492f-ac78-fdee794b82ef":{
+                "key":"85540f89-cd07-492f-ac78-fdee794b82ef",
+                "type":"INPUT",
+                "order":[
+                  "946cf29f-823e-4fc5-b1fb-42974a3e4c2b",
+                  "c069ca75-3ffd-41d5-a735-72c021609b25",
+                  "59a2ea8a-5dda-41b7-a655-6c2489eebe16"
+                ]
+              },
+              "c069ca75-3ffd-41d5-a735-72c021609b25":{
+                "key":"c069ca75-3ffd-41d5-a735-72c021609b25",
+                "type":"INPUT",
+                "dependency":{
+                  "946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "59a2ea8a-5dda-41b7-a655-6c2489eebe16":{
+                "key":"59a2ea8a-5dda-41b7-a655-6c2489eebe16",
+                "type":"INPUT",
+                "dependency":{
+                  "946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "1cacdc71-d0d3-46dd-a23a-d0df699f831a":{
+                "key":"1cacdc71-d0d3-46dd-a23a-d0df699f831a",
+                "dependency":{
+                  "2db5b218-0a75-4720-ae5c-a96c71f6edb7":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "2dbee137-6424-4296-a7bd-8ccb8035b47c":{
+                "key":"2dbee137-6424-4296-a7bd-8ccb8035b47c",
+                "type":"INPUT",
+                "order":[
+                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f",
+                  "9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d",
+                  "5105c809-e246-4f1a-a7ce-ff57b6339057",
+                  "4e86adfa-183c-44ae-bd95-eea2c8a32c7e",
+                  "a6866cc8-d1e6-4eb1-b5c6-27f978251679",
+                  "6c244909-7ae1-4b4f-beb5-e41c85e86397"
+                ]
+              },
+              "9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d":{
+                "key":"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d",
+                "dependency":{
+                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "5105c809-e246-4f1a-a7ce-ff57b6339057":{
+                "key":"5105c809-e246-4f1a-a7ce-ff57b6339057",
+                "type":"INPUT",
+                "dependency":{
+                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "4e86adfa-183c-44ae-bd95-eea2c8a32c7e":{
+                "key":"4e86adfa-183c-44ae-bd95-eea2c8a32c7e",
+                "type":"INPUT",
+                "dependency":{
+                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "a6866cc8-d1e6-4eb1-b5c6-27f978251679":{
+                "key":"a6866cc8-d1e6-4eb1-b5c6-27f978251679",
+                "type":"INPUT",
+                "dependency":{
+                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "6c244909-7ae1-4b4f-beb5-e41c85e86397":{
+                "key":"6c244909-7ae1-4b4f-beb5-e41c85e86397",
+                "type":"INPUT",
+                "dependency":{
+                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "1d7ff905-71f3-4291-b9b6-8beff7e5f8f5":{
+                "key":"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5",
+                "type":"INPUT",
+                "dependency":{
+                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "07fec9fa-b08b-47dc-9e91-5d031eb7fcf0":{
+                "key":"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0",
+                "type":"INPUT",
+                "dependency":{
+                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "fd026550-9930-47c7-bb2b-39f68959beec":{
+                "key":"fd026550-9930-47c7-bb2b-39f68959beec",
+                "type":"INPUT",
+                "dependency":{
+                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "delayRequestInterval":{
+                "key":"delayRequestInterval",
+                "type":"INPUT",
+                "dependency":{
+                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "451779ac-23d4-4e77-ba14-31254e752ccd":{
+                "key":"451779ac-23d4-4e77-ba14-31254e752ccd",
+                "type":"INPUT",
+                "dependency":{
+                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "b867fb89-78d0-439e-a373-f243a67b8c8c":{
+                "key":"b867fb89-78d0-439e-a373-f243a67b8c8c",
+                "type":"INPUT",
+                "showDefaultRow":false
+              }
+            }
