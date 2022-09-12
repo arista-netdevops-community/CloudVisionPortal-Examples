@@ -44,6 +44,8 @@
               self.MlagNetwork = ""
               self.MlagIPPeerAddr = ""
               self.MlagPeerName = ""
+              self.ReloadDelayMlag = ""
+              self.ReloadDelayNonMlag = ""
 
           class NeighborIntf:
             def __init__(self):
@@ -456,7 +458,8 @@
           def config_er():
             mlagEnabled = False
             mlagSubnetMask = 31
-            mlagRole = networksInputs["pod"]["erDomains"].resolve()["erDomain"]["erDetails"].resolve()["erLinkDetails"]["mlagGroup"]["mlagRole"]
+            mlagGroup = networksInputs["pod"]["erDomains"].resolve()["erDomain"]["erDetails"].resolve()["erLinkDetails"]["mlagGroup"]
+            mlagRole = mlagGroup["mlagRole"]
             mlagmember = 0
             if mlagRole == "Primary":
               mlagmember =  1
@@ -469,9 +472,11 @@
             mySC.MlagIPPeerAddr = mySC.MlagNetwork[mlagmember % 2]
             mlagIntf1 = InterfaceConfig()
             mlagIntf2 = InterfaceConfig()
-            mlagInt = networksInputs["pod"]["erDomains"].resolve()["erDomain"]["erDetails"].resolve()["erLinkDetails"]["mlagGroup"]["mlagInterfaces"]
-            mlagIP = networksInputs["pod"]["erDomains"].resolve()["erDomain"]["erDetails"].resolve()["erLinkDetails"]["mlagGroup"]["mlagOverrideGlobalSubnet"]
+            mlagInt = mlagGroup["mlagInterfaces"]
+            mlagIP = mlagGroup["mlagOverrideGlobalSubnet"]
             if  mlagInt and mlagRole != "None":
+              mySC.ReloadDelayMlag = mlagGroup["reloadDelayMlag"]
+              mySC.ReloadDelayNonMlag = mlagGroup["reloadDelayNonMlag"]
               for intf in myDevice.getInterfaces():
                 intfName = intf.name
                 val = mlagInt.resolve(intfName, strict=True)
@@ -970,6 +975,7 @@
           redStat = networksInputs["pod"]["redistributeStatic"]
           if redStat == "Enabled":
             redisStatic = True
+          maxLSA = networksInputs["pod"]["maxLsa"]
           vlans = []
           vxlan = False
           evpnEnabled = False
@@ -1138,8 +1144,12 @@
             local-interface Vlan${internalVlan}
             peer-address ${mySC.MlagIPPeerAddr}
             peer-link Port-Channel${mlagPortChannelId}
-            reload-delay mlag 300
-            reload-delay non-mlag 360
+          %if mySC.ReloadDelayMlag:
+            reload-delay mlag ${mySC.ReloadDelayMlag}
+          %endif
+          %if mySC.ReloadDelayNonMlag:
+            reload-delay non-mlag ${mySC.ReloadDelayNonMlag}
+          %endif
           !
           </%def>
           <%def name="igpConfig()">
@@ -1170,6 +1180,9 @@
           %  endif
           %  if redisStatic:
             redistribute static
+          %  endif
+          %  if maxLSA:
+            max-lsa ${maxLSA}
           %  endif
           %elif igp == 'ISIS':
           %  if isisNet != "49.0001.000...00":
@@ -2011,7 +2024,7 @@
               id: rrintspeed
               name: rrspeed
               label: Speed
-              description: Optional
+              description: Only required when the device is directly connected to the route reflector.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -2051,7 +2064,7 @@
               id: errrmtu
               name: rrmtu
               label: MTU
-              description: ''
+              description: Only required when the device is directly connected to the route reflector.
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3095,7 +3108,7 @@
               id: externalInterfaceGroup
               name: externalInterfaceGroup
               label: Interfaces Group
-              description: ''
+              description: 'Config routed port or routed port + subinterface'
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3257,6 +3270,34 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            reloadDelayMlag:
+              id: reloadDelayMlag
+              name: reloadDelayMlag
+              label: Reload Delay mlag
+              description: infinity - link is not enabled after reboot. 0 to 86400 - disabled link interval (seconds). Default varies by switch platform.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            reloadDelayNonMlag:
+              id: reloadDelayNonMlag
+              name: reloadDelayNonMlag
+              label: ReloadDelayNonMlag
+              description: infinity - link is not enabled after reboot. 0 to 86400 - disabled link interval (seconds). Default varies by switch platform.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             mlagInterfacesGroup:
               id: mlagInterfacesGroup
               name: mlagGroup
@@ -3270,6 +3311,8 @@
                     - mlagInterfaces
                     - mlagOverrideGlobalSubnet
                     - mlagRole
+                    - reloadDelayMlag
+                    - reloadDelayNonMlag
             erLinkDetails:
               id: erLinkDetails
               name: erLinkDetails
@@ -4493,7 +4536,7 @@
               id: coreexternalInterfacesGroup
               name: externalInterfacesGroup
               label: External Interfaces Group
-              description: ''
+              description: 'Configure a routed port or routed port + subinterface'
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4587,7 +4630,7 @@
               id: redistributeStatic
               name: redistributeStatic
               label: Redistribute Static
-              description: Enable or disable redistribution of static routes into the IGP..
+              description: Enable or disable redistribution of static routes into the IGP.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4599,6 +4642,18 @@
                 format: null
                 length: null
                 pattern: null
+                dynamic_options: null
+            maxLsa:
+              id: maxLsa
+              name: maxLsa
+              label: OSPF Max LSA
+              description: Maximum number of LSAs allowed in the OSPF link state database.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
                 dynamic_options: null
             pod:
               id: pod
@@ -4618,6 +4673,7 @@
                     - igp
                     - redistributeConnected
                     - redistributeStatic
+                    - maxLsa
             pods:
               id: pods
               name: pods
@@ -4657,6 +4713,7 @@
                      "igp",
                      "redistributeConnected",
                      "redistributeStatic",
+                     "maxLsa",
                      "commonMlagConfig"
                   ]
                },
@@ -5449,7 +5506,9 @@
                   "order": [
                      "mlagRole",
                      "mlagInterfaces",
-                     "mlagOverrideGlobalSubnet"
+                     "mlagOverrideGlobalSubnet",
+                     "reloadDelayMlag",
+                     "reloadDelayNonMlag"
                   ]
                },
                "mlagInterfacesInterfacesGroup": {
