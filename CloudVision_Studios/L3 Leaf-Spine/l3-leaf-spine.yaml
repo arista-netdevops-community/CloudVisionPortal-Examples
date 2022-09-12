@@ -12,27 +12,17 @@
         body: |
           <%
           import ipaddress
-          import json
           import re
+          import time
           from collections import Counter, OrderedDict
           import tagsearch_python.tagsearch_pb2_grpc as tsgr
           import tagsearch_python.tagsearch_pb2 as tspb
-          from arista.tag.v2.services import TagServiceStub, \
-              TagAssignmentServiceStub, \
-              TagConfigServiceStub,\
-              TagAssignmentConfigServiceStub
-          from arista.tag.v2.services.gen_pb2 import TagRequest, \
+          from arista.tag.v2.tag_pb2 import TagKey, \
+              TagAssignmentKey
+          from arista.tag.v2.services import TagConfigServiceStub, \
+              TagAssignmentConfigServiceStub, \
               TagConfigSetRequest, \
-              TagStreamRequest, \
-              TagConfigStreamRequest, \
-              TagAssignmentStreamRequest, \
-              TagAssignmentConfigSetRequest, \
-              TagAssignmentConfigStreamRequest
-          from arista.tag.v2.tag_pb2 import Tag, \
-              TagKey, \
-              TagAssignment, \
-              TagAssignmentKey, \
-              TagAssignmentConfig
+              TagAssignmentConfigSetRequest
 
 
           fabric_variables = {
@@ -69,7 +59,8 @@
                   "vtep_source_interface": "VTEP_VXLAN_Tunnel_Source",
                   "mlag_ethernet_interfaces": "MLAG_{mlag_peer}_{mlag_peer_interface}",
                   "mlag_port_channel_interface": "MLAG_PEER_{switch_facts['mlag_peer']}_Po{switch_facts['mlag_port_channel_id']}"
-              }
+              },
+              "p2p_interface_settings": []
           }
 
 
@@ -662,6 +653,8 @@
               l3_leaf_domain = pod['LeafDomains'].resolve(device=switch_facts['serial_number'])['l3LeafDomain']
               if l3_leaf_domain is not None:
                   bgp_as = l3_leaf_domain['asn']
+              else:
+                  bgp_as = None
               if switch_facts['id'] and bgp_as is not None and bgp_as != 0:
                   switch_facts['bgp_as'] = bgp_as
               return switch_facts
@@ -1087,30 +1080,17 @@
                           switch_facts['dynamic_bgp_evpn_peering'] = switch_facts['dynamic_bgp_ipv4_peering']
                       elif switch_facts['type'] == "l3leaf":
                           if switch_facts.get('bgp_as') is None:
-                              asns = string_to_list(str(pod['commonBGPConfig']['leafAsnRange']))
-                              if len(asns) > 1:
-                                  # remove any bgp_as numbers set in leaf_domain input of studio
-                                  manually_set_leaf_domains = {}
-                                  for switch_in_my_dc_facts in switches_in_my_data_center.values():
-                                      if manually_set_leaf_domains.get(switch_facts['group_index']):
-                                          switch_facts['bgp_as'] = manually_set_leaf_domains[switch_facts['group_index']]
-                                          break
-                                      if switch_in_my_dc_facts.get('bgp_as') is not None and \
-                                              switch_in_my_dc_facts['bgp_as'] in asns:
-                                          if int(switch_in_my_dc_facts['group_index']) not in manually_set_leaf_domains:
-                                              manually_set_leaf_domains[int(switch_in_my_dc_facts['group_index'])] = \
-                                                  switch_in_my_dc_facts['bgp_as']
-                                              asns.remove(switch_in_my_dc_facts['bgp_as'])
-                                  # check to see if this switch's leaf_domain is already set
-                                  if not switch_facts.get('bgp_as'):
-                                      # get leaf_domain shift
-                                      leaf_domain_shift = len([ld for ld in manually_set_leaf_domains.keys()
-                                                              if ld < int(switch_facts['group_index'])])
-                                      switch_facts['leaf_domain_shift'] = leaf_domain_shift
-                                      # set bgp_as
-                                      switch_facts['bgp_as'] = asns[int(switch_facts['group_index']) - leaf_domain_shift]
+                              range_asns = leaf_asns[switch_facts['pod']]
+                              manual_asns = manually_set_leaf_domains[switch_facts['pod']]
+                              if len(range_asns) > 1:
+                                  # get leaf_domain shift
+                                  leaf_domain_shift = len([ld for ld in manual_asns.keys()
+                                                          if ld < int(switch_facts['group_index'])])
+                                  switch_facts['leaf_domain_shift'] = leaf_domain_shift
+                                  # set bgp_as
+                                  switch_facts['bgp_as'] = range_asns[int(switch_facts['group_index']) - leaf_domain_shift]
                               else:
-                                  switch_facts['bgp_as'] = asns[0]
+                                  switch_facts['bgp_as'] = range_asns[0]
                           switch_facts['bgp_defaults'] = pod['commonBGPConfig']['leafBgpDefaults']
                           switch_facts['bgp_maximum_paths'] = switch_facts['max_spines'] * switch_facts['max_parallel_uplinks']
                           switch_facts['bgp_ecmp'] = switch_facts['max_spines'] * switch_facts['max_parallel_uplinks']
@@ -1210,14 +1190,10 @@
                   config['router_bgp']['as'] = switch_facts['bgp_as']
                   config['router_bgp']['router_id'] = switch_facts['router_id']
                   config['router_bgp']['bgp_defaults'] = switch_facts['bgp_defaults']
-                  if switch_facts.get('bgp_maximum_paths') and switch_facts.get('bgp_ecmp'):
-                      config['router_bgp']['bgp_defaults'].append(
-                          f"maximum-paths {switch_facts['bgp_maximum_paths']} ecmp {switch_facts['bgp_ecmp']}"
-                      )
-                  elif switch_facts.get('bgp_maximum_paths'):
-                      config['router_bgp']['bgp_defaults'].append(
-                          f"maximum-paths {switch_facts['bgp_maximum_paths']}"
-                      )
+                  if switch_facts.get('bgp_maximum_paths'):
+                      config['router_bgp']['maximum_paths'] = switch_facts['bgp_maximum_paths']
+                  if switch_facts.get('bgp_ecmp'):
+                      config["router_bgp"]['ecmp'] = switch_facts['bgp_ecmp']
 
               # Set platform_settings eos_cli
               if switch_facts['platform_settings'].get('eos_cli'):
@@ -1409,6 +1385,9 @@
                           config['ethernet_interfaces'][iface]['pim'] = {
                               "ipv4": {"sparse_mode": True}
                           }
+                      if len(fabric_variables['p2p_interface_settings']) > 0:
+                          config['ethernet_interfaces'][iface]['defaults'] = fabric_variables['p2p_interface_settings']
+
                   elif link['type'] == "underlay_l2":
                       config['ethernet_interfaces'][iface] = {
                           "peer": link['peer'],
@@ -1792,6 +1771,10 @@
                   fabric_variables['interface_descriptions']['mlag_ethernet_interfaces'] = \
                       custom_fabric_variables['interfaceDescriptions']['mlagPeerLinkMemberInterfaces']
 
+              # Update point to point settings
+              if custom_fabric_variables['p2pInterfaceSettings'] and custom_fabric_variables['p2pInterfaceSettings']['interfaceDefaults']:
+                  fabric_variables['p2p_interface_settings'] = custom_fabric_variables['p2pInterfaceSettings']['interfaceDefaults']
+
               return
 
 
@@ -1803,7 +1786,7 @@
               # Get facts from tags
               switch_facts['hostname'] = [dev.hostName for dev in ctx.topology.getDevices(deviceIds=[device_id])][0]
               switch_facts['platform'] = [dev.modelName for dev in ctx.topology.getDevices(deviceIds=[device_id])][0]
-              switch_facts['data_center'] = get_tag_value(device_id=device_id, label="DC", workspace_id=workspace_id)
+              switch_facts['data_center'] = dc_dict.get(device_id)
 
               # Process Studio inputs
               try:
@@ -1816,7 +1799,7 @@
               # First attempt to set switch role
               switch_role = None
               potential_roles = {"Leaf": "l3leaf", "Spine": "spine", "L2-Leaf": "l2leaf", "Super-Spine": "super_spine"}
-              roles_applied_to_switch = get_tag_values(device_id=device_id, label="Role", workspace_id=workspace_id)
+              roles_applied_to_switch = role_dict.get(device_id)
               # If no role is applied to switch, switch should not be in fabric build
               if roles_applied_to_switch is None:
                   return
@@ -1834,7 +1817,7 @@
               switch_facts['type'] = potential_roles.get(switch_role)
 
               # Set switch id based on mini-tagger values
-              node_id = get_tag_value(device_id=device_id, label="NodeId", workspace_id=workspace_id)
+              node_id = node_id_dict.get(device_id)
               # If node_id tag isn't set, check for old leaf-number or spine-number tags
               if node_id is None and switch_facts.get('type') in ["l3leaf", "spine"]:
                   id_tag_type = {"l3leaf": "Leaf-Number", "spine": "Spine-Number"}
@@ -1849,14 +1832,17 @@
                       assert switch_role is not None, f"Make sure {switch_facts['hostname']} is tagged with a " \
                           f"valid switch role. Valid switch roles are 'Leaf', 'Spine', 'Super-Spine', and 'L2-Leaf'."
                   # Set DC-Pod tag value
-                  switch_facts['pod'] = get_tag_value(device_id=device_id, label="DC-Pod", workspace_id=workspace_id)
+                  switch_facts['pod'] = pod_dict.get(device_id)
                   # Get l3leaf and l2leaf resolvers
                   l3_leaf_domain = pod['LeafDomains'].resolve(device=device_id)['l3LeafDomain']
                   l2_leaf_domain = pod['l2LeafDomains'].resolve(device=device_id)['l2LeafDomain']
                   # Check to see if leaf domain resolves
                   if switch_facts['type'] == "l3leaf":
                       # Set leaf domain
-                      l3_leaf_domain_id = get_tag_value(device_id=device_id, label="Leaf-Domain", workspace_id=workspace_id)
+                      l3_leaf_domain_id = l3_leaf_domain_dict.get(device_id)
+                      assert l3_leaf_domain is not None, f"There is no input resolver present for Leaf-Domain {l3_leaf_domain_id} in PoD {switch_facts['pod']}. " \
+                                                         f"Either enter an input for Leaf-Domain {l3_leaf_domain_id} in PoD {switch_facts['pod']} or " \
+                                                         f"remove the 'Leaf-Domain:{l3_leaf_domain_id}' tag from all devices in this pod."
                       if l3_leaf_domain_id is None:
                           return
                       switch_facts['l3_leaf_domain'] = l3_leaf_domain_id
@@ -1867,7 +1853,10 @@
                   # Check to see if l2 leaf domain resolves
                   elif switch_facts['type'] == "l2leaf":
                       # Set leaf domain
-                      l2_leaf_domain_id = get_tag_value(device_id=device_id, label="L2-Leaf-Domain", workspace_id=workspace_id)
+                      l2_leaf_domain_id = l2_leaf_domain_dict.get(device_id)
+                      assert l2_leaf_domain is not None, f"There is no input resolver present for L2-Leaf-Domain {l2_leaf_domain_id} in PoD {switch_facts['pod']}. " \
+                                                         f"Either enter an input for L2-Leaf-Domain {l2_leaf_domain_id} in PoD {switch_facts['pod']} or " \
+                                                         f"remove the 'L2-Leaf-Domain:{l2_leaf_domain_id}' tag from all devices in this pod."
                       if l2_leaf_domain_id is None:
                           return
                       switch_facts['l2_leaf_domain'] = l2_leaf_domain_id
@@ -1888,9 +1877,7 @@
 
                   switch_facts['type'] = "super_spine"
                   # Set super-spine plane id tag value
-                  switch_facts['super_spine_plane'] = get_tag_value(device_id=device_id,
-                                                                  label="Super-Spine-Plane",
-                                                                  workspace_id=workspace_id)
+                  switch_facts['super_spine_plane'] = super_spine_plane_dict.get(device_id)
                   # Set evpn role to server
                   switch_facts['evpn_role'] = "server"
               else:
@@ -2038,10 +2025,80 @@
                       config["router_bgp"]["address_family_evpn"] = None
               return config
 
+          # returns dictionary of device to label value based on workspace tag assignments
+          def populate_single_value_dict(workspace_id, label):
+              sv_dict = {}
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              tvsr = tspb.TagValueSearchRequest(
+                  label=label,
+                  workspace_id=workspace_id,
+                  topology_studio_request=True
+              )
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = f"{tag.label}:\"{tag.value}\""
+                  tagmr = tspb.TagMatchRequestV2(
+                      query=query,
+                      workspace_id=workspace_id,
+                      topology_studio_request=True
+                  )
+                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      sv_dict[match.device.device_id] = tag.value
+              return sv_dict
+
+          # returns dictionary of device to label values based on workspace tag assignments
+          def populate_multi_value_dict(workspace_id, label):
+              mv_dict = {}
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              tvsr = tspb.TagValueSearchRequest(
+                  label=label,
+                  workspace_id=workspace_id,
+                  topology_studio_request=True
+              )
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = f"{tag.label}:\"{tag.value}\""
+                  tagmr = tspb.TagMatchRequestV2(
+                      query=query,
+                      workspace_id=workspace_id,
+                      topology_studio_request=True
+                  )
+                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      mv_dict.setdefault(match.device.device_id, []).append(tag.value)
+              return mv_dict
+
+
+          # return asn lists used in set_switch_facts
+          def prepare_leaf_asn_lists(device_id, data_center_resolver):
+              data_center = data_center_resolver.resolve(device=device_id)['dataCenter']
+              pod = data_center['pods'].resolve(device=device_id)['pod']
+              range_asns = string_to_list(str(pod['commonBGPConfig']['leafAsnRange']))
+              # remove any bgp_as numbers set in leaf_domain input of studio
+              manual_asns = {}
+              if len(range_asns) > 1:
+                  for switch_in_my_dc_facts in switches_in_my_data_center.values():
+                      if switch_in_my_dc_facts.get('bgp_as') is not None and \
+                              switch_in_my_dc_facts['bgp_as'] in range_asns:
+                          if int(switch_in_my_dc_facts['group_index']) not in manual_asns:
+                              manual_asns[int(switch_in_my_dc_facts['group_index'])] = \
+                                  switch_in_my_dc_facts['bgp_as']
+                              range_asns.remove(switch_in_my_dc_facts['bgp_as'])
+              return range_asns, manual_asns
+
+          start_time = time.time()
 
           # Get studio info from ctx
           my_device = ctx.getDevice()
           workspace_id = ctx.studio.workspaceId
+
+          # Pre-populate dictionaries used for getting switch facts
+          dc_dict = populate_single_value_dict(workspace_id, 'DC')
+          role_dict = populate_multi_value_dict(workspace_id, 'Role')
+          node_id_dict = populate_single_value_dict(workspace_id, 'NodeId')
+          pod_dict = populate_single_value_dict(workspace_id, 'DC-Pod')
+          l3_leaf_domain_dict = populate_single_value_dict(workspace_id, 'Leaf-Domain')
+          l2_leaf_domain_dict = populate_single_value_dict(workspace_id, 'L2-Leaf-Domain')
+          super_spine_plane_dict = populate_single_value_dict(workspace_id, 'Super-Spine-Plane')
 
           # Initialize variables
           my_switch_facts = {}
@@ -2064,6 +2121,17 @@
 
           # Check for duplicate node_id tags
           duplicate_node_id_check(switches_in_my_data_center)
+
+          # Get manually set asns for all leafs by getting leaf_asns and manually_set_leaf_domains for just one leaf switch
+          leaf_asns = {}
+          manually_set_leaf_domains = {}
+          for switch_facts in switches_in_my_data_center.values():
+              if switch_facts['type'] != "l3leaf":
+                  continue
+              pod = switch_facts['pod']
+              if pod in leaf_asns:
+                  continue
+              leaf_asns[pod], manually_set_leaf_domains[pod] = prepare_leaf_asn_lists(switch_facts['serial_number'], dataCenters)
 
           # get my switch's neighbors
           uplink_interfaces, downlink_interfaces, mlag_peer_link_interfaces = get_interfaces_info(my_switch_facts)
@@ -2189,11 +2257,10 @@
 
           config = my_config
 
+          preconfig_time = time.time() - start_time
+          ctx.info(f"time taken to prepare config: {preconfig_time} seconds")
+
           %>
-          ## ${json.dumps(my_switch_facts, indent=2)}
-          ## ${json.dumps(config, indent=2)}
-          ## -----------------------
-          ## eos - routing model
           % if config.get("service_routing_protocols_model") is not None and config.get("service_routing_protocols_model") == "multi-agent":
           service routing protocols model multi-agent
           !
@@ -2317,6 +2384,9 @@
           ip ospf area ${ config["ethernet_interfaces"][ethernet_interface]["ospf_area"] }
           %         endif
           %     endif
+          %     for iface_default in config["ethernet_interfaces"][ethernet_interface].get('defaults', []):
+          ${iface_default}
+          %     endfor
           !
           %endfor
           %endif
@@ -2577,11 +2647,6 @@
           <% max_paths_cli += "ecmp {}".format(config["router_bgp"]["ecmp"]) %>
                   % endif
           ${max_paths_cli}
-          %     endif
-          %     if config["router_bgp"].get("bgp_defaults") is not None:
-          %       for bgp_default in config["router_bgp"]["bgp_defaults"]:
-          ${ bgp_default }
-          %       endfor
           %     endif
           %     if config["router_bgp"].get("peer_groups") is not None:
           %       for peer_group in config["router_bgp"]["peer_groups"].keys():
@@ -3171,6 +3236,12 @@
           %       endfor
           %     endif
           !
+          %     if config["router_bgp"].get('bgp_defaults'):
+          %       for bgp_default in config["router_bgp"]["bgp_defaults"]:
+          ${ bgp_default }
+          %       endfor
+          !
+          %     endif
           % endif
           % endif
           ## router ospf
@@ -4405,6 +4476,41 @@
                     - mlagPeerLink
                     - mlagPeerLinkMemberInterfaces
                     - transitL2EthernetInterfaces
+            p2pInterfaceEosCliStatement:
+              id: p2pInterfaceEosCliStatement
+              name: interfaceEosCliStatement
+              label: Interface EOS CLI Statement
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            p2pInterfaceDefaults:
+              id: p2pInterfaceDefaults
+              name: interfaceDefaults
+              label: Interface Defaults
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: p2pInterfaceEosCliStatement
+                key: ''
+            p2pInterfaceSettings:
+              id: p2pInterfaceSettings
+              name: p2pInterfaceSettings
+              label: P2P Interface Settings
+              description: Settings to be applied to the transit ethernet interfaces connecting leaf switches and spine switches.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - p2pInterfaceDefaults
             advancedFabricSettings:
               id: advancedFabricSettings
               name: fabricSettings
@@ -4417,6 +4523,7 @@
                   values:
                     - bgpPeerGroupSettings
                     - interfaceDescriptions
+                    - p2pInterfaceSettings
             dataCenter:
               id: dataCenter
               name: dataCenter
@@ -4527,11 +4634,14 @@
               "superSpinePlanes":{
                 "key":"superSpinePlanes",
                 "isPageLayout":true,
+                "showDefaultRow":false,
                 "order":[
                   "superSpinePlane"
                 ],
                 "type":"INPUT",
-                "showDefaultRow":false
+                "fieldOverrides":{
+                  "description":"Super-Spine-Plane value should be an integer."
+                }
               },
               "superSpinePlane":{
                 "key":"superSpinePlane",
@@ -4554,7 +4664,7 @@
                 "prepopulate":true,
                 "tagFilterQuery":"Role:Spine ",
                 "tagType":"DEVICE",
-                "description":"The spines in this Pod.",
+                "description":"The spines in this Pod. Each spine in this Pod should have a unique NodeId value starting from 1.",
                 "columns":[
                   {
                     "tagLabel":"NodeId",
@@ -4572,7 +4682,7 @@
                 "prepopulate":true,
                 "tagFilterQuery":"Role:Leaf ",
                 "tagType":"DEVICE",
-                "description":"The leafs in this Leaf-Domain.",
+                "description":"The L3 leafs in this Leaf-Domain. Each L3 leaf in this Pod should have a unique NodeId value starting from 1.",
                 "columns":[
                   {
                     "tagLabel":"NodeId",
@@ -4584,8 +4694,11 @@
               "leafDomains":{
                 "key":"leafDomains",
                 "isPageLayout":true,
+                "showDefaultRow":false,
                 "type":"INPUT",
-                "showDefaultRow":false
+                "fieldOverrides":{
+                  "description":"Leaf-Domain value should be an integer."
+                }
               },
               "SuperSpineTagger":{
                 "type":"TAGGER",
@@ -4614,7 +4727,7 @@
                 "prepopulate":true,
                 "tagFilterQuery":"Role:L2-Leaf ",
                 "tagType":"DEVICE",
-                "description":"The L2 leafs in this L2 Leaf-Domain.",
+                "description":"The L2 leafs in this L2 Leaf-Domain. Each L2 leaf in this Pod should have a unique NodeId value starting from 1.",
                 "columns":[
                   {
                     "tagLabel":"NodeId",
@@ -4626,11 +4739,14 @@
               "l2LeafDomains":{
                 "key":"l2LeafDomains",
                 "isPageLayout":true,
+                "showDefaultRow":false,
                 "order":[
                   "l2LeafDomain"
                 ],
                 "type":"INPUT",
-                "showDefaultRow":false
+                "fieldOverrides":{
+                  "description":"L2-Leaf-Domain value should be an integer."
+                }
               },
               "l2LeafDomain":{
                 "key":"l2LeafDomain",
@@ -4667,51 +4783,51 @@
               },
               "ospfEnableBfd":{
                 "key":"ospfEnableBfd",
-                "type":"INPUT",
                 "dependency":{
                   "underlayRoutingProtocol":{
                     "value":[
-                      "ospf"
+                      "OSPF"
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT"
               },
               "ospfMaxLsa":{
                 "key":"ospfMaxLsa",
-                "type":"INPUT",
                 "dependency":{
                   "underlayRoutingProtocol":{
                     "value":[
-                      "ospf"
+                      "OSPF"
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT"
               },
               "ospfArea":{
                 "key":"ospfArea",
-                "type":"INPUT",
                 "dependency":{
                   "underlayRoutingProtocol":{
                     "value":[
-                      "ospf"
+                      "OSPF"
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT"
               },
               "ospfProcessId":{
                 "key":"ospfProcessId",
-                "type":"INPUT",
                 "dependency":{
                   "underlayRoutingProtocol":{
                     "value":[
-                      "ospf"
+                      "OSPF"
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT"
               },
               "ospfEosCliStatement":{
                 "key":"ospfEosCliStatement",
@@ -4733,7 +4849,7 @@
                 "assignmentType":"MULTIPLE",
                 "prepopulate":true,
                 "tagType":"DEVICE",
-                "description":"Define a switch's role and node ID.",
+                "description":"Define a switch's role and node ID. Valid Role values are 'Leaf', 'Spine', 'Super-Spine', and 'L2-Leaf'. NodeId values should be integers.",
                 "columns":[
                   {
                     "tagLabel":"Role",
@@ -4764,9 +4880,21 @@
               },
               "spineAS":{
                 "key":"spineAS",
-                "type":"INPUT",
                 "dependency":{
-                }
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
               },
               "ospfConfiguration":{
                 "key":"ospfConfiguration",
@@ -4782,15 +4910,15 @@
               },
               "spineOspfEosCliStatement":{
                 "key":"spineOspfEosCliStatement",
-                "type":"INPUT",
                 "dependency":{
                   "underlayRoutingProtocol":{
                     "value":[
-                      "ospf"
+                      "OSPF"
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT"
               },
               "leafOspfEosCliStatement":{
                 "key":"leafOspfEosCliStatement",
@@ -4895,6 +5023,139 @@
                 "order":[
                   "ipv4BgpPeerGroupName",
                   "ipv4BgpPeerGroupPassword"
+                ]
+              },
+              "leafASbase":{
+                "key":"leafASbase",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "spineLoopback0Subnet":{
+                "key":"spineLoopback0Subnet",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafLoopback0Subnet":{
+                "key":"leafLoopback0Subnet",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "spineBGPDynamicNeighbors":{
+                "key":"spineBGPDynamicNeighbors",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "evpnEnabled":{
+                "key":"evpnEnabled",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "spineEosCliBgpStatement":{
+                "key":"spineEosCliBgpStatement",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafBgpEosCliStatement":{
+                "key":"leafBgpEosCliStatement",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "p2pInterfaceSettings":{
+                "key":"p2pInterfaceSettings",
+                "type":"INPUT",
+                "order":[
+                  "p2pInterfaceDefaults"
                 ]
               }
             }
