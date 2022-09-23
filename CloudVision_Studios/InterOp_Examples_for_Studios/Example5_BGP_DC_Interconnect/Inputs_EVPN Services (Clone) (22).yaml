@@ -1,0 +1,135 @@
+path: []
+inputs:
+  tenants:
+    - macVrfVniBase: 10000
+      name: DC-L3EVPN1-eos3-eos4-eos9
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v14
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 14.14.14.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos3
+              tags:
+                query: device:eos3
+          vlanId: 14
+          vrf: DC9-4-3L3EVPN
+          vxlan: true
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v114
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos4
+              tags:
+                query: device:eos4
+          vlanId: 114
+          vrf: DC9-4-3L3EVPN
+          vxlan: true
+      vrfs:
+        - iBgpDetails: {}
+          name: DC9-4-3L3EVPN
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5000
+    - macVrfVniBase: 10000
+      name: DC-L3EVPN1-eos6-eos8-eos14
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v13
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 13.13.13.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos8
+              tags:
+                query: device:eos8
+          vlanId: 13
+          vrf: DC14-6-8L3EVPN
+          vxlan: true
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v113
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+              tags:
+                query: device:eos6
+          vlanId: 113
+          vrf: DC14-6-8L3EVPN
+          vxlan: true
+      vrfs:
+        - devices: []
+          externalBgpPeers:
+            - bgpPeeringName: V113-EOS1
+              defaultOriginate: {}
+              description: v113 to eos1
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:eos6
+                  tags:
+                    query: device:eos6
+              maxRoutes: {}
+              neighborIpAddress: 113.113.113.0
+              nextHop: {}
+              password: ''
+              remoteAs: 7
+              routeMap: {}
+              updateSource: ''
+          iBgpDetails: {}
+          l3Interfaces:
+            - inputs:
+                interfaces:
+                  - description: v113 to eos1
+                    enabled: true
+                    eosCli: []
+                    ipAddress: 113.113.113.1/31
+                    name: ethernet4.113
+              tags:
+                query: device:eos6
+          name: DC14-6-8L3EVPN
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5001
