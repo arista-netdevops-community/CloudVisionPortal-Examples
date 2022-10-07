@@ -6,7 +6,7 @@
         studio_id: campus-fabric-advanced
         workspace_id: ''
       display_name: Advanced Campus Fabric
-      description: 'Provision the fabric of an L2 or L3 campus network.'
+      description: Provision the fabric of an L2 or L3 campus network.
       template:
         type: TEMPLATE_TYPE_MAKO
         body: |
@@ -336,7 +336,7 @@
                   update_device_tag(tag_assignment_key)
               else:
                   remove_all_tag_values("mlag_configuration.peer_link", device_id, workspace_id)
-                  
+
               # Update routing tags
               bgp_tags = {"router_bgp.as": switch_facts.get("bgp_as"), "router_bgp.router_id": switch_facts.get("router_id")}
               if switch_facts.get("underlay_router") \
@@ -410,7 +410,6 @@
                       OrderedDict(natural_sort(mlag_peer_link_interfaces.items()))
 
 
-
           def get_highest_spline_node_id_in_my_site(switch_facts):
               highest_spline_node_id = 0
               for switch_facts in switches_in_my_campus.values():
@@ -435,7 +434,7 @@
               else:
                   spline_offset = get_highest_spline_node_id_in_my_site(switch_facts)
                   leaf_offset = get_highest_leaf_node_id_in_my_site(switch_facts)
-                  if site_details["campusPodDetails"]["uplinkType"] == "port-channel":    
+                  if site_details["campusPodDetails"]["uplinkType"] == "port-channel":
                       if switch_facts["type"] == "leaf":
                           return list(ipaddress.ip_network(switch_facts["inband_management_ip"]).hosts())\
                                   [switch_facts["id"] + spline_offset]
@@ -516,7 +515,7 @@
                   if vrf_info.get("svis"):
                       all_vlans += [ int(svi) for svi in vrf_info["svis"].keys() ]
 
-              all_vlans += [ int(vlan) for vlan in switch_facts["l2vlans"].keys() ] 
+              all_vlans += [ int(vlan) for vlan in switch_facts["l2vlans"].keys() ]
               return all_vlans
 
           def set_bgp_as_from_studio_input(switch_facts, campus_resolver):
@@ -671,7 +670,7 @@
                       switch_facts['vtep'] = True if spline_defaults['splineVtepDefault'] == "Yes" else False
                   # Set custom Connnected Endpoints role
                   if spline_defaults.get('splineConnectedEndpointsDefault', '').strip() != "":
-                      switch_facts['connected_endpoints'] = True if spline_defaults['splineConnectedEndpointsDefault'] == "Yes" else False 
+                      switch_facts['connected_endpoints'] = True if spline_defaults['splineConnectedEndpointsDefault'] == "Yes" else False
                   # Set custom L2 Network Services role
                   if spline_defaults.get('splineL2NetworkServicesDefault', '').strip() != "":
                       switch_facts['network_services']['l2'] = True if spline_defaults['splineL2NetworkServicesDefault'] == "Yes" else False
@@ -780,7 +779,7 @@
                   switch_facts["spanning_tree_mode"] = site_details["defaultSpanningTreeDetails"].get("spanningTreeMode", "").lower()
                   switch_facts["spanning_tree_priority"] = site_details["defaultSpanningTreeDetails"].get("defaultSpanningTreePriority")
 
-              # Get virtual router mac 
+              # Get virtual router mac
               if switch_facts["network_services"]["l2"] == True and \
                   switch_facts["network_services"]["l3"] == True:
                   switch_facts["virtual_router_mac_address"] = site_details["mlagConfiguration"]["virtualRouterMacAddress"]
@@ -800,7 +799,7 @@
                       switch_facts["mlag"] = True
                   else:
                       switch_facts["mlag"] = False
-                  
+
                   if switch_facts["mlag"] == True:
                       if switch_facts["type"] == "spline":
                           switch_facts["mlag_group"] = "Splines"
@@ -815,7 +814,7 @@
                       switch_facts["mlag_subnet_mask"] = site_details["mlagConfiguration"]["mlagSubnetMask"]
                       # Set mlag_peer_l3_vlan if there is value set in studio input
                       if site_details['mlagConfiguration']['mlagPeerL3Vlan'] is not None \
-                              and site_details['mlagConfiguration']['mlagPeerL3Subnet'].strip() != "" \
+                              and site_details['mlagConfiguration']['mlagPeerL3IPv4Pool'].strip() != "" \
                               and site_details['mlagConfiguration']['mlagPeerL3SubnetMask'] is not None:
                           switch_facts['mlag_peer_l3_vlan'] = site_details['mlagConfiguration']['mlagPeerL3Vlan']
                           switch_facts['mlag_peer_l3_ipv4_pool'] = site_details['mlagConfiguration']['mlagPeerL3IPv4Pool']
@@ -839,19 +838,19 @@
                       if int(switch_facts["id"]) < int(mlag_peer_switch_facts["id"]):
                           switch_facts["mlag_primary_id"] = int(switch_facts["id"])
                           switch_facts["mlag_role"] = "primary"
-                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts, 
+                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
                               switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "primary"))
                           switch_facts["mlag_l3_ip"] = switch_facts["mlag_ip"]
-                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, 
+                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts,
                               switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "secondary"))
                           switch_facts["mlag_peer_l3_ip"] = switch_facts["mlag_peer_ip"]
                       else:
                           switch_facts["mlag_primary_id"] = int(mlag_peer_switch_facts["id"])
                           switch_facts["mlag_role"] = "secondary"
-                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts, 
+                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
                               switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "secondary"))
                           switch_facts["mlag_l3_ip"] = switch_facts["mlag_ip"]
-                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, 
+                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts,
                               switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_subnet_mask"], "primary"))
                           switch_facts["mlag_peer_l3_ip"] = switch_facts["mlag_peer_ip"]
 
@@ -899,7 +898,7 @@
                                               asns.remove(switch_in_my_campus_facts["bgp_as"])
 
                                   # check to see if this switch's leaf_domain is already set
-                                  if not switch_facts.get("bgp_as"):    
+                                  if not switch_facts.get("bgp_as"):
                                       # get leaf_domain shift
                                       leaf_domain_shift = len([ld for ld in manually_set_leaf_domains.keys() if ld < int(switch_facts["group_index"])])
                                       # set bgp_as
@@ -1085,7 +1084,7 @@
                               }
                           }
                       }
-                  
+
                   # Set bgp config
                   if switch_facts["mlag_l3"] == True and switch_facts["underlay_routing_protocol"] == "bgp":
                       config["router_bgp"]["peer_groups"][fabric_variables["bgp_peer_groups"]["MLAG_IPv4_UNDERLAY_PEER"]["name"]] = {
@@ -1093,7 +1092,7 @@
                           "remote_as": switch_facts["bgp_as"],
                           "next_hop_self": True,
                           "maximum_routes": 12000,
-                          "send_community": "all" 
+                          "send_community": "all"
                       }
                       if fabric_variables["bgp_peer_groups"]["MLAG_IPv4_UNDERLAY_PEER"]["password"] is not None:
                           config["router_bgp"]["peer_groups"] \
@@ -1174,7 +1173,7 @@
                       }
                       if switch_facts.get("boot_vlan"):
                           config["ethernet_interfaces"][iface]["boot_vlan"] = switch_facts["boot_vlan"]
-                          
+
                       if link.get("channel_group_id"):
                           config["ethernet_interfaces"][iface]["channel_group"] = {
                               "id": link["channel_group_id"],
@@ -1224,7 +1223,7 @@
                           config["loopback_interfaces"][switch_facts["vtep_loopback"]] = [switch_facts["vtep_vvtep_ip"] ]
                       if switch_facts["underlay_routing_protocol"] == "ospf":
                           config["loopback_interfaces"][switch_facts["vtep_loopback"]]["ospf_area"] = switch_facts["underlay_ospf_area"]
-                  
+
                   # Set bgp if necessary
                   if switch_facts["underlay_routing_protocol"] == "bgp":
                       config["router_bgp"]["peer_groups"][fabric_variables["bgp_peer_groups"]["IPv4_UNDERLAY_PEERS"]["name"]] = {
@@ -1452,7 +1451,7 @@
                           # }
                           # # enable snooping on that vlan
                           # config["ip_dhcp_snooping"]["vlans"].append(svi)
-           
+
                       # Set vrf ibgp peering vlan params
                       if switch_facts.get("mlag") and switch_facts["network_services"].get("l3") \
                           and switch_facts["vrfs"][vrf].get("enable_mlag_ibgp_peering_vrfs"):
@@ -1461,7 +1460,7 @@
                               "name": "MLAG_iBGP_{}".format(vrf),
                               "trunk_groups": ["MLAG_VRF_PEER"]
                           }
-                        
+
                   # Set l2 vlan config
                   for vlan, info in switch_facts["l2vlans"].items():
                       config["vlans"][vlan] = {
@@ -1473,7 +1472,7 @@
                       # }
                       # enable snooping on the vlan
                       # config["ip_dhcp_snooping"]["vlans"].append(vlan)
-           
+
 
                   if switch_facts["allow_all_vlans"] == False:
                       # Get transit port-channels to be set for allowed_vlans
@@ -1507,14 +1506,14 @@
                                   "vlans": list_compress(link["allowed_vlans"])
                                   }
                               config["port_channel_interfaces"]["Port-Channel{}".format(link["channel_group_id"])].update(functionadd)
-           
+
               # if mlag is enabled
               # if switch_facts.get("mlag"):
               #     # Get mlag_peer_switch facts
               #     mlag_peer_switch_facts = switches_in_my_campus[switch_facts["mlag_peer_serial_number"]]
               #     # Initialize mlag port-channel interface for ibgp trunk groups
               #     config["port_channel_interfaces"]["Port-Channel{}".format(switch_facts["mlag_port_channel_id"])] = {"trunk_groups": []} # go through this
-           
+
               if switch_facts["network_services"].get("l3"):
                   for vrf, info in switch_facts["vrfs"].items():
                       if vrf == "default":
@@ -1525,7 +1524,6 @@
                               "ip_routing": True
                           }
                       # configure static routes
-                      ctx.info(f"{vrf}: {json.dumps(info.get('static_routes'))}")
                       if info.get("static_routes") is not None:
                           for static_route in info["static_routes"]:
                               sr = {
@@ -1546,8 +1544,7 @@
                                   sr["interface"] = static_route["interface"]
                               config["static_routes"].append(sr)
 
-                      ctx.info(f"json.dumps(config['static_routes'])")
-              
+
                       # configure route maps
                       if info.get("bgp_peers"):
                           for peer, peer_info in info["bgp_peers"].items():
@@ -1566,12 +1563,12 @@
                                   elif peer_info.get("set_ipv6_next_hop"):
                                       config["route_maps"]["RM-{}-{}-SET-NEXT-HOP-OUT".format(vrf, peer)]\
                                       ["sequence_numbers"][10]["set"].append(f"ipv6 next-hop {peer_info['set_ipv6_next_hop']}")
-              
+
                       if switch_facts["network_services"].get("l2") and switch_facts["network_services"].get("l3"):
                           # configure svis
                           for svi, svi_info in switch_facts["vrfs"][vrf]["svis"].items():
                               config["vlan_interfaces"]["Vlan{}".format(svi)]["vrf"] = vrf
-              
+
                               # Configure VIP and IP
                               if svi_info.get("ip_address_virtual"):
                                   config["vlan_interfaces"]["Vlan{}".format(svi)]\
@@ -1582,7 +1579,7 @@
                               if svi_info.get("ip_address"):
                                   config["vlan_interfaces"]["Vlan{}".format(svi)]\
                                   ["ip_address"] = svi_info["ip_address"]
-              
+
                               # Add any ip helper addresses
                               config["vlan_interfaces"]["Vlan{}".format(svi)]["ip_helpers"] = {}
                               if svi_info.get("ip_helpers"):
@@ -1598,8 +1595,8 @@
                                   if svi_info["arp"].get("aging_timeout"):
                                       config["vlan_interfaces"]["Vlan{}".format(svi)]["arp_aging_timeout"] = svi_info["arp"]["aging_timeout"]
                               # configure eos_cli statements
-                              config["vlan_interfaces"]["Vlan{}".format(svi)]["eos_cli"] = svi_info["eos_cli"]                      
-              
+                              config["vlan_interfaces"]["Vlan{}".format(svi)]["eos_cli"] = svi_info["eos_cli"]
+
                       # configure vrf ibgp mlag peer interface
                       if switch_facts.get("mlag") \
                           and info.get("enable_mlag_ibgp_peering_vrfs"):
@@ -1624,7 +1621,7 @@
                               ["Port-Channel{}".format(switch_facts["mlag_port_channel_id"])]["trunk_groups"]:
                               config["port_channel_interfaces"]["Port-Channel{}".format(switch_facts["mlag_port_channel_id"])]\
                                   ["trunk_groups"].append("MLAG_VRF_PEER")
-              
+
               # Set bgp
               if switch_facts["network_services"].get("l3") and switch_facts.get("bgp_as"):
                   config["router_bgp"]["vrfs"] = {}
@@ -1687,7 +1684,6 @@
                                       peer_info.pop("set_ipv6_next_hop")
                               config["router_bgp"]["vrfs"][vrf]["neighbors"][peer] = peer_info
                       # redistribute static routes
-                      ctx.info(f"{info.get('redistribute_static')}")
                       if vrf_info.get("redistribute_static"):
                           config["router_bgp"]["vrfs"][vrf]["redistribute_routes"]["static"] = {}
                       # activate neighbors for ipv4 address family
@@ -1706,22 +1702,31 @@
                               }
                       else:
                           del(config["router_bgp"]["vrfs"][vrf]["address_families"]["ipv6"])
-              
-              # clean up
-              if config["router_bgp"].get("vrfs"):
-                  # Clean up bgp config if only vrf present is default vrf
-                  vrfs_to_delete = []
-                  for vrf, info in config["router_bgp"]["vrfs"].items():
-                      if len(info["neighbors"]) == 0:
-                          vrfs_to_delete.append(vrf)
-                  for vrf in vrfs_to_delete:
-                      del(config["router_bgp"]["vrfs"][vrf])
-              # go through this
-              if switch_facts.get("mlag") and \
-                  len(config["port_channel_interfaces"]["Port-Channel{}".format(switch_facts["mlag_port_channel_id"])]["trunk_groups"]) == 0:
-                  del(config["port_channel_interfaces"]["Port-Channel{}".format(switch_facts["mlag_port_channel_id"])]["trunk_groups"])
+
               return config
 
+
+          def clean_config(config):
+              '''
+              Clean up structured config
+              '''
+              # Clean up bgp config if only vrf present is default vrf
+              vrfs_to_delete = []
+              for vrf, info in config["router_bgp"].get("vrfs", {}).items():
+                  if len(info["neighbors"]) == 0:
+                      vrfs_to_delete.append(vrf)
+              for vrf in vrfs_to_delete:
+                  del(config["router_bgp"]["vrfs"][vrf])
+
+              # Clean up svis
+              svis_to_delete = []
+              for svi, info in config.get('vlan_interfaces', {}).items():
+                  if info == {}:
+                      svis_to_delete.append(svi)
+              for svi in svis_to_delete:
+                  del(config["vlan_interfaces"][svi])
+
+              return config
 
           def normalize_service_info(switch_facts, vlans, vrfs):
               '''
@@ -1762,7 +1767,7 @@
 
                   # normalize redistribute routes
                   switch_facts["vrfs"][vrf]["redistribute_static"] = info.get("redistribute_static_routes")
-                  
+
                   # normalize external bgp peers
                   for bgp_peer in info.get("external_bgp_peers"):
                       # if bgp peer is to be configured on switch
@@ -1791,13 +1796,13 @@
                               peer_info["ebgp_multihop"] = str(bgp_peer["ebgpMultihop"])
 
                           peer_info["nodes"] = [switch_facts["serial_number"]]
-                          
+
                           if bgp_peer["nextHop"].get("iPv4NextHop") and bgp_peer["nextHop"]["iPv4NextHop"].strip() != "":
                               peer_info["set_ipv4_next_hop"] = bgp_peer["nextHop"]["iPv4NextHop"]
                           if bgp_peer["nextHop"].get("iPv6NextHop") and bgp_peer["nextHop"]["iPv6NextHop"].strip() != "":
                               peer_info["set_ipv6_next_hop"] = bgp_peer["nextHop"]["iPv6NextHop"]
                           if bgp_peer["routeMap"].get("routeMapOut") and bgp_peer["routeMap"]["routeMapOut"].strip() != "":
-                              peer_info["route_map_out"] = bgp_peer["routeMap"]["routeMapOut"] 
+                              peer_info["route_map_out"] = bgp_peer["routeMap"]["routeMapOut"]
                           if bgp_peer["routeMap"].get("routeMapIn") and bgp_peer["routeMap"]["routeMapIn"].strip() != "":
                               peer_info["route_map_in"] = bgp_peer["routeMap"]["routeMapIn"]
                           if bgp_peer.get("weight"):
@@ -1861,7 +1866,6 @@
               site_resolved = campus_resolved["campusDetails"]["site"].resolve(device=switch_facts["serial_number"])
               vlans_input = site_resolved["siteFacts"]["vlans"]
               vrfs_input = site_resolved["siteFacts"]["vrfs"]
-              
 
               # format vrfs
               vrfs = {}
@@ -1877,14 +1881,22 @@
               switch_vlans = {}
               for vlan in vlans_input:
                   # check if vlan is applied
-                  if switch_facts["network_services"].get("l2") and switch_facts["network_services"].get("l3"):
-                      vlan_applied = True
-                  else:   
-                      if vlan["campusPoD"].resolve(device=switch_facts["serial_number"]) is not None and \
-                              vlan["campusPoD"].resolve(device=switch_facts["serial_number"])["poDDetails"]:
-                          vlan_applied = vlan["campusPoD"].resolve(device=switch_facts["serial_number"])["poDDetails"]["apply"]
+                  if site_resolved["siteFacts"]['campusPodDetails']['uplinkType'] == "port-channel":
+                      if switch_facts['type'] == "Spline":
+                          vlan_applied = True
+                      else:
+                          if vlan["campusPoD"].resolve(device=switch_facts['serial_number']) and \
+                                  vlan["campusPoD"].resolve(device=switch_facts['serial_number'])["poDDetails"]:
+                              vlan_applied = vlan["campusPoD"].resolve(device=switch_facts["serial_number"])["poDDetails"]["apply"]
+                          else:
+                              vlan_applied = False
+                  else:
+                      if vlan["campusPoD"].resolve(device=switch_facts['serial_number']) and \
+                              vlan["campusPoD"].resolve(device=switch_facts['serial_number'])["poDDetails"]:
+                          vlan_applied = vlan["campusPoD"].resolve(device=switch_facts['serial_number'])["poDDetails"]["apply"]
                       else:
                           vlan_applied = False
+
                   # if vlan is applied, format and add details to switch_vlans
                   if vlan_applied == True:
                       vlan_info = {
@@ -1897,7 +1909,7 @@
                       }
                       # Set svi ip address
                       vlan_info["svi_ip_address"] = None
-                      if network_type == "L3":
+                      if site_resolved["siteFacts"]["campusPodDetails"]["uplinkType"] == "p2p":
                           if vlan["campusPoD"].resolve(device=switch_facts["serial_number"])["poDDetails"]:
                               vlan_info["svi_ip_address"] = vlan["campusPoD"].resolve(device=switch_facts["serial_number"])["poDDetails"].get("sviIpAddress")
                       else:
@@ -1912,7 +1924,7 @@
 
               # Get vrfs that should be configured on the switch
               for vrf, info in vrfs.items():
-                  vrf_set = None  
+                  vrf_set = None
 
                   # check if apply column resolves for any static routes
                   for sr in info.get("static_routes"):
@@ -2010,7 +2022,6 @@
           # Update my_switch_facts
           my_switch_facts = switches_in_my_campus[my_device.id]
 
-
           # Set structured config
           my_config = {
               "spanning_tree": {},
@@ -2051,6 +2062,7 @@
           my_config = set_overlay_config(my_config, my_switch_facts)
           my_config = set_vxlan_config(my_config, my_switch_facts)
           my_config = set_network_services_config(my_config, my_switch_facts)
+          my_config = clean_config(my_config)
 
           ctx.info("Switch Facts")
           ctx.info(json.dumps(my_switch_facts))
@@ -2117,7 +2129,7 @@
              trunk group ${ trunk_group }
           %               endfor
           %          endif
-          !   
+          !
           %    endfor %}
           %endif
           ## vrfs
@@ -2370,6 +2382,7 @@
           no ip routing
           !
           % endif
+          ## eos - VRFs
           % if config.get('vrfs'):
           %   for vrf in config["vrfs"]:
           %       if config["vrfs"][vrf].get("ip_routing") is not None and config["vrfs"][vrf].get("ip_routing") == True  and vrf != 'default':
@@ -2425,17 +2438,6 @@
                 software-forwarding ${ config["router_multicast"]["ipv4"]["software_forwarding"] }
           %         endif
           %     endif
-          !
-          % endif
-          ## eos - VRFs
-          % if config.get("vrfs") is not None:
-          %   for vrf in config.get("vrfs"):
-          %       if config.get("vrfs")[vrf].get("ip_routing") is not None and config.get("vrfs")[vrf].get("ip_routing") == True  and vrf != 'default':
-          ip routing vrf ${ vrf }
-          %       elif config.get("vrfs")[vrf].get("ip_routing") is not None and config.get("vrfs")[vrf].get("ip_routing") == False  and vrf != 'default':
-          no ip routing vrf ${ vrf }
-          %       endif
-          %   endfor
           !
           % endif
           ## eos - prefix-lists
@@ -4602,6 +4604,42 @@
               collection_props:
                 base_field_id: vlanSviEosCliStatement
                 key: ''
+            # vlanSpanningTreePriority:
+            #   id: vlanSpanningTreePriority
+            #   name: vlanSpanningTreePriority
+            #   label: VLAN Spanning Tree Priority
+            #   description: Defaults to the default SPT priority if no value is entered. If MST is the selected STP mode, this will set the STP priority for the instance this VLAN is a member of.
+            #   required: false
+            #   type: INPUT_FIELD_TYPE_INTEGER
+            #   integer_props:
+            #     default_value: null
+            #     range: null
+            #     static_options: null
+            #     dynamic_options: null
+            # vlanMstInstance:
+            #   id: vlanMstInstance
+            #   name: vlanMstInstance
+            #   label: MST Instance
+            #   description: MST instance this VLAN belongs to. If left blank, VLAN will be a member of the default instance.
+            #   required: false
+            #   type: INPUT_FIELD_TYPE_INTEGER
+            #   integer_props:
+            #     default_value: null
+            #     range: null
+            #     static_options: null
+            #     dynamic_options: null
+            # vlanSpanningTreeDetails:
+            #   id: vlanSpanningTreeDetails
+            #   name: vlanSpanningTreeDetails
+            #   label: VLAN Spanning Tree Details
+            #   description: ''
+            #   required: false
+            #   type: INPUT_FIELD_TYPE_GROUP
+            #   group_props:
+            #     members:
+            #       values:
+            #         - vlanSpanningTreePriority
+            #         - vlanMstInstance
             vlansDetails:
               id: vlansDetails
               name: vlanDetails
@@ -4618,6 +4656,7 @@
                     - vlanName
                     - vlansCampusPodResolver
                     - vlanSviEosCli
+                    # - vlanSpanningTreeDetails
             vlans:
               id: vlans
               name: vlans
@@ -5052,7 +5091,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -5099,7 +5138,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -5118,7 +5157,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -5152,14 +5191,6 @@
                 "key":"campus",
                 "type":"INPUT",
                 "showDefaultRow":false
-              },
-              "NetworkType":{
-                "key":"NetworkType",
-                "type":"INPUT",
-                "valueToLabelMap":{
-                  "True":"L2",
-                  "False":"L3"
-                }
               },
               "vrfs":{
                 "key":"vrfs",
@@ -5196,6 +5227,7 @@
                   "vlanName",
                   "vlanCampusSviGroup",
                   "vlanDhcpHelpers",
+                  # "vlanSpanningTreeDetails",
                   "vlanSviEosCli"
                 ]
               },
@@ -5228,5 +5260,32 @@
                 "key":"vrfExternalBgpPeers",
                 "type":"INPUT",
                 "isPageLayout":true
+              # },
+              # "vlanSpanningTreePriority":{
+              #   "key":"vlanSpanningTreePriority",
+              #   "dependency":{
+              #     "spanningTreeMode":{
+              #       "value":[
+              #         "Rapid-PVST",
+              #         "MSTP"
+              #       ],
+              #       "mode":"SHOW"
+              #     }
+              #   },
+              #   "dependencyType":"OR",
+              #   "type":"INPUT"
+              # },
+              # "vlanMstInstance":{
+              #   "key":"vlanMstInstance",
+              #   "type":"INPUT",
+              #   "dependencyType":"AND",
+              #   "dependency":{
+              #     "spanningTreeMode":{
+              #       "value":[
+              #         "MSTP"
+              #       ],
+              #       "mode":"SHOW"
+              #     }
+              #   }
               }
             }

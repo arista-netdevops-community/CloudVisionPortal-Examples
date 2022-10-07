@@ -1,0 +1,981 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: 9234efe4-fd5c-4e78-a4cf-95ad73fb7f05
+        workspace_id: 84a2ef18-8373-4896-b095-700456d9d7e8
+      display_name: Campus Fabric (Clone)
+      description: Deploy and manage an Arista validated L2 MLAG campus fabric, and configure networks within the campus
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |
+          <%
+          import sys, os, json, ipaddress
+          import tagsearch_python.tagsearch_pb2_grpc as tsgr
+          import tagsearch_python.tagsearch_pb2 as tspb
+
+          myDevice = ctx.getDevice()
+          myDeviceID = myDevice.id
+          myRole = None
+          devsInCampus = {}
+          devsInPod = {}
+          myCampus = None
+          myPod = None
+          campusLabel = 'Campus'
+          campusPodLabel = 'Campus-Pod'
+          hostnameLabel = 'hostname'
+
+          tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+
+          #get all Campuses
+          tvs = tspb.TagValueSearchRequest(label=campusLabel, workspace_id=ctx.studio.workspaceId, topology_studio_request=True)
+          tvsresp = tsclient.GetTagValueSuggestions(tvs)
+          for tag in tvsresp.tags:
+            tagtmr = tspb.TagMatchRequestV2(query=f'{tag.label}:"{tag.value}"', workspace_id=ctx.studio.workspaceId, topology_studio_request=True)
+            tagresp = tsclient.GetTagMatchesV2(tagtmr)
+            for match in tagresp.matches:
+              devsInCampus.setdefault(tag.value, [])
+              devsInCampus[tag.value].append(match.device.device_id)
+              if match.device.device_id == myDeviceID:
+                assert not myCampus, f'Device {myDeviceID} not allowed to be in two campuses ({myCampus}, {tag.value})'
+                myCampus = tag.value
+
+          if not myCampus:
+            # non-campus devices that this studio is assigned to. Just ignore them so the studio can be assigned to a broader category of devices
+            return
+
+          #get all pods in my campus
+          tvs = tspb.TagValueSearchRequest(label=campusPodLabel, workspace_id=ctx.studio.workspaceId, topology_studio_request=True)
+          tvsresp = tsclient.GetTagValueSuggestions(tvs)
+          for tag in tvsresp.tags:
+            tagtmr = tspb.TagMatchRequestV2(query=f'{campusLabel}:"{myCampus}" AND {tag.label}:"{tag.value}"',
+                            workspace_id=ctx.studio.workspaceId, topology_studio_request=True)
+            tagresp = tsclient.GetTagMatchesV2(tagtmr)
+            for match in tagresp.matches:
+              devsInPod.setdefault(tag.value, [])
+              devsInPod[tag.value].append(match.device.device_id)
+              if match.device.device_id == myDeviceID:
+                assert not myPod, f'Device {myDeviceID} not allowed to be in two PODs ({myPod}, {tag.value})'
+                myPod = tag.value
+                myRole = "leaf"
+
+          mySplineRole = myLeafRole = podDevices = None
+          commonVlans = []
+          campus = campusPicker.resolve()["campus"]
+          fabricType = campus.get("fabricType")
+          commonVlans = campus.get("commonVlans", [])
+          commonMlagConfig = campus.get("commonMlagConfig")
+          lacpMode = commonMlagConfig["lacpMode"]
+          mlagVlan = commonMlagConfig.get("mlagVlan")
+          virtualRouterMacAddress = commonMlagConfig.get("virtualRouterMacAddress")
+          mlagPortChannelId = commonMlagConfig.get("mlagPortChannelId")
+          mlagIPSubnet = commonMlagConfig.get("mlagPeerLinkSubnet")
+          mlagSubnetMask = commonMlagConfig.get("mlagSubnetMask")
+          # check MLAG subnet and size of MLAG Subnet mask
+          mlag_subnet = ipaddress.ip_network(mlagIPSubnet)
+          mlag_subnet_mask = mlagSubnetMask
+          if mlag_subnet_mask != mlag_subnet.prefixlen:
+            mlag_subnet = list(mlag_subnet.subnets(new_prefix=mlag_subnet_mask))[ int(self.leaf_domain) - 1 ]
+          mlagRole = None    # Primary/Secondary
+          peerLinkMembers = []
+          #Ensure that there is only one management VLAN
+          mgmtVlans = [vlan for vlan in commonVlans if vlan["commonVlanIsMgmt"]]
+          if len(mgmtVlans) > 1:
+            raise Exception(f'More than one management VLAN specified: {[vlan["commonVlanID"] for vlan in mgmtVlans]}')
+          # Roles of devices:
+          # 1. Spline - Primary/Secondary/None
+          # 2. Leaf - Primary/Secondary/Member/None
+          # myRole: spline/leaf
+          # mySplineRole: primary/secondary
+          # myLeafRole: primary/secondary/member
+
+          # Gather all splines
+          # A little odd that we determine splines by inputs, but pods by tag
+          splinePicker = campus.get("splinePicker")
+          splines = []    # list of Device objects
+          devsInMyCampus = devsInCampus[myCampus]
+          for dev in devsInMyCampus:
+            sp = splinePicker.resolve(device=dev)
+            # it's considered a spline if it's got the Role filled in
+            if sp and sp.get("spline") and sp.get("spline").mlag.get("splineRole"):
+              splines.append(dev)
+
+          downlinkDetails = {}
+          spline = {}
+          inbandMgmtIPSubnet = None
+          if splinePicker and splinePicker.resolve().get("spline"):
+            spline = splinePicker.resolve().get("spline")
+            inbandMgmtIPSubnet = spline.get("splineInbandMgmtIPSubnet")
+            mlagRole = mySplineRole = spline.mlag.get("splineRole")
+            mlagReloadDelayMlag = spline.mlag.get("reloadDelayMlag")
+            mlagReloadDelayNonMlag = spline.mlag.get("reloadDelayNonMlag")
+
+            if mlagRole:
+              assert not myPod, f'Spline inputs cannot be specified for a device that has the POD tag {myPod}'
+              myRole = "spline"
+
+          if myRole == "spline":
+            # Allocate a port-channel number for each downlink to POD, starting with 11
+            # for each connected interface, check if it's connected to a pod
+            for intf in myDevice.getInterfaces():
+              peer_device, peer_interface = intf.getPeerInfo()
+              if peer_device is None:
+                continue
+              if peer_device.id == myDeviceID:
+                # sanity check that you're not connected to yourself
+                continue
+              if peer_device.id in splines:
+                ctx.info(f"Interface {intf.name} connected to peer spline {peer_interface.name}@{peer_device.id} (assuming mlag peer link)")
+                peerLinkMembers.append(intf.name)
+              # sort by pod name so all switches have the same view
+              for podIndex, pod in enumerate(sorted(devsInPod.keys()), 1):
+                if peer_device.id not in devsInPod[pod]:
+                  continue
+                pch = 10 + podIndex
+                downlinkDetails[intf.name] = {'downlinkInterfaceParameters': {'downlinkChannelNum': pch}}
+
+          if myRole != "spline" and myRole != "leaf":
+            # non-campus devices that this studio is assigned to. Just ignore them so the studio can be assigned to a broader category of devices
+            ctx.error(f'Device {myDeviceID} is not a spline or in a POD. Not generating configuration for it.')
+            return
+
+          podDevices = []   # List of device IDs
+          if myPod:
+            podDevices = devsInPod.get(myPod)
+            podDevices = list(set(podDevices))
+          allLeafRoles = {}
+          pod = campus["podPicker"].resolve()["pod"]
+          leafs = pod["leafs"]
+          podVLANs = [podVLANID.get("podVLANID") for podVLANID in pod.get("podVLANs", [])]
+
+          for dev in podDevices:
+            lf = leafs.resolve(device=dev)
+            if lf and lf.get("leaf"):
+              allLeafRoles[dev] = lf.get("leaf").get("leafRole")
+          podMembers = []
+          podNonMembers = []
+          for d in podDevices:
+            if allLeafRoles.get(d) == "Member":
+              podMembers.append(d)
+            else:
+              podNonMembers.append(d)
+          leaf = leafs.resolve().get("leaf")
+          if myRole == "leaf":
+            myLeafRole = leaf["leafRole"]
+            inbandMgmtIPSubnet = leaf.get("leafInbandMgmtIPSubnet")
+            # We could add a check that inbandMgmtIPSubnet must be specified if there's a management VLAN
+            if myLeafRole == "Primary" or myLeafRole == "Secondary":
+              mlagRole = myLeafRole
+              mlagReloadDelayMlag = leaf.get("reloadDelayMlag")
+              mlagReloadDelayNonMlag = leaf.get("reloadDelayNonMlag")
+            if myLeafRole == "Secondary":
+              assert len(podDevices) >= 2, f'There must be at least 2 devices in the POD if there is a secondary (currently {podDevices})'
+            leafUplinkDetails = {}
+            leafDownlinkDetails = {}
+            # pick uplink port channel number depending on where my pod is in the sorted list of pods
+            for intf in myDevice.getInterfaces():
+              peer_device, peer_interface = intf.getPeerInfo()
+              if peer_device is None:
+                continue
+              if peer_device.id == myDeviceID:
+                # sanity check that you're not connected to yourself
+                continue
+              if myLeafRole in ("Primary", "Secondary", "None"):
+                if peer_device.id in splines:
+                  ctx.info(f'Interface {intf.name} connected to spline {peer_interface.name}@{peer_device.id}')
+                  leafUplinkDetails[intf.name] = {"leafUplinkChannelGroup":
+                      11 + sorted(devsInPod.keys()).index(myPod)}
+                elif peer_device.id in podMembers:
+                  leafDownlinkDetails[intf.name] = {"leafDownlinkChannelGroup":
+                      21 + podMembers.index(peer_device.id)}
+                elif peer_device.id in podNonMembers:
+                  ctx.info(f'Interface {intf.name} connected to {peer_interface.name}@{peer_device.id} (assuming mlag peer link)')
+                  peerLinkMembers.append(intf.name)
+              elif myLeafRole == "Member":
+                # Members form port channel with POD Primary/Secondary, or Splines
+                peerLeafRole = allLeafRoles.get(peer_device.id)
+                if peer_device.id in splines or peerLeafRole in ("Primary", "Secondary"):
+                  leafUplinkDetails[intf.name] = {"leafUplinkChannelGroup":
+                    21 + podMembers.index(myDeviceID)}
+                else:
+                  ctx.info(f"Ignoring connection {intf.name} to {peer_interface.name}@{peer_device.id} "
+                      "that is not to POD Primary/Secondary or Spline")
+            if myLeafRole in ("Primary", "Secondary", "None"):
+              if len(leafUplinkDetails) != len(splines):
+                ctx.warning(f"Expected one uplink to each spline. Splines: {splines}, "
+                    f"Uplinks: {sorted(leafUplinkDetails.keys())}")
+              if len(leafDownlinkDetails) != len(podMembers):
+                ctx.warning(f"Expected one downlink to each POD member. Members: {podMembers}, "
+                    f"Downlinks: {sorted(leafDownlinkDetails.keys())}")
+            elif myLeafRole == "Member":
+              if len(leafUplinkDetails) != len(podNonMembers) and len(leafUplinkDetails) != len(splines):
+                ctx.warning("Expected one uplink to each POD primary/secondary, or to each Spline. "
+                    f"Non-members: {podMembers}, Splines: {splines}, Uplinks: {sorted(leafUplinkDetails)}")
+          myMlagIP = None
+          peerMlagIP = None
+          if mlagRole == "Primary":
+            myMlagIP = str(list(mlag_subnet.hosts())[0])
+            peerMlagIP = str(list(mlag_subnet.hosts())[1])
+          else:
+            myMlagIP = str(list(mlag_subnet.hosts())[1])
+            peerMlagIP = str(list(mlag_subnet.hosts())[0])
+          %>
+          %  for vlan in commonVlans:
+          %    if myRole == "spline" or (len(podVLANs) == 0) or (vlan["commonVlanID"] in podVLANs):
+          vlan ${vlan["commonVlanID"]}
+              name ${vlan["commonVlanName"]}
+          %    endif
+          %  endfor
+          %  if myRole == "spline":
+          ip dhcp relay information option
+          ip dhcp relay always-on
+          %    if inbandMgmtIPSubnet:
+          interface Loopback2
+              description Inband Mgmt
+              ip address ${inbandMgmtIPSubnet}
+          %    endif
+          %    for vlan in commonVlans:
+          %      if vlan["commonVlanVIP"] or vlan["IPHelperAddress"] or vlan["vrf"]:
+          %        if vlan["vrf"]:
+          vrf instance ${vlan["vrf"]}
+          ip routing vrf ${vlan["vrf"]}
+          %        endif
+          interface vlan ${vlan["commonVlanID"]}
+          %        if vlan["vrf"]:
+              vrf ${vlan["vrf"]}
+          %        endif
+              no autostate
+          %        if vlan["commonVlanVIP"]:
+              ip virtual-router address ${vlan["commonVlanVIP"]}
+          %        endif
+          %        if mgmtVlans and vlan.get("IPHelperAddress"):
+              ip helper-address 127.0.0.1 source-interface vlan ${mgmtVlans[0]["commonVlanID"]}
+          %        endif
+          %        if vlan.get("IPHelperAddress"):
+              ip helper-address ${vlan["IPHelperAddress"]}
+          %        endif
+          %      endif
+          %    endfor
+          %    for vlan in spline.get("splineVlans", []):
+          %      if vlan["splineVlanIPSubnet"]:
+          interface vlan ${vlan["splineVlanID"]}
+          %        if vlan["primarySecondary"] == "Primary":
+              ip address ${vlan["splineVlanIPSubnet"]}
+          %        elif vlan["primarySecondary"] == "Secondary":
+              ip address ${vlan["splineVlanIPSubnet"]} secondary
+          %        endif
+          %      endif
+          !
+          %    endfor
+          %  elif myRole == "leaf":
+          %    if mgmtVlans:
+          interface vlan ${mgmtVlans[0]["commonVlanID"]}
+              description In band management
+          %      if inbandMgmtIPSubnet:
+              no autostate
+              ip address ${inbandMgmtIPSubnet}
+          %      endif
+          ##
+          %      if mgmtVlans[0]["commonVlanVIP"] and inbandMgmtIPSubnet:
+          ip route 0.0.0.0/0 ${mgmtVlans[0]["commonVlanVIP"]}
+          %      endif
+          %    endif
+          %  endif    # myRole == spline or leaf
+
+          %  if myRole == "spline":
+          <%   downlinkPortChannelGenerated = {} %>
+               ## One port channel down to each POD
+          %    if downlinkDetails:
+          %      for intfName, params in downlinkDetails.items():
+          <%          intfParams = params["downlinkInterfaceParameters"] %>
+          <%          pch =  intfParams["downlinkChannelNum"] %>
+          interface ${intfName}
+              description Connects to Campus POD
+              channel-group ${pch} mode ${lacpMode}
+          %        if pch in downlinkPortChannelGenerated:
+          <%           continue %>
+          %        endif
+          <%           downlinkPortChannelGenerated[pch] = True %>
+          interface port-channel ${pch}
+              switchport
+          %    if mySplineRole in ("Primary", "Secondary"):
+              mlag ${pch}
+          %    endif
+              switchport mode trunk
+          %        if mgmtVlans:
+              switchport trunk native vlan ${mgmtVlans[0]["commonVlanID"]}
+          %        endif
+          %      endfor # for downlinkDetails
+          %    endif    # if downlinkDetails
+          ip routing
+          ip virtual-router mac-address ${virtualRouterMacAddress}
+          ######
+          %    if mySplineRole in ("Primary", "Secondary"):
+          ######
+          ${mlagConfig()}
+          %    endif
+          %  elif myRole == "leaf":
+          %    for intfName, params in leafUplinkDetails.items():
+          %      if myLeafRole in ("Primary", "Secondary", "Member"):
+                   ## Same port-channel from each leaf
+          <%       group = params["leafUplinkChannelGroup"] %>
+          %      elif myLeafRole == "None":
+                   ## Separate port-channel from each leaf
+          <%       group = params["leafUplinkChannelGroup"] + loop.index %>
+          %      endif
+          interface ${intfName}
+              channel-group ${group} mode ${lacpMode}
+          %      if myLeafRole in ("Primary", "Secondary"):
+              description Uplink to Spline
+          %      else:     # myLeafRole == "None"
+              description Uplink
+          %      endif
+          %      if myLeafRole == "None" or loop.index == 0:    # one port-channel block
+          interface port-channel ${group}
+          %      if myLeafRole in ("Primary", "Secondary"):
+              switchport
+              mlag ${group}
+              description Uplink to Splines
+          %      else:     # myLeafRole == "None"
+              description Uplinks
+          %      endif
+              switchport
+              switchport mode trunk
+          %      if mgmtVlans:   # Always use native vlan for managment
+              switchport trunk native vlan ${mgmtVlans[0]["commonVlanID"]}
+          %      endif
+          %      endif    # port-channel block
+          %    endfor   # each uplink
+          %    for intfName, params in leafDownlinkDetails.items():
+          <%     group = params["leafDownlinkChannelGroup"] %>
+          interface ${intfName}
+              channel-group ${group} mode ${lacpMode}
+          interface port-channel ${group}
+              description Downlink to member switches
+              switchport
+              switchport mode trunk
+          %      if mgmtVlans:
+              switchport trunk native vlan ${mgmtVlans[0]["commonVlanID"]}
+          %      endif
+              mlag ${group}
+          %    endfor   # each downlink
+
+          %    if (myLeafRole == "Primary" or myLeafRole == "Secondary") and len(podDevices) > 1:
+          ${mlagConfig()}
+          %    endif
+
+          %  endif  # myRole == spline or leaf
+
+          <%def name="mlagConfig()" filter="trim">
+          !
+          %  for peerLinkMember in peerLinkMembers:
+          interface ${peerLinkMember}
+              description MLAG peer link member
+          %    if lacpMode is not None:
+              channel-group ${mlagPortChannelId} mode ${lacpMode}
+          %    endif
+          %  endfor
+          interface port-channel ${mlagPortChannelId}
+              description MLAG peer link
+              switchport
+              switchport mode trunk
+              switchport trunk group MLAG-PEER
+          vlan ${mlagVlan}
+              trunk group MLAG-PEER
+          no spanning-tree vlan-id ${mlagVlan}
+          interface vlan ${mlagVlan}
+              ip address ${myMlagIP}/31
+              no autostate
+          mlag configuration
+              domain-id MLAG
+              local-interface vlan ${mlagVlan}
+              peer-address ${peerMlagIP}
+              peer-link port-channel ${mlagPortChannelId}
+          %if mlagReloadDelayMlag:
+              reload-delay mlag ${mlagReloadDelayMlag}
+          %endif
+          %if mlagReloadDelayNonMlag:
+              reload-delay non-mlag ${mlagReloadDelayNonMlag}
+          %endif
+          !
+          </%def>
+      input_schema:
+        fields:
+          values:
+            fabricType:
+              id: fabricType
+              name: fabricType
+              label: Fabric Type
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: L2 MLAG
+                static_options:
+                  values:
+                    - L2 MLAG
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            commonVlanID:
+              id: commonVlanID
+              name: commonVlanID
+              label: VLAN ID
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: 1..4094
+                static_options: null
+                dynamic_options: null
+            commonVlanName:
+              id: commonVlanName
+              name: commonVlanName
+              label: Name
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            commonVlanIsMgmt:
+              id: commonVlanIsMgmt
+              name: commonVlanIsMgmt
+              label: Management VLAN
+              description: Use VLAN for in-band management
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            commonVlanVIP:
+              id: commonVlanVIP
+              name: commonVlanVIP
+              label: SVI Virtual IP Address
+              description: Enter a default gateway for the campus subnets
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: ip
+                length: null
+                pattern: null
+                dynamic_options: null
+            IPHelperAddress:
+              id: IPHelperAddress
+              name: IPHelperAddress
+              label: IP Helper Address
+              description: Enter the IP address or hostname of the DHCP server
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            commonvrf:
+              id: commonvrf
+              name: vrf
+              label: VRF
+              description: Optional
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            commonVlan:
+              id: commonVlan
+              name: commonVlan
+              label: VLAN Configuration
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - commonVlanID
+                    - commonVlanName
+                    - commonVlanIsMgmt
+                    - commonVlanVIP
+                    - IPHelperAddress
+                    - commonvrf
+            commonVlans:
+              id: commonVlans
+              name: commonVlans
+              label: VLAN
+              description: Define networks deployed within the campus. Device-specific addressing is configured within each campus Spline and pod.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: commonVlan
+                key: null
+            splineVlanID:
+              id: splineVlanID
+              name: splineVlanID
+              label: VLAN ID
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId": "commonVlanID"}'
+            splineVlanIPSubnet:
+              id: splineVlanIPSubnet
+              name: splineVlanIPSubnet
+              label: IP Address and Subnet Mask
+              description: Enter in CIDR notation
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            primarySecondary:
+              id: primarySecondary
+              name: primarySecondary
+              label: IP Address Role
+              description: Set as a primary or secondary IP address
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: Primary
+                static_options:
+                  values:
+                    - Primary
+                    - Secondary
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineVlan:
+              id: splineVlan
+              name: splineVlan
+              label: VLAN configuration
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineVlanID
+                    - splineVlanIPSubnet
+                    - primarySecondary
+            splineVlans:
+              id: splineVlans
+              name: splineVlans
+              label: SVI Configuration
+              description: Define a device-specific IP address in CIDR notation for each campus network.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: splineVlan
+                key: null
+            splineInbandMgmtIPSubnet:
+              id: splineInbandMgmtIPSubnet
+              name: splineInbandMgmtIPSubnet
+              label: Loopback2 IP address
+              description: Configure an optional loopback interface in CIDR notation for device management.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineRole:
+              id: splineRole
+              name: splineRole
+              label: MLAG Role
+              description: Set the MLAG role for the campus Spline, which provides an arbitrary assignment of the Spline within the topology. MLAG will auto-negotiate the primary-secondary operational status. Selecting "None" excludes the Spline from any MLAG role.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Primary
+                    - Secondary
+                    - None
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splinereloadDelayMlag:
+              id: splinereloadDelayMlag
+              name: reloadDelayMlag
+              label: Reload Delay MLAG
+              description: infinity - link is not enabled after reboot. 0 to 86400 - disabled link interval (seconds). Default varies by switch platform.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splinereloadDelayNonMlag:
+              id: splinereloadDelayNonMlag
+              name: reloadDelayNonMlag
+              label: Reload Delay Non MLAG
+              description: infinity - link is not enabled after reboot. 0 to 86400 - disabled link interval (seconds). Default varies by switch platform.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineMlagGroup:
+              id: splineMlagGroup
+              name: mlag
+              label: MLAG
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineRole
+                    - splinereloadDelayMlag
+                    - splinereloadDelayNonMlag
+            spline:
+              id: spline
+              name: spline
+              label: Spline Configuration
+              description: Configuration for the interfaces that connect to Primary and Secondary in each Campus pod
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineVlans
+                    - splineInbandMgmtIPSubnet
+                    - splineMlagGroup
+            splinePicker:
+              id: splinePicker
+              name: splinePicker
+              label: Campus Spline Devices
+              description: Configure campus Spline devices for the campus fabric.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: spline
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
+            leafRole:
+              id: leafRole
+              name: leafRole
+              label: MLAG Role
+              description: Primary and secondary form an MLAG pair, and all other devices are members
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Primary
+                    - Secondary
+                    - Member
+                    - None
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafInbandMgmtIPSubnet:
+              id: leafInbandMgmtIPSubnet
+              name: leafInbandMgmtIPSubnet
+              label: In-band Management IP Address and Subnet Mask
+              description: Enter in CIDR notation
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafreloadDelayMlag:
+              id: leafreloadDelayMlag
+              name: reloadDelayMlag
+              label: Reload Delay MLAG
+              description: infinity - link is not enabled after reboot. 0 to 86400 - disabled link interval (seconds). Default varies by switch platform.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafreloadDelayNonMlag:
+              id: leafreloadDelayNonMlag
+              name: reloadDelayNonMlag
+              label: Reload Delay Non MLAG
+              description: infinity - link is not enabled after reboot. 0 to 86400 - disabled link interval (seconds). Default varies by switch platform.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leaf:
+              id: leaf
+              name: leaf
+              label: Campus Leaf Details
+              description: Add, remove, and configure campus leaf devices in this pod.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafRole
+                    - leafInbandMgmtIPSubnet
+                    - leafreloadDelayMlag
+                    - leafreloadDelayNonMlag
+            leafs:
+              id: leafs
+              name: leafs
+              label: Campus Leaf Devices
+              description: Add, remove, and configure campus leaf devices in this pod.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: leaf
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
+            podVLANID:
+              id: podVLANID
+              name: podVLANID
+              label: Pod Specific VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"commonVlanID"}'
+            podVLAN:
+              id: podVLAN
+              name: podVLAN
+              label: Pod Specific VLANs Group
+              description: Select VLANs that should be configured on devices in the pod. By default, all VLANs specified at the Campus level will be configured.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - podVLANID
+            podVLANs:
+              id: podVLANs
+              name: podVLANs
+              label: Pod Specific VLANs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: podVLAN
+                key: ''
+            pod:
+              id: pod
+              name: pod
+              label: Pod Configuration
+              description: Configuration specific to a particular pod
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafs
+                    - podVLANs
+            podPicker:
+              id: podPicker
+              name: podPicker
+              label: Campus Pod
+              description: Configure campus leaf devices within campus pod groupings.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: pod
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Campus-Pod
+                tag_filter_query: null
+            mlagLinkSubnet:
+              id: mlagLinkSubnet
+              name: mlagPeerLinkSubnet
+              label: MLAG Peer Link Subnet
+              description: Enter in CIDR notation
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: 169.254.0.0/31
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            internalVlan:
+              id: internalVlan
+              name: mlagVlan
+              label: MLAG Peer Link VLAN
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '4094'
+                range: null
+                static_options: null
+                dynamic_options: null
+            mlagPortChannelId:
+              id: mlagPortChannelId
+              name: mlagPortChannelId
+              label: MLAG Port Channel Number
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '2000'
+                range: null
+                static_options: null
+                dynamic_options: null
+            virtualRouterMac:
+              id: virtualRouterMac
+              name: virtualRouterMacAddress
+              label: Virtual Router MAC Address
+              description: Enter a common virtual MAC address for the gateways
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: 00:1c:73:00:00:99
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            mlagSubnetMask:
+              id: mlagSubnetMask
+              name: mlagSubnetMask
+              label: MLAG Subnet Mask
+              description: Set the size of the MLAG subnet
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '31'
+                range: null
+                static_options:
+                  values:
+                    - '31'
+                    - '30'
+                dynamic_options: null
+            lacpMode:
+              id: lacpMode
+              name: lacpMode
+              label: LACP Mode
+              description: Set the link aggregation mode for the MLAG peer link
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: active
+                static_options:
+                  values:
+                    - active
+                    - passive
+                    - 'on'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            commonMlagConfig:
+              id: commonMlagConfig
+              name: commonMlagConfig
+              label: MLAG Configuration
+              description: Global MLAG parameters defined for the campus fabric.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - mlagLinkSubnet
+                    - internalVlan
+                    - mlagPortChannelId
+                    - virtualRouterMac
+                    - mlagSubnetMask
+                    - lacpMode
+            campus:
+              id: campus
+              name: campus
+              label: Campus
+              description: null
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - fabricType
+                    - commonVlans
+                    - splinePicker
+                    - podPicker
+                    - commonMlagConfig
+            campusPicker:
+              id: campusPicker
+              name: campusPicker
+              label: Campus
+              description: Manage campus configuration, including all campus leafs.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: campus
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Campus
+                tag_filter_query: null
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - campusPicker
+        layout:
+          value: '{"splinePicker":{"key":"splinePicker","type":"INPUT","isPageLayout":true},"spline":{"key":"spline","type":"INPUT","order":["splineMlagGroup","splineVlans","splineInbandMgmtIPSubnet"]},"leaf":{"key":"leaf","type":"INPUT","order":["leafRole","leafreloadDelayMlag","leafreloadDelayNonMlag","leafInbandMgmtIPSubnet"]}}'

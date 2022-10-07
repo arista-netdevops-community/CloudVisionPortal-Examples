@@ -26,6 +26,16 @@
           veos_regex = r'(v|c)EOS(-)*(Lab)*'
 
 
+          fabric_variables = {
+              "bgp_peer_groups": {
+                  "EVPN_OVERLAY_CORE": {
+                      "name": "EVPN-OVERLAY-CORE",
+                      "password": None,
+                      'evpn_ebgp_gateway_multihop': 15
+                  }
+              }
+          }
+
           def convert(text):
               return int(text) if text.isdigit() else text.lower()
 
@@ -425,6 +435,66 @@
               return config
 
 
+          def set_overlay_config(config, switch_facts):
+              overlay_data = {}
+              # Set evpn route servers
+              overlay_data['evpn_gateway_remote_peers'] = {}
+              if switch_facts.get('evpn_gateway_remote_peers'):
+                  for evpn_gw_remote_peer in switch_facts['evpn_gateway_remote_peers']:
+                      server = {}
+                      server['bgp_as'] = evpn_gw_remote_peer.get('peerBgpAsn')
+                      server['ip_address'] = evpn_gw_remote_peer.get('peerIpAddress')
+                      overlay_data['evpn_gateway_remote_peers'].update({ evpn_gw_remote_peer['peerHostname']: server })
+              # Set EVPN_OVERLAY_CORE peer group config
+              if switch_facts.get('evpn_gateway_vxlan_l2') or switch_facts.get('evpn_gateway_vxlan_l3'):
+                  config['router_bgp']['peer_groups'][fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['name']] = {
+                      "type": "evpn",
+                      "update_source": "Loopback0",
+                      "bfd": True,
+                      "ebgp_multihop": fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['evpn_ebgp_gateway_multihop'],
+                      "send_community": "all",
+                      "maximum_routes": 0
+                  }
+                  if fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE'].get('password'):
+                      config['router_bgp']['peer_groups'][fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['name']]['password'] = \
+                          fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['password']
+              # Set EVPN_OVERLAY_CORE neighbors config
+              if switch_facts.get('evpn_gateway_vxlan_l2') or switch_facts.get('evpn_gateway_vxlan_l3'):
+                  for evpn_gw_remote_peer in natural_sort(overlay_data['evpn_gateway_remote_peers'].keys()):
+                      config['router_bgp']['neighbors'][overlay_data['evpn_gateway_remote_peers'][evpn_gw_remote_peer]['ip_address']] = {
+                          "peer_group": fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['name'],
+                          "description": evpn_gw_remote_peer,
+                          "remote_as": overlay_data['evpn_gateway_remote_peers'][evpn_gw_remote_peer]['bgp_as']
+                      }
+              # Disable ipv4 address family for EVPN_OVERLAY_CORE peer group
+              if switch_facts.get('evpn_gateway_vxlan_l2') or switch_facts.get('evpn_gateway_vxlan_l3'):
+                  config['router_bgp']['address_family_ipv4'] = {
+                      "peer_groups": {
+                          fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['name']: {
+                              "activate": False
+                          }
+                      }
+                  }
+              # Enable evpn address family for EVPN_OVERLAY_CORE peer group
+              if switch_facts.get('evpn_gateway_vxlan_l2') or switch_facts.get('evpn_gateway_vxlan_l3'):
+                  config['router_bgp']['address_family_evpn'] = {
+                      "peer_groups": {
+                          fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['name']: {
+                              "domain_remote": True,
+                              "activate": True
+                          }
+                      }
+                  }
+                  if switch_facts.get('evpn_gateway_vxlan_l3'):
+                      config['router_bgp']['address_family_evpn']['neighbor_default'] = {
+                          "next_hop_self_received_evpn_routes": {
+                              "enable": True,
+                              "inter_domain": switch_facts.get('evpn_gateway_vxlan_l3_inter_domain')
+                          }
+                      }
+              return config
+
+
           def set_network_services_config(config, switch_facts):
               # Configure vlans
               if switch_facts['network_services'].get('l2'):
@@ -504,14 +574,14 @@
                                   }
                                   if static_route.get('gateway') and static_route['gateway'].strip() != "":
                                       sr['gateway'] = static_route['gateway']
-                                  if static_route.get('distance') and static_route['distance'].strip() != "":
-                                      sr['distance'] = static_route['distance']
-                                  if static_route.get('tag') and static_route['tag'].strip() != "":
-                                      sr['tag'] = static_route['tag']
+                                  if static_route.get('distance'):
+                                      sr['distance'] = str(static_route['distance'])
+                                  if static_route.get('tag'):
+                                      sr['tag'] = str(static_route['tag'])
                                   if static_route.get('name') and static_route['name'].strip() != "":
                                       sr['name'] = static_route['name']
-                                  if static_route.get('metric') and static_route['metric'].strip() != "":
-                                      sr['metric'] = static_route['metric']
+                                  if static_route.get('metric'):
+                                      sr['metric'] = str(static_route['metric'])
                                   if static_route.get('interface') and static_route['interface'].strip() != "":
                                       sr['interface'] = static_route['interface']
                                   config['static_routes'].append(sr)
@@ -726,6 +796,19 @@
 
                               vlan_info['route_target'] = ":".join(switch_rt)
 
+                              if switch_facts.get('evpn_gateway_vxlan_l2'):
+                                  vlan_info['rd_evpn_domain'] = {
+                                      "domain": "remote",
+                                      "rd": ":".join(switch_rd)
+                                  }
+                                  vlan_info['import_export_evpn_domains'] = [
+                                      {
+                                          "domain": "remote",
+                                          "route_target": ":".join(switch_rt) if len(switch_rt) > 0 else None
+                                      }
+                                  ]
+
+
                       # Set l2 vlans
                       for vlan, vlan_info in switch_facts['tenants'][tenant]['l2vlans'].items():
                           # Set vlan rd
@@ -759,7 +842,17 @@
                           vlan_info['route_target'] = ":".join(switch_rt) if len(switch_rt) > 0 else None
                           vlan_info['import_route_target'] = ":".join(switch_import_rt) if len(switch_import_rt) > 0 else None
                           vlan_info['export_route_target'] = ":".join(switch_export_rt) if len(switch_export_rt) > 0 else None
-
+                          if switch_facts.get('evpn_gateway_vxlan_l2'):
+                              vlan_info['rd_evpn_domain'] = {
+                                  "domain": "remote",
+                                  "rd": ":".join(switch_rd)
+                              }
+                              vlan_info['import_export_evpn_domains'] = [
+                                  {
+                                      "domain": "remote",
+                                      "route_target": ":".join(switch_rt) if len(switch_rt) > 0 else None
+                                  }
+                              ]
                       # Set vlan_aware_bundles
                       for bundle, bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].items():
                           # Set bundle rd
@@ -778,6 +871,17 @@
                               else:
                                   switch_rt.append(rt_segment)
                           bundle_info['route_target'] = ":".join(switch_rt)
+                          if switch_facts.get('evpn_gateway_vxlan_l2'):
+                              bundle_info['rd_evpn_domain'] = {
+                                  "domain": "remote",
+                                  "rd": ":".join(switch_rd)
+                              }
+                              bundle_info['import_export_evpn_domains'] = [
+                                  {
+                                      "domain": "remote",
+                                      "route_target": ":".join(switch_rt) if len(switch_rt) > 0 else None
+                                  }
+                              ]
 
                   # Set bgp
                   if switch_facts['network_services'].get('l3'):
@@ -912,10 +1016,14 @@
                                           "learned": {}
                                       }
                                   }
+                                  if vlan_info.get('rd_evpn_domain'):
+                                      config['router_bgp']['vlans'][vlan]['rd_evpn_domain'] = vlan_info['rd_evpn_domain']
                                   # Set route targets
                                   config['router_bgp']['vlans'][vlan]['route_targets']['both'] = [vlan_info['route_target']] if vlan_info.get('route_target') else None
                                   config['router_bgp']['vlans'][vlan]['route_targets']['import'] = [vlan_info['import_route_target']] if vlan_info.get('import_route_target') else None
                                   config['router_bgp']['vlans'][vlan]['route_targets']['export'] = [vlan_info['export_route_target']] if vlan_info.get('export_route_target') else None
+                                  if vlan_info.get('import_export_evpn_domains'):
+                                      config['router_bgp']['vlans'][vlan]['route_targets']['import_export_evpn_domains'] = vlan_info['import_export_evpn_domains']
 
                           # Set l2 vlans
                           for vlan, vlan_info in switch_facts['tenants'][tenant]['l2vlans'].items():
@@ -936,10 +1044,15 @@
                                       "learned": {}
                                   }
                               }
+                              if vlan_info.get('rd_evpn_domain'):
+                                  config['router_bgp']['vlans'][vlan]['rd_evpn_domain'] = vlan_info['rd_evpn_domain']
                               # Set route targets
                               config['router_bgp']['vlans'][vlan]['route_targets']['both'] = [vlan_info['route_target']] if vlan_info.get('route_target') else None
                               config['router_bgp']['vlans'][vlan]['route_targets']['import'] = [vlan_info['import_route_target']] if vlan_info.get('import_route_target') else None
                               config['router_bgp']['vlans'][vlan]['route_targets']['export'] = [vlan_info['export_route_target']] if vlan_info.get('export_route_target') else None
+                              if vlan_info.get('import_export_evpn_domains'):
+                                  config['router_bgp']['vlans'][vlan]['route_targets']['import_export_evpn_domains'] = vlan_info['import_export_evpn_domains']
+
                           # Set vlan aware bundles
                           for bundle, bundle_info in switch_facts['tenants'][tenant]['vlan_aware_bundles'].items():
                               config['router_bgp']['vlan_aware_bundles'][bundle] = {
@@ -952,6 +1065,10 @@
                                       "learned"
                                   ]
                               }
+                              if bundle_info.get('rd_evpn_domain'):
+                                  config['router_bgp']['vlan_aware_bundles'][bundle]['rd_evpn_domain'] = bundle_info['rd_evpn_domain']
+                              if bundle_info.get('import_export_evpn_domains'):
+                                  config['router_bgp']['vlan_aware_bundles'][bundle]['route_targets']['import_export_evpn_domains'] = bundle_info['import_export_evpn_domains']
 
 
                   # Set vxlan interface
@@ -1227,6 +1344,20 @@
               return switch_facts
 
 
+          def set_fabric_variables():
+              '''
+              Updates global fabric_variables variable with custom settings
+              '''
+              custom_fabric_variables = advancedSettings
+              # Update BGP variables
+              if custom_fabric_variables['bgpPeerGroupSettings']['evpnOverlayCorePeerGroup']['name']:
+                  fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['name'] \
+                      = custom_fabric_variables['bgpPeerGroupSettings']['evpnOverlayCorePeerGroup']['name']
+              if custom_fabric_variables['bgpPeerGroupSettings']['evpnOverlayCorePeerGroup']['password']:
+                  fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_CORE']['password'] \
+                      = custom_fabric_variables['bgpPeerGroupSettings']['evpnOverlayCorePeerGroup']['password']
+
+
           def set_switch_facts(switch_facts):
               # Get interface info from studio topology tags
               switch_facts['interfaces'] = get_interfaces_info(switch_facts)
@@ -1246,6 +1377,18 @@
                       switch_facts['mlag_primary_id'] = int(mlag_peer_switch_facts['id'])
               else:
                   switch_facts['mlag_role'] = None
+
+              # Set switch.evpn_gateway
+              if switch_facts.get("vtep"):
+                  # attempt to resolve EVPN GW
+                  evpn_gw_details = evpnGatewayVteps.resolve(device=switch_facts['serial_number'])
+                  if evpn_gw_details and len(evpn_gw_details['remoteEvpnGatewayVtepsDetails']['remoteEvpnGatewayVtepPeers']) > 0:
+                      switch_facts['evpn_gateway_vxlan_l2'] = evpn_gw_details['remoteEvpnGatewayVtepsDetails']['evpnL2']['enable']
+                      switch_facts['evpn_gateway_vxlan_l3'] = evpn_gw_details['remoteEvpnGatewayVtepsDetails']['evpnL3']['enable']
+                      switch_facts['evpn_gateway_vxlan_l3_inter_domain'] = evpn_gw_details['remoteEvpnGatewayVtepsDetails']['evpnL3']['interDomain']
+                      if switch_facts['evpn_gateway_vxlan_l2'] or switch_facts['evpn_gateway_vxlan_l3']:
+                          switch_facts['evpn_gateway_remote_peers'] = evpn_gw_details['remoteEvpnGatewayVtepsDetails']['remoteEvpnGatewayVtepPeers']
+
               return switch_facts
 
 
@@ -1324,7 +1467,7 @@
           my_device = ctx.getDevice()
           my_device_id = my_device.id
 
-          if not tenants:
+          if not tenants or not evpnGatewayVteps:
               return  # type: ignore
 
           config = {}
@@ -1337,6 +1480,9 @@
           router_id_dict = populate_single_value_dict(workspace_id, 'router_bgp.router_id')
           mlag_peer_link_dict = populate_single_value_dict(workspace_id, 'mlag_configuration.peer_link')
           role_dict = populate_multi_value_dict(workspace_id, 'Role')
+
+          # Update advanced settings
+          set_fabric_variables()
 
           my_switch_facts = get_switch_basics_from_tags(my_device_id)
           my_switch_facts = set_switch_facts(my_switch_facts)
@@ -1503,7 +1649,7 @@
                           break
 
           my_switch_facts = normalize_tenant_info(my_switch_facts, my_switch_vrfs, my_switch_vlans, my_switch_vlan_bundles)
-          if len(my_switch_facts['tenants'].keys()) > 0:
+          if len(my_switch_facts['tenants'].keys()) > 0 or len(my_switch_facts.get('evpn_gateway_remote_peers', [])) > 0:
               my_config = {
                   "vrfs": {},
                   "vlans": {},
@@ -1516,16 +1662,17 @@
                   "route_maps": {},
                   "router_bgp": {
                       "peer_groups": {},
+                      "neighbors": {}
                   }
               }
               my_config = set_base_config(my_config, my_switch_facts)
+              my_config = set_overlay_config(my_config, my_switch_facts)
               my_config = set_network_services_config(my_config, my_switch_facts)
               my_config = clean_config(my_config)
           else:
               my_config = {}
           config = my_config
           switch_facts = my_switch_facts
-          ctx.info(json.dumps(switch_facts, indent=2))
           %>
           ## eos - ip dhcp relay
           % if config.get("ip_dhcp_relay"):
@@ -2001,7 +2148,7 @@
              neighbor ${ neighbor } peer group ${ config["router_bgp"]["neighbors"][neighbor]["peer_group"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("remote_as") is not None:
-             neighbor ${ neighbor } remote-as ${ config["router_bgp"]["neighbors"][neighbor].remote_as }
+             neighbor ${ neighbor } remote-as ${ config["router_bgp"]["neighbors"][neighbor]['remote_as'] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("next_hop_self") == True:
              neighbor ${ neighbor } next-hop-self
@@ -2056,6 +2203,11 @@
           %         if config["router_bgp"]["vlans"][vlan].get("rd") is not None:
                 rd ${ config["router_bgp"]["vlans"][vlan]["rd"] }
           %         endif
+          %         if config["router_bgp"]["vlans"][vlan].get("rd_evpn_domain") is not None:
+          %             if config["router_bgp"]["vlans"][vlan]["rd_evpn_domain"].get('domain') is not None and config["router_bgp"]["vlans"][vlan]["rd_evpn_domain"].get('rd') is not None:
+                rd evpn domain ${ config["router_bgp"]["vlans"][vlan]["rd_evpn_domain"]["domain"] } ${ config["router_bgp"]["vlans"][vlan]["rd_evpn_domain"]["rd"] }
+          %             endif
+          %         endif
           %         if config["router_bgp"]["vlans"][vlan].get("route_targets") is not None and config["router_bgp"]["vlans"][vlan]["route_targets"].get("both") is not None:
           %             for route_target in config["router_bgp"]["vlans"][vlan]["route_targets"]["both"]:
                 route-target both ${ route_target }
@@ -2071,6 +2223,21 @@
                 route-target export ${ route_target }
           %             endfor
           %         endif
+          %         if config["router_bgp"]["vlans"][vlan].get("route_targets") is not None and config["router_bgp"]["vlans"][vlan]["route_targets"].get("import_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vlans"][vlan]["route_targets"]["import_evpn_domains"]:
+                route-target import evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor
+          %         endif
+          %         if config["router_bgp"]["vlans"][vlan].get("route_targets") is not None and config["router_bgp"]["vlans"][vlan]["route_targets"].get("export_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vlans"][vlan]["route_targets"]["export_evpn_domains"]:
+                route-target export evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor %}
+          %        endif
+          %         if config["router_bgp"]["vlans"][vlan].get("route_targets") is not None and config["router_bgp"]["vlans"][vlan]["route_targets"].get("import_export_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vlans"][vlan]["route_targets"]["import_export_evpn_domains"]:
+                route-target import export evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor %}
+          %         endif
           %         if config["router_bgp"]["vlans"][vlan].get("redistribute_routes") is not None:
           %           for redistribute_route in config["router_bgp"]["vlans"][vlan]["redistribute_routes"]:
                 redistribute ${ redistribute_route }
@@ -2084,6 +2251,11 @@
              vlan-aware-bundle ${ vlan_aware_bundle }
           %         if  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("rd") is not None:
                 rd ${  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd"] }
+          %         endif
+          %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("rd_evpn_domain") is not None:
+          %             if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd_evpn_domain"].get('domain') is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd_evpn_domain"].get('rd') is not None:
+                rd evpn domain ${ config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd_evpn_domain"]["domain"] } ${ config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["rd_evpn_domain"]["rd"] }
+          %             endif
           %         endif
           %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets") is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("both") is not None:
           %             for route_target in  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["both"]:
@@ -2099,6 +2271,21 @@
           %             for route_target in  config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["export"]:
                 route-target export ${ route_target }
           %             endfor
+          %         endif
+          %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets") is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("import_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["import_evpn_domains"]:
+                route-target import evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor
+          %         endif
+          %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets") is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("export_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["export_evpn_domains"]:
+                route-target export evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor %}
+          %        endif
+          %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("route_targets") is not None and config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"].get("import_export_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["route_targets"]["import_export_evpn_domains"]:
+                route-target import export evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor %}
           %         endif
           %         if config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle].get("redistribute_routes") is not None:
           %           for redistribute_route in config["router_bgp"]["vlan_aware_bundles"][vlan_aware_bundle]["redistribute_routes"]:
@@ -2142,7 +2329,21 @@
           %             elif config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get("activate") == False:
                 no neighbor ${ peer_group } activate
           %             endif
+          %             if config["router_bgp"]["address_family_evpn"]["peer_groups"][peer_group].get('domain_remote'):
+                neighbor ${ peer_group } domain remote
+          %             endif
           %           endfor
+          %           if config["router_bgp"]["address_family_evpn"].get('neighbor_default'):
+          %               if config["router_bgp"]["address_family_evpn"]['neighbor_default'].get('next_hop_self_received_evpn_routes'):
+          %                   if config["router_bgp"]["address_family_evpn"]['neighbor_default']['next_hop_self_received_evpn_routes'].get('enable'):
+          <%                      evpn_neighbor_default_nhs_received_evpn_routes_cli = "neighbor default next-hop-self received-evpn-routes route-type ip-prefix" %>
+          %                       if config["router_bgp"]["address_family_evpn"]['neighbor_default']['next_hop_self_received_evpn_routes'].get('inter_domain'):
+          <%                          evpn_neighbor_default_nhs_received_evpn_routes_cli = evpn_neighbor_default_nhs_received_evpn_routes_cli + " inter-domain" %>
+          %                       endif
+                ${ evpn_neighbor_default_nhs_received_evpn_routes_cli }
+          %                   endif
+          %               endif
+          %           endif
           %         endif
           %     endif
           ## address family ipv4 activation
@@ -2219,6 +2420,11 @@
           %         if config["router_bgp"]["vrfs"][vrf].get("rd") is not None:
                 rd ${ config["router_bgp"]["vrfs"][vrf]["rd"] }
           %         endif
+          %         if config["router_bgp"]["vrfs"][vrf].get("rd_evpn_domain") is not None:
+          %             if config["router_bgp"]["vrfs"][vrf]["rd_evpn_domain"].get('domain') is not None and config["router_bgp"]["vrfs"][vrf]["rd_evpn_domain"].get('rd') is not None:
+                rd evpn domain ${ config["router_bgp"]["vrfs"][vrf]["rd_evpn_domain"]["domain"] } ${ config["router_bgp"]["vrfs"][vrf]["rd_evpn_domain"]["rd"] }
+          %             endif
+          %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is not None and config["router_bgp"]["vrfs"][vrf]["route_targets"].get("import") is not None:
           %             for address_family in config["router_bgp"]["vrfs"][vrf]["route_targets"]["import"].keys():
           %                 for route_target in config["router_bgp"]["vrfs"][vrf]["route_targets"]["import"][address_family]:
@@ -2232,6 +2438,21 @@
                 route-target export ${ address_family } ${ route_target }
           %                 endfor
           %             endfor
+          %         endif
+          %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is not None and config["router_bgp"]["vrfs"][vrf]["route_targets"].get("import_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vrfs"][vrf]["route_targets"]["import_evpn_domains"]:
+                route-target import evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor
+          %         endif
+          %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is not None and config["router_bgp"]["vrfs"][vrf]["route_targets"].get("export_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vrfs"][vrf]["route_targets"]["export_evpn_domains"]:
+                route-target export evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor %}
+          %        endif
+          %         if config["router_bgp"]["vrfs"][vrf].get("route_targets") is not None and config["router_bgp"]["vrfs"][vrf]["route_targets"].get("import_export_evpn_domains") is not None:
+          %             for route_target in config["router_bgp"]["vrfs"][vrf]["route_targets"]["import_export_evpn_domains"]:
+                route-target import export evpn domain ${ route_target.get('domain') } ${ route_target.get('route_target') }
+          %             endfor %}
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("router_id") is not None:
                 router-id ${ config["router_bgp"]["vrfs"][vrf]["router_id"] }
@@ -3878,35 +4099,6 @@
                 dynamic_options:
                   values:
                     - '{"fieldId":"vrfName"}'
-            etreeRole:
-              id: etreeRole
-              name: role
-              label: Role
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options:
-                  values:
-                    - Root
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            etreeRootSwitches:
-              id: etreeRootSwitches
-              name: eTreeRootSwitches
-              label: E Tree Root Switches
-              description: Specify which switches are Etree Root for this VLAN.
-              required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: etreeRole
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: ''
-                tag_filter_query: null
             vlanVxlanToggle:
               id: vlanVxlanToggle
               name: vxlan
@@ -4002,6 +4194,35 @@
                   values:
                     - etreeEnable
                     - leafExportRouteTargetOffset
+            etreeRole:
+              id: etreeRole
+              name: role
+              label: Role
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Root
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            etreeRootSwitches:
+              id: etreeRootSwitches
+              name: eTreeRootSwitches
+              label: E Tree Root Switches
+              description: Specify which switches are Etree Root for this VLAN.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: etreeRole
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: ''
+                tag_filter_query: null
             vlanBasedVlans:
               id: vlanBasedVlans
               name: vlanBasedVlaNs
@@ -4216,6 +4437,207 @@
                   values:
                     - vlanBundleMacVrfRouteDistinguisherFormat
                     - vlanBundleMacVrfRouteTargetFormat
+            evpnGwVtepPeerHostname:
+              id: evpnGwVtepPeerHostname
+              name: peerHostname
+              label: Peer Hostname
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            evpnGwVtepPeerIpAddress:
+              id: evpnGwVtepPeerIpAddress
+              name: peerIpAddress
+              label: Peer IP Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: ip
+                length: null
+                pattern: null
+                dynamic_options: null
+            evpnGwVtepPeerBgpAsn:
+              id: evpnGwVtepPeerBgpAsn
+              name: peerBgpAsn
+              label: Peer BGP ASN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            remoteEvpnGatewayVtepDetails:
+              id: remoteEvpnGatewayVtepDetails
+              name: remoteEvpnGatewayVtepDetails
+              label: Remote EVPN Gateway VTEP Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - evpnGwVtepPeerHostname
+                    - evpnGwVtepPeerIpAddress
+                    - evpnGwVtepPeerBgpAsn
+            remoteEvpnGatewayVtepPeers:
+              id: remoteEvpnGatewayVtepPeers
+              name: remoteEvpnGatewayVtepPeers
+              label: Remote EVPN Gateway VTEP Peers
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: remoteEvpnGatewayVtepDetails
+                key: ''
+            remoteEvpnGatewayVtepEvpnL2Enable:
+              id: remoteEvpnGatewayVtepEvpnL2Enable
+              name: enable
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            remoteEvpnGatewayVtepEvpnL2Details:
+              id: remoteEvpnGatewayVtepEvpnL2Details
+              name: evpnL2
+              label: EVPN L2
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - remoteEvpnGatewayVtepEvpnL2Enable
+            remoteEvpnGatewayVtepEvpnL3Enable:
+              id: remoteEvpnGatewayVtepEvpnL3Enable
+              name: enable
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            remoteEvpnGatewayVtepEvpnL3InterDomain:
+              id: remoteEvpnGatewayVtepEvpnL3InterDomain
+              name: interDomain
+              label: Inter-Domain
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            remoteEvpnGatewayVtepEvpnL3Details:
+              id: remoteEvpnGatewayVtepEvpnL3Details
+              name: evpnL3
+              label: EVPN L3
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - remoteEvpnGatewayVtepEvpnL3Enable
+                    - remoteEvpnGatewayVtepEvpnL3InterDomain
+            remoteEvpnGatewayVtepsDetails:
+              id: remoteEvpnGatewayVtepsDetails
+              name: remoteEvpnGatewayVtepsDetails
+              label: Remote EVPN Gateway VTEPs Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - remoteEvpnGatewayVtepPeers
+                    - remoteEvpnGatewayVtepEvpnL2Details
+                    - remoteEvpnGatewayVtepEvpnL3Details
+            evpnGatewayVteps:
+              id: evpnGatewayVteps
+              name: evpnGatewayVteps
+              label: EVPN Gateway VTEPs
+              description: Select switches to be EVPN VXLAN gateways. Note that configuration of this feature is only supported on select Jericho based platforms running EOS >= 4.26.1F.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: remoteEvpnGatewayVtepsDetails
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            evpnOverlayCoreBgpPeerGroupName:
+              id: evpnOverlayCoreBgpPeerGroupName
+              name: name
+              label: Name
+              description: Name of the peer group. If nothing is entered, the default name will be used.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            evpnOverlayCoreBgpPeerGroupPassword:
+              id: evpnOverlayCoreBgpPeerGroupPassword
+              name: password
+              label: Password
+              description: Enter the encrypted password for the peer group.  If nothing is entered, no password will be used in the BGP peering.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            evpnOverlayCorePeerGroupSettings:
+              id: evpnOverlayCorePeerGroupSettings
+              name: evpnOverlayCorePeerGroup
+              label: EVPN Overlay Core Peer Group
+              description: Settings for the BGP peer group used to establish peerings between EVPN gateway VTEPs
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - evpnOverlayCoreBgpPeerGroupName
+                    - evpnOverlayCoreBgpPeerGroupPassword
+            bgpPeerGroupSettings:
+              id: bgpPeerGroupSettings
+              name: bgpPeerGroupSettings
+              label: BGP Peer Group Settings
+              description: Customize BGP peer group properties.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - evpnOverlayCorePeerGroupSettings
+            advancedSettings:
+              id: advancedSettings
+              name: advancedSettings
+              label: Advanced Settings
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - bgpPeerGroupSettings
             root:
               id: root
               name: ''
@@ -4230,6 +4652,8 @@
                     - vrfAttributeFormats
                     - vlanBasedMacVrfAttributeFormats
                     - vlanBundleMacVrfAttributeFormats
+                    - evpnGatewayVteps
+                    - advancedSettings
         layout:
           value: |
             {
@@ -4905,5 +5329,23 @@
                 },
                 "dependencyType":"AND",
                 "type":"INPUT"
+              },
+              "evpnGatewayVteps":{
+                "key":"evpnGatewayVteps",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "remoteEvpnGatewayVtepEvpnL3InterDomain":{
+                "key":"remoteEvpnGatewayVtepEvpnL3InterDomain",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "remoteEvpnGatewayVtepEvpnL3Enable":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }

@@ -110,7 +110,7 @@
                   # Update link in dictionary
                   l3_edge_data["p2p_interfaces"][node_interface] = p2p_interface
                   # Add routing details
-                  ctx.info(json.dumps(p2p_link["linkRoutingDetails"]))
+                  ctx.debug(json.dumps(p2p_link["linkRoutingDetails"]))
                   if p2p_link["linkRoutingDetails"]["linkIncludeInRoutingProtocol"] == True: 
                       if p2p_link["linkRoutingDetails"]["linkUnderlayRoutingProtocol"] == "bgp": 
                           asn = p2p_link["linkAsns"]
@@ -125,10 +125,10 @@
                           # Update bgp neighbors dictionary
                           l3_edge_data["bgp_neighbors"][p2p_interface["peer_ip"]] =  p2p_bgp_neighbor
 
-          ctx.info("P2P Interfaces")
-          ctx.info(json.dumps(l3_edge_data["p2p_interfaces"]))
-          ctx.info("BGP Neighbors")
-          ctx.info(json.dumps(l3_edge_data["bgp_neighbors"]))
+          ctx.debug("P2P Interfaces")
+          ctx.debug(json.dumps(l3_edge_data["p2p_interfaces"]))
+          ctx.debug("BGP Neighbors")
+          ctx.debug(json.dumps(l3_edge_data["bgp_neighbors"]))
           ### ethernet-interfaces ###
           ethernet_interfaces = {}
           if len(l3_edge_data["p2p_interfaces"]) > 0:
@@ -173,7 +173,8 @@
           ### Structured Config ###
           config["ethernet_interfaces"] = ethernet_interfaces
           config["router_bgp"] = router_bgp
-          ctx.info(json.dumps(config))
+          ctx.debug('Structured Config')
+          ctx.debug(json.dumps(config))
           %>
           ## eos - Ethernet Interfaces
           %if config.get("ethernet_interfaces") is not None:
@@ -326,17 +327,6 @@
           %     endif
           % endif
           % endif
-
-
-
-
-
-
-
-
-
-
-
       input_schema:
         fields:
           values:
@@ -344,11 +334,12 @@
               id: linkName
               name: linkName
               label: Name
-              description: ''
+              description: Unique name to describe the link being configured between two devices.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -363,6 +354,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -372,11 +364,12 @@
               id: linkIpAddress
               name: linkIpAddress
               label: IP Address
-              description: ''
+              description: IP Address in CIDR notation (i.e. 10.245.0.0/31)
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -386,7 +379,7 @@
               id: linkIpAddresses
               name: linkIpAddresses
               label: IP Addresses
-              description: ''
+              description: IP addresses configured on each end of the link.  There should be exactly two IP addresses entered in CIDR notation and they should be on the same subnet.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -396,11 +389,12 @@
               id: linkNode
               name: linkNode
               label: Node
-              description: ''
+              description: Hostname of device
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -410,7 +404,7 @@
               id: linkNodes
               name: linkNodes
               label: Nodes
-              description: ''
+              description: Hostnames of the nodes the link will be configured between. There should be exactly two hostnames entered in this collection.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -420,11 +414,12 @@
               id: linkInterface
               name: linkInterface
               label: Interface
-              description: ''
+              description: Name of interface (i.e. Ethernet1)
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -434,7 +429,7 @@
               id: linkInterfaces
               name: linkInterfaces
               label: Interfaces
-              description: ''
+              description: Interface names of the interfaces the link will be configured between. There should be exactly two interface names entered in this collection.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -444,11 +439,12 @@
               id: linkAsn
               name: linkAsn
               label: ASN
-              description: ''
+              description: ASN of device
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -458,7 +454,7 @@
               id: linkAsns
               name: linkAsns
               label: ASNs
-              description: ''
+              description: ASN of devices required to establish a BGP peering.  There should be exactly two ASNs names entered in this collection.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -468,7 +464,7 @@
               id: linkIncludeInRoutingProtocol
               name: linkIncludeInRoutingProtocol
               label: Include in Routing Protocol
-              description: ''
+              description: Add this interface to underlay routing protocol
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -482,6 +478,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - bgp
@@ -494,7 +491,7 @@
             linkRoutingDetails:
               id: linkRoutingDetails
               name: linkRoutingDetails
-              label: RoutingDetails
+              label: Routing Details
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_GROUP
@@ -507,7 +504,7 @@
               id: linkMtu
               name: linkMtu
               label: MTU
-              description: ''
+              description: MTU for this P2P link
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -519,11 +516,12 @@
               id: linkQosProfile
               name: linkQosProfile
               label: QOS Profile
-              description: ''
+              description: Name of QOS service profile
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -533,11 +531,12 @@
               id: linkMacsecProfile
               name: linkMacsecProfile
               label: Macsec Profile
-              description: ''
+              description: Name of  MAC security profile
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -547,11 +546,12 @@
               id: linkProfile
               name: linkProfile
               label: Profile
-              description: ''
+              description: Profile defined under Point to Point Link Profiles
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -563,11 +563,12 @@
               id: linkShutdown
               name: linkShutdown
               label: Shutdown
-              description: ''
+              description: Enable/Disable link
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -580,11 +581,12 @@
               id: linkPtpEnable
               name: linkPtpEnable
               label: PTP Enable
-              description: ''
+              description: Enable PTP
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -597,11 +599,12 @@
               id: linkBfd
               name: linkBfd
               label: BFD
-              description: ''
+              description: Enable BFD
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -648,11 +651,12 @@
               id: profileName
               name: profileName
               label: Name
-              description: ''
+              description: Unique name for link profile
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -667,6 +671,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -676,7 +681,7 @@
               id: profileMtu
               name: profileMtu
               label: MTU
-              description: ''
+              description: MTU for this P2P link
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -688,11 +693,12 @@
               id: profileQosProfile
               name: profileQosProfile
               label: QOS Profile
-              description: ''
+              description: Name of QOS service profile
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -702,11 +708,12 @@
               id: profileMacsecProfile
               name: profileMacsecProfile
               label: Macsec Profile
-              description: ''
+              description: Name of  MAC security profile
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -716,11 +723,12 @@
               id: profileShutdown
               name: profileShutdown
               label: Shutdown
-              description: ''
+              description: Enable/Disable link
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -733,11 +741,12 @@
               id: profilePtpEnable
               name: profilePtpEnable
               label: PTP Enable
-              description: ''
+              description: Enable PTP
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -750,11 +759,12 @@
               id: profileBfd
               name: profileBfd
               label: BFD
-              description: ''
+              description: Enable BFD (only considered for BGP)
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -784,7 +794,7 @@
             pointToPointLinksProfiles:
               id: pointToPointLinksProfiles
               name: pointToPointLinksProfiles
-              label: Point to Point Links Profiles
+              label: Point to Point Link Profiles
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
@@ -885,6 +895,24 @@
                   "linkIncludeInRoutingProtocol":{
                     "value":[
                       true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "linkBfd":{
+                "key":"linkBfd",
+                "type":"INPUT",
+                "dependency":{
+                  "linkIncludeInRoutingProtocol":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "linkUnderlayRoutingProtocol":{
+                    "value":[
+                      "bgp"
                     ],
                     "mode":"SHOW"
                   }
