@@ -4,7 +4,7 @@
     value:
       key:
         studio_id: studio-connected-endpoints
-        workspace_id: ''
+        workspace_id: &workspace_id ws-connected-endpoints
       display_name: Endpoint Connectivity
       description: 'The connected endpoints variables, define endpoints that connect to the fabric on leaf interface(s). The connected endpoints are leveraged to define any device that connects to a leaf switch ports, i.e.: servers, firewalls, routers, load balancers, and storage arrays.'
       template:
@@ -13,6 +13,14 @@
           <%
           import json
           import re
+          import tagsearch_python.tagsearch_pb2_grpc as tsgr
+          import tagsearch_python.tagsearch_pb2 as tspb
+          from arista.tag.v2.tag_pb2 import Tag, \
+              TagKey, \
+              TagAssignment, \
+              TagAssignmentKey, \
+              TagAssignmentConfig
+
           def convert(text):
               return int(text) if text.isdigit() else text.lower()
 
@@ -86,6 +94,421 @@
                   assert profile is not None, "Could not find port profile {}".format(profile_name)
                   return profile.get(attribute_name)
 
+          def get_tag_values(device_id=None, label=None, workspace_id=None):
+              tag_assignment_key = TagAssignmentKey()
+              tag_assignment_key.element_type = 1
+              if workspace_id is not None:
+                  tag_assignment_key.workspace_id.value = workspace_id
+              if device_id is not None:
+                  tag_assignment_key.device_id.value = device_id
+              if label is not None:
+                  tag_assignment_key.label.value = label
+              tag_values = get_tag_values_applied_to_device(tag_assignment_key)
+              if len(tag_values) > 0:
+                  return [tag_value.value for tag_value in tag_values]
+
+
+          def get_tag_values_applied_to_device(tag_assignment_key):
+              label = tag_assignment_key.label.value
+              value = tag_assignment_key.value.value
+              device_id = tag_assignment_key.device_id.value
+              workspace_id = tag_assignment_key.workspace_id.value
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+
+              matching_tags = []
+
+              tvsr = tspb.TagValueSearchRequest(label=label, workspace_id=workspace_id, topology_studio_request=True)
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = f"{tag.label}:\"{tag.value}\" AND device:{device_id}"
+                  tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
+                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      if match.device.device_id == device_id:
+                          matching_tags.append(tag)
+
+              return matching_tags
+
+
+
+          # returns dictionary of device to label value based on workspace tag assignments
+          def populate_single_value_dict(workspace_id, label):
+              sv_dict = {}
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              tvsr = tspb.TagValueSearchRequest(
+                  label=label,
+                  workspace_id=workspace_id,
+                  topology_studio_request=True
+              )
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = f"{tag.label}:\"{tag.value}\""
+                  tagmr = tspb.TagMatchRequestV2(
+                      query=query,
+                      workspace_id=workspace_id,
+                      topology_studio_request=True
+                  )
+                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      sv_dict[match.device.device_id] = tag.value
+              return sv_dict
+
+          # returns dictionary of device to label values based on workspace tag assignments
+          def populate_multi_value_dict(workspace_id, label):
+              mv_dict = {}
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              tvsr = tspb.TagValueSearchRequest(
+                  label=label,
+                  workspace_id=workspace_id,
+                  topology_studio_request=True
+              )
+              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
+                  query = f"{tag.label}:\"{tag.value}\""
+                  tagmr = tspb.TagMatchRequestV2(
+                      query=query,
+                      workspace_id=workspace_id,
+                      topology_studio_request=True
+                  )
+                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
+                  for match in tagmresp.matches:
+                      mv_dict.setdefault(match.device.device_id, []).append(tag.value)
+              return mv_dict
+
+          def get_tag_value(device_id=None, label=None, workspace_id=None):
+              tag_assignment_key = TagAssignmentKey()
+              tag_assignment_key.element_type = 1
+              if workspace_id is not None:
+                  tag_assignment_key.workspace_id.value = workspace_id
+              if device_id is not None:
+                  tag_assignment_key.device_id.value = device_id
+              if label is not None:
+                  tag_assignment_key.label.value = label
+              tag_values = get_tag_values_applied_to_device(tag_assignment_key)
+              if len(tag_values) > 0:
+                  return tag_values[0].value
+
+          def get_switch_basics_from_tags(device_id):
+              switch_facts = {"serial_number": device_id}
+              switch_facts['network_services'] = {}
+              tags_to_facts = {
+                  "hostname": "hostname",
+                  "model": "platform"
+              }
+
+              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
+              for label in tags_to_facts.keys():
+                  if label == "hostname":
+                      for dev in ctx.topology.getDevices(deviceIds=[device_id]):
+                          if dev.hostName:
+                              switch_facts[tags_to_facts[label]] = dev.hostName
+                      continue
+                  elif label == "model":
+                      for dev in ctx.topology.getDevices(deviceIds=[device_id]):
+                          if dev.modelName:
+                              switch_facts[tags_to_facts[label]] = dev.modelName
+                      continue
+
+              # Set role if one exists
+              roles_applied_to_switch = role_dict.get(device_id)
+              if roles_applied_to_switch and len(roles_applied_to_switch) > 0:
+                  switch_facts['type'] = roles_applied_to_switch[0]
+              else:
+                  switch_facts['type'] = None
+
+              # Set node_id from NodeId tag
+              switch_facts['id'] = node_id_dict.get(device_id)
+              # If NodeId tag isn't set, check for old leaf-number or spine-number tags
+              if switch_facts.get('id') is None and switch_facts.get('type') in ["Leaf", "Spine"]:
+                  id_tag_type = {"Leaf": "Leaf-Number", "Spine": "Spine-Number", "Super-Spine": None}
+                  node_id = get_tag_value(device_id=device_id, label=id_tag_type[switch_facts['type']], workspace_id=workspace_id)
+                  if node_id is not None:
+                      switch_facts['id'] = int(node_id)
+
+              # Set network_services
+              if network_services_dict.get(device_id):
+                  # Set l2 network_services
+                  if 'L2' in network_services_dict.get(device_id):
+                      switch_facts['network_services']['l2'] = True
+                  else:
+                      switch_facts['network_services']['l2'] = False
+                  # Set l3 network_services
+                  if 'L3' in network_services_dict.get(device_id):
+                      switch_facts['network_services']['l3'] = True
+                  else:
+                      switch_facts['network_services']['l3'] = False
+
+              # Set l3 network services if not already set
+              if not switch_facts['network_services'].get('l3') and switch_facts.get('type'):
+                  if switch_facts['type'] in ["Leaf", "Spine", "Super-Spine"]:
+                      switch_facts['network_services']['l3'] = True
+                  else:
+                      switch_facts['network_services']['l3'] = False
+              # Set l2 network services if not already set
+              if not switch_facts['network_services'].get('l2') and switch_facts.get('type'):
+                  if switch_facts['type'] in ["Leaf", "L2-Leaf"]:
+                      switch_facts['network_services']['l2'] = True
+                  else:
+                      switch_facts['network_services']['l2'] = False
+
+              # normalize vtep
+              if vtep_dict.get(device_id):
+                  if re.match(r'true', vtep_dict[device_id], flags=re.IGNORECASE):
+                      switch_facts['vtep'] = True
+                  else:
+                      switch_facts['vtep'] = False
+              else:
+                  switch_facts['vtep'] = False
+
+              # Set vtep if not already set
+              if not switch_facts.get('vtep') and switch_facts.get('type'):
+                  if switch_facts['type'] in ['Leaf']:
+                      switch_facts['vtep'] = True
+                  else:
+                      switch_facts['vtep'] = False
+
+              # Set BGP ASN
+              switch_facts['bgp_as'] = bgp_as_dict[device_id] if bgp_as_dict.get(device_id) else None
+
+              # Set Router ID
+              switch_facts['router_id'] = router_id_dict[device_id] if router_id_dict.get(device_id) else None
+
+              # normalize mlag_port_channel_id and turn mlag on/off
+              if mlag_peer_link_dict.get(device_id) and mlag_peer_link_dict[device_id].strip() != "":
+                  switch_facts['mlag_port_channel_id'] = "".join(re.findall(r'\d', mlag_peer_link_dict[device_id]))
+                  switch_facts['mlag'] = True
+              else:
+                  switch_facts['mlag'] = False
+
+              # Set other keys
+              if switch_facts['network_services'].get('l3'):
+                  switch_facts['uplink_type'] = "p2p"
+              else:
+                  switch_facts['uplink_type'] = "port-channel"
+
+              return switch_facts
+
+          def get_mlag_peer(switch_facts):
+              mlag_peer_switch_serial_number = None
+              if switch_facts.get('mlag'):
+                  # Get MLAG peer from interface's neighbor details
+                  # Assumption is that this switch's MLAG peer should be the only neighbor switch with
+                  # mlag enabled and the same services running
+                  for info in switch_facts['interfaces'].values():
+                      neighbor_switch_facts = get_switch_basics_from_tags(info['neighborId'])
+                      if neighbor_switch_facts.get('mlag') \
+                              and switch_facts['network_services'].get('l2') == neighbor_switch_facts['network_services'].get('l2') \
+                              and switch_facts['network_services'].get('l3') == neighbor_switch_facts['network_services'].get('l3'):
+                          mlag_peer_switch_serial_number = neighbor_switch_facts['serial_number']
+                          break
+              return mlag_peer_switch_serial_number
+
+          def get_interfaces_info(switch_facts):
+              device_id = switch_facts['serial_number']
+              interfaces = {}
+              for i in ctx.topology.getDevices(deviceIds=[device_id])[0].getInterfaces():
+                  peer_device, peer_interface = i.getPeerInfo()
+                  if peer_device is not None and "Ethernet" in i.name:
+                      interfaces[i.name] = {
+                          "neighborId": peer_device.id,
+                          "neighborHostname": peer_device.hostName,
+                          "neighborInterface": peer_interface.name
+                      }
+              return interfaces
+
+
+          def get_gateway_switches(switch_facts):
+              gateway_switches = []
+              # Shouldn't have to worry about uplink switches on l3 switches since they
+              # are the gateway in this context
+              if switch_facts['network_services'].get('l2'):
+                  # if the switch has l3 network services tag, we assume it is the gateway
+                  if switch_facts['network_services'].get('l3'):
+                      gateway_switches = [switch_facts['serial_number']]
+                  # if the switch does NOT have l3 network services tag, we assume it needs to find a gateway
+                  else:
+                      # Get uplink switches using neighbor details
+                      uplink_switches = []
+                      for info in switch_facts['interfaces'].values():
+                          neighbor_switch_facts = get_switch_basics_from_tags(info['neighborId'])
+                          if neighbor_switch_facts['network_services'].get('l3'):
+                              uplink_switches.append(neighbor_switch_facts)
+                      # Assume switch is a campus pod member switch in an L2 campus topology if it has no L3
+                      # uplink switches and that both neighbors are uplink switches (very use-case specific code)
+                      if len(uplink_switches) == 0:
+                          for info in switch_facts['interfaces'].values():
+                              neighbor_switch_facts = get_switch_basics_from_tags(info['neighborId'])
+                              if neighbor_switch_facts:
+                                  uplink_switches.append(neighbor_switch_facts)
+                      for uplink_switch_facts in uplink_switches:
+                          if uplink_switch_facts['network_services'].get('l3'):
+                              gateway_switches.append(uplink_switch_facts['serial_number'])
+                          else:
+                              uplink_switch_facts['interfaces'] = get_interfaces_info(uplink_switch_facts)
+                              uplink_gateway_switches = get_gateway_switches(uplink_switch_facts)
+                              for switch_sn in uplink_gateway_switches:
+                                  if switch_sn not in gateway_switches:
+                                      gateway_switches.append(switch_sn)
+              return gateway_switches
+
+          def range_expand(range_to_expand):
+              if not (isinstance(range_to_expand, list) or isinstance(range_to_expand, str)):
+                  raise AnsibleFilterError(f"value must be of type list or str, got {type(range_to_expand)}")
+
+              result = []
+
+              # If we got a list, unpack it and run this function recursively
+              if isinstance(range_to_expand, list):
+                  for r in range_to_expand:
+                      result.extend(range_expand(r))
+
+              # Must be a str now
+              else:
+                  prefix = ""
+
+                  # Unpack list in string
+                  for one_range in range_to_expand.split(','):
+                      if one_range is None:
+                          continue
+
+                      # Find prefix (if any)
+                      regex = r"^(.*?)(((\d+)-)?(\d+)\/)?(((\d+)-)?(\d+)\/)?(((\d+)-)?(\d+))(\.((\d+)-)?(\d+))?"
+                      # Number of groups in this regex.
+                      regex_groups = 17
+                      # Groups one-by-one:
+                      # Group 1  (.*?)                                                                           matches prefix ex. Ethernet, Eth, Po, Port-Channel
+                      # Group 2       (((\d+)-)?(\d+)\/)?                                                        matches module(s) and slash ex. 12/, 1-3/
+                      # Group 3        ((\d+)-)?                                                                 matches first module and dash ex. 1-
+                      # Group 4         (\d+)                                                                    matches first module ex. 1
+                      # Group 5                 (\d+)                                                            matches last module ex. 12, 3
+                      # Group 6                          (((\d+)-)?(\d+)\/)?                                     matches parent interface(s) and slash ex. 47/, 1-48/
+                      # Group 7                           ((\d+)-)?                                              matches parent interface(s) and dash ex. 47-
+                      # Group 8                            (\d+)                                                 matches first parent interface ex. 1
+                      # Group 9                                    (\d+)                                         matches last parent interface ex. 47, 48
+                      # Group 10                                            (((\d+)-)?(\d+))                     matches (breakout) interface(s) ex. 1, 1-4, 1-48
+                      # Group 11                                             ((\d+)-)?                           matches first interfaces and dash ex. 1-, 1-
+                      # Group 12                                              (\d+)                              matches first interface
+                      # Group 13                                                      (\d+)                      matches last interface ex. 1, 4, 48
+                      # Group 14                                                            (\.((\d+)-)?(\d+))?  matches dot and sub-interface(s) ex. .141, .12-15
+                      # Group 15                                                               ((\d+)-)?         matches first sub-interface and dash ex. 12-
+                      # Group 16                                                                (\d+)            matches first sub-interface ex. 12
+                      # Group 17                                                                        (\d+)    matches last sub-interface ex. 141, 15
+                      # Remember that the groups() object is 0-based and the group numbers above are 1-based
+                      search_result = re.search(regex, one_range)
+                      if search_result:
+                          if len(search_result.groups()) == regex_groups:
+                              groups = search_result.groups()
+                              first_module = last_module = None
+                              first_parent_interface = last_parent_interface = None
+                              first_interface = last_interface = None
+                              first_subinterface = last_subinterface = None
+                              # Set prefix if found (otherwise use last set prefix)
+                              if groups[0]:
+                                  prefix = groups[0]
+                              if groups[4]:
+                                  last_module = int(groups[4])
+                              if groups[3]:
+                                  first_module = int(groups[3])
+                              else:
+                                  first_module = last_module
+                              if groups[8]:
+                                  last_parent_interface = int(groups[8])
+                              if groups[7]:
+                                  first_parent_interface = int(groups[7])
+                              else:
+                                  first_parent_interface = last_parent_interface
+                              if groups[12]:
+                                  last_interface = int(groups[12])
+                              if groups[11]:
+                                  first_interface = int(groups[11])
+                              else:
+                                  first_interface = last_interface
+                              if groups[16]:
+                                  last_subinterface = int(groups[16])
+                              if groups[15]:
+                                  first_subinterface = int(groups[15])
+                              else:
+                                  first_subinterface = last_subinterface
+
+                              def expand_subinterfaces(interface_string):
+                                  result = []
+                                  if last_subinterface:
+                                      for subinterface in range(first_subinterface, last_subinterface + 1):
+                                          result.append(f"{interface_string}.{subinterface}")
+                                  else:
+                                      result.append(interface_string)
+                                  return result
+
+                              def expand_interfaces(interface_string):
+                                  result = []
+                                  for interface in range(first_interface, last_interface + 1):
+                                      for res in expand_subinterfaces(f"{interface_string}{interface}"):
+                                          result.append(res)
+                                  return result
+
+                              def expand_parent_interfaces(interface_string):
+                                  result = []
+                                  if last_parent_interface:
+                                      for parent_interface in range(first_parent_interface, last_parent_interface + 1):
+                                          for res in expand_interfaces(f"{interface_string}{parent_interface}/"):
+                                              result.append(res)
+                                  else:
+                                      for res in expand_interfaces(f"{interface_string}"):
+                                          result.append(res)
+                                  return result
+
+                              def expand_module(interface_string):
+                                  result = []
+                                  if last_module:
+                                      for module in range(first_module, last_module + 1):
+                                          for res in expand_parent_interfaces(f"{interface_string}{module}/"):
+                                              result.append(res)
+                                  else:
+                                      for res in expand_parent_interfaces(f"{interface_string}"):
+                                          result.append(res)
+                                  return result
+
+                              result.extend(expand_module(prefix))
+
+                          else:
+                              raise AnsibleFilterError(f"Invalid range, got {one_range} and found {search_result.groups()}")
+
+              return result
+
+          workspace_id = ctx.studio.workspaceId
+          node_id_dict = populate_single_value_dict(workspace_id, 'NodeId')
+          network_services_dict = populate_multi_value_dict(workspace_id, 'NetworkServices')
+          vtep_dict = populate_single_value_dict(workspace_id, 'Vtep')
+          bgp_as_dict = populate_single_value_dict(workspace_id, 'router_bgp.as')
+          router_id_dict = populate_single_value_dict(workspace_id, 'router_bgp.router_id')
+          mlag_peer_link_dict = populate_single_value_dict(workspace_id, 'mlag_configuration.peer_link')
+          role_dict = populate_multi_value_dict(workspace_id, 'Role')
+
+          # ctx.info("mlag_peer_link_dict: " + str(mlag_peer_link_dict))
+          # ctx.info("network_services_dict: " + str(network_services_dict))
+          # ctx.info("node_id_dict: " + str(node_id_dict))
+          # ctx.info("vtep_dict: " + str(vtep_dict))
+          # ctx.info("bgp_as_dict: " + str(bgp_as_dict))
+          # ctx.info("router_id_dict: " + str(router_id_dict))
+          # ctx.info("role_dict: " + str(role_dict))
+
+          ## MLAG preparation
+          deviceIDHostnameDict = {}
+          isMLAGed = False
+          for dev in ctx.topology.getDevices():
+            deviceIDHostnameDict[dev.id] = dev.hostName
+          my_device = ctx.getDevice()
+
+          local_facts = get_switch_basics_from_tags(my_device.id)
+
+          # Get interface info from studio topology tags
+          local_facts['interfaces'] = get_interfaces_info(local_facts)
+          MLAGpeerID = get_mlag_peer(local_facts)
+          ctx.info("local facts: " + str(local_facts))
+          ctx.info("MLAG test: " + str(MLAGpeerID))
+
+          if MLAGpeerID:
+            ctx.info("MLAG_Peer: " + str(MLAGpeerID))
+            isMLAGed = True
+
+          # ctx.info("MLAGed: " + str(isMLAGed) )
 
           # Get Profiles and turn into dictionary
           port_profiles = {}
@@ -148,13 +571,14 @@
                           if stormUUCast["portProfileStormControlUnknownUnicastUnit"] is not None and \
                               stormUUCast["portProfileStormControlUnknownUnicastUnit"].strip() != '' else "percent"
 
-                  # Get profile's Port-Channel 
+                  # Get profile's Port-Channel
                   port_profile_port_channel = {}
                   channel_group_id = None
                   port_profile_lacp_fallback_mode = None
                   port_profile_lacp_fallback_timeout = None
                   portChannelProfile = port_profile["portProfilePortChannel"]
                   if portChannelProfile["portProfileEnablePortChannel"] == True:
+                      port_profile_port_channel["enablePortChannel"] = True
                       channel_group_id = portChannelProfile["portProfilePortChannelId"]
                       port_profile_port_channel = {}
                       if portChannelProfile["portProfilePortChannelMode"] is not None:
@@ -174,6 +598,9 @@
                               port_profile_lacp_fallback_timeout = portChannelProfile["portProfilePortChannelLacpFallback"]["portProfilePortChannelLacpFallbackTimeout"]
                           else:
                               port_profile_lacp_fallback_timeout = 90
+                  else:
+                    port_profile_port_channel["enablePortChannel"] = False
+                    channel_group_id = None
 
                   # Get profile's Flow Control
                   port_profile_flow_control = {}
@@ -185,6 +612,7 @@
                   port_profile_qos_profile = port_profile["portProfileQosProfile"] if port_profile["portProfileQosProfile"] is not None and port_profile["portProfileQosProfile"].strip() != '' else None
                   # Get profile's PTP
                   port_profile_ptp_group = port_profile["ptpGroup"]
+
                   port_profile_ptp = {
                       "enablePTP": port_profile_ptp_group["enablePTP"],
                       "master": port_profile_ptp_group["forceMaster"],
@@ -223,6 +651,8 @@
                   profile["storm_control"] = port_profile_storm_control
                   profile["channel_group_id"] = channel_group_id
                   profile["channel_group"] = {}
+
+                  profile["port_channel_enabled"] = port_profile_port_channel.get("enablePortChannel")
                   profile["port_channel_mode"] = port_profile_port_channel.get("mode")
                   profile["port_channel_description"] = port_profile_port_channel.get("description")
                   profile["port_channel_short_esi"] = port_profile_port_channel.get("short_esi")
@@ -237,6 +667,7 @@
                   profile["ptpAnnounceTimeout"] = port_profile_ptp["announceTimeout"]
                   profile["ptpDelayRequestInterval"] = port_profile_ptp["delayRequestInterval"]
                   profile["ptpSyncMessageInterval"] = port_profile_ptp["syncMessageInterval"]
+                  # ctx.info("Profile: " + str(profile))
                   port_profiles[port_profile["portProfileName"]] = profile
 
           %>
@@ -263,7 +694,6 @@
           my_switch_port_channel_interfaces = {}  # For config generation
           count = 0
           # Get and Set my_switch config interfaces
-          my_device = ctx.getDevice()
           # ctx.info(str(globals()))
           workspace_id = ctx.studio.workspaceId
           ## my_switch_connected_interfaces.append(my_device.id)
@@ -272,7 +702,6 @@
                   connected_switch = adapter["deviceQuery"].resolve(device=my_device.id)
                   if connected_switch is not None:
                       ctx.info("Eth: " + str(adapter))
-
                       ## my_switch_connected_interfaces.append((iface.name, connected_switch_interface))
                       ##Start working...
                       # Get ethernet interface attribute values
@@ -284,12 +713,21 @@
                       # print(adapter_mtu)
                       # Get interface administrative state
                       # iface_status = connected_switch_interface["shutdown"]
-                      # Get interface mode
-                      adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
-                      # Get allowed/access vlans on interface
-                      adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
-                      # Get native vlan
-                      adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
+                      ctx.info("Eth: " + str(adapter["adapterVLANS"]))
+                      if adapter["adapterVLANS"] is not None:
+                        # Get interface mode
+                        adapter_mode = get_attribute_value("mode", adapter["adapterVLANS"]["adapterMode"], adapter_profile)
+                        # Get allowed/access vlans on interface
+                        adapter_vlans = get_attribute_value("vlans", adapter["adapterVLANS"]["adapterVlans"], adapter_profile)
+                        # Get native vlan
+                        adapter_native_vlan = get_attribute_value("native_vlan", adapter["adapterVLANS"]["adapterNativeVlan"], adapter_profile)
+                      else:
+                        # Get interface mode
+                        adapter_mode = get_attribute_value("mode", None, adapter_profile)
+                        # Get allowed/access vlans on interface
+                        adapter_vlans = get_attribute_value("vlans", None, adapter_profile)
+                        # Get native vlan
+                        adapter_native_vlan = get_attribute_value("native_vlan", None, adapter_profile)
                       # Get spanning tree detaisl
                       adapter_spanning_tree_portfast = get_attribute_value("spanning_tree_portfast", adapter["adapterSpanningTreeDetails"]["adapterPortfast"], adapter_profile)
                       adapter_spanning_tree_bpdufilter = get_attribute_value("spanning_tree_bpdufilter", adapter["adapterSpanningTreeDetails"]["adapterBpduFilter"], adapter_profile)
@@ -331,8 +769,24 @@
                               if adapterUUCast["adapterStormControlUnknownUnicastUnit"] is not None and \
                                   adapterUUCast["adapterStormControlUnknownUnicastUnit"].strip() != '' else "percent"
                       adapter_storm_control = get_attribute_value("storm_control", adapter_storm_control, adapter_profile)
+
+
+                      if adapter["adapterPortChannel"] is not None:
+                        adapter_port_channel_enabled = adapter["adapterPortChannel"]["adapterEnablePortChannel"]
+                        adapter_port_channel_group_id = adapter["adapterPortChannel"]["adapterPortChannelId"]
+                        adapter_port_channel_mode = adapter["adapterPortChannel"]["adapterPortChannelMode"]
+                        adapter_lacp_fallback_mode = adapter["adapterPortChannel"]["adapterPortChannelLacpFallback"]
+                      else:
+                        adapter_port_channel_enabled = None
+                        adapter_port_channel_group_id = None
+                        adapter_port_channel_mode = None
+                        adapter_lacp_fallback_mode = None
                       # Get port-channel details
-                      if adapter["adapterPortChannel"]["adapterEnablePortChannel"] == True:
+                      adapter_port_channel = get_attribute_value("port_channel_enabled", adapter_port_channel_enabled, adapter_profile)
+                      ctx.info("Pre-Po: " + str(adapter_port_channel_enabled) + " & " + str(adapter_profile))
+                      if adapter_port_channel is not None and adapter["adapterPortChannel"]["adapterEnablePortChannel"] == True:
+                          # ctx.info("Po: " + str(adapter_port_channel))
+
                           adapter_channel_group_id = get_attribute_value("channel_group_id", adapter["adapterPortChannel"]["adapterPortChannelId"], adapter_profile)
                           adapter_port_channel_mode = get_attribute_value("port_channel_mode", adapter["adapterPortChannel"]["adapterPortChannelMode"], adapter_profile)
                           if adapter["adapterPortChannel"].get("adapterPortChannelLacpFallback") is not None:
@@ -352,13 +806,22 @@
                       # Get QOS profile
                       adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
                       # Get PTP status
-                      adapter_ptp = {
-                          "enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile),
-                          "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile),
-                          "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile),
-                          "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile),
-                          "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile),
-                          "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+                      if adapter["ptpGroup"] is not None:
+                        adapter_ptp = {
+                            "enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile),
+                            "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile),
+                            "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile),
+                            "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile),
+                            "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile),
+                            "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+                      else:
+                        adapter_ptp = {
+                            "enablePTP": get_attribute_value("enablePTP", None, adapter_profile),
+                            "ptpMaster": get_attribute_value("ptpMaster", None, adapter_profile),
+                            "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", None, adapter_profile),
+                            "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", None, adapter_profile),
+                            "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", None, adapter_profile),
+                            "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", None, adapter_profile)}
 
                       connected_ethernet_interface_config = {}
 
@@ -372,19 +835,39 @@
                           connected_ethernet_interface_config["CLI"] = None
 
                       connected_ethernet_interface_config["CLI"] = get_attribute_value("CLI", connected_ethernet_interface_config["CLI"], adapter_profile)
-                      connected_ethernet_interface_config["dot1xEnable"] = get_attribute_value("dot1xEnable", adapter["8021X"]["dot1xEnable"], adapter_profile)
-                      connected_ethernet_interface_config["macBasedAuthentication"] = get_attribute_value("macBasedAuthentication", adapter["8021X"]["macBasedAuthentication"], adapter_profile)
-                      connected_ethernet_interface_config["hostMode"] = get_attribute_value("hostMode", adapter["8021X"]["hostMode"], adapter_profile)
-                      connected_ethernet_interface_config["multiHostIndividualAuthentication"] = get_attribute_value("multiHostIndividualAuthentication", adapter["8021X"]["multiHostIndividualAuthentication"], adapter_profile)
-                      connected_ethernet_interface_config["authenticationFailureAction"] = get_attribute_value("authenticationFailureAction", adapter["8021X"]["authenticationFailureAction"], adapter_profile)
-                      connected_ethernet_interface_config["authenticationFailureVlan"] = get_attribute_value("authenticationFailureVlan", adapter["8021X"]["authenticationFailureVlan"], adapter_profile)
-                      connected_ethernet_interface_config["reauthentication"] = get_attribute_value("reauthentication", adapter["8021X"]["reauthentication"], adapter_profile)
-                      connected_ethernet_interface_config["reauthenticationRequestLimit"] = get_attribute_value("reauthenticationRequestLimit", adapter["8021X"]["reauthenticationRequestLimit"], adapter_profile)
-                      connected_ethernet_interface_config["reauthenticationTimer"] = get_attribute_value("reauthenticationTimer", adapter["8021X"]["reauthenticationTimer"], adapter_profile)
-                      connected_ethernet_interface_config["quietPeriodTimeout"] = get_attribute_value("quietPeriodTimeout", adapter["8021X"]["quietPeriodTimeout"], adapter_profile)
-                      connected_ethernet_interface_config["phone_enabled"] = get_attribute_value("phone_enabled", adapter["adapterVLANS"]["phoneEnabled"], adapter_profile)
-                      connected_ethernet_interface_config["phone_vlan"] = get_attribute_value("phone_vlan", adapter["adapterVLANS"]["phoneVLAN"], adapter_profile)
-                      connected_ethernet_interface_config["phone_tagging"] = get_attribute_value("phone_tagging", adapter["adapterVLANS"]["phoneTagging"], adapter_profile)
+                      if adapter["8021X"] is not None:
+                        connected_ethernet_interface_config["dot1xEnable"] = get_attribute_value("dot1xEnable", adapter["8021X"]["dot1xEnable"], adapter_profile)
+                        connected_ethernet_interface_config["macBasedAuthentication"] = get_attribute_value("macBasedAuthentication", adapter["8021X"]["macBasedAuthentication"], adapter_profile)
+                        connected_ethernet_interface_config["hostMode"] = get_attribute_value("hostMode", adapter["8021X"]["hostMode"], adapter_profile)
+                        connected_ethernet_interface_config["multiHostIndividualAuthentication"] = get_attribute_value("multiHostIndividualAuthentication", adapter["8021X"]["multiHostIndividualAuthentication"], adapter_profile)
+                        connected_ethernet_interface_config["authenticationFailureAction"] = get_attribute_value("authenticationFailureAction", adapter["8021X"]["authenticationFailureAction"], adapter_profile)
+                        connected_ethernet_interface_config["authenticationFailureVlan"] = get_attribute_value("authenticationFailureVlan", adapter["8021X"]["authenticationFailureVlan"], adapter_profile)
+                        connected_ethernet_interface_config["reauthentication"] = get_attribute_value("reauthentication", adapter["8021X"]["reauthentication"], adapter_profile)
+                        connected_ethernet_interface_config["reauthenticationRequestLimit"] = get_attribute_value("reauthenticationRequestLimit", adapter["8021X"]["reauthenticationRequestLimit"], adapter_profile)
+                        connected_ethernet_interface_config["reauthenticationTimer"] = get_attribute_value("reauthenticationTimer", adapter["8021X"]["reauthenticationTimer"], adapter_profile)
+                        connected_ethernet_interface_config["quietPeriodTimeout"] = get_attribute_value("quietPeriodTimeout", adapter["8021X"]["quietPeriodTimeout"], adapter_profile)
+                      else:
+                        connected_ethernet_interface_config["dot1xEnable"] = get_attribute_value("dot1xEnable", None, adapter_profile)
+                        connected_ethernet_interface_config["macBasedAuthentication"] = get_attribute_value("macBasedAuthentication", None, adapter_profile)
+                        connected_ethernet_interface_config["hostMode"] = get_attribute_value("hostMode", None, adapter_profile)
+                        connected_ethernet_interface_config["multiHostIndividualAuthentication"] = get_attribute_value("multiHostIndividualAuthentication", None, adapter_profile)
+                        connected_ethernet_interface_config["authenticationFailureAction"] = get_attribute_value("authenticationFailureAction", None, adapter_profile)
+                        connected_ethernet_interface_config["authenticationFailureVlan"] = get_attribute_value("authenticationFailureVlan", None, adapter_profile)
+                        connected_ethernet_interface_config["reauthentication"] = get_attribute_value("reauthentication", None, adapter_profile)
+                        connected_ethernet_interface_config["reauthenticationRequestLimit"] = get_attribute_value("reauthenticationRequestLimit", None, adapter_profile)
+                        connected_ethernet_interface_config["reauthenticationTimer"] = get_attribute_value("reauthenticationTimer", None, adapter_profile)
+                        connected_ethernet_interface_config["quietPeriodTimeout"] = get_attribute_value("quietPeriodTimeout", None, adapter_profile)
+
+
+                      if adapter["adapterVLANS"] is not None:
+                        connected_ethernet_interface_config["phone_enabled"] = get_attribute_value("phone_enabled", adapter["adapterVLANS"]["phoneEnabled"], adapter_profile)
+                        connected_ethernet_interface_config["phone_vlan"] = get_attribute_value("phone_vlan", adapter["adapterVLANS"]["phoneVLAN"], adapter_profile)
+                        connected_ethernet_interface_config["phone_tagging"] = get_attribute_value("phone_tagging", adapter["adapterVLANS"]["phoneTagging"], adapter_profile)
+                      else:
+                        connected_ethernet_interface_config["phone_enabled"] = get_attribute_value("phone_enabled", None, adapter_profile)
+                        connected_ethernet_interface_config["phone_vlan"] = get_attribute_value("phone_vlan", None, adapter_profile)
+                        connected_ethernet_interface_config["phone_tagging"] = get_attribute_value("phone_tagging", None, adapter_profile)
+
 
                       ##connected_ethernet_interface_config["peer"] = ep["endpointName"]
                       ##connected_ethernet_interface_config["peer_interface"] = ei["endpointInterfaceName"]
@@ -401,7 +884,8 @@
                       connected_ethernet_interface_config["spanning_tree_bpduguard"] = adapter_spanning_tree_bpduguard
 
 
-                      assert (connected_ethernet_interface_config["authenticationFailureAction"] is None) or (connected_ethernet_interface_config["authenticationFailureAction"] in ["Disable", "Drop"]) or (connected_ethernet_interface_config["authenticationFailureAction"] == "Allow" and connected_ethernet_interface_config["authenticationFailureVlan"] is not None), "You need a Authentication Failure VLAN assigned!"
+                      ctx.info("Config: " + str(connected_ethernet_interface_config))
+                      assert (connected_ethernet_interface_config["authenticationFailureAction"] in ["", None]) or (connected_ethernet_interface_config["authenticationFailureAction"] in ["Disable", "Drop"]) or (connected_ethernet_interface_config["authenticationFailureAction"] == "Allow" and connected_ethernet_interface_config["authenticationFailureVlan"] is not None), "You need an Authentication Failure VLAN assigned!"
                       if adapter_storm_control is not None:
                           connected_ethernet_interface_config["storm_control"] = adapter_storm_control
                       # Get Port-Channel details
@@ -445,7 +929,11 @@
                       ##     range_length = connected_switch_interface["rangeLength"]
                       ##     ## iterate through each interface until we hit the end, starting at the start and going to iterface Start + Length - 1
                       ##     for rangeInterator in range(startingPort, startingPort + range_length):
-                      my_switch_ethernet_interfaces[connected_switch["interfaces"]["interfaceName"]] = connected_ethernet_interface_config
+
+                      for split_interface in range_expand(connected_switch["interfaces"]["interfaceName"].strip()):
+                          if len(split_interface) in [1, 2]:
+                              split_interface = "Ethernet" + str(split_interface)
+                          my_switch_ethernet_interfaces[split_interface] = connected_ethernet_interface_config
 
           ## interface Ethernet3/10
           ##    switchport trunk native vlan 741
@@ -473,14 +961,16 @@
           ##    dot1x reauthentication
           ##    dot1x timeout reauth-period server
 
+
           if (adapters and (not adapters is None)) and (not adapters is []):
               for adapter in adapters:
                   # Check if adapter is using port-channels
-                  if adapter["adapterPortChannel"]["adapterEnablePortChannel"] != True:
+                  if adapter["adapterPortChannel"] is None or adapter["adapterPortChannel"]["adapterEnablePortChannel"] != True:
                       continue
                   connected_switch = adapter["deviceQuery"].resolve(device=my_device.id)
                   if connected_switch is not None and not (connected_switch["interfaces"]["interfaceName"] is ""):
-                      ctx.info("PC2: " + str(connected_switch))
+                      # ctx.info("PC: " + str(connected_switch))
+                      # ctx.info("PC: " + str(connected_switch))
                       # Get Port-Channel attribute values
                       # Get adapter profile
                       adapter_profile = adapter["adapterPortProfile"]
@@ -552,17 +1042,24 @@
                       # Get QOS profile
                       adapter_qos_profile = get_attribute_value("qos_profile", adapter["adapterQosProfile"], adapter_profile)
                       # Get PTP status
-                      adapter_ptp = {"enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile),
-                          "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile),
-                          "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile),
-                          "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile),
-                          "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile),
-                          "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+                      if adapter["ptpGroup"] is not None:
+                        adapter_ptp = {"enablePTP": get_attribute_value("enablePTP", adapter["ptpGroup"]["enablePTP"], adapter_profile),
+                            "ptpMaster": get_attribute_value("ptpMaster", adapter["ptpGroup"]["forceMaster"], adapter_profile),
+                            "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", adapter["ptpGroup"]["announceInterval"], adapter_profile),
+                            "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", adapter["ptpGroup"]["announceTimeout"], adapter_profile),
+                            "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", adapter["ptpGroup"]["delayRequestInterval"], adapter_profile),
+                            "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", adapter["ptpGroup"]["syncMessageInterval"], adapter_profile)}
+                      else:
+                        adapter_ptp = {"enablePTP": get_attribute_value("enablePTP", None, adapter_profile),
+                            "ptpMaster": get_attribute_value("ptpMaster", None, adapter_profile),
+                            "ptpAnnounceInterval": get_attribute_value("ptpAnnounceInterval", None, adapter_profile),
+                            "ptpAnnounceTimeout": get_attribute_value("ptpAnnounceTimeout", None, adapter_profile),
+                            "ptpDelayRequestInterval": get_attribute_value("ptpDelayRequestInterval", None, adapter_profile),
+                            "ptpSyncMessageInterval": get_attribute_value("ptpSyncMessageInterval", None, adapter_profile)}
 
                       # Set Port-Channel attributes
                       connected_port_channel_interface_config = {}
-                      connected_port_channel_interface_config["description"] = "{}_{}".format(adapter["adapterName"], adapter_port_channel_description) \
-                                                                                  if port_channel_description is not None else "{}".format(adapter["adapterName"])
+                      connected_port_channel_interface_config["description"] = "{}".format(adapter_port_channel_description)
                       connected_port_channel_interface_config["mtu"] = adapter_mtu
                       connected_port_channel_interface_config["type"] = "switched"
                       connected_port_channel_interface_config["mode"] = adapter_mode
@@ -583,24 +1080,29 @@
                       connected_port_channel_interface_config["lacp_fallback_mode"] = adapter_lacp_fallback_mode
                       connected_port_channel_interface_config["lacp_fallback_timeout"] = adapter_lacp_fallback_timeout
 
+                      # Set interface CLI commands
+                      connected_port_channel_interface_config["CLI"] = []
+                      for line in adapter["cli"]:
+                          connected_port_channel_interface_config["CLI"].append(line["portCli"])
+                      if connected_port_channel_interface_config["CLI"] == []:
+                          connected_port_channel_interface_config["CLI"] = None
+
+                      connected_port_channel_interface_config["CLI"] = get_attribute_value("CLI", connected_port_channel_interface_config["CLI"], adapter_profile)
+
                       # Add ESI or MLAG config
                       # EXPENSIVE???
-                      def interfaceCount():
-                          count = 0
-                          resolved = adapter["deviceQuery"].resolve(device=my_device.id)
-                          ctx.info(str(resolved))
-                          interfacesCombined = resolved['interfaces']['interfaceName']
-                          if interfacesCombined != '':
-                              count = sum([ (int(y.split('-')[1]) - int(y.split('-')[0]) + 1) if y.find('-') > 0 else 1 for y in str(interfacesCombined).split(',')], count)
-                          return count
-
+                      ResolvedMLAGPeer = adapter["deviceQuery"].resolve(device=MLAGpeerID)["interfaces"]["interfaceName"]
+                      ctx.info("ResolvedMLAGPeer: " + str(MLAGpeerID) + " + " + str(ResolvedMLAGPeer))
+                      ctx.info("MLAG1: " + str(MLAGpeerID) + " + " + str(adapter["deviceQuery"].resolve(device="MLAG1")))
+                      ctx.info("MLAG2: " + str(MLAGpeerID) + " + " + str(adapter["deviceQuery"].resolve(device="MLAG2")))
+                      ctx.info("host1: " + str(MLAGpeerID) + " + " + str(adapter["deviceQuery"].resolve(device="host1")))
                       if adapter_port_channel_short_esi is not None and adapter_port_channel_short_esi.strip() != "":
                           ## Configure ESI
                           connected_port_channel_interface_config["esi"] = generate_esi(adapter_port_channel_short_esi)
                           connected_port_channel_interface_config["rt"] = generate_route_target(adapter_port_channel_short_esi)
                           if adapter_port_channel_mode == "active":
                               connected_port_channel_interface_config["lacp_id"] = generate_lacp_id(adapter_port_channel_short_esi)
-                      else:
+                      elif isMLAGed and (ResolvedMLAGPeer not in [None, ""]):
                           connected_port_channel_interface_config["mlag"] = adapter_channel_group_id
                       ## Add interface config to connected_port_channel_interface_config dictionary
                       my_switch_port_channel_interfaces["Port-Channel {}".format(adapter_channel_group_id)] = \
@@ -652,6 +1154,12 @@
           %     endif
           %     if currentPortchannel.get("mode") is not None and currentPortchannel.get("mode") == "trunk":
             switchport mode trunk
+          %       if currentPortchannel.get("native_vlan") is not None and currentPortchannel.get("mode") == "trunk":
+            switchport trunk native vlan ${ currentPortchannel["native_vlan"] }
+          %       endif
+          %       if currentPortchannel.get("vlans") is not None and currentPortchannel.get("mode") == "trunk":
+            switchport trunk allowed vlan ${ currentPortchannel["vlans"] }
+          %       endif
           %     endif
           ## Trunk Groups
           %     if currentPortchannel.get("trunk_groups") is not None:
@@ -675,7 +1183,7 @@
           %     if currentPortchannel.get("lacp_fallback_mode") is not None:
             port-channel lacp fallback ${ currentPortchannel["lacp_fallback_mode"] }
           %     endif
-          %     if currentPortchannel.get("mlag") is not None:
+          %     if currentPortchannel.get("mlag") is not None and isMLAGed:
             mlag ${ currentPortchannel.get("mlag") }
           %     endif %}
           %     if currentPortchannel.get("spanning_tree_portfast") is not None:
@@ -723,6 +1231,11 @@
             storm-control ${ section.lower().replace("_", "-") } level ${ currentPortchannel["storm_control"][section]["level"] }
           %         endif
           %       endfor
+          %         if currentPortchannel.get("CLI") not in ([], None):
+          %           for line in currentPortchannel.get("CLI"):
+            ${ line }
+          %           endfor
+          %         endif
           %     endif
           !
           %   endfor
@@ -741,7 +1254,7 @@
           aaa authentication dot1x default group radius
           dot1x system-auth-control
           %     endif
-          interface Ethernet ${ ethernet_interface }
+          interface ${ ethernet_interface }
           %     if currentInt["description"] is not None:
             description ${currentInt["description"]}
           %     endif
@@ -866,11 +1379,6 @@
           %             endif
           %         endif
 
-
-
-
-
-
           %         if currentInt.get("mode") is not None and currentInt.get("mode") == "trunk":
           %             if currentInt.get("vlans") is not None:
             switchport trunk allowed vlan ${ currentInt.get("vlans") }
@@ -947,9 +1455,7 @@
           %           endfor
           %         endif
           %     endif
-          %     if lastIntCount != len(config["ethernet_interfaces"].keys()):
           !
-          %     endif
           %     endif
           %  endfor
           %endif
@@ -965,7 +1471,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -980,7 +1485,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: edge
-                is_secret: false
                 static_options:
                   values:
                     - edge
@@ -998,7 +1502,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1016,7 +1519,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1047,7 +1549,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - received
@@ -1077,7 +1578,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1092,7 +1592,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1107,7 +1606,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1137,7 +1635,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1152,7 +1649,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1182,7 +1678,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1197,7 +1692,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1227,7 +1721,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1242,7 +1735,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -1307,7 +1799,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - active
@@ -1326,7 +1817,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - static
@@ -1367,7 +1857,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1394,7 +1883,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1425,7 +1913,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1461,7 +1948,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: access
-                is_secret: false
                 static_options:
                   values:
                     - access
@@ -1492,7 +1978,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1580,7 +2065,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Allow
@@ -1664,7 +2148,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1814,7 +2297,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1829,7 +2311,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1846,7 +2327,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - None
@@ -1865,7 +2345,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1883,7 +2362,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -1914,7 +2392,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - received
@@ -1944,7 +2421,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -1971,7 +2447,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - active
@@ -1990,7 +2465,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - static
@@ -2031,7 +2505,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2055,7 +2528,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2086,7 +2558,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2101,7 +2572,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2131,7 +2601,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2146,7 +2615,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2176,7 +2644,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2191,7 +2658,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2221,7 +2687,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2236,7 +2701,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: percent
-                is_secret: false
                 static_options:
                   values:
                     - percent
@@ -2310,7 +2774,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Drop
-                is_secret: false
                 static_options:
                   values:
                     - Allow
@@ -2424,7 +2887,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - access
@@ -2455,7 +2917,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2516,7 +2977,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2634,7 +3094,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2649,7 +3108,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2726,965 +3184,4 @@
                     - portProfiles
                     - adapters
         layout:
-          value: |
-            {
-              "switchInterface":{
-                "key":"switchInterface",
-                "type":"INPUT",
-                "isPageLayout":false
-              },
-              "endpointDetails":{
-                "key":"endpointDetails",
-                "type":"INPUT",
-                "order":[
-                  "endpointName",
-                  "rack"
-                ]
-              },
-              "endpoints":{
-                "key":"endpoints",
-                "type":"INPUT",
-                "isPageLayout":true
-              },
-              "adapterDetails":{
-                "key":"adapterDetails",
-                "type":"INPUT",
-                "order":[
-                  "a164ba02-f162-49a6-93de-3427ca4b40b4",
-                  "b867fb89-78d0-439e-a373-f243a67b8c8c",
-                  "adapterPortProfile",
-                  "adapterSpeed",
-                  "adapterPortChannel",
-                  "e0c27bfd-ef4b-4087-971b-864350b4f531",
-                  "adapterSpanningTreeDetails",
-                  "adapterFlowControl",
-                  "adapterQosProfile",
-                  "2dbee137-6424-4296-a7bd-8ccb8035b47c",
-                  "adapterStormControlDetails",
-                  "adapterMtu",
-                  "f7cb6b88-ef74-4b27-b544-6a4eaad094b1",
-                  "0afbc986-4036-4153-a72f-703caca80258"
-                ]
-              },
-              "adapters":{
-                "key":"adapters",
-                "isPageLayout":true,
-                "type":"INPUT"
-              },
-              "endpointInterfacesGroup":{
-                "key":"endpointInterfacesGroup",
-                "type":"INPUT",
-                "order":[
-                  
-                ]
-              },
-              "endpointInterfaces":{
-                "key":"endpointInterfaces",
-                "type":"INPUT",
-                "isPageLayout":false
-              },
-              "switch":{
-                "key":"switch",
-                "type":"INPUT",
-                "isPageLayout":false
-              },
-              "adapterNativeVlan":{
-                "key":"adapterNativeVlan",
-                "type":"INPUT",
-                "dependency":{
-                  "adapterMode":{
-                    "value":[
-                      "trunk"
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "bc00d92e-5b9c-482c-94d1-7e126533ec01":{
-                "key":"bc00d92e-5b9c-482c-94d1-7e126533ec01",
-                "type":"INPUT",
-                "dependency":{
-                  "adapterMode":{
-                    "value":[
-                      "access"
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "portProfileNativeVlan":{
-                "key":"portProfileNativeVlan",
-                "dependency":{
-                  "portProfileMode":{
-                    "value":[
-                      "trunk"
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "portProfileGroups":{
-                "key":"portProfileGroups",
-                "type":"INPUT",
-                "order":[
-                  "portProfileName",
-                  "portProfileSpeed",
-                  "portProfilePortChannel",
-                  "phoneSettings",
-                  "portProfileSpanningTreeDetails",
-                  "portProfileFlowControl",
-                  "portProfileQosProfile",
-                  "80f2d247-e2a4-4b2a-9dc9-86703baa25b2",
-                  "portProfileStormControlDetails",
-                  "portProfileMtu",
-                  "dot1XSettings",
-                  "profileCliList"
-                ]
-              },
-              "adapterPortChannel":{
-                "key":"adapterPortChannel",
-                "type":"INPUT",
-                "order":[
-                  "adapterEnablePortChannel",
-                  "adapterPortChannelId",
-                  "adapterPortChannelDescription",
-                  "adapterPortChannelMode",
-                  "adapterPortChannelLacpFallback",
-                  "adapterPortChannelShortEsi"
-                ]
-              },
-              "adapterEnablePortChannel":{
-                "key":"adapterEnablePortChannel",
-                "type":"INPUT",
-                "dependency":{
-                  
-                }
-              },
-              "adapterPortChannelId":{
-                "key":"adapterPortChannelId",
-                "dependency":{
-                  "adapterEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "adapterPortChannelMode":{
-                "key":"adapterPortChannelMode",
-                "dependency":{
-                  "adapterEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "adapterPortChannelLacpFallbackMode":{
-                "key":"adapterPortChannelLacpFallbackMode",
-                "dependency":{
-                  "adapterEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "adapterPortChannelLacpFallbackTimeout":{
-                "key":"adapterPortChannelLacpFallbackTimeout",
-                "dependency":{
-                  "adapterEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "adapterPortChannelShortEsi":{
-                "key":"adapterPortChannelShortEsi",
-                "dependency":{
-                  "adapterEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "portProfilePortChannelMode":{
-                "key":"portProfilePortChannelMode",
-                "dependency":{
-                  "portProfileEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "portProfilePortChannelLacpFallbackMode":{
-                "key":"portProfilePortChannelLacpFallbackMode",
-                "dependency":{
-                  "portProfileEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "portProfilePortChannelLacpFallbackTimeout":{
-                "key":"portProfilePortChannelLacpFallbackTimeout",
-                "dependency":{
-                  "portProfileEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "portProfilePortChannelShortEsi":{
-                "key":"portProfilePortChannelShortEsi",
-                "dependency":{
-                  "portProfileEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "portProfiles":{
-                "key":"portProfiles",
-                "type":"INPUT",
-                "isPageLayout":true
-              },
-              "portProfilePortChannelId":{
-                "key":"portProfilePortChannelId",
-                "type":"INPUT",
-                "dependency":{
-                  "portProfileEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "portProfilePortChannel":{
-                "key":"portProfilePortChannel",
-                "type":"INPUT",
-                "order":[
-                  "portProfileEnablePortChannel",
-                  "portProfilePortChannelId",
-                  "portProfilePortChannelDescription",
-                  "portProfilePortChannelMode",
-                  "portProfilePortChannelLacpFallback",
-                  "portProfilePortChannelShortEsi"
-                ]
-              },
-              "portProfilePortChannelDescription":{
-                "key":"portProfilePortChannelDescription",
-                "type":"INPUT",
-                "dependency":{
-                  "portProfileEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "adapterPortChannelDescription":{
-                "key":"adapterPortChannelDescription",
-                "type":"INPUT",
-                "dependency":{
-                  "adapterEnablePortChannel":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "adapterSpanningTreeDetails":{
-                "key":"adapterSpanningTreeDetails",
-                "type":"INPUT",
-                "order":[
-                  "adapterPortfast",
-                  "adapterBpduFilter",
-                  "adapterBpduGuard"
-                ]
-              },
-              "portProfileSpanningTreeDetails":{
-                "key":"portProfileSpanningTreeDetails",
-                "type":"INPUT",
-                "order":[
-                  "portProfilePortfast",
-                  "portProfileBpduFilter",
-                  "portProfileBpduGuard"
-                ]
-              },
-              "hostType":{
-                "key":"hostType",
-                "valueToLabelMap":{
-                  "True":"Multi-Host",
-                  "False":"Single-Host"
-                },
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "35a33db5-11f9-401c-b462-f9a8cd33bfc9":{
-                "key":"35a33db5-11f9-401c-b462-f9a8cd33bfc9",
-                "type":"INPUT",
-                "order":[
-                  "4272a4b4-7c72-42a4-a1f6-f99ec617c211",
-                  "9dfb8ec7-e11d-4852-bb39-f207b830e761",
-                  "512e39de-8a86-4db2-b013-ff7f01f988a4",
-                  "215f4f4c-f686-466e-98c6-b6acf5ca1c96",
-                  "d05b3e38-630e-406d-b647-fde24d0465b4",
-                  "a14cda07-9de8-4e79-a94d-0d1fe6afe05e",
-                  "8ce87fb7-5f92-42ff-83e6-571974958e2b",
-                  "b80eaa20-5d71-4520-8d3d-06033a85294a",
-                  "76c02487-7e62-4e23-9501-56ee66d95c28",
-                  "1de822f1-d47e-4a44-a092-564ba6b2c6a2"
-                ]
-              },
-              "reauthenticationTimerSetting":{
-                "key":"reauthenticationTimerSetting",
-                "type":"INPUT",
-                "valueToLabelMap":{
-                  "True":"Server",
-                  "False":"Local"
-                }
-              },
-              "f667cf6b-c0ab-4336-af16-fef1a2b88816":{
-                "key":"f667cf6b-c0ab-4336-af16-fef1a2b88816",
-                "dependency":{
-                  "76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{
-                    "value":[
-                      "Drop",
-                      "Disable"
-                    ],
-                    "mode":"HIDE"
-                  },
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2":{
-                "key":"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2",
-                "valueToLabelMap":{
-                  "True":"Multi-Host",
-                  "False":"Single-Host"
-                },
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "6c49a0ab-4e10-4706-aec9-19d8605fb90d":{
-                "key":"6c49a0ab-4e10-4706-aec9-19d8605fb90d",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{
-                "key":"76fb4c7c-7f14-48ec-b268-aa38ce10d84b",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{
-                "key":"bf9f2d0a-21bd-4b71-9b8e-d7306273618d",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "91abeafa-1918-466d-ba43-e7ffb8417424":{
-                "key":"91abeafa-1918-466d-ba43-e7ffb8417424",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "dependencyType":"AND",
-                "type":"INPUT"
-              },
-              "7b76e149-8a3a-4b47-b3ba-303e289b35f9":{
-                "key":"7b76e149-8a3a-4b47-b3ba-303e289b35f9",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "f2e5a570-3fd6-4978-b357-d5428e863d97":{
-                "key":"f2e5a570-3fd6-4978-b357-d5428e863d97",
-                "valueToLabelMap":{
-                  "True":"Tagged",
-                  "False":"Untagged"
-                },
-                "dependency":{
-                  "2db5b218-0a75-4720-ae5c-a96c71f6edb7":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f":{
-                "key":"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f",
-                "type":"INPUT",
-                "order":[
-                  
-                ]
-              },
-              "2db5b218-0a75-4720-ae5c-a96c71f6edb7":{
-                "key":"2db5b218-0a75-4720-ae5c-a96c71f6edb7",
-                "valueToLabelMap":{
-                  "True":"Yes",
-                  "False":"No"
-                },
-                "type":"INPUT"
-              },
-              "phoneSettings":{
-                "key":"phoneSettings",
-                "type":"INPUT",
-                "order":[
-                  "portProfileMode",
-                  "portProfileNativeVlan",
-                  "portProfileVlans",
-                  "phoneEnabled",
-                  "phoneVlan",
-                  "90eece88-0f72-4b40-9254-e4ff92e82c84"
-                ]
-              },
-              "dot1XSettings":{
-                "key":"dot1XSettings",
-                "type":"INPUT",
-                "order":[
-                  "8021XEnabled",
-                  "macBasedAuthentication",
-                  "hostType",
-                  "multiHostIndividualAuthentication",
-                  "4d07614b-f595-4231-9cfd-7e04d7badc69",
-                  "a682964f-bbab-4fd7-a987-546f9008b0be",
-                  "0a222884-fb72-423f-89d5-61c21c1a3420",
-                  "99c81d24-4705-49f4-b4b1-0b5672f4a05b",
-                  "7b1af5a8-d911-4095-b71b-3633fd0da4cd",
-                  "timeoutQuietPeriod"
-                ]
-              },
-              "7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa":{
-                "key":"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa",
-                "valueToLabelMap":{
-                  "True":"Multi",
-                  "False":"Single"
-                },
-                "type":"INPUT",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "phoneEnabled":{
-                "key":"phoneEnabled",
-                "valueToLabelMap":{
-                  "True":"Configured",
-                  "False":"Unconfigured"
-                },
-                "type":"INPUT",
-                "dependency":{
-                  "portProfileMode":{
-                    "value":[
-                      "trunk"
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "macBasedAuthentication":{
-                "key":"macBasedAuthentication",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "multiHostIndividualAuthentication":{
-                "key":"multiHostIndividualAuthentication",
-                "type":"INPUT",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "4d07614b-f595-4231-9cfd-7e04d7badc69":{
-                "key":"4d07614b-f595-4231-9cfd-7e04d7badc69",
-                "type":"INPUT",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "a682964f-bbab-4fd7-a987-546f9008b0be":{
-                "key":"a682964f-bbab-4fd7-a987-546f9008b0be",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "4d07614b-f595-4231-9cfd-7e04d7badc69":{
-                    "value":[
-                      "Allow"
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "0a222884-fb72-423f-89d5-61c21c1a3420":{
-                "key":"0a222884-fb72-423f-89d5-61c21c1a3420",
-                "type":"INPUT",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "99c81d24-4705-49f4-b4b1-0b5672f4a05b":{
-                "key":"99c81d24-4705-49f4-b4b1-0b5672f4a05b",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "0a222884-fb72-423f-89d5-61c21c1a3420":{
-                    "value":[
-                      false,
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "7b1af5a8-d911-4095-b71b-3633fd0da4cd":{
-                "key":"7b1af5a8-d911-4095-b71b-3633fd0da4cd",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "0a222884-fb72-423f-89d5-61c21c1a3420":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "timeoutQuietPeriod":{
-                "key":"timeoutQuietPeriod",
-                "dependency":{
-                  "8021XEnabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "dependencyType":"OR",
-                "type":"INPUT"
-              },
-              "phoneVlan":{
-                "key":"phoneVlan",
-                "dependency":{
-                  "phoneEnabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "portProfileMode":{
-                    "value":[
-                      "trunk"
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "90eece88-0f72-4b40-9254-e4ff92e82c84":{
-                "key":"90eece88-0f72-4b40-9254-e4ff92e82c84",
-                "dependency":{
-                  "phoneEnabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "portProfileMode":{
-                    "value":[
-                      "trunk"
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "113fa93d-ef20-410d-96aa-fa752e4e178f":{
-                "key":"113fa93d-ef20-410d-96aa-fa752e4e178f",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "dependencyType":"OR",
-                "type":"INPUT"
-              },
-              "4d4c6315-610d-4381-8aef-3f5483057986":{
-                "key":"4d4c6315-610d-4381-8aef-3f5483057986",
-                "type":"INPUT",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "f7cb6b88-ef74-4b27-b544-6a4eaad094b1":{
-                "key":"f7cb6b88-ef74-4b27-b544-6a4eaad094b1",
-                "type":"INPUT",
-                "order":[
-                  "c60cf057-f9ed-43e9-b280-301fa2476177",
-                  "6c49a0ab-4e10-4706-aec9-19d8605fb90d",
-                  "3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2",
-                  "4d4c6315-610d-4381-8aef-3f5483057986",
-                  "76fb4c7c-7f14-48ec-b268-aa38ce10d84b",
-                  "06c6cc80-c714-4abd-b8d3-9a7714947670",
-                  "bf9f2d0a-21bd-4b71-9b8e-d7306273618d",
-                  "91abeafa-1918-466d-ba43-e7ffb8417424",
-                  "7b76e149-8a3a-4b47-b3ba-303e289b35f9",
-                  "113fa93d-ef20-410d-96aa-fa752e4e178f"
-                ]
-              },
-              "06c6cc80-c714-4abd-b8d3-9a7714947670":{
-                "key":"06c6cc80-c714-4abd-b8d3-9a7714947670",
-                "dependency":{
-                  "c60cf057-f9ed-43e9-b280-301fa2476177":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{
-                    "value":[
-                      "Allow"
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "directInterfaces":{
-                "key":"directInterfaces",
-                "type":"INPUT"
-              },
-              "directPorts":{
-                "key":"directPorts",
-                "type":"INPUT"
-              },
-              "85540f89-cd07-492f-ac78-fdee794b82ef":{
-                "key":"85540f89-cd07-492f-ac78-fdee794b82ef",
-                "type":"INPUT",
-                "order":[
-                  "946cf29f-823e-4fc5-b1fb-42974a3e4c2b",
-                  "c069ca75-3ffd-41d5-a735-72c021609b25",
-                  "59a2ea8a-5dda-41b7-a655-6c2489eebe16"
-                ]
-              },
-              "c069ca75-3ffd-41d5-a735-72c021609b25":{
-                "key":"c069ca75-3ffd-41d5-a735-72c021609b25",
-                "type":"INPUT",
-                "dependency":{
-                  "946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "59a2ea8a-5dda-41b7-a655-6c2489eebe16":{
-                "key":"59a2ea8a-5dda-41b7-a655-6c2489eebe16",
-                "type":"INPUT",
-                "dependency":{
-                  "946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "1cacdc71-d0d3-46dd-a23a-d0df699f831a":{
-                "key":"1cacdc71-d0d3-46dd-a23a-d0df699f831a",
-                "dependency":{
-                  "2db5b218-0a75-4720-ae5c-a96c71f6edb7":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "2dbee137-6424-4296-a7bd-8ccb8035b47c":{
-                "key":"2dbee137-6424-4296-a7bd-8ccb8035b47c",
-                "type":"INPUT",
-                "order":[
-                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f",
-                  "9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d",
-                  "5105c809-e246-4f1a-a7ce-ff57b6339057",
-                  "4e86adfa-183c-44ae-bd95-eea2c8a32c7e",
-                  "a6866cc8-d1e6-4eb1-b5c6-27f978251679",
-                  "6c244909-7ae1-4b4f-beb5-e41c85e86397"
-                ]
-              },
-              "9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d":{
-                "key":"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d",
-                "dependency":{
-                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                },
-                "type":"INPUT"
-              },
-              "5105c809-e246-4f1a-a7ce-ff57b6339057":{
-                "key":"5105c809-e246-4f1a-a7ce-ff57b6339057",
-                "type":"INPUT",
-                "dependency":{
-                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "4e86adfa-183c-44ae-bd95-eea2c8a32c7e":{
-                "key":"4e86adfa-183c-44ae-bd95-eea2c8a32c7e",
-                "type":"INPUT",
-                "dependency":{
-                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "a6866cc8-d1e6-4eb1-b5c6-27f978251679":{
-                "key":"a6866cc8-d1e6-4eb1-b5c6-27f978251679",
-                "type":"INPUT",
-                "dependency":{
-                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "6c244909-7ae1-4b4f-beb5-e41c85e86397":{
-                "key":"6c244909-7ae1-4b4f-beb5-e41c85e86397",
-                "type":"INPUT",
-                "dependency":{
-                  "8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "1d7ff905-71f3-4291-b9b6-8beff7e5f8f5":{
-                "key":"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5",
-                "type":"INPUT",
-                "dependency":{
-                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "07fec9fa-b08b-47dc-9e91-5d031eb7fcf0":{
-                "key":"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0",
-                "type":"INPUT",
-                "dependency":{
-                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "fd026550-9930-47c7-bb2b-39f68959beec":{
-                "key":"fd026550-9930-47c7-bb2b-39f68959beec",
-                "type":"INPUT",
-                "dependency":{
-                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "delayRequestInterval":{
-                "key":"delayRequestInterval",
-                "type":"INPUT",
-                "dependency":{
-                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "451779ac-23d4-4e77-ba14-31254e752ccd":{
-                "key":"451779ac-23d4-4e77-ba14-31254e752ccd",
-                "type":"INPUT",
-                "dependency":{
-                  "e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"HIDE"
-                  }
-                }
-              },
-              "b867fb89-78d0-439e-a373-f243a67b8c8c":{
-                "key":"b867fb89-78d0-439e-a373-f243a67b8c8c",
-                "type":"INPUT",
-                "showDefaultRow":false
-              }
-            }
+          value: '{"switchInterface":{"key":"switchInterface","type":"INPUT","isPageLayout":false},"endpointDetails":{"key":"endpointDetails","type":"INPUT","order":["endpointName","rack"]},"endpoints":{"key":"endpoints","type":"INPUT","isPageLayout":true},"adapterDetails":{"key":"adapterDetails","type":"INPUT","order":["a164ba02-f162-49a6-93de-3427ca4b40b4","b867fb89-78d0-439e-a373-f243a67b8c8c","adapterPortProfile","adapterSpeed","adapterPortChannel","e0c27bfd-ef4b-4087-971b-864350b4f531","adapterSpanningTreeDetails","adapterFlowControl","adapterQosProfile","2dbee137-6424-4296-a7bd-8ccb8035b47c","adapterStormControlDetails","adapterMtu","f7cb6b88-ef74-4b27-b544-6a4eaad094b1","0afbc986-4036-4153-a72f-703caca80258"]},"adapters":{"key":"adapters","isPageLayout":true,"type":"INPUT"},"endpointInterfacesGroup":{"key":"endpointInterfacesGroup","type":"INPUT","order":[]},"endpointInterfaces":{"key":"endpointInterfaces","type":"INPUT","isPageLayout":false},"switch":{"key":"switch","type":"INPUT","isPageLayout":false},"adapterNativeVlan":{"key":"adapterNativeVlan","type":"INPUT","dependency":{"adapterMode":{"value":["trunk"],"mode":"SHOW"}}},"bc00d92e-5b9c-482c-94d1-7e126533ec01":{"key":"bc00d92e-5b9c-482c-94d1-7e126533ec01","type":"INPUT","dependency":{"adapterMode":{"value":["access"],"mode":"SHOW"}}},"portProfileNativeVlan":{"key":"portProfileNativeVlan","dependency":{"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT"},"portProfileGroups":{"key":"portProfileGroups","type":"INPUT","order":["portProfileName","portProfileSpeed","portProfilePortChannel","phoneSettings","portProfileSpanningTreeDetails","portProfileFlowControl","portProfileQosProfile","80f2d247-e2a4-4b2a-9dc9-86703baa25b2","portProfileStormControlDetails","portProfileMtu","dot1XSettings","profileCliList"]},"adapterPortChannel":{"key":"adapterPortChannel","type":"INPUT","order":["adapterEnablePortChannel","adapterPortChannelId","adapterPortChannelDescription","adapterPortChannelMode","adapterPortChannelLacpFallback","adapterPortChannelShortEsi"]},"adapterEnablePortChannel":{"key":"adapterEnablePortChannel","type":"INPUT","dependency":{}},"adapterPortChannelId":{"key":"adapterPortChannelId","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelMode":{"key":"adapterPortChannelMode","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelLacpFallbackMode":{"key":"adapterPortChannelLacpFallbackMode","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelLacpFallbackTimeout":{"key":"adapterPortChannelLacpFallbackTimeout","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"adapterPortChannelShortEsi":{"key":"adapterPortChannelShortEsi","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelMode":{"key":"portProfilePortChannelMode","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelLacpFallbackMode":{"key":"portProfilePortChannelLacpFallbackMode","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelLacpFallbackTimeout":{"key":"portProfilePortChannelLacpFallbackTimeout","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfilePortChannelShortEsi":{"key":"portProfilePortChannelShortEsi","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"portProfiles":{"key":"portProfiles","type":"INPUT","isPageLayout":true},"portProfilePortChannelId":{"key":"portProfilePortChannelId","type":"INPUT","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"portProfilePortChannel":{"key":"portProfilePortChannel","type":"INPUT","order":["portProfileEnablePortChannel","portProfilePortChannelId","portProfilePortChannelDescription","portProfilePortChannelMode","portProfilePortChannelLacpFallback","portProfilePortChannelShortEsi"]},"portProfilePortChannelDescription":{"key":"portProfilePortChannelDescription","type":"INPUT","dependency":{"portProfileEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"adapterPortChannelDescription":{"key":"adapterPortChannelDescription","type":"INPUT","dependency":{"adapterEnablePortChannel":{"value":[false],"mode":"HIDE"}}},"adapterSpanningTreeDetails":{"key":"adapterSpanningTreeDetails","type":"INPUT","order":["adapterPortfast","adapterBpduFilter","adapterBpduGuard"]},"portProfileSpanningTreeDetails":{"key":"portProfileSpanningTreeDetails","type":"INPUT","order":["portProfilePortfast","portProfileBpduFilter","portProfileBpduGuard"]},"hostType":{"key":"hostType","valueToLabelMap":{"True":"Multi-Host","False":"Single-Host"},"dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"35a33db5-11f9-401c-b462-f9a8cd33bfc9":{"key":"35a33db5-11f9-401c-b462-f9a8cd33bfc9","type":"INPUT","order":["4272a4b4-7c72-42a4-a1f6-f99ec617c211","9dfb8ec7-e11d-4852-bb39-f207b830e761","512e39de-8a86-4db2-b013-ff7f01f988a4","215f4f4c-f686-466e-98c6-b6acf5ca1c96","d05b3e38-630e-406d-b647-fde24d0465b4","a14cda07-9de8-4e79-a94d-0d1fe6afe05e","8ce87fb7-5f92-42ff-83e6-571974958e2b","b80eaa20-5d71-4520-8d3d-06033a85294a","76c02487-7e62-4e23-9501-56ee66d95c28","1de822f1-d47e-4a44-a092-564ba6b2c6a2"]},"reauthenticationTimerSetting":{"key":"reauthenticationTimerSetting","type":"INPUT","valueToLabelMap":{"True":"Server","False":"Local"}},"f667cf6b-c0ab-4336-af16-fef1a2b88816":{"key":"f667cf6b-c0ab-4336-af16-fef1a2b88816","dependency":{"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"value":["Drop","Disable"],"mode":"HIDE"},"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2":{"key":"3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2","valueToLabelMap":{"True":"Multi-Host","False":"Single-Host"},"dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"6c49a0ab-4e10-4706-aec9-19d8605fb90d":{"key":"6c49a0ab-4e10-4706-aec9-19d8605fb90d","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"key":"76fb4c7c-7f14-48ec-b268-aa38ce10d84b","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"key":"bf9f2d0a-21bd-4b71-9b8e-d7306273618d","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"91abeafa-1918-466d-ba43-e7ffb8417424":{"key":"91abeafa-1918-466d-ba43-e7ffb8417424","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"value":[true],"mode":"SHOW"}},"dependencyType":"AND","type":"INPUT"},"7b76e149-8a3a-4b47-b3ba-303e289b35f9":{"key":"7b76e149-8a3a-4b47-b3ba-303e289b35f9","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"bf9f2d0a-21bd-4b71-9b8e-d7306273618d":{"value":[true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"f2e5a570-3fd6-4978-b357-d5428e863d97":{"key":"f2e5a570-3fd6-4978-b357-d5428e863d97","valueToLabelMap":{"True":"Tagged","False":"Untagged"},"dependency":{"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f":{"key":"342b7b8d-4e1e-45de-9c2a-9266c0ea5f4f","type":"INPUT","order":[]},"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"key":"2db5b218-0a75-4720-ae5c-a96c71f6edb7","valueToLabelMap":{"True":"Yes","False":"No"},"type":"INPUT"},"phoneSettings":{"key":"phoneSettings","type":"INPUT","order":["portProfileMode","portProfileNativeVlan","portProfileVlans","phoneEnabled","phoneVlan","90eece88-0f72-4b40-9254-e4ff92e82c84"]},"dot1XSettings":{"key":"dot1XSettings","type":"INPUT","order":["8021XEnabled","macBasedAuthentication","hostType","multiHostIndividualAuthentication","4d07614b-f595-4231-9cfd-7e04d7badc69","a682964f-bbab-4fd7-a987-546f9008b0be","0a222884-fb72-423f-89d5-61c21c1a3420","99c81d24-4705-49f4-b4b1-0b5672f4a05b","7b1af5a8-d911-4095-b71b-3633fd0da4cd","timeoutQuietPeriod"]},"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa":{"key":"7a2e993c-dcf6-4d1e-942e-5eeee7fc62fa","valueToLabelMap":{"True":"Multi","False":"Single"},"type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"phoneEnabled":{"key":"phoneEnabled","valueToLabelMap":{"True":"Configured","False":"Unconfigured"},"type":"INPUT","dependency":{"portProfileMode":{"value":["trunk"],"mode":"SHOW"}}},"macBasedAuthentication":{"key":"macBasedAuthentication","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"multiHostIndividualAuthentication":{"key":"multiHostIndividualAuthentication","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"4d07614b-f595-4231-9cfd-7e04d7badc69":{"key":"4d07614b-f595-4231-9cfd-7e04d7badc69","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"a682964f-bbab-4fd7-a987-546f9008b0be":{"key":"a682964f-bbab-4fd7-a987-546f9008b0be","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"4d07614b-f595-4231-9cfd-7e04d7badc69":{"value":["Allow"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"key":"0a222884-fb72-423f-89d5-61c21c1a3420","type":"INPUT","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}}},"99c81d24-4705-49f4-b4b1-0b5672f4a05b":{"key":"99c81d24-4705-49f4-b4b1-0b5672f4a05b","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"value":[false,true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"7b1af5a8-d911-4095-b71b-3633fd0da4cd":{"key":"7b1af5a8-d911-4095-b71b-3633fd0da4cd","dependency":{"8021XEnabled":{"value":[true],"mode":"SHOW"},"0a222884-fb72-423f-89d5-61c21c1a3420":{"value":[true],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"timeoutQuietPeriod":{"key":"timeoutQuietPeriod","dependency":{"8021XEnabled":{"value":[false],"mode":"HIDE"}},"dependencyType":"OR","type":"INPUT"},"phoneVlan":{"key":"phoneVlan","dependency":{"phoneEnabled":{"value":[true],"mode":"SHOW"},"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"90eece88-0f72-4b40-9254-e4ff92e82c84":{"key":"90eece88-0f72-4b40-9254-e4ff92e82c84","dependency":{"phoneEnabled":{"value":[true],"mode":"SHOW"},"portProfileMode":{"value":["trunk"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"113fa93d-ef20-410d-96aa-fa752e4e178f":{"key":"113fa93d-ef20-410d-96aa-fa752e4e178f","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}},"dependencyType":"OR","type":"INPUT"},"4d4c6315-610d-4381-8aef-3f5483057986":{"key":"4d4c6315-610d-4381-8aef-3f5483057986","type":"INPUT","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[false],"mode":"HIDE"}}},"f7cb6b88-ef74-4b27-b544-6a4eaad094b1":{"key":"f7cb6b88-ef74-4b27-b544-6a4eaad094b1","type":"INPUT","order":["c60cf057-f9ed-43e9-b280-301fa2476177","6c49a0ab-4e10-4706-aec9-19d8605fb90d","3e3310fc-b0e1-43d6-96c3-bf6d0503bdc2","4d4c6315-610d-4381-8aef-3f5483057986","76fb4c7c-7f14-48ec-b268-aa38ce10d84b","06c6cc80-c714-4abd-b8d3-9a7714947670","bf9f2d0a-21bd-4b71-9b8e-d7306273618d","91abeafa-1918-466d-ba43-e7ffb8417424","7b76e149-8a3a-4b47-b3ba-303e289b35f9","113fa93d-ef20-410d-96aa-fa752e4e178f"]},"06c6cc80-c714-4abd-b8d3-9a7714947670":{"key":"06c6cc80-c714-4abd-b8d3-9a7714947670","dependency":{"c60cf057-f9ed-43e9-b280-301fa2476177":{"value":[true],"mode":"SHOW"},"76fb4c7c-7f14-48ec-b268-aa38ce10d84b":{"value":["Allow"],"mode":"SHOW"}},"type":"INPUT","dependencyType":"AND"},"directInterfaces":{"key":"directInterfaces","type":"INPUT"},"directPorts":{"key":"directPorts","type":"INPUT"},"85540f89-cd07-492f-ac78-fdee794b82ef":{"key":"85540f89-cd07-492f-ac78-fdee794b82ef","type":"INPUT","order":["946cf29f-823e-4fc5-b1fb-42974a3e4c2b","c069ca75-3ffd-41d5-a735-72c021609b25","59a2ea8a-5dda-41b7-a655-6c2489eebe16"]},"c069ca75-3ffd-41d5-a735-72c021609b25":{"key":"c069ca75-3ffd-41d5-a735-72c021609b25","type":"INPUT","dependency":{"946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{"value":[false],"mode":"HIDE"}}},"59a2ea8a-5dda-41b7-a655-6c2489eebe16":{"key":"59a2ea8a-5dda-41b7-a655-6c2489eebe16","type":"INPUT","dependency":{"946cf29f-823e-4fc5-b1fb-42974a3e4c2b":{"value":[false],"mode":"HIDE"}}},"1cacdc71-d0d3-46dd-a23a-d0df699f831a":{"key":"1cacdc71-d0d3-46dd-a23a-d0df699f831a","dependency":{"2db5b218-0a75-4720-ae5c-a96c71f6edb7":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"2dbee137-6424-4296-a7bd-8ccb8035b47c":{"key":"2dbee137-6424-4296-a7bd-8ccb8035b47c","type":"INPUT","order":["8f3fbc0f-e94d-4017-97e9-4108c6f22f2f","9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d","5105c809-e246-4f1a-a7ce-ff57b6339057","4e86adfa-183c-44ae-bd95-eea2c8a32c7e","a6866cc8-d1e6-4eb1-b5c6-27f978251679","6c244909-7ae1-4b4f-beb5-e41c85e86397"]},"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d":{"key":"9791efe1-ace9-43d5-b8ce-a0e42e9bfd2d","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"5105c809-e246-4f1a-a7ce-ff57b6339057":{"key":"5105c809-e246-4f1a-a7ce-ff57b6339057","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"4e86adfa-183c-44ae-bd95-eea2c8a32c7e":{"key":"4e86adfa-183c-44ae-bd95-eea2c8a32c7e","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"a6866cc8-d1e6-4eb1-b5c6-27f978251679":{"key":"a6866cc8-d1e6-4eb1-b5c6-27f978251679","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"6c244909-7ae1-4b4f-beb5-e41c85e86397":{"key":"6c244909-7ae1-4b4f-beb5-e41c85e86397","type":"INPUT","dependency":{"8f3fbc0f-e94d-4017-97e9-4108c6f22f2f":{"value":[false],"mode":"HIDE"}}},"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5":{"key":"1d7ff905-71f3-4291-b9b6-8beff7e5f8f5","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0":{"key":"07fec9fa-b08b-47dc-9e91-5d031eb7fcf0","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"fd026550-9930-47c7-bb2b-39f68959beec":{"key":"fd026550-9930-47c7-bb2b-39f68959beec","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"delayRequestInterval":{"key":"delayRequestInterval","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"451779ac-23d4-4e77-ba14-31254e752ccd":{"key":"451779ac-23d4-4e77-ba14-31254e752ccd","type":"INPUT","dependency":{"e63ed600-ac7b-46fe-8ac4-39cc5a1e2cbb":{"value":[false],"mode":"HIDE"}}},"b867fb89-78d0-439e-a373-f243a67b8c8c":{"key":"b867fb89-78d0-439e-a373-f243a67b8c8c","type":"INPUT","showDefaultRow":false}}'
