@@ -1,0 +1,106 @@
+path: []
+inputs:
+  tenants:
+    - macVrfVniBase: 10000
+      name: red
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v14
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 14.14.14.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos3
+              tags:
+                query: device:eos3
+          vlanId: 14
+          vrf: red
+          vxlan: true
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v114
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos4
+              tags:
+                query: device:eos4
+          vlanId: 114
+          vrf: red
+          vxlan: true
+      vrfs:
+        - iBgpDetails: {}
+          name: red
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5000
+    - macVrfVniBase: 10000
+      name: orange
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v13
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 13.13.13.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos8
+              tags:
+                query: device:eos8
+          vlanId: 13
+          vrf: orange
+          vxlan: true
+        - dhcpServerDetails: []
+          l3OrL2: true
+          mtu: 9214
+          name: v113
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+              tags:
+                query: device:eos6
+          vlanId: 113
+          vrf: orange
+          vxlan: true
+      vrfs:
+        - devices: []
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: orange
+          natSourceDetails: {}
+          overrideVariables: {}
+          vni: 5001
