@@ -47,11 +47,36 @@ In this example, we will look at configuring connections to multiple endpoints, 
 The inputs seen in the screenshot produce the configuration seen below on DC1-aLF1A.
 
 ```
-interface Ethernet1-5
+interface Ethernet1
   description HostGroup1
   switchport
   switchport access vlan 10
   switchport mode access
+!
+interface Ethernet2
+  description HostGroup1
+  switchport
+  switchport access vlan 10
+  switchport mode access
+!
+interface Ethernet3
+  description HostGroup1
+  switchport
+  switchport access vlan 10
+  switchport mode access
+!
+interface Ethernet4
+  description HostGroup1
+  switchport
+  switchport access vlan 10
+  switchport mode access
+!
+interface Ethernet5
+  description HostGroup1
+  switchport
+  switchport access vlan 10
+  switchport mode access
+!
 ```
 
 Note that because these interfaces connected to the endpoints are not port-channel interfaces, it is posssible to configure interfaces for more than one switch at a time using the by adding or creating a device query that targets more than one switch.
@@ -74,9 +99,14 @@ interface Port-Channel4
   switchport
   switchport mode trunk
 !
-interface Ethernet4-5
+interface Ethernet4
   description Host1LACP
   channel-group 4 mode active
+!
+interface Ethernet5
+  description Host1LACP
+  channel-group 4 mode active
+!
 ```
 
 Note that you cannot configure multiple endpoints that are single homed with LACP within a single Endpoint Collection entry. If this were to be attempted, the studio may assume that the endpoint is dual homed to other switches which match the Device Query resolver.  To avoid this confusion, use a unique endpoint collection entries for endpoints that are single homed with LACP.
