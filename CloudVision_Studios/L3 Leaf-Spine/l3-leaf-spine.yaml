@@ -544,6 +544,10 @@
 
 
           def set_maximums(switch_facts):
+              max_spines = 0
+              max_super_spines = 0
+              max_parallel_uplinks_to_spines = 1
+              max_parallel_uplinks_to_super_spines = 1
               for sf in switches_in_my_data_center.values():
                   if sf['type'] in ['spine']:
                       # Get max spines/super spines and set max_uplink_switches
@@ -2043,6 +2047,16 @@
                   )
                   tagmresp = tsclient.GetTagMatchesV2(tagmr)
                   for match in tagmresp.matches:
+                      assert tag.label not in ["NodeId", "Leaf-Domain"] or \
+                          tag.value.isdigit(), \
+                          f"The value of tag '{tag.label}' assigned to device " \
+                          f"{match.device.device_id} must be an integer. " \
+                          f"The current value is '{tag.value}'"
+                      assert match.device.device_id not in sv_dict or \
+                          sv_dict[match.device.device_id] == tag.value, \
+                          f"The device {match.device.device_id} must be applied to only " \
+                          f"one value of tag '{tag.label}'.  Currently applied to values of " \
+                          f"'{sv_dict[match.device.device_id]}' and '{tag.value}'"
                       sv_dict[match.device.device_id] = tag.value
               return sv_dict
 
