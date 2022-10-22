@@ -30,7 +30,7 @@ inputs:
                                   peerAsn: 65004
                                 - neighborIp: 4.1.1.2
                                   peerAsn: 65004
-                              peerGroupName: EDC-Border
+                              peerGroupName: DC1-Border
                               routeMapIn: []
                               routeMapOut: []
                             - RedistributionRouteMap: []
@@ -50,13 +50,13 @@ inputs:
                       tags:
                         query: device:s1-core1
               tags:
-                query: Edge-Router-Domain:EDC-Firewall
+                query: Edge-Router-Domain:DC1-Firewall
           igp: None
           redistributeConnected: Enabled
           redistributeStatic: Enabled
           rrs: []
       tags:
-        query: Network:EDC-Firewall
+        query: Network:DC1-Firewall
     - inputs:
         pod:
           commonBGPConfig:
@@ -96,7 +96,7 @@ inputs:
                               eBgcoreneighbors:
                                 - neighborIp: 3.1.1.1
                                   peerAsn: 4444
-                              peerGroupName: KDC-Router
+                              peerGroupName: DC1-Router
                               routeMapIn: []
                               routeMapOut: []
                           prefixLists: []
@@ -105,13 +105,13 @@ inputs:
                       tags:
                         query: device:s1-core2
               tags:
-                query: Edge-Router-Domain:EDC-Router
+                query: Edge-Router-Domain:DC1-Router
           igp: None
           redistributeConnected: Enabled
           redistributeStatic: Enabled
           rrs: []
       tags:
-        query: Network:EDC-Router
+        query: Network:DC1-Router
     - inputs:
         pod:
           commonBGPConfig:
@@ -135,24 +135,24 @@ inputs:
                               aggregateRoutes: []
                               asnSettings: {}
                               bgpOptions: {}
-                              description: KDC-Border
+                              description: DC2-Border
                               eBgcoreneighbors:
                                 - neighborIp: 6.1.1.1
                                   peerAsn: 65104
                                 - neighborIp: 6.1.1.2
                                   peerAsn: 65104
-                              peerGroupName: KDC-Border
+                              peerGroupName: DC2-Border
                               routeMapIn: []
                               routeMapOut: []
                             - RedistributionRouteMap: []
                               aggregateRoutes: []
                               asnSettings: {}
                               bgpOptions: {}
-                              description: KDC-Router
+                              description: DC1-Router
                               eBgcoreneighbors:
                                 - neighborIp: 2.1.2.1
                                   peerAsn: 4444
-                              peerGroupName: KDC-Router
+                              peerGroupName: DC2-Router
                               routeMapIn: []
                               routeMapOut: []
                           prefixLists: []
@@ -161,13 +161,13 @@ inputs:
                       tags:
                         query: device:s2-core1
               tags:
-                query: Edge-Router-Domain:KDC-FIREWALL
+                query: Edge-Router-Domain:DC2-FIREWALL
           igp: OSPF
           redistributeConnected: Enabled
           redistributeStatic: Enabled
           rrs: []
       tags:
-        query: Network:KDC-Firewall
+        query: Network:DC2-Firewall
     - inputs:
         pod:
           commonBGPConfig:
@@ -195,18 +195,18 @@ inputs:
                               eBgcoreneighbors:
                                 - neighborIp: 2.1.2.0
                                   peerAsn: 3333
-                              peerGroupName: KDC-FW
+                              peerGroupName: DC2-FW
                               routeMapIn: []
                               routeMapOut: []
                             - RedistributionRouteMap: []
                               aggregateRoutes: []
                               asnSettings: {}
                               bgpOptions: {}
-                              description: EDC-Router
+                              description: DC1-Router
                               eBgcoreneighbors:
                                 - neighborIp: 3.1.1.0
                                   peerAsn: 2222
-                              peerGroupName: EDC-Router
+                              peerGroupName: DC1-Router
                               routeMapIn: []
                               routeMapOut: []
                           prefixLists: []
@@ -219,10 +219,10 @@ inputs:
                       tags:
                         query: device:s2-core2
               tags:
-                query: Edge-Router-Domain:KDC-Router
+                query: Edge-Router-Domain:DC2-Router
           igp: None
           redistributeConnected: Enabled
           redistributeStatic: Enabled
           rrs: []
       tags:
-        query: Network:KDC-Router
+        query: Network:DC2-Router
