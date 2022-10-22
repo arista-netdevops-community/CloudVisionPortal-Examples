@@ -1,0 +1,228 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 1111
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces: []
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 4.1.1.1
+                                  peerAsn: 65004
+                                - neighborIp: 4.1.1.2
+                                  peerAsn: 65004
+                              peerGroupName: EDC-Border
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 1.1.2.1
+                                  peerAsn: 2222
+                              peerGroupName: WAN
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core1
+              tags:
+                query: Edge-Router-Domain:EDC-Firewall
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:EDC-Firewall
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 2222
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces: []
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes:
+                                - aggregateRoute: 0.0.0.0/0
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 1.1.2.0
+                                  peerAsn: 1111
+                              peerGroupName: EDC-FW
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 3.1.1.1
+                                  peerAsn: 4444
+                              peerGroupName: KDC-Router
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core2
+              tags:
+                query: Edge-Router-Domain:EDC-Router
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:EDC-Router
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 3333
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces: []
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: KDC-Border
+                              eBgcoreneighbors:
+                                - neighborIp: 6.1.1.1
+                                  peerAsn: 65104
+                                - neighborIp: 6.1.1.2
+                                  peerAsn: 65104
+                              peerGroupName: KDC-Border
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: KDC-Router
+                              eBgcoreneighbors:
+                                - neighborIp: 2.1.2.1
+                                  peerAsn: 4444
+                              peerGroupName: KDC-Router
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-core1
+              tags:
+                query: Edge-Router-Domain:KDC-FIREWALL
+          igp: OSPF
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:KDC-Firewall
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 4444
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          externalInterfaces: []
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: KDC-FW
+                              eBgcoreneighbors:
+                                - neighborIp: 2.1.2.0
+                                  peerAsn: 3333
+                              peerGroupName: KDC-FW
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: EDC-Router
+                              eBgcoreneighbors:
+                                - neighborIp: 3.1.1.0
+                                  peerAsn: 2222
+                              peerGroupName: EDC-Router
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes:
+                            - name: Other-ISP
+                              nextHop: 9.9.9.1
+                              prefix: 0.0.0.0/0
+                              srvrf: ''
+                      tags:
+                        query: device:s2-core2
+              tags:
+                query: Edge-Router-Domain:KDC-Router
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:KDC-Router
