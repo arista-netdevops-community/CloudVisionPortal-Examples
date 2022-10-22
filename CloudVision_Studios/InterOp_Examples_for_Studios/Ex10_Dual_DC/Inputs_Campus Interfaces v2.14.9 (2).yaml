@@ -58,7 +58,7 @@ inputs:
                       stackNumber: '1'
                       virtualRouterAddress: ''
                       vlanId: '2'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: FW TRUSTED
@@ -69,9 +69,9 @@ inputs:
                       stackNumber: '2'
                       virtualRouterAddress: ''
                       vlanId: '2'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
               tags:
-                query: Switch-Group:EDC-Border-Leafs
+                query: Switch-Group:DC1-Border-Leafs
             - inputs:
                 devicesGroup:
                   all: all-switches
@@ -141,7 +141,7 @@ inputs:
                       stackNumber: '1'
                       virtualRouterAddress: 10.10.10.1/24
                       vlanId: '4'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: WAN VLAN
@@ -152,7 +152,7 @@ inputs:
                       stackNumber: '2'
                       virtualRouterAddress: 10.10.10.1/24
                       vlanId: '4'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: WAN VLAN
@@ -163,7 +163,7 @@ inputs:
                       stackNumber: '3'
                       virtualRouterAddress: ''
                       vlanId: '5'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: WAN VLAN
@@ -174,11 +174,11 @@ inputs:
                       stackNumber: '4'
                       virtualRouterAddress: ''
                       vlanId: '6'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
               tags:
-                query: Switch-Group:EDC-Leaf-Switches
+                query: Switch-Group:DC1-Leaf-Switches
       tags:
-        query: DC:EDC
+        query: DC:DC1
     - inputs:
         sitesGroup:
           devices:
@@ -231,7 +231,7 @@ inputs:
                       stackNumber: '1'
                       virtualRouterAddress: ''
                       vlanId: '2'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: FW TRUSTED
@@ -242,9 +242,9 @@ inputs:
                       stackNumber: '2'
                       virtualRouterAddress: ''
                       vlanId: '2'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
               tags:
-                query: Switch-Group:KDC-Border-Leafs
+                query: Switch-Group:DC2-Border-Leafs
             - inputs:
                 devicesGroup:
                   all: all-switches
@@ -311,7 +311,7 @@ inputs:
                       stackNumber: '1'
                       virtualRouterAddress: 10.20.10.1
                       vlanId: '14'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: Port Channel Server10
@@ -322,7 +322,7 @@ inputs:
                       stackNumber: '2'
                       virtualRouterAddress: 10.20.10.1
                       vlanId: '14'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: single server 20
@@ -333,7 +333,7 @@ inputs:
                       stackNumber: '3'
                       virtualRouterAddress: ''
                       vlanId: '15'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: ''
                       description: single server 30
@@ -344,11 +344,11 @@ inputs:
                       stackNumber: '4'
                       virtualRouterAddress: ''
                       vlanId: '16'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
               tags:
-                query: Switch-Group:KDC-Leaf-Switches
+                query: Switch-Group:DC2-Leaf-Switches
       tags:
-        query: DC:KDC
+        query: DC:DC2
     - inputs:
         sitesGroup:
           devices:
@@ -358,7 +358,7 @@ inputs:
                   groupMemberNotation: group-member-notation
                   interfaceRanges:
                     - channelGroup: '14'
-                      description: EDC Border1
+                      description: DC2 Border1
                       enabled: true
                       interfaceName: e2,e3
                       ipPrefix: ''
@@ -397,9 +397,9 @@ inputs:
                       vlanId: '2'
                       vrf: ''
               tags:
-                query: Switch-Group:EDC-Firewall
+                query: Switch-Group:DC1-Firewall
       tags:
-        query: Network:EDC-Firewall
+        query: Network:DC1-Firewall
     - inputs:
         sitesGroup:
           devices:
@@ -419,7 +419,7 @@ inputs:
                       vlanName: ''
                       vrf: ''
                     - channelGroup: '11'
-                      description: KDC
+                      description: DC2
                       enabled: true
                       interfaceName: e4
                       ipPrefix: 3.1.1.0/31
@@ -437,9 +437,9 @@ inputs:
                         query: device:s1-core2
                   vlanInterfaces: []
               tags:
-                query: Switch-Group:EDC-Router
+                query: Switch-Group:DC1-Router
       tags:
-        query: Network:EDC-Router
+        query: Network:DC1-Router
     - inputs:
         sitesGroup:
           devices:
@@ -449,7 +449,7 @@ inputs:
                   groupMemberNotation: group-member-notation
                   interfaceRanges:
                     - channelGroup: '13'
-                      description: KDC Border1
+                      description: DC2 Border1
                       enabled: true
                       interfaceName: e2,e3
                       ipPrefix: ''
@@ -488,9 +488,9 @@ inputs:
                       vlanId: '2'
                       vrf: ''
               tags:
-                query: Switch-Group:KDC-Firewall
+                query: Switch-Group:DC2-Firewall
       tags:
-        query: Network:KDC-Firewall
+        query: Network:DC2-Firewall
     - inputs:
         sitesGroup:
           devices:
@@ -510,7 +510,7 @@ inputs:
                       vlanName: ''
                       vrf: ''
                     - channelGroup: '10'
-                      description: EDC
+                      description: DC1
                       enabled: true
                       interfaceName: E4
                       ipPrefix: 3.1.1.1/31
@@ -537,9 +537,9 @@ inputs:
                         query: device:s2-core2
                   vlanInterfaces: []
               tags:
-                query: Switch-Group:KDC-Router
+                query: Switch-Group:DC2-Router
       tags:
-        query: Network:KDC-Router
+        query: Network:DC2-Router
     - inputs:
         sitesGroup:
           devices:
@@ -582,7 +582,7 @@ inputs:
                   vlanInterfaces:
                     - createVlanOnly: false
                       defaultGatewayNextHop: 10.10.10.1
-                      description: VRF EDC-WAN
+                      description: VRF DC1-WAN
                       enabled: true
                       ipAddressVirtualirtual: ''
                       ipPrefix: 10.10.10.10/24
@@ -590,10 +590,10 @@ inputs:
                       stackNumber: '1'
                       virtualRouterAddress: ''
                       vlanId: '4'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: 10.10.20.1
-                      description: VRF EDC-WAN L3
+                      description: VRF DC1-WAN L3
                       enabled: true
                       ipAddressVirtualirtual: ''
                       ipPrefix: 10.10.20.10/24
@@ -601,9 +601,9 @@ inputs:
                       stackNumber: '2'
                       virtualRouterAddress: ''
                       vlanId: '5'
-                      vrf: EDC-WAN
+                      vrf: DC1-WAN
               tags:
-                query: Switch-Group:EDC-Hosts
+                query: Switch-Group:DC1-Hosts
       tags:
         query: DC:EDC-Hosts
     - inputs:
@@ -656,7 +656,7 @@ inputs:
                       stackNumber: '1'
                       virtualRouterAddress: ''
                       vlanId: '14'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
                     - createVlanOnly: false
                       defaultGatewayNextHop: 10.20.20.1
                       description: to Leaf 3 and 4
@@ -667,11 +667,11 @@ inputs:
                       stackNumber: '2'
                       virtualRouterAddress: ''
                       vlanId: '15'
-                      vrf: KDC-WAN
+                      vrf: DC2-WAN
               tags:
-                query: Switch-Group:KDC-Hosts
+                query: Switch-Group:DC2-Hosts
       tags:
-        query: DC:KDC-Hosts
+        query: DC:DC2-Hosts
   vlanProfiles:
     - allowedVlans: ''
       bpduGuardEnabled: false
