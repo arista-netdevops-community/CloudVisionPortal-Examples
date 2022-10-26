@@ -1,0 +1,270 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 111.111.111.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet3@eos1
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 16.16.16.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet4@eos1
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces:
+                    - coreextdescription: eos2 pink
+                      coreextinterfaceName: e1.114
+                      coreextipAddress: 12.12.12.0
+                      coreextospf: true
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                    - coreextdescription: eos5 pink
+                      coreextinterfaceName: e5.114
+                      coreextipAddress: 115.115.115.0
+                      coreextospf: true
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                  rRs: []
+              tags:
+                query: device:eos1
+            - inputs:
+                coreLinkDetails:
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 136.136.136.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet3@eos6
+                    - inputs:
+                        coreneighborDetails:
+                          coreipAddress: 16.16.16.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet4@eos6
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces:
+                    - coreextdescription: eos5 pink
+                      coreextinterfaceName: e1.114
+                      coreextipAddress: 56.56.56.1
+                      coreextospf: true
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                    - coreextdescription: eos2 pink
+                      coreextinterfaceName: e5.114
+                      coreextipAddress: 26.26.26.1
+                      coreextospf: true
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                  rRs: []
+              tags:
+                query: device:eos6
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  eripAddress: 111.111.111.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos11
+                          loopback1Address: ''
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup: {}
+                                tags:
+                                  query: interface:Ethernet3@eos11
+                              - inputs:
+                                  mlagInterfacesGroup: {}
+                                tags:
+                                  query: interface:Ethernet5@eos11
+                            mlagRole: Primary
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos11
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  eripAddress: 136.136.136.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos13
+                          loopback1Address: ''
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup: {}
+                                tags:
+                                  query: interface:Ethernet3@eos13
+                              - inputs:
+                                  mlagInterfacesGroup: {}
+                                tags:
+                                  query: interface:Ethernet5@eos13
+                            mlagRole: Secondary
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos13
+              tags:
+                query: Edge-Router-Domain:11-13
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extdescription: eos1 pink
+                              extinterfaceName: e5.114
+                              extipAddress: 12.12.12.1
+                              extospf: true
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: pink
+                            - extdescription: eos6 pink
+                              extinterfaceName: e4.114
+                              extipAddress: 26.26.26.0
+                              extospf: true
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: pink
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap:
+                                - redistdescription: only DC routes to OSPF
+                                  redistpermitDeny: permit
+                                  redistprefixList: DC-Routes
+                                  redistseqnum: 10
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: true
+                                redistributionVrf: pink
+                              description: pink
+                              eBgcoreneighbors: []
+                              peerGroupName: DC
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists:
+                            - prefixListName: DC-Routes
+                              seqNums:
+                                - permitDeny: permit
+                                  prefix: 14.14.14.2/32
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos2
+              tags:
+                query: Edge-Router-Domain:2
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extdescription: eos6 pink
+                              extinterfaceName: e5.114
+                              extipAddress: 56.56.56.0
+                              extospf: true
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: pink
+                            - extdescription: eos1 pink
+                              extinterfaceName: e4.114
+                              extipAddress: 115.115.115.1
+                              extospf: true
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: pink
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap:
+                                - redistdescription: only DC routes to OSPF
+                                  redistpermitDeny: permit
+                                  redistprefixList: DC-Routes
+                                  redistseqnum: 10
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: true
+                                redistributionVrf: pink
+                              description: DC-L
+                              eBgcoreneighbors: []
+                              peerGroupName: DC
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists:
+                            - prefixListName: DC-Routes
+                              seqNums:
+                                - permitDeny: permit
+                                  prefix: 14.14.14.2/32
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos5
+              tags:
+                query: Edge-Router-Domain:5
+          igp: OSPF
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:Ex6-CoreNet-eos1-eos2-eos5-eos6-eos11-eos13

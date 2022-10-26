@@ -1,0 +1,326 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extdescription: to eos1 red
+                              extinterfaceName: e5.114
+                              extipAddress: 12.12.12.1
+                              extospf: false
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: red
+                            - extdescription: to eos 6 red
+                              extinterfaceName: e4.114
+                              extipAddress: 26.26.26.0
+                              extospf: false
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: red
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos2
+              tags:
+                query: Edge-Router-Domain:2
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extdescription: eos6 red
+                              extinterfaceName: e5.114
+                              extipAddress: 56.56.56.0
+                              extospf: false
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: red
+                            - extdescription: eos1 red
+                              extinterfaceName: e4.114
+                              extipAddress: 115.115.115.1
+                              extospf: false
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: red
+                          loopback1Address: ''
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos5
+              tags:
+                query: Edge-Router-Domain:5
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:L3DC-Border-Leafs-eos2-eos5
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 7
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreneighbor: []
+                  corepeerGroups:
+                    - coreRedistributionRouteMap: []
+                      coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: red
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 115.115.115.1
+                          corepeerAsn: 65001
+                        - coreneighborIp: 12.12.12.1
+                          corepeerAsn: 65001
+                      corepeerGroupName: red
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                    - coreRedistributionRouteMap: []
+                      coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: CAMPUS-EBGP
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 111.111.111.1
+                          corepeerAsn: 15
+                      corepeerGroupName: CAMPUS-EBGP
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces:
+                    - coreextdescription: eos2 red
+                      coreextinterfaceName: e1.114
+                      coreextipAddress: 12.12.12.0
+                      coreextospf: false
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                    - coreextdescription: eos5 red
+                      coreextinterfaceName: e5.114
+                      coreextipAddress: 115.115.115.0
+                      coreextospf: false
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                    - coreextdescription: eos11
+                      coreextinterfaceName: e3
+                      coreextipAddress: 111.111.111.0
+                      coreextospf: false
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                  rRs: []
+              tags:
+                query: device:eos1
+            - inputs:
+                coreLinkDetails:
+                  coreneighbor: []
+                  corepeerGroups:
+                    - coreRedistributionRouteMap: []
+                      coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: red
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 26.26.26.0
+                          corepeerAsn: 65001
+                        - coreneighborIp: 56.56.56.0
+                          corepeerAsn: 65001
+                      corepeerGroupName: red
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                    - coreRedistributionRouteMap: []
+                      coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: CAMPUS-EBGP
+                      coreeBgpNeighbors:
+                        - coreneighborIp: 136.136.136.1
+                          corepeerAsn: 15
+                      corepeerGroupName: CAMPUS-EBGP
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces:
+                    - coreextdescription: eos 5
+                      coreextinterfaceName: e1.114
+                      coreextipAddress: 56.56.56.1
+                      coreextospf: false
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                    - coreextdescription: eos2
+                      coreextinterfaceName: e5.114
+                      coreextipAddress: 26.26.26.1
+                      coreextospf: false
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                    - coreextdescription: eos13
+                      coreextinterfaceName: e3
+                      coreextipAddress: 136.136.136.0
+                      coreextospf: false
+                      coreextspeed: ''
+                      coreextsubnetMask: 31
+                      coreextvrf: ''
+                  rRs: []
+              tags:
+                query: device:eos6
+          erDomains: []
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:Ex7-CoreNet-eos1-eos6
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 15
+            rrBGPDynamicNeighbors: true
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extdescription: eos1
+                              extinterfaceName: e1
+                              extipAddress: 111.111.111.1
+                              extospf: false
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                          loopback1Address: ''
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet2@eos11
+                            mlagRole: Primary
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: IBGP
+                              eBgcoreneighbors:
+                                - neighborIp: 169.254.0.1
+                                  peerAsn: 15
+                              peerGroupName: IBGP
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: false
+                                redistributeConnectedRoutes: false
+                                redistributeStaticRoutes: false
+                              description: EBGP
+                              eBgcoreneighbors:
+                                - neighborIp: 111.111.111.0
+                                  peerAsn: 7
+                              peerGroupName: EBGP
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos11
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extdescription: eos6
+                              extinterfaceName: e1
+                              extipAddress: 136.136.136.1
+                              extospf: false
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                          loopback1Address: ''
+                          mlagGroup:
+                            mlagRole: Secondary
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: IBGP
+                              eBgcoreneighbors:
+                                - neighborIp: 169.254.0.0
+                                  peerAsn: 15
+                              peerGroupName: IBGP
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: false
+                                redistributeStaticRoutes: false
+                                redistributeConnectedRoutes: false
+                              description: EBGP
+                              eBgcoreneighbors:
+                                - neighborIp: 136.136.136.0
+                                  peerAsn: 7
+                              peerGroupName: EBGP
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos13
+              tags:
+                query: Edge-Router-Domain:11-13
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:L2DC-eos11-eos13
