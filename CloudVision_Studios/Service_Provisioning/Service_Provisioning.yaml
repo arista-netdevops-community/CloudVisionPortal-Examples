@@ -11,8 +11,8 @@
         type: TEMPLATE_TYPE_MAKO
         body: |-
           <%
-          # Version : 1.5       - Date : 8/29/2022
-          # Created mapAllVNIs flag 
+          # Version : 1.7       - Date : 11/01/2022
+          # resolvers aren't defined if there are no rows in them.  this leads to a potential bug on initial use
 
           # the debug boolean will dump data into the message of the day tag
           #  on the switch.  this is a rough way to get debug text out while
@@ -59,6 +59,9 @@
 
           me=ctx.getDevice()
           workspaceID=ctx.studio.workspaceId
+          if not dataCenters:
+              # we have no data centers defined, so there is nothing to do.  let's just terminated
+              return
           currentDC=dataCenters.resolve()
 
           # let's see if we can't figure out what tags we have on us
@@ -123,7 +126,8 @@
                   # non border-leaf devices need a vlan-aware-bundle
                   if len(deviceTags.get('Border-Leaf-Number', [])) == 0:
                       output(f'vlan-aware-bundle {vrf.get("VRFname")}')
-                      output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeTarget")}')
+                      output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeDistinguisher")}')
+                      # output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeTarget")}')
                       output(f'route-target both {vrf.get("routeTarget")}:{vrf.get("routeTarget")}')
                       output(f'redistribute learned')
 
@@ -140,16 +144,23 @@
               loop2ipsplit = currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["cidr"].split('.')
               loop2mask = currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["cidr"].split('/')
               loop2ip = f'{loop2ipsplit[0]}.{loop2ipsplit[1]}.{loop2ipsplit[2]}.{int(deviceTags.get("Leaf-Number")[0]) + 1}'
-              output(f'ip address virtual source-nat vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} address {loop2ip}')
-              output(f'interface loopback 2')
-              output(f'vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]}')
-              output(f'ip address {loop2ip}/32')
+              # output(f'ip address virtual source-nat vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} address {loop2ip}')
+              # output(f'interface loopback 2')
+              # output(f'vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]}')
+              # output(f'ip address {loop2ip}/32')
               
               if len(deviceTags.get('Border-Leaf-Number', [])) == 0:
+                  # MAC Aging
+                  output(f'mac address-table aging-time 14400')
+                  output(f'!')
                   # Multi-VTEP mlag
                   output(f'interface vxlan1')
                   output(f'vxlan mlag source-interface loopback 1')
                   output(f'vxlan source-interface loopback 0')
+                  output(f'ip address virtual source-nat vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} address {loop2ip}')
+                  output(f'interface loopback 2')
+                  output(f'vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]}')
+                  output(f'ip address {loop2ip}/32')
 
                   #This will create the L2 Vlan-Aware-Bundle on all standard leafs
                   if len(currentDC.get('dataCenter', {}).get('l2VlanAwareBundle', {})) == 1:
@@ -228,6 +239,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             efe2c930-e306-428d-a7cc-60ab509d82dd:
               id: efe2c930-e306-428d-a7cc-60ab509d82dd
               name: routeTarget
@@ -243,6 +255,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             77a3a208-100d-4daa-99fe-e8ddb3fd1d9c:
               id: 77a3a208-100d-4daa-99fe-e8ddb3fd1d9c
               name: importExport
@@ -262,6 +275,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             85cbb379-539d-4162-99bd-6a098e57b281:
               id: 85cbb379-539d-4162-99bd-6a098e57b281
               name: addressFamily
@@ -280,6 +294,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             63161ddc-4ebf-4b37-95ec-fb025085c6b1:
               id: 63161ddc-4ebf-4b37-95ec-fb025085c6b1
               name: routeTargetLeaking
@@ -295,6 +310,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             608a1b6d-3d1b-4bd4-ba2b-7f2e98c98f77:
               id: 608a1b6d-3d1b-4bd4-ba2b-7f2e98c98f77
               name: routeLeakingGroup
@@ -333,6 +349,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             eb89398d-7e86-45b6-aa8a-1e3583b2ce1c:
               id: eb89398d-7e86-45b6-aa8a-1e3583b2ce1c
               name: vrfGroup
@@ -372,6 +389,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             c63006a7-fa8c-4d13-87c2-ff1b5b4a8af4:
               id: c63006a7-fa8c-4d13-87c2-ff1b5b4a8af4
               name: vlanId
@@ -401,6 +419,7 @@
                 dynamic_options:
                   values:
                     - '{"fieldId":"bc0282e1-72de-4471-a74a-997056a7352d"}'
+                extra_values_allowed: false
             ca3e35d8-9ca5-48d9-8fd2-73313dfe5986:
               id: ca3e35d8-9ca5-48d9-8fd2-73313dfe5986
               name: IPv4svi
@@ -434,6 +453,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             45264112-a099-4d0f-a94a-72c96da251dc:
               id: 45264112-a099-4d0f-a94a-72c96da251dc
               name: ipHelperAddress
@@ -449,6 +469,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             fd35e564-2973-4669-a94c-4b6098c46faf:
               id: fd35e564-2973-4669-a94c-4b6098c46faf
               name: iPv4HelperGroup
@@ -503,6 +524,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             239f08d4-dc71-4821-83ea-948eee1ae7cf:
               id: 239f08d4-dc71-4821-83ea-948eee1ae7cf
               name: iPv6RelayAddress
@@ -518,6 +540,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             35d4af9d-40e5-48c5-8506-9eb2ce2f84a5:
               id: 35d4af9d-40e5-48c5-8506-9eb2ce2f84a5
               name: iPv6RelayGroup
@@ -608,6 +631,7 @@
                 dynamic_options:
                   values:
                     - '{"fieldId":"bc0282e1-72de-4471-a74a-997056a7352d"}'
+                extra_values_allowed: false
             89bd3497-c160-4087-aabf-e122f9577911:
               id: 89bd3497-c160-4087-aabf-e122f9577911
               name: cidr
@@ -623,6 +647,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             0efb79db-aa33-4581-96f3-8e9b8e17015a:
               id: 0efb79db-aa33-4581-96f3-8e9b8e17015a
               name: servicesLoopbackGroup
@@ -660,6 +685,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             02a8b405-5d4e-4a02-8ff8-a1034244a9ed:
               id: 02a8b405-5d4e-4a02-8ff8-a1034244a9ed
               name: routeDistinguisher
@@ -675,6 +701,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             93d02725-369b-49de-8c2b-3ec302bdfe9f:
               id: 93d02725-369b-49de-8c2b-3ec302bdfe9f
               name: routeTarget
@@ -690,6 +717,7 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: false
             e62a6f6d-c684-4096-ab01-1605fc463fdd:
               id: e62a6f6d-c684-4096-ab01-1605fc463fdd
               name: l2VlanAwareBundleGp
