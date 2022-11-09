@@ -11,8 +11,8 @@
         type: TEMPLATE_TYPE_MAKO
         body: |-
           <%
-          # Version : 1.7       - Date : 11/01/2022
-          # resolvers aren't defined if there are no rows in them.  this leads to a potential bug on initial use
+          # Version : 1.10       - Date : 11/09/2022
+          # added IPv6 Route Target options
 
           # the debug boolean will dump data into the message of the day tag
           #  on the switch.  this is a rough way to get debug text out while
@@ -30,8 +30,8 @@
           #  for cvp to process the generated configuration it's important
           #  that the string be newLine terminated.  rather than requiring
           #  the user to specify that manually on every line we append it here
-          def output(outStr):
-              context.write(outStr)
+          def output(outStr, indent=2, level=0):
+              context.write(f'{outStr.rjust((indent*level)+len(outStr))}')
               context.write("\n")
 
           # this function find all values for a specified tag that are applied to a given device
@@ -60,7 +60,7 @@
           me=ctx.getDevice()
           workspaceID=ctx.studio.workspaceId
           if not dataCenters:
-              # we have no data centers defined, so there is nothing to do.  let's just terminated
+              # we have no data centers defined, so there is nothing to do.  let's just terminate
               return
           currentDC=dataCenters.resolve()
 
@@ -71,8 +71,11 @@
           deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'router_bgp.as'))
           deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'Role'))
           deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'router_bgp.router_id'))
-          deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'Border-Leaf-Number'))
-          deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'Leaf-Number'))
+          deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'NodeId'))
+          deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'BorderLeaf'))
+          deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'BL-Router-ID'))
+          # deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'Border-Leaf-Number'))
+          # deviceTags.update(getTagForDeviceByLabel(me.id, workspaceID, 'Leaf-Number'))
 
           if debug:
               output('banner motd')
@@ -87,89 +90,102 @@
           if 'Role' in deviceTags and len(deviceTags.get('Role')) >= 1 and deviceTags.get('Role')[0] == 'Leaf':
               output('vlan internal order descending range 4001 4090')
 
-              if len(deviceTags.get('Border-Leaf-Number', [])) != 0:
+              if deviceTags.get('BorderLeaf'):
                   output(f'router bgp {deviceTags.get("router_bgp.as")[0]}')
-                  output(f'bgp bestpath d-path')
-                  output(f'address-family evpn')
-                  output(f'neighbor EVPN-OVERLAY-PEERS default-route')
-                  output(f'domain identifier {deviceTags.get("router_bgp.as")[0]}:1')
+                  # output(f'router-id {deviceTags.get("BL-Router-ID")[0]}', level=2)
+                  output(f'bgp bestpath d-path', level=1)
+                  output(f'address-family evpn', level=1)
+                  output(f'neighbor EVPN-OVERLAY-PEERS default-route', level=2)
+                  output(f'domain identifier {deviceTags.get("router_bgp.as")[0]}:1', level=2)
                   #  these exit commands are important to dump us out of the bgp configuration since vrf
                   #   is a valid bgp command
-                  output(f'exit')
-                  output(f'exit')
+                  output(f'exit', level=2)
+                  output(f'exit', level=1)
 
               for vrf in currentDC.get('dataCenter', {}).get('VRFs', {}):
                   output(f'vrf instance {vrf.get("VRFname")}')
                   output(f'ip routing vrf {vrf.get("VRFname")}')
                   output('interface vxlan1')
-                  output(f'vxlan vrf {vrf.get("VRFname")} vni 10{vrf.get("routeTarget")}')
+                  output(f'vxlan vrf {vrf.get("VRFname")} vni 10{vrf.get("routeTarget")}', level=1)
                   output(f'router bgp {deviceTags.get("router_bgp.as")[0]}')
-                  output(f'vrf {vrf.get("VRFname")}')
-                  output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeTarget")}')
-                  output(f'evpn multicast')
-                  output(f'route-target import evpn {vrf.get("routeTarget")}:{vrf.get("routeTarget")}')
-                  output(f'route-target export evpn {vrf.get("routeTarget")}:{vrf.get("routeTarget")}')
+                  output(f'vrf {vrf.get("VRFname")}', level=1)
+
+                  if deviceTags.get('BL-Router-ID'):
+                      output(f'router-id {deviceTags.get("BL-Router-ID")[0]}', level=2)
+                      output(f'rd {deviceTags.get("BL-Router-ID")[0]}:{vrf.get("routeTarget")}', level=2)
+                  if not deviceTags.get('BL-Router-ID'):
+                      output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeTarget")}', level=2)
+
+                  output(f'evpn multicast', level=2)
+                  output(f'route-target import evpn {vrf.get("routeTarget")}:{vrf.get("routeTarget")}', level=2)
+                  output(f'route-target export evpn {vrf.get("routeTarget")}:{vrf.get("routeTarget")}', level=2)
+
                   # we add the Border-Leaf tag in this studio to identify which of the leafs in the fabric
                   #  connect externally.  in this studio, the border-leaf are the only devices where leaking
                   #  occurs
-                  if len(deviceTags.get('Border-Leaf-Number', [])) != 0:
-                      output(f'default-route export evpn always')
+
+                  if deviceTags.get('BorderLeaf'):
+                      output(f'default-route export evpn always', level=2)
                       
                       for leak in vrf.get('routeLeaking', []):
                           direction = leak.get('importExport', '')
                           if direction == 'Import & Export' or direction == 'Import Only':
-                              output(f'route-target import {leak.get("addressFamily")} {leak.get("routeTargetLeaking")}')
+                              if leak.get("addressFamily") == "VPN-IPv4 & IPv6":
+                                  output(f'route-target import vpn-ipv4 {leak.get("routeTargetLeaking")}', level=2)
+                                  output(f'route-target import vpn-ipv6 {leak.get("routeTargetLeaking")}', level=2)
+                              elif leak.get("addressFamily") != "VPN-IPv4 & IPv6":
+                                  output(f'route-target import {leak.get("addressFamily")} {leak.get("routeTargetLeaking")}', level=2)
                           if direction == 'Import & Export' or direction == 'Export Only':
-                              output(f'route-target export {leak.get("addressFamily")} {leak.get("routeTargetLeaking")}')
-                  output(f'redistribute connected')
+                              if leak.get("addressFamily") == "VPN-IPv4 & IPv6":
+                                  output(f'route-target export vpn-ipv4 {leak.get("routeTargetLeaking")}', level=2)
+                                  output(f'route-target export vpn-ipv6 {leak.get("routeTargetLeaking")}', level=2)
+                              elif leak.get("addressFamily") != "VPN-IPv4 & IPv6":
+                                  output(f'route-target export {leak.get("addressFamily")} {leak.get("routeTargetLeaking")}', level=2)
+                  output(f'redistribute connected', level=2)
 
                   # non border-leaf devices need a vlan-aware-bundle
-                  if len(deviceTags.get('Border-Leaf-Number', [])) == 0:
-                      output(f'vlan-aware-bundle {vrf.get("VRFname")}')
-                      output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeDistinguisher")}')
-                      # output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeTarget")}')
-                      output(f'route-target both {vrf.get("routeTarget")}:{vrf.get("routeTarget")}')
-                      output(f'redistribute learned')
+                  if not deviceTags.get('BorderLeaf'):
+                      output(f'vlan-aware-bundle {vrf.get("VRFname")}', level=1)
+                      output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{vrf.get("routeDistinguisher")}', level=2)
+                      output(f'route-target both {vrf.get("routeTarget")}:{vrf.get("routeTarget")}', level=2)
+                      output(f'redistribute learned', level=2)
 
                       for vlan in currentDC.get('dataCenter').get('VLANs'):
                           if vlan.get("vlanConfig").get('vrf') == vrf.get('VRFname'):
-                              output(f'vlan add {vlan.get("vlanId")}')
+                              output(f'vlan add {vlan.get("vlanId")}', level=2)
 
                   # these two lines are required because of the fact that vlan is a valid keyword inside router bgp and we need to get back to global config mode. 
                   #  removing these exits will break stuff
-                  output('exit')
-                  output('exit')
+                  output('exit', level=2)
+                  output('exit', level=1)
 
 
               loop2ipsplit = currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["cidr"].split('.')
               loop2mask = currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["cidr"].split('/')
-              loop2ip = f'{loop2ipsplit[0]}.{loop2ipsplit[1]}.{loop2ipsplit[2]}.{int(deviceTags.get("Leaf-Number")[0]) + 1}'
-              # output(f'ip address virtual source-nat vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} address {loop2ip}')
-              # output(f'interface loopback 2')
-              # output(f'vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]}')
-              # output(f'ip address {loop2ip}/32')
+              loop2ip = f'{loop2ipsplit[0]}.{loop2ipsplit[1]}.{loop2ipsplit[2]}.{int(deviceTags.get("NodeId")[0]) + 1}'
               
-              if len(deviceTags.get('Border-Leaf-Number', [])) == 0:
+
+              if not deviceTags.get('BorderLeaf'):
                   # MAC Aging
                   output(f'mac address-table aging-time 14400')
                   output(f'!')
                   # Multi-VTEP mlag
                   output(f'interface vxlan1')
-                  output(f'vxlan mlag source-interface loopback 1')
-                  output(f'vxlan source-interface loopback 0')
-                  output(f'ip address virtual source-nat vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} address {loop2ip}')
+                  output(f'vxlan mlag source-interface loopback 1', level=1)
+                  output(f'vxlan source-interface loopback 0', level=1)
+                  output(f'ip address virtual source-nat vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} address {loop2ip}', level=1)
                   output(f'interface loopback 2')
-                  output(f'vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]}')
-                  output(f'ip address {loop2ip}/32')
+                  output(f'vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]}', level=2)
+                  output(f'ip address {loop2ip}/32', level=2)
 
                   #This will create the L2 Vlan-Aware-Bundle on all standard leafs
                   if len(currentDC.get('dataCenter', {}).get('l2VlanAwareBundle', {})) == 1:
                       output(f'router bgp {deviceTags.get("router_bgp.as")[0]}')
-                      output(f'vlan-aware-bundle {currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["name"]}')
-                      output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["routeDistinguisher"]}')
-                      output(f'route-target both {currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["routeTarget"]}:{currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["routeTarget"]}')
-                      output(f'exit')
-                      output(f'exit')
+                      output(f'vlan-aware-bundle {currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["name"]}', level=1)
+                      output(f'rd {deviceTags.get("router_bgp.router_id")[0]}:{currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["routeDistinguisher"]}', level=2)
+                      output(f'route-target both {currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["routeTarget"]}:{currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["routeTarget"]}', level=2)
+                      output(f'exit', level=2)
+                      output(f'exit', level=1)
                   elif len(currentDC.get('dataCenter', {}).get('l2VlanAwareBundle', {})) != 1:
                       assert False, f'Only one "L2 VLAN-Aware-Bundle" can be defined'
 
@@ -178,34 +194,34 @@
                       if vlan.get("vlanId") not in configuredVlans and vlan.get("vlanId") not in range(4001, 4095):
                           configuredVlans.append(vlan.get("vlanId"))
                           output(f'vlan {vlan.get("vlanId")}')
-                          output(f'name {vlan.get("vlanNames").replace(" ", "_")}')
+                          output(f'name {vlan.get("vlanNames").replace(" ", "_")}', level=1)
                           if vlan.get('vlanConfig').get('IPv4svi', False) == True or vlan.get('iPv6Svi', False) == True:
                               output(f'interface vlan{vlan.get("vlanId")}')
-                              output(f'mtu 9164')
-                              output(f'vrf {vlan.get("vlanConfig").get("vrf")}')
+                              output(f'mtu 9164', level=1)
+                              output(f'vrf {vlan.get("vlanConfig").get("vrf")}', level=1)
                               if vlan.get('vlanConfig').get('IPv4svi') == True:
-                                  output(f'ip address virtual {vlan.get("vlanConfig").get("iPv4Address")}')
+                                  output(f'ip address virtual {vlan.get("vlanConfig").get("iPv4Address")}', level=1)
                                   if not vlan.get("vlanConfig").get('enableIPv4Svi'):
-                                      output('shutdown')
+                                      output('shutdown', level=1)
                                   if len(vlan.get('vlanConfig').get('iPv4Helper')) > 0:
                                       for helper in vlan.get('vlanConfig').get('iPv4Helper', []):
-                                          output(f'ip helper-address {helper["ipHelperAddress"]} vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} source-interface Loopback2')
-                                      output('ip helper-address 127.0.0.1')
+                                          output(f'ip helper-address {helper["ipHelperAddress"]} vrf {currentDC.get("dataCenter", {}).get("servicesLoopback", {})[0]["vrf"]} source-interface Loopback2', level=1)
+                                      output('ip helper-address 127.0.0.1', level=1)
                                   if vlan.get('vlanConfig').get('enableMulticast') == True:
-                                      output('pim ipv4 sparse-mode')
-                                      output('pim ipv4 dr-priority 200')
-                                      output('pim ipv4 local-interface Loopback2')
+                                      output('pim ipv4 sparse-mode', level=1)
+                                      output('pim ipv4 dr-priority 200', level=1)
+                                      output('pim ipv4 local-interface Loopback2', level=1)
                               if vlan.get('vlanConfig').get('iPv6Svi') == True:
-                                  output(f'ipv6 address virtual {vlan.get("vlanConfig").get("iPv6Address")}')
+                                  output(f'ipv6 address virtual {vlan.get("vlanConfig").get("iPv6Address")}', level=1)
                                   for helper in vlan.get('vlanConfig').get('iPv6Relay'):
                                       output(f'ipv6 helper-address {helper}')
                                   output(f'ipv6 unicast-routing vrf {vlan.get("vlanConfig").get("vrf")}')
                           elif vlan.get('vlanConfig').get('IPv4svi', False) == False and vlan.get('vlanConfig').get('iPv6Svi', False) == False:
                               output(f'router bgp {deviceTags.get("router_bgp.as")[0]}')
-                              output(f'vlan-aware-bundle {currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["name"]}')
-                              output(f'vlan add {vlan.get("vlanId")}')
-                              output(f'exit')
-                              output(f'exit')
+                              output(f'vlan-aware-bundle {currentDC.get("dataCenter", {}).get("l2VlanAwareBundle", {})[0]["name"]}', level=1)
+                              output(f'vlan add {vlan.get("vlanId")}', level=2)
+                              output(f'exit', level=2)
+                              output(f'exit', level=1)
 
                       elif vlan.get("vlanConfig").get("vlanId") in configuredVlans or vlan.get("vlanConfig").get("vlanId") in range(4001, 4095):
                           assert False, f'vlan {vlan.get("vlanId")} is either reserved or already allocated.'
@@ -214,10 +230,10 @@
                   output(f'interface vxlan1')
 
                   if mapAllVNIs == True:
-                      output(f'vxlan vlan 2-4000 vni 2-4000')
+                      output(f'vxlan vlan 2-4000 vni 2-4000', level=1)
                   elif mapAllVNIs == False: 
                       for vlan in configuredVlans:
-                          output(f'vxlan vlan add {vlan } vni {vlan}')
+                          output(f'vxlan vlan add {vlan } vni {vlan}', level=1)
 
               
           %>  
@@ -290,6 +306,8 @@
                   values:
                     - EVPN
                     - VPN-IPv4
+                    - VPN-IPv6
+                    - VPN-IPv4 & IPv6
                 format: null
                 length: null
                 pattern: null
@@ -780,4 +798,4 @@
                   values:
                     - 35cb7246-ac5d-4b73-a647-636df86453b5
         layout:
-          value: '{"0f5ccac4-0238-4523-86e5-bb7e9a5856eb":{"key":"0f5ccac4-0238-4523-86e5-bb7e9a5856eb","type":"INPUT","dependencyType":"OR"},"1a641ea7-8b70-49df-8ce0-dfb6cc4934a1":{"key":"1a641ea7-8b70-49df-8ce0-dfb6cc4934a1","type":"INPUT","order":[]},"38fab0b4-9898-4699-acef-507ed133d5d0":{"key":"38fab0b4-9898-4699-acef-507ed133d5d0","dependency":{"54e7463d-335e-445c-b139-e37261f0b21f":{"value":[true],"mode":"HIDE"}},"dependencyType":"AND","type":"INPUT"},"2102a89f-8500-408b-94a2-3066e5f2af5f":{"key":"2102a89f-8500-408b-94a2-3066e5f2af5f","dependency":{"54e7463d-335e-445c-b139-e37261f0b21f":{"value":[true],"mode":"SHOW"}},"dependencyType":"AND","type":"INPUT"},"ce514696-414e-4dff-830e-6d587dff14f6":{"key":"ce514696-414e-4dff-830e-6d587dff14f6","type":"INPUT","order":["850ab32e-0417-46ba-b123-25a291e1f2b3","29884d0d-4bbf-405d-81b9-ac44d21e7a6b","6bd3cc21-8eca-4d79-8dae-4d3ea1adf619"]},"850ab32e-0417-46ba-b123-25a291e1f2b3":{"key":"850ab32e-0417-46ba-b123-25a291e1f2b3","type":"INPUT","order":["e603d902-846f-4c8e-be80-918bdb51f499","54e7463d-335e-445c-b139-e37261f0b21f","2102a89f-8500-408b-94a2-3066e5f2af5f","69c691e4-5576-4372-9dae-9c37be128053","e35b0860-8a92-47fb-b901-f5abba247666","3d251962-caa7-4195-a4fc-e95abdb5a1d6","0f5ccac4-0238-4523-86e5-bb7e9a5856eb"]},"54e7463d-335e-445c-b139-e37261f0b21f":{"key":"54e7463d-335e-445c-b139-e37261f0b21f","dependency":{},"dependencyType":"OR","type":"INPUT"},"e35b0860-8a92-47fb-b901-f5abba247666":{"key":"e35b0860-8a92-47fb-b901-f5abba247666","type":"INPUT","dependencyType":"AND","dependency":{"69c691e4-5576-4372-9dae-9c37be128053":{"value":[true],"mode":"SHOW"}}},"f578d07a-bff9-42e6-8b3e-d0d8ee1e5e44":{"key":"f578d07a-bff9-42e6-8b3e-d0d8ee1e5e44","type":"INPUT","dependencyType":"AND","dependency":{"69c691e4-5576-4372-9dae-9c37be128053":{"value":[true],"mode":"SHOW"}}},"b3b075d3-7ffc-4ec3-98c2-bace77546418":{"key":"b3b075d3-7ffc-4ec3-98c2-bace77546418","type":"INPUT","dependencyType":"AND","dependency":{"7c7e0618-e94a-4fd5-9297-459f8c9754ba":{"value":[true],"mode":"SHOW"}}},"384bd6f7-f8e9-448f-a24c-6b672bfd1e60":{"key":"384bd6f7-f8e9-448f-a24c-6b672bfd1e60","isPageLayout":false,"type":"INPUT"},"1c468ccf-7ad9-42dd-836f-96885a70a105":{"key":"1c468ccf-7ad9-42dd-836f-96885a70a105","isPageLayout":false,"type":"INPUT"},"e79ed5f8-6675-4afc-b9a5-e646a2c51ebd":{"key":"e79ed5f8-6675-4afc-b9a5-e646a2c51ebd","type":"INPUT","dependencyType":"AND"},"470acc95-64b2-48f7-aaf1-a6fb17832e9b":{"key":"470acc95-64b2-48f7-aaf1-a6fb17832e9b","type":"INPUT","dependencyType":"AND","dependency":{"db82b0fa-0194-4091-94c1-6f2502738931":{"value":[true],"mode":"SHOW"}}},"0da8e8b5-a208-468f-bced-290074199f1d":{"key":"0da8e8b5-a208-468f-bced-290074199f1d","type":"INPUT","isPageLayout":true},"9d531dee-ecc6-4f44-a581-ec015045fb5e":{"key":"9d531dee-ecc6-4f44-a581-ec015045fb5e","type":"INPUT","order":["59c6066e-a55d-4c5d-b875-cc2853e26ac3","52fc6976-48a6-49fd-917d-ad8233c02963","4710e7c0-10a8-47aa-88db-e828600c4cd4","6b3bd680-3b3a-4b4c-b608-0e62095d29d3","0cfc23bd-6a08-47a9-be2c-d135ea04206b"]},"486e4808-b0ac-43b9-8bcc-b93ddeed9e2d":{"key":"486e4808-b0ac-43b9-8bcc-b93ddeed9e2d","type":"INPUT","dependencyType":"AND","dependency":{"d1d9d92a-63d8-47c4-8bcf-471f11897e60":{"value":[true],"mode":"SHOW"}}},"5bbe5561-5834-4e1b-93c3-a2fb78e21f03":{"key":"5bbe5561-5834-4e1b-93c3-a2fb78e21f03","type":"INPUT","dependencyType":"AND","dependency":{"0d632250-0e04-407f-a676-c78a3da010aa":{"value":[true],"mode":"SHOW"}}},"0b1a1324-47a3-4bfc-8b6e-a2255646baad":{"key":"0b1a1324-47a3-4bfc-8b6e-a2255646baad","type":"INPUT","order":[]},"f5b85228-b12d-4a94-b5b9-0c8c05d94a2b":{"key":"f5b85228-b12d-4a94-b5b9-0c8c05d94a2b","type":"INPUT","order":["d1d9d92a-63d8-47c4-8bcf-471f11897e60","486e4808-b0ac-43b9-8bcc-b93ddeed9e2d","0d632250-0e04-407f-a676-c78a3da010aa","9d5b91ae-87f9-4961-a6c3-60fe6959b802"]},"64fa723f-e010-4fa8-b03e-128f2f5a9901":{"key":"64fa723f-e010-4fa8-b03e-128f2f5a9901","type":"INPUT","isPageLayout":true},"3617a816-5557-4590-9a58-6323f97bc1c0":{"key":"3617a816-5557-4590-9a58-6323f97bc1c0","type":"INPUT","isPageLayout":true},"89b9faac-b9ca-4a3f-b10c-297baca5beee":{"key":"89b9faac-b9ca-4a3f-b10c-297baca5beee","type":"INPUT","order":["5c6bfd7c-1175-416d-b940-28c9a407c159","88c42c7b-784e-46db-b213-38e23316eaf0","16fdb3e8-97f6-49b4-b081-e6db4cef03e2"]},"f53a02f2-9289-49e7-8976-d6baa4d59adf":{"key":"f53a02f2-9289-49e7-8976-d6baa4d59adf","type":"INPUT","order":["db82b0fa-0194-4091-94c1-6f2502738931","470acc95-64b2-48f7-aaf1-a6fb17832e9b"]},"88c42c7b-784e-46db-b213-38e23316eaf0":{"key":"88c42c7b-784e-46db-b213-38e23316eaf0","type":"INPUT","isPageLayout":true},"16fdb3e8-97f6-49b4-b081-e6db4cef03e2":{"key":"16fdb3e8-97f6-49b4-b081-e6db4cef03e2","type":"INPUT","isPageLayout":true},"0cfc23bd-6a08-47a9-be2c-d135ea04206b":{"key":"0cfc23bd-6a08-47a9-be2c-d135ea04206b","isPageLayout":false,"order":["89b9faac-b9ca-4a3f-b10c-297baca5beee"],"type":"INPUT"},"eae40efe-baf8-4bda-9754-69b23498513d":{"key":"eae40efe-baf8-4bda-9754-69b23498513d","type":"INPUT","dependencyType":"OR"},"9e57377a-43e0-44b1-afc8-ba857fb7a7e2":{"key":"9e57377a-43e0-44b1-afc8-ba857fb7a7e2","type":"INPUT","valueToLabelMap":{"True":"Routed","False":"Bridged"}},"6b904cc5-b9ad-4535-ac9f-aa2287c4cec6":{"key":"6b904cc5-b9ad-4535-ac9f-aa2287c4cec6","isPageLayout":false,"type":"INPUT"},"67601641-9d6c-414f-98d3-ab79d64ef447":{"key":"67601641-9d6c-414f-98d3-ab79d64ef447","type":"INPUT","order":["6cf28fad-c693-4788-9bcb-da29e414608c","c63006a7-fa8c-4d13-87c2-ff1b5b4a8af4","5269e492-028e-4130-a444-d4f6a02c5582"]},"b9b99cb6-f5d7-4139-8d07-a6730dae1a74":{"key":"b9b99cb6-f5d7-4139-8d07-a6730dae1a74","type":"INPUT","dependencyType":"AND","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}}},"02352049-9e40-4307-8e5f-772dc06b6aed":{"key":"02352049-9e40-4307-8e5f-772dc06b6aed","type":"INPUT","dependencyType":"AND","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"b40bcaea-3654-4891-9dc2-926755f639cd":{"key":"b40bcaea-3654-4891-9dc2-926755f639cd","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"239f08d4-dc71-4821-83ea-948eee1ae7cf":{"key":"239f08d4-dc71-4821-83ea-948eee1ae7cf","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"87fd081e-f609-40e4-bb0d-90809907c575":{"key":"87fd081e-f609-40e4-bb0d-90809907c575","type":"INPUT","order":["e0eaecc1-c1ca-407f-bed5-8c2e79881919"]},"6df6bf9d-46d2-4ac0-8e27-ea1790e95178":{"key":"6df6bf9d-46d2-4ac0-8e27-ea1790e95178","type":"INPUT","order":["31d2cbd8-26e8-4c18-88f1-091b70f21b23","59e4863f-6bc4-4b2e-a3d3-5acc76ab03ba","762b31b9-1d22-40ed-9f6b-34a7fc924d70","44487f91-5684-43f4-a299-f8b09b9e4ff9","51628cda-5aa4-459f-92e0-8aeb811e7842","b55be1fe-a670-4922-85ac-f0bfeda508c0"]},"8b907c6f-3081-4070-a1a3-03e22ac0d4f3":{"key":"8b907c6f-3081-4070-a1a3-03e22ac0d4f3","type":"INPUT","isPageLayout":false},"fa7b94f5-7f70-4d27-9a18-bafa3b374505":{"key":"fa7b94f5-7f70-4d27-9a18-bafa3b374505","type":"INPUT","isPageLayout":true},"44487f91-5684-43f4-a299-f8b09b9e4ff9":{"key":"44487f91-5684-43f4-a299-f8b09b9e4ff9","type":"INPUT","isPageLayout":true},"b55be1fe-a670-4922-85ac-f0bfeda508c0":{"key":"b55be1fe-a670-4922-85ac-f0bfeda508c0","type":"INPUT","isPageLayout":true},"c457df5d-ca10-42af-b737-3abdc202a151":{"key":"c457df5d-ca10-42af-b737-3abdc202a151","type":"INPUT","isPageLayout":false},"b71b5f56-2279-4ea3-98b4-a9c8fe95ad9c":{"key":"b71b5f56-2279-4ea3-98b4-a9c8fe95ad9c","type":"INPUT","isPageLayout":false},"2c0ef47c-7ff5-4538-9707-3f44d215a2a7":{"type":"TAGGER","parentKey":"95f39a91-3591-44d7-b5b5-3ff7b8198149","key":"2c0ef47c-7ff5-4538-9707-3f44d215a2a7","name":"Fabric Device","assignmentType":"MULTIPLE","prepopulate":true,"tagType":"DEVICE","description":"The devices in this DC.  Each device must have a role of ''Border-Leaf'', ''Leaf'', or ''Spine'', and a unique number for it''s role type.","columns":[{"tagLabel":"Role","suggestedValues":["Spine","Leaf","Border-Leaf"]},{"tagLabel":"Spine-Number","suggestedValues":[]},{"tagLabel":"Border-Leaf-Number","suggestedValues":[]},{"tagLabel":"Leaf-Number","suggestedValues":[]}]},"661b8639-a223-44c7-9ed5-c3a377a58d9e":{"key":"661b8639-a223-44c7-9ed5-c3a377a58d9e","type":"INPUT","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}}},"32b07658-93b8-4c85-86d6-788aa8eec5dd":{"key":"32b07658-93b8-4c85-86d6-788aa8eec5dd","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"722b239c-d80e-42a4-84dd-ae05b0ced53b":{"key":"722b239c-d80e-42a4-84dd-ae05b0ced53b","type":"INPUT","isPageLayout":false},"ad4cdb9b-6afa-4175-a1d8-eba1dfe08c2b":{"key":"ad4cdb9b-6afa-4175-a1d8-eba1dfe08c2b","type":"INPUT","isPageLayout":true},"79a82909-bba2-488b-97a5-d5bbdf43bcac":{"key":"79a82909-bba2-488b-97a5-d5bbdf43bcac","type":"INPUT","order":["a5d1edc9-6f97-41ab-8f88-3e328643f789","6ecb18ed-f75b-405e-a2ac-5550568a2a0d"]},"eb89398d-7e86-45b6-aa8a-1e3583b2ce1c":{"key":"eb89398d-7e86-45b6-aa8a-1e3583b2ce1c","type":"INPUT","order":["bc0282e1-72de-4471-a74a-997056a7352d","027066d4-3bfd-468e-a56c-a6bdb09d3ca6","efe2c930-e306-428d-a7cc-60ab509d82dd","c457df5d-ca10-42af-b737-3abdc202a151"]},"608a1b6d-3d1b-4bd4-ba2b-7f2e98c98f77":{"key":"608a1b6d-3d1b-4bd4-ba2b-7f2e98c98f77","type":"INPUT","order":["63161ddc-4ebf-4b37-95ec-fb025085c6b1","77a3a208-100d-4daa-99fe-e8ddb3fd1d9c","85cbb379-539d-4162-99bd-6a098e57b281"]},"e581b7f7-cd52-487c-b5ff-7918cb659682":{"key":"e581b7f7-cd52-487c-b5ff-7918cb659682","dependency":{},"type":"INPUT"},"95f39a91-3591-44d7-b5b5-3ff7b8198149":{"key":"95f39a91-3591-44d7-b5b5-3ff7b8198149","type":"INPUT","order":["384bd6f7-f8e9-448f-a24c-6b672bfd1e60","6b904cc5-b9ad-4535-ac9f-aa2287c4cec6","e72c2a49-5e9d-4780-b81a-5b89d3a97cf8","950ea5a7-9a40-49d5-a302-3a7678f8c8c9","2c0ef47c-7ff5-4538-9707-3f44d215a2a7"]},"ea0da063-be37-434a-82b7-964b41ad06e0":{"key":"ea0da063-be37-434a-82b7-964b41ad06e0","type":"INPUT","order":["c925b24f-26b3-4cf7-9e38-17e95dde5a1a","4fcaff1d-9087-4fe7-8d72-2af65ab4bcb6","993debe1-67d3-41cc-b2d6-fa5b1fc74335"]},"ee20c435-04fe-4774-a3e4-9c09cde49350":{"key":"ee20c435-04fe-4774-a3e4-9c09cde49350","isPageLayout":false,"type":"INPUT"},"8192e883-46cb-4952-872a-357aeda4d78c":{"key":"8192e883-46cb-4952-872a-357aeda4d78c","dependency":{"91f66df6-d5d4-4712-87ad-a081ab4f14bc":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"fe02e134-09fa-4e57-ba71-9249443b8766":{"key":"fe02e134-09fa-4e57-ba71-9249443b8766","type":"INPUT","order":["e136c903-02ef-4f1f-80cd-0cfaa786c386","91f66df6-d5d4-4712-87ad-a081ab4f14bc","9b252520-98a6-44b8-93e6-259edc615db8","8192e883-46cb-4952-872a-357aeda4d78c","5c3a0603-6776-41b5-a325-727f8e661bc1","5edacef0-bbf9-4998-a05f-c663d9e4481b","e7a9de5e-974c-43b9-83ae-8bacad00a67b","d8406cf7-7d0f-4928-88b4-540ab5b6836a","bd0618eb-66e8-4b5f-b5c5-70b52bca7299","25ff931e-3736-428f-9a26-f51dfd266f40"]},"9b252520-98a6-44b8-93e6-259edc615db8":{"key":"9b252520-98a6-44b8-93e6-259edc615db8","type":"INPUT","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}}},"e7a9de5e-974c-43b9-83ae-8bacad00a67b":{"key":"e7a9de5e-974c-43b9-83ae-8bacad00a67b","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"757265d1-8882-45df-a08c-21f74d64b004":{"key":"757265d1-8882-45df-a08c-21f74d64b004","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}}}'
+          value: '{"0f5ccac4-0238-4523-86e5-bb7e9a5856eb":{"key":"0f5ccac4-0238-4523-86e5-bb7e9a5856eb","type":"INPUT","dependencyType":"OR"},"1a641ea7-8b70-49df-8ce0-dfb6cc4934a1":{"key":"1a641ea7-8b70-49df-8ce0-dfb6cc4934a1","type":"INPUT","order":[]},"38fab0b4-9898-4699-acef-507ed133d5d0":{"key":"38fab0b4-9898-4699-acef-507ed133d5d0","dependency":{"54e7463d-335e-445c-b139-e37261f0b21f":{"value":[true],"mode":"HIDE"}},"dependencyType":"AND","type":"INPUT"},"2102a89f-8500-408b-94a2-3066e5f2af5f":{"key":"2102a89f-8500-408b-94a2-3066e5f2af5f","dependency":{"54e7463d-335e-445c-b139-e37261f0b21f":{"value":[true],"mode":"SHOW"}},"dependencyType":"AND","type":"INPUT"},"ce514696-414e-4dff-830e-6d587dff14f6":{"key":"ce514696-414e-4dff-830e-6d587dff14f6","type":"INPUT","order":["850ab32e-0417-46ba-b123-25a291e1f2b3","29884d0d-4bbf-405d-81b9-ac44d21e7a6b","6bd3cc21-8eca-4d79-8dae-4d3ea1adf619"]},"850ab32e-0417-46ba-b123-25a291e1f2b3":{"key":"850ab32e-0417-46ba-b123-25a291e1f2b3","type":"INPUT","order":["e603d902-846f-4c8e-be80-918bdb51f499","54e7463d-335e-445c-b139-e37261f0b21f","2102a89f-8500-408b-94a2-3066e5f2af5f","69c691e4-5576-4372-9dae-9c37be128053","e35b0860-8a92-47fb-b901-f5abba247666","3d251962-caa7-4195-a4fc-e95abdb5a1d6","0f5ccac4-0238-4523-86e5-bb7e9a5856eb"]},"54e7463d-335e-445c-b139-e37261f0b21f":{"key":"54e7463d-335e-445c-b139-e37261f0b21f","dependency":{},"dependencyType":"OR","type":"INPUT"},"e35b0860-8a92-47fb-b901-f5abba247666":{"key":"e35b0860-8a92-47fb-b901-f5abba247666","type":"INPUT","dependencyType":"AND","dependency":{"69c691e4-5576-4372-9dae-9c37be128053":{"value":[true],"mode":"SHOW"}}},"f578d07a-bff9-42e6-8b3e-d0d8ee1e5e44":{"key":"f578d07a-bff9-42e6-8b3e-d0d8ee1e5e44","type":"INPUT","dependencyType":"AND","dependency":{"69c691e4-5576-4372-9dae-9c37be128053":{"value":[true],"mode":"SHOW"}}},"b3b075d3-7ffc-4ec3-98c2-bace77546418":{"key":"b3b075d3-7ffc-4ec3-98c2-bace77546418","type":"INPUT","dependencyType":"AND","dependency":{"7c7e0618-e94a-4fd5-9297-459f8c9754ba":{"value":[true],"mode":"SHOW"}}},"384bd6f7-f8e9-448f-a24c-6b672bfd1e60":{"key":"384bd6f7-f8e9-448f-a24c-6b672bfd1e60","isPageLayout":false,"type":"INPUT"},"1c468ccf-7ad9-42dd-836f-96885a70a105":{"key":"1c468ccf-7ad9-42dd-836f-96885a70a105","isPageLayout":false,"type":"INPUT"},"e79ed5f8-6675-4afc-b9a5-e646a2c51ebd":{"key":"e79ed5f8-6675-4afc-b9a5-e646a2c51ebd","type":"INPUT","dependencyType":"AND"},"470acc95-64b2-48f7-aaf1-a6fb17832e9b":{"key":"470acc95-64b2-48f7-aaf1-a6fb17832e9b","type":"INPUT","dependencyType":"AND","dependency":{"db82b0fa-0194-4091-94c1-6f2502738931":{"value":[true],"mode":"SHOW"}}},"0da8e8b5-a208-468f-bced-290074199f1d":{"key":"0da8e8b5-a208-468f-bced-290074199f1d","type":"INPUT","isPageLayout":true},"9d531dee-ecc6-4f44-a581-ec015045fb5e":{"key":"9d531dee-ecc6-4f44-a581-ec015045fb5e","type":"INPUT","order":["59c6066e-a55d-4c5d-b875-cc2853e26ac3","52fc6976-48a6-49fd-917d-ad8233c02963","4710e7c0-10a8-47aa-88db-e828600c4cd4","6b3bd680-3b3a-4b4c-b608-0e62095d29d3","0cfc23bd-6a08-47a9-be2c-d135ea04206b"]},"486e4808-b0ac-43b9-8bcc-b93ddeed9e2d":{"key":"486e4808-b0ac-43b9-8bcc-b93ddeed9e2d","type":"INPUT","dependencyType":"AND","dependency":{"d1d9d92a-63d8-47c4-8bcf-471f11897e60":{"value":[true],"mode":"SHOW"}}},"5bbe5561-5834-4e1b-93c3-a2fb78e21f03":{"key":"5bbe5561-5834-4e1b-93c3-a2fb78e21f03","type":"INPUT","dependencyType":"AND","dependency":{"0d632250-0e04-407f-a676-c78a3da010aa":{"value":[true],"mode":"SHOW"}}},"0b1a1324-47a3-4bfc-8b6e-a2255646baad":{"key":"0b1a1324-47a3-4bfc-8b6e-a2255646baad","type":"INPUT","order":[]},"f5b85228-b12d-4a94-b5b9-0c8c05d94a2b":{"key":"f5b85228-b12d-4a94-b5b9-0c8c05d94a2b","type":"INPUT","order":["d1d9d92a-63d8-47c4-8bcf-471f11897e60","486e4808-b0ac-43b9-8bcc-b93ddeed9e2d","0d632250-0e04-407f-a676-c78a3da010aa","9d5b91ae-87f9-4961-a6c3-60fe6959b802"]},"64fa723f-e010-4fa8-b03e-128f2f5a9901":{"key":"64fa723f-e010-4fa8-b03e-128f2f5a9901","type":"INPUT","isPageLayout":true},"3617a816-5557-4590-9a58-6323f97bc1c0":{"key":"3617a816-5557-4590-9a58-6323f97bc1c0","type":"INPUT","isPageLayout":true},"89b9faac-b9ca-4a3f-b10c-297baca5beee":{"key":"89b9faac-b9ca-4a3f-b10c-297baca5beee","type":"INPUT","order":["5c6bfd7c-1175-416d-b940-28c9a407c159","88c42c7b-784e-46db-b213-38e23316eaf0","16fdb3e8-97f6-49b4-b081-e6db4cef03e2"]},"f53a02f2-9289-49e7-8976-d6baa4d59adf":{"key":"f53a02f2-9289-49e7-8976-d6baa4d59adf","type":"INPUT","order":["db82b0fa-0194-4091-94c1-6f2502738931","470acc95-64b2-48f7-aaf1-a6fb17832e9b"]},"88c42c7b-784e-46db-b213-38e23316eaf0":{"key":"88c42c7b-784e-46db-b213-38e23316eaf0","type":"INPUT","isPageLayout":true},"16fdb3e8-97f6-49b4-b081-e6db4cef03e2":{"key":"16fdb3e8-97f6-49b4-b081-e6db4cef03e2","type":"INPUT","isPageLayout":true},"0cfc23bd-6a08-47a9-be2c-d135ea04206b":{"key":"0cfc23bd-6a08-47a9-be2c-d135ea04206b","isPageLayout":false,"order":["89b9faac-b9ca-4a3f-b10c-297baca5beee"],"type":"INPUT"},"eae40efe-baf8-4bda-9754-69b23498513d":{"key":"eae40efe-baf8-4bda-9754-69b23498513d","type":"INPUT","dependencyType":"OR"},"9e57377a-43e0-44b1-afc8-ba857fb7a7e2":{"key":"9e57377a-43e0-44b1-afc8-ba857fb7a7e2","type":"INPUT","valueToLabelMap":{"True":"Routed","False":"Bridged"}},"6b904cc5-b9ad-4535-ac9f-aa2287c4cec6":{"key":"6b904cc5-b9ad-4535-ac9f-aa2287c4cec6","isPageLayout":false,"type":"INPUT"},"67601641-9d6c-414f-98d3-ab79d64ef447":{"key":"67601641-9d6c-414f-98d3-ab79d64ef447","type":"INPUT","order":["6cf28fad-c693-4788-9bcb-da29e414608c","c63006a7-fa8c-4d13-87c2-ff1b5b4a8af4","5269e492-028e-4130-a444-d4f6a02c5582"]},"b9b99cb6-f5d7-4139-8d07-a6730dae1a74":{"key":"b9b99cb6-f5d7-4139-8d07-a6730dae1a74","type":"INPUT","dependencyType":"AND","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}}},"02352049-9e40-4307-8e5f-772dc06b6aed":{"key":"02352049-9e40-4307-8e5f-772dc06b6aed","type":"INPUT","dependencyType":"AND","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"b40bcaea-3654-4891-9dc2-926755f639cd":{"key":"b40bcaea-3654-4891-9dc2-926755f639cd","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"239f08d4-dc71-4821-83ea-948eee1ae7cf":{"key":"239f08d4-dc71-4821-83ea-948eee1ae7cf","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"87fd081e-f609-40e4-bb0d-90809907c575":{"key":"87fd081e-f609-40e4-bb0d-90809907c575","type":"INPUT","order":["e0eaecc1-c1ca-407f-bed5-8c2e79881919"]},"6df6bf9d-46d2-4ac0-8e27-ea1790e95178":{"key":"6df6bf9d-46d2-4ac0-8e27-ea1790e95178","type":"INPUT","order":["31d2cbd8-26e8-4c18-88f1-091b70f21b23","59e4863f-6bc4-4b2e-a3d3-5acc76ab03ba","762b31b9-1d22-40ed-9f6b-34a7fc924d70","44487f91-5684-43f4-a299-f8b09b9e4ff9","51628cda-5aa4-459f-92e0-8aeb811e7842","b55be1fe-a670-4922-85ac-f0bfeda508c0"]},"8b907c6f-3081-4070-a1a3-03e22ac0d4f3":{"key":"8b907c6f-3081-4070-a1a3-03e22ac0d4f3","type":"INPUT","isPageLayout":false},"fa7b94f5-7f70-4d27-9a18-bafa3b374505":{"key":"fa7b94f5-7f70-4d27-9a18-bafa3b374505","type":"INPUT","isPageLayout":true},"44487f91-5684-43f4-a299-f8b09b9e4ff9":{"key":"44487f91-5684-43f4-a299-f8b09b9e4ff9","type":"INPUT","isPageLayout":true},"b55be1fe-a670-4922-85ac-f0bfeda508c0":{"key":"b55be1fe-a670-4922-85ac-f0bfeda508c0","type":"INPUT","isPageLayout":true},"c457df5d-ca10-42af-b737-3abdc202a151":{"key":"c457df5d-ca10-42af-b737-3abdc202a151","type":"INPUT","isPageLayout":false},"b71b5f56-2279-4ea3-98b4-a9c8fe95ad9c":{"key":"b71b5f56-2279-4ea3-98b4-a9c8fe95ad9c","type":"INPUT","isPageLayout":false},"2c0ef47c-7ff5-4538-9707-3f44d215a2a7":{"type":"TAGGER","parentKey":"95f39a91-3591-44d7-b5b5-3ff7b8198149","key":"2c0ef47c-7ff5-4538-9707-3f44d215a2a7","name":"Fabric Device","assignmentType":"MULTIPLE","prepopulate":true,"tagType":"DEVICE","description":"The devices in this DC.  Each device must have a role of ''Border-Leaf'', ''Leaf'', or ''Spine'', and a unique number for it''s role type.","columns":[{"tagLabel":"Role","suggestedValues":["Spine","Leaf"]},{"tagLabel":"NodeId","suggestedValues":[]},{"tagLabel":"BorderLeaf","suggestedValues":["True"]},{"tagLabel":"BL-Router-ID","suggestedValues":[]}]},"661b8639-a223-44c7-9ed5-c3a377a58d9e":{"key":"661b8639-a223-44c7-9ed5-c3a377a58d9e","type":"INPUT","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}}},"32b07658-93b8-4c85-86d6-788aa8eec5dd":{"key":"32b07658-93b8-4c85-86d6-788aa8eec5dd","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"722b239c-d80e-42a4-84dd-ae05b0ced53b":{"key":"722b239c-d80e-42a4-84dd-ae05b0ced53b","type":"INPUT","isPageLayout":false},"ad4cdb9b-6afa-4175-a1d8-eba1dfe08c2b":{"key":"ad4cdb9b-6afa-4175-a1d8-eba1dfe08c2b","type":"INPUT","isPageLayout":true},"79a82909-bba2-488b-97a5-d5bbdf43bcac":{"key":"79a82909-bba2-488b-97a5-d5bbdf43bcac","type":"INPUT","order":["a5d1edc9-6f97-41ab-8f88-3e328643f789","6ecb18ed-f75b-405e-a2ac-5550568a2a0d"]},"eb89398d-7e86-45b6-aa8a-1e3583b2ce1c":{"key":"eb89398d-7e86-45b6-aa8a-1e3583b2ce1c","type":"INPUT","order":["bc0282e1-72de-4471-a74a-997056a7352d","027066d4-3bfd-468e-a56c-a6bdb09d3ca6","efe2c930-e306-428d-a7cc-60ab509d82dd","c457df5d-ca10-42af-b737-3abdc202a151"]},"608a1b6d-3d1b-4bd4-ba2b-7f2e98c98f77":{"key":"608a1b6d-3d1b-4bd4-ba2b-7f2e98c98f77","type":"INPUT","order":["63161ddc-4ebf-4b37-95ec-fb025085c6b1","77a3a208-100d-4daa-99fe-e8ddb3fd1d9c","85cbb379-539d-4162-99bd-6a098e57b281"]},"e581b7f7-cd52-487c-b5ff-7918cb659682":{"key":"e581b7f7-cd52-487c-b5ff-7918cb659682","dependency":{},"type":"INPUT"},"95f39a91-3591-44d7-b5b5-3ff7b8198149":{"key":"95f39a91-3591-44d7-b5b5-3ff7b8198149","type":"INPUT","order":["384bd6f7-f8e9-448f-a24c-6b672bfd1e60","6b904cc5-b9ad-4535-ac9f-aa2287c4cec6","e72c2a49-5e9d-4780-b81a-5b89d3a97cf8","950ea5a7-9a40-49d5-a302-3a7678f8c8c9","2c0ef47c-7ff5-4538-9707-3f44d215a2a7"]},"ea0da063-be37-434a-82b7-964b41ad06e0":{"key":"ea0da063-be37-434a-82b7-964b41ad06e0","type":"INPUT","order":["c925b24f-26b3-4cf7-9e38-17e95dde5a1a","4fcaff1d-9087-4fe7-8d72-2af65ab4bcb6","993debe1-67d3-41cc-b2d6-fa5b1fc74335"]},"ee20c435-04fe-4774-a3e4-9c09cde49350":{"key":"ee20c435-04fe-4774-a3e4-9c09cde49350","isPageLayout":false,"type":"INPUT"},"8192e883-46cb-4952-872a-357aeda4d78c":{"key":"8192e883-46cb-4952-872a-357aeda4d78c","dependency":{"91f66df6-d5d4-4712-87ad-a081ab4f14bc":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"fe02e134-09fa-4e57-ba71-9249443b8766":{"key":"fe02e134-09fa-4e57-ba71-9249443b8766","type":"INPUT","order":["e136c903-02ef-4f1f-80cd-0cfaa786c386","91f66df6-d5d4-4712-87ad-a081ab4f14bc","9b252520-98a6-44b8-93e6-259edc615db8","8192e883-46cb-4952-872a-357aeda4d78c","5c3a0603-6776-41b5-a325-727f8e661bc1","5edacef0-bbf9-4998-a05f-c663d9e4481b","e7a9de5e-974c-43b9-83ae-8bacad00a67b","d8406cf7-7d0f-4928-88b4-540ab5b6836a","bd0618eb-66e8-4b5f-b5c5-70b52bca7299","25ff931e-3736-428f-9a26-f51dfd266f40"]},"9b252520-98a6-44b8-93e6-259edc615db8":{"key":"9b252520-98a6-44b8-93e6-259edc615db8","type":"INPUT","dependency":{"ca3e35d8-9ca5-48d9-8fd2-73313dfe5986":{"value":[true],"mode":"SHOW"}}},"e7a9de5e-974c-43b9-83ae-8bacad00a67b":{"key":"e7a9de5e-974c-43b9-83ae-8bacad00a67b","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}},"757265d1-8882-45df-a08c-21f74d64b004":{"key":"757265d1-8882-45df-a08c-21f74d64b004","type":"INPUT","dependency":{"35ebf9bc-e3a5-4bf9-8725-381dbe90fb25":{"value":[true],"mode":"SHOW"}}}}'
