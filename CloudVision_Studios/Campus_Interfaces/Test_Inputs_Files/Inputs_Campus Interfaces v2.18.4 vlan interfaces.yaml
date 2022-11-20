@@ -1,0 +1,584 @@
+path: []
+inputs:
+  aclNames:
+    - name: ACL1
+      devices: []
+      aclLines:
+        - seqNumber: '10'
+          permitDenyRemark: permit
+          description: any
+          source: any
+          destination: any
+          log: true
+          tracked: false
+          protocol: ip
+        - seqNumber: '20'
+          permitDenyRemark: deny
+          description: deny
+          source: any
+          destination: any
+          log: false
+          tracked: false
+          protocol: ip
+        - seqNumber: '30'
+          permitDenyRemark: remark
+          description: ACL1
+          source: ''
+          destination: ''
+          log: false
+          tracked: false
+    - name: ACL2
+      devices: []
+      aclLines:
+        - seqNumber: '10'
+          permitDenyRemark: deny
+          description: deny
+          source: any
+          destination: any
+          log: false
+          tracked: true
+          protocol: ip
+        - seqNumber: '20'
+          permitDenyRemark: permit
+          description: permit
+          source: any
+          destination: any
+          log: false
+          tracked: false
+          protocol: ip
+        - seqNumber: '30'
+          permitDenyRemark: remark
+          description: ACL2
+          source: ''
+          destination: ''
+          log: false
+          tracked: false
+  profileOfProfiles:
+    - profileOfProfilesName: DHCP-HELPERS
+      vlanProfile: DHCP-HELPERS
+    - profileOfProfilesName: MTU
+      vlanProfile: MTU
+    - profileOfProfilesName: RPF
+      vlanProfile: RPF
+    - profileOfProfilesName: COMMAND-LINE-INPUT
+      vlanProfile: COMMAND-LINE-INPUT
+    - profileOfProfilesName: ACL1
+      aclIn: ACL1
+      aclType: ip
+    - profileOfProfilesName: ACL2
+      aclType: ip
+      aclOut: ACL2
+    - profileOfProfilesName: QOS-POLICY-MAP1
+      qosInstance: QOS-POLICY-MAP1
+    - profileOfProfilesName: LOGGING
+      loggingProfile: LOGGING1
+    - profileOfProfilesName: ALL
+      vlanProfile: ALL-L3-KNOBS
+      loggingProfile: LOGGING1
+      aclType: ip
+      qosInstance: QOS-POLICY-MAP2
+    - profileOfProfilesName: PIM-ACL1
+      pimProfile: PIM1-ACL1
+    - profileOfProfilesName: PIM-ACL2
+      pimProfile: PIM2-ACL2-VRF
+    - profileOfProfilesName: QOS-POLICY-MAP2
+      qosInstance: QOS-POLICY-MAP2
+    - profileOfProfilesName: PHONE-PORTS-TRUNK-UNTAGGED
+      vlanProfile: PHONE-PORTS-TRUNK-UNTAGGED
+  vlanProfiles:
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: ''
+      commandLines:
+        - command: '!!!!!1'
+        - command: '!!!!!!!!!!!!!2'
+      dhcpHelpers:
+        - helperAddress: 1.2.3.4
+        - helperAddress: 2.3.4.5
+        - helperAddress: 3.4.5.6
+      ipaddress: ''
+      lacpEnabled: null
+      mlagEnabled: null
+      mode: routed
+      name: DHCP-HELPERS
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: DHCP-HELPERS $1
+      profileIpAddressVirtual: ''
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: ''
+      commandLines:
+        - command: '!!!!!1'
+        - command: '!!!!!!!!!!!!!2'
+      dhcpHelpers: []
+      ipaddress: ''
+      lacpEnabled: null
+      mlagEnabled: null
+      mode: routed
+      name: MTU
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: MTU $1
+      profileIpAddressVirtual: ''
+      vlanName: ''
+      ipMtu: 1500
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: ''
+      commandLines:
+        - command: '!!!!!1'
+        - command: '!!!!!!!!!!!!!2'
+      dhcpHelpers: []
+      ipaddress: ''
+      lacpEnabled: null
+      mlagEnabled: null
+      mode: routed
+      name: RPF
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: RPF LOOSE $1
+      profileIpAddressVirtual: ''
+      reversePathForwardingMode: loose-mode
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: ''
+      commandLines:
+        - command: '!!!!!1'
+        - command: '!!!!!!!!!!!!!2'
+      dhcpHelpers: []
+      ipaddress: ''
+      lacpEnabled: null
+      mlagEnabled: null
+      mode: routed
+      name: COMMAND-LINE-INPUT
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: COMMAND-LINE-INPUT $1
+      profileIpAddressVirtual: ''
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: ''
+      commandLines:
+        - command: '!!!!!1'
+        - command: '!!!!!!!!!!!!!2'
+      dhcpHelpers:
+        - helperAddress: 23.34.45.56
+        - helperAddress: 45.56.67.78
+      ipaddress: null
+      lacpEnabled: null
+      mlagEnabled: null
+      mode: routed
+      name: ALL-L3-KNOBS
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ALL-L3-KNOBS $1
+      profileIpAddressVirtual: 66.66.66.1/24
+      vlanName: ''
+      reversePathForwardingMode: strict-mode
+      ipMtu: 1500
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: '3'
+      commandLines:
+        - command: '!!!!!1'
+        - command: '!!!!!!!!!!!!!2'
+      dhcpHelpers: []
+      ipaddress: 8.6.4.2/31
+      lacpEnabled: enabled
+      mlagEnabled: null
+      mode: routed
+      name: ROUTED-PC3-W-IP
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED-PC3-W-IP $1
+      profileIpAddressVirtual: ''
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: '4'
+      commandLines:
+        - command: '!!!!!1'
+        - command: '!!!!!!!!!!!!!2'
+      dhcpHelpers: []
+      ipaddress: ''
+      lacpEnabled: enabled
+      mlagEnabled: null
+      mode: routed
+      name: ROUTED-PC4-SUB-WO-IP
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED-PC4-SUB-WO-IP $1
+      profileIpAddressVirtual: ''
+      vlanName: ''
+  sites:
+    - tags:
+        query: 'demo:switches '
+      inputs:
+        sitesGroup:
+          devices:
+            - tags:
+                query: Switch-Group:ALL-Devices
+              inputs:
+                devicesGroup:
+                  all: all-switches
+                  stack:
+                    - tags:
+                        query: device:JPE16112401
+                      inputs:
+                        stackMember: '1'
+                    - tags:
+                        query: device:JPE19501793
+                      inputs:
+                        stackMember: '2'
+                    - tags:
+                        query: device:JAS17510139
+                      inputs:
+                        stackMember: '3'
+                    - tags:
+                        query: device:JAS17510143
+                      inputs:
+                        stackMember: '4'
+                    - tags:
+                        query: device:JPE19270037
+                      inputs:
+                        stackMember: '5'
+                    - tags:
+                        query: device:JPE19270031
+                      inputs:
+                        stackMember: '10'
+                  interfaceRanges: []
+                  vlanInterfaces:
+                    - description: IP-ADDRESS
+                      vlanId: 1/3,2/3,3/3,4/3,5/3,6/3
+                      ipPrefix: 88.88.88.88/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: group-member-notation
+                      enabled: true
+                    - description: VIRTUAL-ADDRESS
+                      vlanId: '4'
+                      ipPrefix: ''
+                      virtualRouterAddress: 77.77.77.77/24
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: all-switches
+                      enabled: true
+                    - description: IP-ADDRESS-VIRTUAL
+                      vlanId: '5'
+                      ipPrefix: ''
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: 55.55.55.55/24
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: all-switches
+                      enabled: true
+                    - description: VRF
+                      vlanId: '6'
+                      ipPrefix: 44.44.44.44/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: GREEN
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: all-switches
+                      enabled: true
+                    - description: GATEWAY
+                      vlanId: '7'
+                      ipPrefix: 33.33.33.33/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: 33.33.33.1
+                      secIp: []
+                      stackNumber: all-switches
+                      enabled: true
+                    - description: SECONDARY-IPS
+                      vlanId: '8'
+                      ipPrefix: 22.22.22.22/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp:
+                        - secPrefix: 22.22.22.2/24
+                        - secPrefix: 22.22.22.3/24
+                      stackNumber: all-switches
+                      enabled: true
+                    - description: DHCP-HELPERS_#1
+                      profileOfProfileName: DHCP-HELPERS
+                      vlanId: '9'
+                      ipPrefix: 11.11.11.11/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: '1'
+                      enabled: true
+                    - description: MTU_#2
+                      vlanId: '10'
+                      ipPrefix: 111.111.111.1/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      profileOfProfileName: MTU
+                      stackNumber: '2'
+                      enabled: true
+                    - description: RPF_#3
+                      profileOfProfileName: RPF
+                      vlanId: '11'
+                      ipPrefix: 111.111.222.1/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: '3'
+                      enabled: true
+                    - description: COMMAND_LINE_#4
+                      profileOfProfileName: COMMAND-LINE-INPUT
+                      vlanId: '12'
+                      ipPrefix: 11.11.11.44/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: '4'
+                      enabled: true
+                    - description: ACL1_#5
+                      profileOfProfileName: ACL1
+                      vlanId: '13'
+                      ipPrefix: 11.11.55.1/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: '5'
+                      enabled: true
+                    - description: ACL2_#6
+                      profileOfProfileName: ACL2
+                      vlanId: '14'
+                      ipPrefix: 11.11.66.1/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: '10'
+                      enabled: true
+                    - description: QOS_POLICY_MAP1_ALL
+                      profileOfProfileName: QOS-POLICY-MAP1
+                      vlanId: 3/15
+                      ipPrefix: ''
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: group-member-notation
+                      enabled: true
+                    - description: LOOGING
+                      profileOfProfileName: LOGGING
+                      vlanId: '17'
+                      ipPrefix: 212.22.22.1/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: all-switches
+                      enabled: true
+                    - description: PIM_ACL1
+                      profileOfProfileName: PIM-ACL1
+                      vlanId: '18'
+                      ipPrefix: 11.33.22.1/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: '1'
+                      enabled: true
+                    - description: PIM_CL2
+                      profileOfProfileName: PIM-ACL2
+                      vlanId: '19'
+                      ipPrefix: 11.22.33.1/24
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: ''
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      stackNumber: '2'
+                      enabled: true
+                    - description: QOS-POLICY-MAP2_VRF_#1
+                      vlanId: '21'
+                      ipPrefix: ''
+                      virtualRouterAddress: ''
+                      ipAddressVirtualirtual: ''
+                      vrf: RED
+                      createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      secIp: []
+                      profileOfProfileName: QOS-POLICY-MAP2
+                      stackNumber: '4'
+                      enabled: true
+                  groupMemberNotation: group-member-notation
+                  loopbackInterfaces:
+                    - description: sdf
+                      vrf: ''
+                      profileOfProfileName: COMMAND-LINE-INPUT
+                      number: 2
+                      stackNumber: '1'
+                      ipPrefix: 2.2.2.2
+                    - description: wef
+                      ipPrefix: 3.3.3.3
+                      vrf: ''
+                      profileOfProfileName: MTU
+                      number: 3
+                      stackNumber: '2'
+                    - description: srg
+                      ipPrefix: 4.4.4.4
+                      vrf: GREEN
+                      profileOfProfileName: LOGGING
+                      number: 4
+                      stackNumber: '3'
+                    - description: device10a
+                      ipPrefix: 2.2.3.4
+                      vrf: RED
+                      number: 2
+                      stackNumber: '5'
+                    - description: device10b
+                      ipPrefix: 3.3.2.2
+                      vrf: ''
+                      number: 3
+                      stackNumber: '10'
+                      profileOfProfileName: COMMAND-LINE-INPUT
+  pimProfiles:
+    - pimProfileName: PIM1-ACL1
+      pimInterfaceCommands:
+        pimMode: sparse-mode
+        pimType: ipv4
+        drPriority: 5000
+      routerPimCommands:
+        mode: sparse-mode
+        rpOverride: false
+        type: ipv4
+        rpAddress: 51.51.51.51
+        priority: 110
+        groupAccessList: ACL1
+      routerMulticastCommands:
+        routing: true
+        type: ipv4
+        countersRatePeriodDecay: 600
+        countersMetric: bytes
+    - pimProfileName: PIM2-ACL2-VRF
+      pimInterfaceCommands:
+        pimType: ipv4
+        pimMode: sparse-mode
+        drPriority: 6000
+      routerPimCommands:
+        groupAccessList: ACL2
+        rpOverride: false
+        rpAddress: 76.76.76.76
+        mode: sparse-mode
+        type: ipv4
+        vrf: GREEN
+      routerMulticastCommands:
+        type: ipv4
+        countersRatePeriodDecay: 100
+        routing: true
+        vrf: GREEN
+  qosProfiles:
+    - instanceName: QOS-POLICY-MAP1
+      classMaps:
+        - classMapName: CMPM1-ACL1
+          match: ip
+          matchValue: ''
+          type: qos
+          acl: ACL1
+        - classMapName: CMPM1-ACL2
+          match: ip
+          matchValue: ''
+          type: qos
+          acl: ACL2
+      policyMaps:
+        - policyMapName: QOSPM1-PM
+          type: qos
+          classDefault: '1'
+          policyMapclassMaps:
+            - pmclassMap: CMPM1-ACL1
+              classMapSettings:
+                drop: false
+                trafficClass: '2'
+            - pmclassMap: CMPM1-ACL2
+              classMapSettings:
+                drop: false
+                trafficClass: '3'
+      serviceProfiles: []
+      devices: []
+      classification: []
+      rewriteRules: []
+      trafficClassToQueue: []
+    - instanceName: QOS-POLICY-MAP2
+      classMaps:
+        - classMapName: CMSP2
+          match: ip
+          matchValue: ''
+          acl: ACL2
+          type: qos
+      policyMaps:
+        - policyMapName: QOSSP2PM1
+          type: qos
+          classDefault: ''
+          policyMapclassMaps:
+            - pmclassMap: CMSP2
+              classMapSettings:
+                drop: false
+                trafficClass: '7'
+                bandwidth: 500
+      serviceProfiles: []
+      devices: []
+      classification: []
+      rewriteRules: []
+      trafficClassToQueue: []
+  loggingProfiles:
+    - loggingProfileName: LOGGING1
+      logging:
+        linkStatus: enabled
