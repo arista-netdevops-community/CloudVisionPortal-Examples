@@ -746,7 +746,7 @@
                   }
                   vlan_based_mac_vrf_admin_field_key_words = {
                       "VNI": "vlan_info['vni']",
-                      "VLAN": "vlan",
+                      "VLAN": "svi",
                       "Router-ID": "switch_facts['router_id']"
                   }
                   vlan_aware_mac_vrf_admin_field_key_words = {
@@ -1196,15 +1196,38 @@
               mlag_peer_switch_serial_number = None
               if switch_facts.get('mlag'):
                   # Get MLAG peer from interface's neighbor details
+                  # Look for DC data center tags to get MLAG peer
+                  if switch_facts.get('type') and switch_facts.get('dc') and switch_facts.get('pod'):
+                      for info in switch_facts['interfaces'].values():
+                          neighbor_switch_facts = get_switch_basics_from_tags(info['neighborId'])
+                          if neighbor_switch_facts.get('mlag') and \
+                                  neighbor_switch_facts.get('type', '') == switch_facts.get('type') and \
+                                  neighbor_switch_facts.get('dc', '') == switch_facts.get('dc') and \
+                                  neighbor_switch_facts.get('pod', '') == switch_facts.get('pod'):
+                              mlag_peer_switch_serial_number = neighbor_switch_facts['serial_number']
+                              return mlag_peer_switch_serial_number
+                  # Look for campus tags to get MLAG peer
+                  if switch_facts.get('type') and switch_facts.get('campus') and switch_facts.get('site'):
+                      for info in switch_facts['interfaces'].values():
+                          neighbor_switch_facts = get_switch_basics_from_tags(info['neighborId'])
+                          if neighbor_switch_facts.get('mlag') and \
+                                  neighbor_switch_facts.get('type', '') == switch_facts.get('type') and \
+                                  neighbor_switch_facts.get('campus', '') == switch_facts.get('campus') and \
+                                  neighbor_switch_facts.get('site', '') == switch_facts.get('site'):
+                              mlag_peer_switch_serial_number = neighbor_switch_facts['serial_number']
+                              return mlag_peer_switch_serial_number
+                  # If mlag peer is still not found, use 'universal' tags
                   # Assumption is that this switch's MLAG peer should be the only neighbor switch with
-                  # mlag enabled and the same services running
+                  # mlag enabled, the same services running, and a node id difference of 1
                   for info in switch_facts['interfaces'].values():
                       neighbor_switch_facts = get_switch_basics_from_tags(info['neighborId'])
                       if neighbor_switch_facts.get('mlag') \
                               and switch_facts['network_services'].get('l2') == neighbor_switch_facts['network_services'].get('l2') \
-                              and switch_facts['network_services'].get('l3') == neighbor_switch_facts['network_services'].get('l3'):
+                              and switch_facts['network_services'].get('l3') == neighbor_switch_facts['network_services'].get('l3') \
+                              and switch_facts.get('id') and neighbor_switch_facts.get('id') \
+                              and abs(int(switch_facts['id']) - int(neighbor_switch_facts['id'])) == 1:
                           mlag_peer_switch_serial_number = neighbor_switch_facts['serial_number']
-                          break
+                          return mlag_peer_switch_serial_number
               return mlag_peer_switch_serial_number
 
 
@@ -1316,7 +1339,7 @@
                   switch_facts['vtep'] = False
 
               # Set vtep if not already set
-              if not switch_facts.get('vtep') and switch_facts.get('type'):
+              if switch_facts.get('vtep') is None and switch_facts.get('type'):
                   if switch_facts['type'] in ['Leaf']:
                       switch_facts['vtep'] = True
                   else:
@@ -1340,6 +1363,12 @@
                   switch_facts['uplink_type'] = "p2p"
               else:
                   switch_facts['uplink_type'] = "port-channel"
+
+              # Set additional 'good to have' tags
+              switch_facts['dc'] = dc_dict.get(device_id)
+              switch_facts['pod'] = pod_dict.get(device_id)
+              switch_facts['campus'] = campus_dict.get(device_id)
+              switch_facts['site'] = site_dict.get(device_id)
 
               return switch_facts
 
@@ -1480,6 +1509,11 @@
           router_id_dict = populate_single_value_dict(workspace_id, 'router_bgp.router_id')
           mlag_peer_link_dict = populate_single_value_dict(workspace_id, 'mlag_configuration.peer_link')
           role_dict = populate_multi_value_dict(workspace_id, 'Role')
+          # Not necessary tags but good to have
+          dc_dict = populate_single_value_dict(workspace_id, 'DC')
+          pod_dict = populate_single_value_dict(workspace_id, 'DC-Pod')
+          campus_dict = populate_single_value_dict(workspace_id, 'Campus')
+          site_dict = populate_single_value_dict(workspace_id, 'Site')
 
           # Update advanced settings
           set_fabric_variables()
