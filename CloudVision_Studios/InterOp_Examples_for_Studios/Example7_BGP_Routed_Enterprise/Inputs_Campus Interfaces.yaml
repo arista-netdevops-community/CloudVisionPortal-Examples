@@ -1,0 +1,102 @@
+path: []
+inputs:
+  profileOfProfiles: []
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges: []
+                  loopbackInterfaces:
+                    - description: eos9 red
+                      ipPrefix: 14.14.14.2
+                      number: 2
+                      vrf: red
+                  stack:
+                    - inputs: {}
+                      tags:
+                        query: device:eos9
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:L3DC_End_Devices
+      tags:
+        query: device:eos9
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges: []
+                  loopbackInterfaces: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:eos11
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:eos12
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:eos13
+                  vlanInterfaces:
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: vSVI_vlan15
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 1.2.3.0/31
+                      secIp: []
+                      stackNumber: group-member-notation
+                      virtualRouterAddress: 15.15.15.1/24
+                      vlanId: 1/15,3/15
+                      vrf: ''
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 15.15.15.1
+                      description: eos12_SVI_and_DGW
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 15.15.15.4/24
+                      secIp: []
+                      stackNumber: '2'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: vlan15
+              tags:
+                query: Switch-Group:L2DC
+      tags:
+        query: Campus:Ex7-L2DC-eos11-eos12-eos13
+  vlanProfiles:
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: ''
+      commandLine: []
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ''
+      profileIpAddressVirtual: ''
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      channelGroup: ''
+      commandLine: []
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED $1
+      profileIpAddressVirtual: ''
+      vlanName: ''
