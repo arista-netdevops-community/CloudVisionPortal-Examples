@@ -1,0 +1,51 @@
+path: []
+inputs:
+  campusPicker:
+    - inputs:
+        campus:
+          commonMlagConfig: {}
+          commonVlans:
+            - IPHelperAddress: ''
+              commonVlanID: 15
+              commonVlanIsMgmt: true
+              commonVlanName: v15
+              commonVlanVIP: 15.15.15.1
+              vrf: ''
+          fabricType: L2 MLAG
+          podPicker:
+            - inputs:
+                pod:
+                  leafs:
+                    - inputs:
+                        leaf:
+                          leafInbandMgmtIPSubnet: 15.15.15.4/24
+                          leafRole: Member
+                      tags:
+                        query: device:eos12
+              tags:
+                query: Campus-Pod:L2DC-eos12
+          splinePicker:
+            - inputs:
+                spline:
+                  mlag:
+                    splineRole: Primary
+                  splineInbandMgmtIPSubnet: ''
+                  splineVlans:
+                    - primarySecondary: Primary
+                      splineVlanID: 15
+                      splineVlanIPSubnet: 15.15.15.2/24
+              tags:
+                query: device:eos11
+            - inputs:
+                spline:
+                  mlag:
+                    splineRole: Secondary
+                  splineInbandMgmtIPSubnet: ''
+                  splineVlans:
+                    - primarySecondary: Primary
+                      splineVlanID: 15
+                      splineVlanIPSubnet: 15.15.15.3/24
+              tags:
+                query: device:eos13
+      tags:
+        query: Campus:Ex5-L2DC-eos11-eos12-eos13
