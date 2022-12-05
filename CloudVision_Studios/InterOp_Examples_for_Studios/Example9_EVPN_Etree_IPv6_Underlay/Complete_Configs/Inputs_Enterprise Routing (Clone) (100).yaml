@@ -1,0 +1,899 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: true
+            globalAS: 65001
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: dual-stack
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2012:0:0:41::1
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 12.12.12.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos1
+                      tags:
+                        query: interface:Ethernet5@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2026:0:0:41::0
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 26.26.26.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos6
+                      tags:
+                        query: interface:Ethernet4@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2024:0:0:41::0
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 24.24.24.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos4
+                      tags:
+                        query: interface:Ethernet2@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2023:0:0:41::0
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 23.23.23.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos3
+                      tags:
+                        query: interface:Ethernet1@eos2
+                  corepeerGroups:
+                    - coreAddressFamily: ipv4
+                      coreRedistributionRouteMap: []
+                      coreaggregateRoutes: []
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredescription: ''
+                      coreeBgpNeighbors: []
+                      corepeerGroupName: BGP
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces: []
+              tags:
+                query: device:eos2
+            - inputs:
+                coreLinkDetails:
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2056:0:0:41::0
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 56.56.56.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos6
+                      tags:
+                        query: interface:Ethernet5@eos5
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2015:0:0:41::1
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 15.15.15.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos1
+                      tags:
+                        query: interface:Ethernet4@eos5
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2045:0:0:41::1
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 45.45.45.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos4
+                      tags:
+                        query: interface:Ethernet1@eos5
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2035:0:0:41::0
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 35.35.35.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos3
+                      tags:
+                        query: interface:Ethernet2@eos5
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces: []
+              tags:
+                query: device:eos5
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: EOS1
+                                  erIpv6Address: 2111:0:0:41::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 111.111.111.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos11
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos13
+                                  erIpv6Address: 2131:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 131.131.131.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos11
+                          interfaces: []
+                          loopback1:
+                            loopback1IPv6Address: 1111::11
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames:
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos2
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos5
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos11
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos6
+                                  erIpv6Address: 2136:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 136.136.136.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos13
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos11
+                                  erIpv6Address: 2131:0:0:41::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 131.131.131.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos13
+                          interfaces: []
+                          loopback1:
+                            loopback1IPv6Address: 1313::13
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames:
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos2
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos5
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos13
+              tags:
+                query: Edge-Router-Domain:Site1
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos4
+                                  erIpv6Address: 2049:0:0:41::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 49.49.49.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos9
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos3
+                                  erIpv6Address: 2039:0:0:41::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 39.39.39.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@eos9
+                          interfaces: []
+                          loopback1:
+                            loopback1IPv6Address: 9999::9
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames:
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos2
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos5
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                          staticRoutes:
+                            - name: Default
+                              nextHop: 3.1.9.1
+                              prefix: 0.0.0.0/0
+                              srvrf: red
+                      tags:
+                        query: device:eos9
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: 2045:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 45.45.45.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos4
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: 2024:0:0:41::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 24.24.24.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@eos4
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: 2049:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 49.49.49.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos4
+                          interfaces: []
+                          loopback1:
+                            loopback1IPv6Address: 4444::4
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames:
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos2
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos5
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos4
+              tags:
+                query: Edge-Router-Domain:Site2
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: 2012:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.12.12.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos1
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos11
+                                  erIpv6Address: 2111:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 111.111.111.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos1
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos5
+                                  erIpv6Address: 2015:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 15.15.15.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet5@eos1
+                          interfaces: []
+                          loopback1:
+                            loopback1IPv6Address: 1111::1
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames:
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos2
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos5
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos1
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: 2039:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 39.39.39.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos3
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: 2023:0:0:41::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 23.23.23.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos3
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: 2035:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 35.35.35.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@eos3
+                          interfaces: []
+                          loopback1:
+                            loopback1IPv6Address: 3333::3
+                          mlagGroup: {}
+                          peerGroups: []
+                          prefixLists: []
+                          rrHostnames:
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos2
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos5
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos3
+              tags:
+                query: Edge-Router-Domain:Site3
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos13
+                                  erIpv6Address: 2136:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 136.136.136.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos6
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: 2026:0:0:41::0
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 26.26.26.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet5@eos6
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos5
+                                  erIpv6Address: 2056:0:0:41::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 56.56.56.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos6
+                          interfaces: []
+                          loopback1:
+                            loopback1IPv6Address: 6666::6
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: ''
+                              eBgcoreneighbors: []
+                              erAddressFamily: ipv4
+                              peerGroupName: BGP
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames:
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos2
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                            - description: ''
+                              localSubnetMask: 31
+                              rrHostname: eos5
+                              rrlocalIpAddress: ''
+                              rrspeed: auto
+                          staticRoutes: []
+                      tags:
+                        query: device:eos6
+              tags:
+                query: Edge-Router-Domain:Border-Leaf
+          igp: OSPFv3
+          redistributeConnected: Enabled
+          redistributeStatic: Disabled
+          rrs:
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+              tags:
+                query: device:eos2
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+              tags:
+                query: device:eos5
+      tags:
+        query: Network:Ex9-L3Campus-Network
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 15
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: dual-stack
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extIpv6Address: 158::15
+                              extIpv6SubnetMask: 64
+                              extdescription: CORENET
+                              extinterfaceName: e1
+                              extipAddress: 158.158.158.1
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                          loopback1:
+                            loopback1IPv6Address: 1515::15
+                            loopback1Ipv4Address: 155.15.15.15
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: true
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeConnectedRoutes: true
+                                redistributeRoutes: false
+                                redistributeStaticRoutes: false
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 158.158.158.0
+                                  peerAsn: 11214
+                              erAddressFamily: ipv4
+                              peerGroupName: CORENET
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: CORENET-IPV6
+                              eBgcoreneighbors:
+                                - neighborIp: 158::8
+                                  peerAsn: 11214
+                              erAddressFamily: ipv6
+                              peerGroupName: CORENET-IPV6
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos15
+              tags:
+                query: Edge-Router-Domain:15
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:Ex9-ISP-eos15
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 18
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: dual-stack
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extIpv6Address: 188::18
+                              extIpv6SubnetMask: 64
+                              extdescription: EOS8
+                              extinterfaceName: e1
+                              extipAddress: 188.188.188.1
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                          loopback1:
+                            loopback1IPv6Address: 1818::18
+                            loopback1Ipv4Address: 188.18.18.18
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: true
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeConnectedRoutes: true
+                                redistributeRoutes: false
+                                redistributeStaticRoutes: false
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 188.188.188.0
+                                  peerAsn: 11214
+                              erAddressFamily: ipv4
+                              peerGroupName: CORENET
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: CORENET-IPV6
+                              eBgcoreneighbors:
+                                - neighborIp: 188::8
+                                  peerAsn: 11214
+                              erAddressFamily: ipv6
+                              peerGroupName: CORENET-IPV6
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists: []
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos18
+              tags:
+                query: Edge-Router-Domain:18
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:Ex9-ISP-eos18
+    - inputs:
+        pod:
+          commonBGPConfig: {}
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extIpv6Address: 148::14
+                              extIpv6SubnetMask: 64
+                              extdescription: wan-router
+                              extinterfaceName: e1.148
+                              extipAddress: 148.148.148.1
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeConnectedRoutes: false
+                                redistributeRoutes: false
+                                redistributeStaticRoutes: true
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 148.148.148.0
+                                  peerAsn: 11214
+                              erAddressFamily: ipv4
+                              peerGroupName: WAN-ROUTER
+                              routeMapIn:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  localPref: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: DEFAULT-RT
+                                  seqNum: 10
+                                  setCommunity: ''
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: WAN-ROUTER-IPV6
+                              eBgcoreneighbors:
+                                - neighborIp: 148::8
+                                  peerAsn: 11214
+                              erAddressFamily: ipv6
+                              peerGroupName: WAN-ROUTER-IPV6
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists:
+                            - erAddressFamily: ipv4
+                              prefixListName: DEFAULT-RT
+                              seqNums:
+                                - permitDeny: permit
+                                  prefix: 0.0.0.0/0
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos14
+              tags:
+                query: Edge-Router-Domain:Core-Router-eos14
+          igp: None
+          redistributeConnected: Disabled
+          redistributeStatic: Disabled
+          rrs: []
+      tags:
+        query: Network:Ex9-Core-Router-eos14
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 11214
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors: []
+                          interfaces:
+                            - extIpv6Address: 158::8
+                              extIpv6SubnetMask: 64
+                              extdescription: eos15
+                              extinterfaceName: e2
+                              extipAddress: 158.158.158.0
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                            - extIpv6Address: 188::8
+                              extIpv6SubnetMask: 64
+                              extdescription: eos18
+                              extinterfaceName: e5
+                              extipAddress: 188.188.188.0
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                            - extIpv6Address: 148::8
+                              extIpv6SubnetMask: 64
+                              extdescription: eos14
+                              extinterfaceName: e4.148
+                              extipAddress: 148.148.148.0
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: ''
+                          mlagGroup: {}
+                          peerGroups:
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: true
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeRoutes: false
+                              description: ''
+                              eBgcoreneighbors:
+                                - neighborIp: 188.188.188.1
+                                  peerAsn: 18
+                                - neighborIp: 158.158.158.1
+                                  peerAsn: 15
+                              erAddressFamily: ipv4
+                              peerGroupName: ISPs
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                bgpDefaultInformationOriginate: Enabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeConnectedRoutes: true
+                                redistributeRoutes: false
+                                redistributeStaticRoutes: false
+                              description: eos14
+                              eBgcoreneighbors:
+                                - neighborIp: 148.148.148.1
+                                  peerAsn: 904
+                              erAddressFamily: ipv4
+                              peerGroupName: Core-Router
+                              routeMapIn: []
+                              routeMapOut:
+                                - asPathPrependRepeat: ''
+                                  description: ''
+                                  matchCommunity: ''
+                                  permitDeny: permit
+                                  prefixList: DEFAULT-RT
+                                  seqNum: 10
+                                  setCommunity: ''
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions: {}
+                              description: ISPS-IPV6
+                              eBgcoreneighbors:
+                                - neighborIp: 158::15
+                                  peerAsn: 15
+                                - neighborIp: 188::18
+                                  peerAsn: 18
+                              erAddressFamily: ipv6
+                              peerGroupName: ISPS-IPV6
+                              routeMapIn: []
+                              routeMapOut: []
+                            - RedistributionRouteMap: []
+                              aggregateRoutes: []
+                              asnSettings: {}
+                              bgpOptions:
+                                bfd: false
+                                bgpDefaultInformationOriginate: Disabled
+                                nextHopSelf: true
+                                ospfDefaultInformationOriginate: Disabled
+                                redistributeConnectedRoutes: true
+                                redistributeRoutes: false
+                                redistributeStaticRoutes: false
+                              description: Core-Router-IPv6
+                              eBgcoreneighbors:
+                                - neighborIp: 148::14
+                                  peerAsn: 904
+                              erAddressFamily: ipv6
+                              peerGroupName: Core-Router-IPv6
+                              routeMapIn: []
+                              routeMapOut: []
+                          prefixLists:
+                            - erAddressFamily: ipv4
+                              prefixListName: DEFAULT-RT
+                              seqNums:
+                                - permitDeny: permit
+                                  prefix: 0.0.0.0/0
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                            - erAddressFamily: ipv4
+                              prefixListName: UNF-AGG
+                              seqNums:
+                                - permitDeny: permit
+                                  prefix: 0.0.0.0/6
+                                  prefixLength: exact-route
+                                  seqNum: 10
+                          rrHostnames: []
+                          staticRoutes: []
+                      tags:
+                        query: device:eos8
+              tags:
+                query: Edge-Router-Domain:WAN-Router-eos8
+          igp: None
+          redistributeConnected: Enabled
+          redistributeStatic: Enabled
+          rrs: []
+      tags:
+        query: Network:Ex9-WAN-Router-eos8
