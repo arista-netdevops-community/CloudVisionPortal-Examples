@@ -1083,7 +1083,7 @@
 
                           # map l3vlans to vnis
                           for svi, info in switch_facts['tenants'][tenant]['vrfs'][vrf]['svis'].items():
-                              if info.get('vni') is None or info['vxlan'] == False:
+                              if not info.get('vni') or not info['vxlan']:
                                   continue
                               if info.get('vni_override') is not None:
                                   info['vni'] = info['vni_override']
@@ -1093,7 +1093,7 @@
 
                       # map l2vlans to vnis
                       for l2vlan, info in switch_facts['tenants'][tenant]['l2vlans'].items():
-                          if not info.get('vni'):
+                          if not info.get('vni') or not info['vxlan']:
                               continue
                           config['vxlan_interface']['Vxlan1']['vxlan']['vlans'][l2vlan] = {
                               "vni": info['vni']
@@ -1336,11 +1336,7 @@
                   else:
                       switch_facts['vtep'] = False
               else:
-                  switch_facts['vtep'] = False
-
-              # Set vtep if not already set
-              if switch_facts.get('vtep') is None and switch_facts.get('type'):
-                  if switch_facts['type'] in ['Leaf']:
+                  if switch_facts.get('type') and switch_facts['type'] in ['Leaf']:
                       switch_facts['vtep'] = True
                   else:
                       switch_facts['vtep'] = False
@@ -1395,17 +1391,17 @@
               switch_facts['gateway_switches'] = get_gateway_switches(switch_facts)
 
               # Set mlag relevant facts
+              switch_facts['mlag_role'] = None
               if switch_facts.get('mlag'):
-                  switch_facts['mlag_peer_serial_number'] = get_mlag_peer(switch_facts)
-                  mlag_peer_switch_facts = get_switch_basics_from_tags(switch_facts['mlag_peer_serial_number'])
-                  if int(switch_facts['id']) < int(mlag_peer_switch_facts['id']):
-                      switch_facts['mlag_role'] = "primary"
-                      switch_facts['mlag_primary_id'] = int(switch_facts['id'])
-                  else:
-                      switch_facts['mlag_role'] = "secondary"
-                      switch_facts['mlag_primary_id'] = int(mlag_peer_switch_facts['id'])
-              else:
-                  switch_facts['mlag_role'] = None
+                  if mlag_peer_sn := get_mlag_peer(switch_facts):
+                      switch_facts['mlag_peer_serial_number'] = mlag_peer_sn
+                      mlag_peer_switch_facts = get_switch_basics_from_tags(switch_facts['mlag_peer_serial_number'])
+                      if int(switch_facts['id']) < int(mlag_peer_switch_facts['id']):
+                          switch_facts['mlag_role'] = "primary"
+                          switch_facts['mlag_primary_id'] = int(switch_facts['id'])
+                      else:
+                          switch_facts['mlag_role'] = "secondary"
+                          switch_facts['mlag_primary_id'] = int(mlag_peer_switch_facts['id'])
 
               # Set switch.evpn_gateway
               if switch_facts.get("vtep"):
