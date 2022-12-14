@@ -138,6 +138,7 @@
                                   "static_routes": [],
                                   "redistribute_static": None,
                                   "bgp_peers": {},
+                                  "bgp": {},
                                   "additional_route_targets": []
                               }
                           },
@@ -151,6 +152,7 @@
                       "static_routes": [],
                       "redistribute_static": None,
                       "bgp_peers": {},
+                      "bgp": {},
                       "additional_route_targets": []
                   }
                   # normalize mlag ibgp details
@@ -250,6 +252,10 @@
                           if bgp_peer.get('localAs'):
                               peer_info['local_as'] = bgp_peer['localAs']
                           switch_facts['tenants'][info['tenant']]['vrfs'][vrf]['bgp_peers'][bgp_peer['neighborIpAddress']] = peer_info
+
+                  # normalize bgp peers
+                  if len(info['bgp'].get('eosCli', [])) > 0:
+                      switch_facts['tenants'][info['tenant']]['vrfs'][vrf]["bgp"]['raw_eos_cli'] = info['bgp']['eosCli']
 
                   # normalize additional route targets
                   for rt in info.get('additional_route_targets'):
@@ -932,7 +938,8 @@
                                   "address_families": {
                                       "ipv4": {"neighbors": {}, "networks": {}},
                                       "ipv6": {"neighbors": {}, "networks": {}}
-                                  }
+                                  },
+                                  "eos_cli": []
                               }
                               # get and set mlag peer config
                               if switch_facts.get('mlag') \
@@ -977,6 +984,10 @@
                                           if peer_info.get('set_ipv6_next_hop'):
                                               peer_info.pop("set_ipv6_next_hop")
                                       config['router_bgp']['vrfs'][vrf]['neighbors'][peer] = peer_info
+                              # set general bgp
+                              if vrf_info.get('bgp') and vrf_info['bgp'].get('raw_eos_cli'):
+                                  config['router_bgp']['vrfs'][vrf]['eos_cli'] = vrf_info['bgp']['raw_eos_cli']
+
                               # redistribute static routes
                               if vrf_info.get('redistribute_static'):
                                   config['router_bgp']['vrfs'][vrf]['redistribute_routes']['static'] = {}
@@ -1540,6 +1551,7 @@
                       "static_routes": vrf['staticRoutes'],
                       "redistribute_static_routes": vrf['redistributeStaticRoutes'],
                       "external_bgp_peers": vrf['externalBgpPeers'],
+                      "bgp": vrf['bgp'],
                       "additional_route_targets": vrf['additionalRouteTargets'],
                       "route_distinguisher": vrf_attribute_formats['vrfRouteDistinguisherFormat'],
                       "route_target": vrf_attribute_formats['vrfRouteTargetFormat'],
@@ -2591,6 +2603,9 @@
                 ${ aggregate_address_cli }
           %           endfor
           %         endif
+          %         for statement in config["router_bgp"]["vrfs"][vrf].get('eos_cli', []):
+                ${ statement }
+          %         endfor
           %         if config["router_bgp"]["vrfs"][vrf].get("address_families") is not None:
           %           for  address_family in config["router_bgp"]["vrfs"][vrf]["address_families"].keys():
                 !
@@ -3713,6 +3728,41 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
                 input_tag_label: null
                 tag_filter_query: null
+            vrfCliStatement:
+              id: vrfCliStatement
+              name: cliStatement
+              label: CLI Statement
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfEosCliStatements:
+              id: vrfEosCliStatements
+              name: eosCli
+              label: EOS CLI
+              description: Raw EOS CLI statements to be configured under the Router BGP VRF definition.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vrfCliStatement
+                key: ''
+            vrfRouterBgp:
+              id: vrfRouterBgp
+              name: bgp
+              label: BGP
+              description: Configure additional BGP parameters for the VRF
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfEosCliStatements
             vrfGroup:
               id: vrfGroup
               name: vrfGroup
@@ -3734,6 +3784,7 @@
                     - externalBgpPeers
                     - staticRoutesCollection
                     - vrfAssignDevicesResolver
+                    - vrfRouterBgp
             vrfs:
               id: vrfs
               name: vrfs
@@ -4735,6 +4786,7 @@
                   "staticRoutesCollection",
                   "vrfRedistributeStaticRoutesToggle",
                   "externalBgpPeers",
+                  "vrfRouterBgp",
                   "additionalRouteTargets",
                   "vrfAssignDevicesResolver",
                   "vrfOverrideVariables"
