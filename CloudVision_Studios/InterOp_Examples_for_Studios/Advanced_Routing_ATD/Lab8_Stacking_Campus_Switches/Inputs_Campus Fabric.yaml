@@ -1,0 +1,103 @@
+path: []
+inputs:
+  campusPicker:
+    - inputs:
+        campus:
+          commonMlagConfig: {}
+          commonVlans: []
+          fabricType: L2 MLAG
+          podPicker:
+            - inputs:
+                pod:
+                  leafs:
+                    - inputs:
+                        leaf:
+                          leafInbandMgmtIPSubnet: ''
+                          leafRole: Member
+                      tags:
+                        query: device:eos12
+              tags:
+                query: Campus-Pod:12
+          splinePicker:
+            - inputs:
+                spline:
+                  mlag:
+                    splineRole: Primary
+                  splineInbandMgmtIPSubnet: ''
+                  splineVlans: []
+              tags:
+                query: device:eos11
+            - inputs:
+                spline:
+                  mlag:
+                    splineRole: Secondary
+                  splineInbandMgmtIPSubnet: ''
+                  splineVlans: []
+              tags:
+                query: device:eos13
+      tags:
+        query: Campus:Ex8-Campus-eos11-eos12-eos13
+    - inputs:
+        campus:
+          commonMlagConfig: {}
+          commonVlans: []
+          fabricType: L2 MLAG
+          podPicker:
+            - inputs:
+                pod:
+                  leafs:
+                    - inputs:
+                        leaf:
+                          leafInbandMgmtIPSubnet: ''
+                          leafRole: Member
+                      tags:
+                        query: device:eos14
+              tags:
+                query: Campus-Pod:14
+            - inputs:
+                pod:
+                  leafs:
+                    - inputs:
+                        leaf:
+                          leafInbandMgmtIPSubnet: ''
+                          leafRole: Member
+                      tags:
+                        query: device:eos15
+              tags:
+                query: Campus-Pod:15
+            - inputs:
+                pod:
+                  leafs:
+                    - inputs:
+                        leaf:
+                          leafInbandMgmtIPSubnet: ''
+                          leafRole: Member
+                      tags:
+                        query: device:eos18
+              tags:
+                query: Campus-Pod:18
+          splinePicker:
+            - inputs:
+                spline:
+                  mlag:
+                    splineRole: Primary
+                  splineInbandMgmtIPSubnet: ''
+                  splineVlans:
+                    - primarySecondary: Primary
+                      splineVlanID: 13
+                      splineVlanIPSubnet: 13.13.13.2/24
+              tags:
+                query: device:eos6
+            - inputs:
+                spline:
+                  mlag:
+                    splineRole: Secondary
+                  splineInbandMgmtIPSubnet: ''
+                  splineVlans:
+                    - primarySecondary: Primary
+                      splineVlanID: 13
+                      splineVlanIPSubnet: 13.13.13.3/24
+              tags:
+                query: device:eos8
+      tags:
+        query: Campus:Ex8-Campus-eos6-eos8-eos14-eos15-eos18
