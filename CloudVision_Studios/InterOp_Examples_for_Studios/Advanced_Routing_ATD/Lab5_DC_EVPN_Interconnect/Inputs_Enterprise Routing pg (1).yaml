@@ -1,0 +1,101 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 7
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 1212::2
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 12.12.12.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos1
+                      tags:
+                        query: interface:Ethernet5@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: 2525::2
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 25.25.25.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos5
+                      tags:
+                        query: interface:Ethernet3@eos2
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+              tags:
+                query: device:eos2
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: 1212::1
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.12.12.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos1
+                          interfaces: []
+                          loopback1: {}
+                          mlagGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:eos1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: 2525::5
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 25.25.25.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos5
+                          interfaces: []
+                          loopback1: {}
+                          mlagGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:eos5
+                  rrHostnames:
+                    - description: ''
+                      localSubnetMask: 31
+                      rrHostname: eos2
+                      rrlocalIpAddress: ''
+              tags:
+                query: Edge-Router-Domain:All-Edge-Routers
+          igp: OSPFv3
+          redistributeConnected: Disabled
+          redistributeStatic: Disabled
+          rrs:
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+              tags:
+                query: device:eos2
+      tags:
+        query: Network:Ex5-CoreNet-eos1-eos2-eos5
