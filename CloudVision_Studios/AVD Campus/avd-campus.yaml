@@ -1,0 +1,4180 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: da367ca3-bf7d-4d9f-beef-1f485d867c75
+        workspace_id: d9ebe4b4-4eed-4460-9a13-91cfce5d3bec
+      display_name: Advanced Campus Fabric (Clone)
+      description: Provision the fabric of an L2 or L3 campus network.
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |
+          <%
+          %>
+      input_schema:
+        fields:
+          values:
+            campusPodRouterIdPool:
+              id: campusPodRouterIdPool
+              name: leafRouterIdPool
+              label: Router ID Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            campusPodUplinkIpv4Pool:
+              id: campusPodUplinkIpv4Pool
+              name: leafUplinkIpv4Pool
+              label: Uplink Ipv4 Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafMlagPeerVlan:
+              id: leafMlagPeerVlan
+              name: leafMlagPeerVlan
+              label: MLAG Peer VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '4094'
+                range: null
+                static_options: null
+                dynamic_options: null
+            leafMlagPeerIPv4Pool:
+              id: leafMlagPeerIPv4Pool
+              name: leafMlagPeerIPv4Pool
+              label: MLAG Peer IPv4 Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafMlagPeerL3Vlan:
+              id: leafMlagPeerL3Vlan
+              name: leafMlagPeerL3Vlan
+              label: MLAG Peer L3 VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            leafMlagPeerL3IPv4Pool:
+              id: leafMlagPeerL3IPv4Pool
+              name: leafMlagPeerL3IPv4Pool
+              label: MLAG Peer L3 IPv4 Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafVirtualRouterMacAddress:
+              id: leafVirtualRouterMacAddress
+              name: leafVirtualRouterMacAddress
+              label: Virtual Router MAC Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: 00:1c:73:00:00:99
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafMlagPeerInterfaceName:
+              id: leafMlagPeerInterfaceName
+              name: leafMlagPeerInterfaceName
+              label: Interface Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafMlagPeerInterfaces:
+              id: leafMlagPeerInterfaces
+              name: leafMlagPeerInterfaces
+              label: MLAG Peer Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: leafMlagPeerInterfaceName
+                key: ''
+            leafMlagDetails:
+              id: leafMlagDetails
+              name: leafMlagDetails
+              label: MLAG Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafMlagPeerVlan
+                    - leafMlagPeerIPv4Pool
+                    - leafMlagPeerL3Vlan
+                    - leafMlagPeerL3IPv4Pool
+                    - leafVirtualRouterMacAddress
+                    - leafMlagPeerInterfaces
+            campusPodSpanningTreeMode:
+              id: campusPodSpanningTreeMode
+              name: campusPodSpanningTreeMode
+              label: Spanning Tree Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: MSTP
+                static_options:
+                  values:
+                    - MSTP
+                    - Rapid-PVST
+                    - RSTP
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafSpanningTreePriority:
+              id: leafSpanningTreePriority
+              name: leafSpanningTreePriority
+              label: Leaf Spanning Tree Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            memberLeafSpanningTreePriority:
+              id: memberLeafSpanningTreePriority
+              name: memberLeafSpanningTreePriority
+              label: Member Leaf Spanning Tree Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            campusPodSpanningTreeDetails:
+              id: campusPodSpanningTreeDetails
+              name: campusPodSpanningTreeDetails
+              label: Spanning Tree Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - campusPodSpanningTreeMode
+                    - leafSpanningTreePriority
+                    - memberLeafSpanningTreePriority
+            leafVtepLoopbackIPv4Pool:
+              id: leafVtepLoopbackIPv4Pool
+              name: leafVtepLoopbackIPv4Pool
+              label: VTEP Loopback IPv4 Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            campusPodBgpAsRange:
+              id: campusPodBgpAsRange
+              name: leafBgpAsRange
+              label: BGP AS Range
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            campusPodBgpDefaultsConfigStatement:
+              id: campusPodBgpDefaultsConfigStatement
+              name: leafBgpDefaultsConfigStatement
+              label: Config Statement
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            campusPodBgpDefaults:
+              id: campusPodBgpDefaults
+              name: leafBgpDefaults
+              label: BGP Defaults
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: campusPodBgpDefaultsConfigStatement
+                key: ''
+            leafBgpDetails:
+              id: leafBgpDetails
+              name: leafBgpDetails
+              label: BGP Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - campusPodBgpAsRange
+                    - campusPodBgpDefaults
+            l2CampusInbandManagementVlan:
+              id: l2CampusInbandManagementVlan
+              name: l2CampusInbandManagementVlan
+              label: Inband Management VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            l2CampusInbandManagementSubnet:
+              id: l2CampusInbandManagementSubnet
+              name: l2CampusInbandManagementSubnet
+              label: Inband Management Subnet
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            l2CampusInbandManagementGateway:
+              id: l2CampusInbandManagementGateway
+              name: l2CampusInbandManagementGateway
+              label: Inband Management Gateway
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            l2CampusInbandManagementDetails:
+              id: l2CampusInbandManagementDetails
+              name: l2CampusInbandManagementDetails
+              label: Inband Management Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - l2CampusInbandManagementVlan
+                    - l2CampusInbandManagementSubnet
+                    - l2CampusInbandManagementGateway
+            campusPodDetails:
+              id: campusPodDetails
+              name: campusPodDetails
+              label: Campus Pod Defaults
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - campusPodRouterIdPool
+                    - campusPodUplinkIpv4Pool
+                    - leafMlagDetails
+                    - campusPodSpanningTreeDetails
+                    - leafVtepLoopbackIPv4Pool
+                    - leafBgpDetails
+                    - l2CampusInbandManagementDetails
+            splineRouterIdPool:
+              id: splineRouterIdPool
+              name: splineRouterIdPool
+              label: Router ID Pool
+              description: Define the IPv4 pool from which IP addresses are allocated to each spline's Loopback0 interface.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineSpanningTreeMode:
+              id: splineSpanningTreeMode
+              name: splineSpanningTreeMode
+              label: Spanning Tree Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: MSTP
+                static_options:
+                  values:
+                    - RSTP
+                    - MSTP
+                    - Rapid-PVST
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineSpanningTreePriority:
+              id: splineSpanningTreePriority
+              name: splineSpanningTreePriority
+              label: Spanning Tree Priority
+              description: If no value is entered and L2 is selected for Campus Type, defaults to 4096. If no value is entered and L3 is selected for Campus Type, uses EOS default.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            splineSpanningTreeDetails:
+              id: splineSpanningTreeDetails
+              name: splineSpanningTreeDetails
+              label: Spanning Tree Details
+              description: Spanning tree settings to be applied on Spline switches
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineSpanningTreeMode
+                    - splineSpanningTreePriority
+            splineMlagPeerVlan:
+              id: splineMlagPeerVlan
+              name: splineMlagPeerVlan
+              label: MLAG Peer VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '4094'
+                range: null
+                static_options: null
+                dynamic_options: null
+            splineMlagPeerIPv4Pool:
+              id: splineMlagPeerIPv4Pool
+              name: splineMlagPeerIPv4Pool
+              label: MLAG Peer IPv4 Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineMlagPeerL3Vlan:
+              id: splineMlagPeerL3Vlan
+              name: splineMlagPeerL3Vlan
+              label: MLAG Peer L3 VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            splineMlagPeerL3IPv4Pool:
+              id: splineMlagPeerL3IPv4Pool
+              name: splineMlagPeerL3IPv4Pool
+              label: MLAG Peer L3 IPv4 Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineVirtualRouterMacAddress:
+              id: splineVirtualRouterMacAddress
+              name: splineVirtualRouterMacAddress
+              label: Virtual Router MAC Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: 00:1c:73:00:00:99
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineMlagPeerInterfaceName:
+              id: splineMlagPeerInterfaceName
+              name: splineMlagPeerInterfaceName
+              label: Interface Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineMlagPeerInterfaces:
+              id: splineMlagPeerInterfaces
+              name: splineMlagPeerInterfaces
+              label: MLAG Peer Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: splineMlagPeerInterfaceName
+                key: ''
+            splineMlagDetails:
+              id: splineMlagDetails
+              name: splineMlagDetails
+              label: MLAG Details
+              description: MLAG settings to be applied on Spline switches
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineMlagPeerVlan
+                    - splineMlagPeerIPv4Pool
+                    - splineMlagPeerL3Vlan
+                    - splineMlagPeerL3IPv4Pool
+                    - splineVirtualRouterMacAddress
+                    - splineMlagPeerInterfaces
+            splineVtepLoopbackIPv4Pool:
+              id: splineVtepLoopbackIPv4Pool
+              name: splineVtepLoopbackIPv4Pool
+              label: VTEP Loopback IPv4 Pool
+              description: Define the IPv4 pool from which IP addresses are allocated to each spline's Loopback1 interface.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineBgpAsn:
+              id: splineBgpAsn
+              name: splineBgpAsn
+              label: BGP ASN
+              description: BGP AS assigned to spline switches
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineBgpDefaultsConfigStatement:
+              id: splineBgpDefaultsConfigStatement
+              name: splineBgpDefaultsConfigStatement
+              label: Config Statement
+              description: Input raw EOS CLI
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineBgpDefaults:
+              id: splineBgpDefaults
+              name: splineBgpDefaults
+              label: BGP Defaults
+              description: Configure additional commands under the 'router bgp' context.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: splineBgpDefaultsConfigStatement
+                key: ''
+            splineBgpDetails:
+              id: splineBgpDetails
+              name: splineBgpDetails
+              label: BGP Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineBgpAsn
+                    - splineBgpDefaults
+            splineDefaults:
+              id: splineDefaults
+              name: splineDefaults
+              label: Spline Defaults
+              description: Set parameters which will be used to generate configuration across all spline switches in this site.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineRouterIdPool
+                    - splineSpanningTreeDetails
+                    - splineMlagDetails
+                    - splineVtepLoopbackIPv4Pool
+                    - splineBgpDetails
+            ospfProcessId:
+              id: ospfProcessId
+              name: processId
+              label: Process ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '100'
+                range: null
+                static_options: null
+                dynamic_options: null
+            ospfArea:
+              id: ospfArea
+              name: area
+              label: Area
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: 0.0.0.0
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            ospfMaxLsa:
+              id: ospfMaxLsa
+              name: maxLsa
+              label: Max LSA
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '12000'
+                range: null
+                static_options: null
+                dynamic_options: null
+            ospfBfdKnob:
+              id: ospfBfdKnob
+              name: bfd
+              label: BFD
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            ospfConfiguration:
+              id: ospfConfiguration
+              name: ospfConfiguration
+              label: OSPF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - ospfProcessId
+                    - ospfArea
+                    - ospfMaxLsa
+                    - ospfBfdKnob
+            siteUnderlayRoutingProtocol:
+              id: siteUnderlayRoutingProtocol
+              name: siteUnderlayRoutingProtocol
+              label: Underlay Routing Protocol
+              description: Set the routing protocol used for underlay connectivity for this site.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: BGP
+                static_options:
+                  values:
+                    - BGP
+                    - OSPF
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            podId:
+              id: podId
+              name: podId
+              label: Pod ID
+              description: Used as an index for certain inputs defined under the Campus Pod Defaults section.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            leafUplinkInterfaceName:
+              id: leafUplinkInterfaceName
+              name: leafUplinkInterfaceName
+              label: Leaf Interface
+              description: Leaf switch's uplink interface to spline. For example, `Ethernet 27`.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafUplinkHostname:
+              id: leafUplinkHostname
+              name: leafUplinkHostname
+              label: Leaf Hostname
+              description: Hostname of the Leaf
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafUplinkSplineHostname:
+              id: leafUplinkSplineHostname
+              name: leafUplinkSplineHostname
+              label: Spline Hostname
+              description: Upstream spline switch's hostname
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafUplinkSplineInterface:
+              id: leafUplinkSplineInterface
+              name: leafUplinkSplineInterface
+              label: Spline Interface
+              description: Upstream spline switch's interface connecting to the leaf switch.  For example, `Ethernet 1`
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafUplinkInterfaceDetails:
+              id: leafUplinkInterfaceDetails
+              name: leafUplinkInterfaceDetails
+              label: Leaf Uplink Interface Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafUplinkInterfaceName
+                    - leafUplinkHostname
+                    - leafUplinkSplineHostname
+                    - leafUplinkSplineInterface
+            leafUplinkInterfaces:
+              id: leafUplinkInterfaces
+              name: leafUplinkInterfaces
+              label: Leaf Uplink Interfaces
+              description: Define the links the Leaf switches will use to connect to the upstream Spline switches.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: leafUplinkInterfaceDetails
+                key: ''
+            memberLeafUplinkInterfaceName:
+              id: memberLeafUplinkInterfaceName
+              name: memberLeafUplinkInterfaceName
+              label: Interface Name
+              description: Member Leaf switch's uplink interface to Leaf. For example, `Ethernet 27`
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            memberLeafUplinkHostname:
+              id: memberLeafUplinkHostname
+              name: memberLeafUplinkHostname
+              label: Member-Leaf Hostname
+              description: Member Leaf's hostname
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            memberLeafUplinkLeafHostname:
+              id: memberLeafUplinkLeafHostname
+              name: memberLeafUplinkLeafHostname
+              label: Leaf Hostname
+              description: Upstream leaf switch's hostname
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            memberLeafUplinkLeafInterface:
+              id: memberLeafUplinkLeafInterface
+              name: memberLeafUplinkLeafInterface
+              label: Leaf Interface
+              description: Upstream leaf switch's interface connecting to the member-leaf switch.  For example, `Ethernet 1`
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            memberLeafUplinkInterfaceDetails:
+              id: memberLeafUplinkInterfaceDetails
+              name: memberLeafUplinkInterfaceDetails
+              label: Member Leaf Uplink Interface Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - memberLeafUplinkInterfaceName
+                    - memberLeafUplinkHostname
+                    - memberLeafUplinkLeafHostname
+                    - memberLeafUplinkLeafInterface
+            memberLeafUplinkInterfaces:
+              id: memberLeafUplinkInterfaces
+              name: memberLeafUplinkInterfaces
+              label: Member Leaf Uplink Interfaces
+              description: Define the links the Member-Leaf switches will use to connect to the upstream Leaf switches in the Campus Pod.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: memberLeafUplinkInterfaceDetails
+                key: ''
+            campusPodFacts:
+              id: campusPodFacts
+              name: campusPodFacts
+              label: Campus Pod Facts
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - podId
+                    - leafUplinkInterfaces
+                    - memberLeafUplinkInterfaces
+            campusPods:
+              id: campusPods
+              name: campusPods
+              label: Campus Pods
+              description: A Campus Pod is a group of switches that acts as an IDF. Create Campus-Pods and define how the switches in the Campus Pod should be connected.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: campusPodFacts
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Campus-Pod
+                tag_filter_query: null
+            mstInstanceId:
+              id: mstInstanceId
+              name: mstInstanceId
+              label: Instance ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            mstInstanceSplineStpPriority:
+              id: mstInstanceSplineStpPriority
+              name: mstInstanceSplineStpPriority
+              label: Spline Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            mstInstanceLeafStpPriority:
+              id: mstInstanceLeafStpPriority
+              name: mstInstanceLeafStpPriority
+              label: Leaf Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            mstInstanceMemberLeafStpPriority:
+              id: mstInstanceMemberLeafStpPriority
+              name: mstInstanceMemberLeafStpPriority
+              label: Member Leaf Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            mstInstanceDetails:
+              id: mstInstanceDetails
+              name: mstInstanceDetails
+              label: MST Instance Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - mstInstanceId
+                    - mstInstanceSplineStpPriority
+                    - mstInstanceLeafStpPriority
+                    - mstInstanceMemberLeafStpPriority
+            mstInstances:
+              id: mstInstances
+              name: mstInstances
+              label: MST Instances
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: mstInstanceDetails
+                key: mstInstanceId
+            allowAllVlansOnTrunkToggle:
+              id: allowAllVlansOnTrunkToggle
+              name: allowAllVLANs
+              label: Allow All VLANs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            vrfName:
+              id: vrfName
+              name: vrfname
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfMlagPeerL3Vlan:
+              id: vrfMlagPeerL3Vlan
+              name: vrfMlagPeerL3Vlan
+              label: MLAG Peer L3 VLAN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfMlagPeerL3IPv4Pool:
+              id: vrfMlagPeerL3IPv4Pool
+              name: vrfMlagPeerL3IPv4Pool
+              label: MLAG Peer L3 IPv4 Pool
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfMlagL3Peering:
+              id: vrfMlagL3Peering
+              name: ibgpDetails
+              label: MLAG L3 Peering
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfMlagPeerL3Vlan
+                    - vrfMlagPeerL3IPv4Pool
+            vrfStaticRoutesDescription:
+              id: vrfStaticRoutesDescription
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfStaticRoutesApply:
+              id: vrfStaticRoutesApply
+              name: apply
+              label: Apply
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            vrfStaticRoutesHostname:
+              id: vrfStaticRoutesHostname
+              name: hostname
+              label: Hostname
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: vrfStaticRoutesApply
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
+            vrfStaticRoutesDevicesGroup:
+              id: vrfStaticRoutesDevicesGroup
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfStaticRoutesHostname
+            vrfStaticRoutesDevicesResolver:
+              id: vrfStaticRoutesDevicesResolver
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: vrfStaticRoutesDevicesGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            vrfStaticRoutesDestinationAddressPrefix:
+              id: vrfStaticRoutesDestinationAddressPrefix
+              name: destinationAddressPrefix
+              label: Destination Address Prefix
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfStaticRoutesGateway:
+              id: vrfStaticRoutesGateway
+              name: gateway
+              label: Gateway
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfStaticRoutesInterface:
+              id: vrfStaticRoutesInterface
+              name: interface
+              label: Interface
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfStaticRoutesDistance:
+              id: vrfStaticRoutesDistance
+              name: distance
+              label: Distance
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfStaticRoutesTag:
+              id: vrfStaticRoutesTag
+              name: tag
+              label: Tag
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfStaticRoutesMetric:
+              id: vrfStaticRoutesMetric
+              name: metric
+              label: Metric
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfStaticRoutesDetails:
+              id: vrfStaticRoutesDetails
+              name: routeDetails
+              label: Route Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfStaticRoutesDestinationAddressPrefix
+                    - vrfStaticRoutesGateway
+                    - vrfStaticRoutesInterface
+                    - vrfStaticRoutesDistance
+                    - vrfStaticRoutesTag
+                    - vrfStaticRoutesMetric
+            vrfStaticRoutesGroup:
+              id: vrfStaticRoutesGroup
+              name: staticRoutesGroup
+              label: Static Routes Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfStaticRoutesDescription
+                    - vrfStaticRoutesDevicesResolver
+                    - vrfStaticRoutesDetails
+            vrfStaticRoutes:
+              id: vrfStaticRoutes
+              name: staticRoutes
+              label: Static Routes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vrfStaticRoutesGroup
+                key: vrfStaticRoutesDescription
+            vrfRedistributeStaticRoutesToggle:
+              id: vrfRedistributeStaticRoutesToggle
+              name: redistributeStaticRoutes
+              label: Redistribute Static Routes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            vrfExternalBgpPeersNeighborIpAddress:
+              id: vrfExternalBgpPeersNeighborIpAddress
+              name: neighborIpAddress
+              label: Neighbor IP Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersApply:
+              id: vrfExternalBgpPeersApply
+              name: apply
+              label: Apply
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            vrfExternalBgpPeersHostname:
+              id: vrfExternalBgpPeersHostname
+              name: hostname
+              label: Hostname
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: vrfExternalBgpPeersApply
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
+            vrfExternalBgpPeersDevicesGroup:
+              id: vrfExternalBgpPeersDevicesGroup
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfExternalBgpPeersHostname
+            vrfExternalBgpPeersDevicesResolver:
+              id: vrfExternalBgpPeersDevicesResolver
+              name: devices
+              label: Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: vrfExternalBgpPeersDevicesGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            vrfExternalBgpPeersRemoteAs:
+              id: vrfExternalBgpPeersRemoteAs
+              name: remoteAs
+              label: Remote AS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfExternalBgpPeersDescription:
+              id: vrfExternalBgpPeersDescription
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersPassword:
+              id: vrfExternalBgpPeersPassword
+              name: password
+              label: Password
+              description: Input the encrypted password (seeded with neighbor IP)
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersSendCommunity:
+              id: vrfExternalBgpPeersSendCommunity
+              name: sendCommunity
+              label: Send Community
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - standard
+                    - extended
+                    - large
+                    - all
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersNextHopSelf:
+              id: vrfExternalBgpPeersNextHopSelf
+              name: nextHopSelf
+              label: Next Hop Self
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'True'
+                    - 'False'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersMaximumRoutes:
+              id: vrfExternalBgpPeersMaximumRoutes
+              name: maximumRoutes
+              label: Maximum Routes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfExternalBgpPeersMaxRoutesWarningLimit:
+              id: vrfExternalBgpPeersMaxRoutesWarningLimit
+              name: warningLimit
+              label: Warning Limit
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfExternalBgpPeersMaxRoutesGroup:
+              id: vrfExternalBgpPeersMaxRoutesGroup
+              name: maxRoutes
+              label: Max Routes
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfExternalBgpPeersMaximumRoutes
+                    - vrfExternalBgpPeersMaxRoutesWarningLimit
+            vrfExternalBgpPeersUpdateSource:
+              id: vrfExternalBgpPeersUpdateSource
+              name: updateSource
+              label: Update Source
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersEbgpMultihop:
+              id: vrfExternalBgpPeersEbgpMultihop
+              name: ebgpMultihop
+              label: EBGP Multihop
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfExternalBgpPeersWeight:
+              id: vrfExternalBgpPeersWeight
+              name: weight
+              label: Weight
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfExternalBgpPeersIpv4NextHop:
+              id: vrfExternalBgpPeersIpv4NextHop
+              name: iPv4NextHop
+              label: IPv4 Next Hop
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersIpv6NextHop:
+              id: vrfExternalBgpPeersIpv6NextHop
+              name: iPv6NextHop
+              label: IPv6 Next Hop
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersNextHopGroup:
+              id: vrfExternalBgpPeersNextHopGroup
+              name: nextHop
+              label: Next Hop
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfExternalBgpPeersIpv4NextHop
+                    - vrfExternalBgpPeersIpv6NextHop
+            vrfExternalBgpPeersRouteMapIn:
+              id: vrfExternalBgpPeersRouteMapIn
+              name: routeMapIn
+              label: Route Map In
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersRouteMapOut:
+              id: vrfExternalBgpPeersRouteMapOut
+              name: routeMapOut
+              label: Route Map Out
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersRouteMapGroup:
+              id: vrfExternalBgpPeersRouteMapGroup
+              name: routeMap
+              label: Route Map
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfExternalBgpPeersRouteMapIn
+                    - vrfExternalBgpPeersRouteMapOut
+            vrfExternalBgpPeersDefaultOriginateAlwaysToggle:
+              id: vrfExternalBgpPeersDefaultOriginateAlwaysToggle
+              name: always
+              label: Always
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'True'
+                    - 'False'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersDefaultOriginateGroup:
+              id: vrfExternalBgpPeersDefaultOriginateGroup
+              name: defaultOriginate
+              label: Default Originate
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfExternalBgpPeersDefaultOriginateAlwaysToggle
+            vrfExternalBgpPeersLocalAs:
+              id: vrfExternalBgpPeersLocalAs
+              name: localAs
+              label: Local AS
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfExternalBgpPeersGroup:
+              id: vrfExternalBgpPeersGroup
+              name: value
+              label: External BGP Peers Group
+              description: Group of members for External BGP Peers
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfExternalBgpPeersNeighborIpAddress
+                    - vrfExternalBgpPeersDevicesResolver
+                    - vrfExternalBgpPeersRemoteAs
+                    - vrfExternalBgpPeersDescription
+                    - vrfExternalBgpPeersPassword
+                    - vrfExternalBgpPeersSendCommunity
+                    - vrfExternalBgpPeersNextHopSelf
+                    - vrfExternalBgpPeersMaxRoutesGroup
+                    - vrfExternalBgpPeersUpdateSource
+                    - vrfExternalBgpPeersEbgpMultihop
+                    - vrfExternalBgpPeersWeight
+                    - vrfExternalBgpPeersNextHopGroup
+                    - vrfExternalBgpPeersRouteMapGroup
+                    - vrfExternalBgpPeersDefaultOriginateGroup
+                    - vrfExternalBgpPeersLocalAs
+            vrfExternalBgpPeers:
+              id: vrfExternalBgpPeers
+              name: externalBgpPeers
+              label: External BGP Peers
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vrfExternalBgpPeersGroup
+                key: vrfExternalBgpPeersDescription
+            vrfOspfProcessId:
+              id: vrfOspfProcessId
+              name: vrfOspfProcessId
+              label: Process ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfOspfMaxLsa:
+              id: vrfOspfMaxLsa
+              name: vrfOspfMaxLsa
+              label: Max LSA
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfOspfBfd:
+              id: vrfOspfBfd
+              name: vrfOspfBfd
+              label: BFD
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfOspfEnabled:
+              id: vrfOspfEnabled
+              name: vrfOspfEnabled
+              label: Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            vrfOspfConfiguration:
+              id: vrfOspfConfiguration
+              name: vrfOspfConfiguration
+              label: OSPF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfOspfProcessId
+                    - vrfOspfMaxLsa
+                    - vrfOspfBfd
+                    - vrfOspfEnabled
+            vrfDetails:
+              id: vrfDetails
+              name: value
+              label: VRF Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfName
+                    - vrfMlagL3Peering
+                    - vrfStaticRoutes
+                    - vrfRedistributeStaticRoutesToggle
+                    - vrfExternalBgpPeers
+                    - vrfOspfConfiguration
+            vrfs:
+              id: vrfs
+              name: vrfs
+              label: VRFs
+              description: VRFs configured only on all gateway switches at this site
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vrfDetails
+                key: vrfName
+            vlanId:
+              id: vlanId
+              name: vlanId
+              label: VLAN ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanCampusSviVrf:
+              id: vlanCampusSviVrf
+              name: vrf
+              label: VRF
+              description: VRF this VLAN will be configured in.  If no value is selected, VLAN will be put in the default VRF.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"vrfName"}'
+            l2CampusSviIpVirtualRouterAddress:
+              id: l2CampusSviIpVirtualRouterAddress
+              name: l2CampusSviIpVirtualRouterAddress
+              label: IP Virtual Router Address
+              description: Virtual IP address for SVI shared between splines to enable VARP.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            l2CampusPrimarySplineSviIpAddress:
+              id: l2CampusPrimarySplineSviIpAddress
+              name: l2CampusPrimarySplineSviIpAddress
+              label: Primary Spline SVI IP Address
+              description: 'IP address (in CIDR notation) for SVI assigned to primary spline. If no value is entered, IP address will be allocated automatically based on virtual IP address. '
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            l2CampusSecondarySplineSviIpAddress:
+              id: l2CampusSecondarySplineSviIpAddress
+              name: l2CampusSecondarySplineSviIpAddress
+              label: Secondary Spline SVI IP Address
+              description: 'IP address (in CIDR notation) for SVI assigned to secondary spline. If no value is entered, IP address will be allocated automatically based on virtual IP address. '
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanCampusSviGroup:
+              id: vlanCampusSviGroup
+              name: sviDetails
+              label: SVI Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanCampusSviVrf
+                    - l2CampusSviIpVirtualRouterAddress
+                    - l2CampusPrimarySplineSviIpAddress
+                    - l2CampusSecondarySplineSviIpAddress
+            vlanDhcpHelpersServer:
+              id: vlanDhcpHelpersServer
+              name: dhcpServer
+              label: DHCP Server
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanDhcpHelpersSourceInterface:
+              id: vlanDhcpHelpersSourceInterface
+              name: dhcpSourceInterface
+              label: DHCP Source Interface
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanDhcpHelpersGroup:
+              id: vlanDhcpHelpersGroup
+              name: dhcpHelperDetails
+              label: DHCP Helper Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanDhcpHelpersServer
+                    - vlanDhcpHelpersSourceInterface
+            vlanDhcpHelpers:
+              id: vlanDhcpHelpers
+              name: dhcpHelpers
+              label: DHCP Helpers
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vlanDhcpHelpersGroup
+                key: ''
+            vlanName:
+              id: vlanName
+              name: name
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlansCampusPodSviIpAddress:
+              id: vlansCampusPodSviIpAddress
+              name: l3CampusSviIpVirtualRouterAddress
+              label: IP Virtual Router Address
+              description: Virtual IP address for SVI shared between primary and secondary leaf to enable VARP.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: cidr
+                length: null
+                pattern: null
+                dynamic_options: null
+            l2CampusPrimaryLeafSviIpAddress:
+              id: l2CampusPrimaryLeafSviIpAddress
+              name: l2CampusPrimaryLeafSviIpAddress
+              label: Primary Leaf SVI IP Address
+              description: 'IP address (in CIDR notation) for SVI assigned to primary leaf. If no value is entered, IP address will be allocated automatically based on virtual IP address. '
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            l2CampusSecondaryLeafSviIpAddress:
+              id: l2CampusSecondaryLeafSviIpAddress
+              name: l2CampusSecondaryLeafSviIpAddress
+              label: Secondary Leaf SVI IP Address
+              description: 'IP address (in CIDR notation) for SVI assigned to secondary leaf. If no value is entered, IP address will be allocated automatically based on virtual IP address. '
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlansCampusPodGroup:
+              id: vlansCampusPodGroup
+              name: poDDetails
+              label: PoD Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlansCampusPodSviIpAddress
+                    - l2CampusPrimaryLeafSviIpAddress
+                    - l2CampusSecondaryLeafSviIpAddress
+            vlansCampusPodResolver:
+              id: vlansCampusPodResolver
+              name: campusPoD
+              label: Campus PoDs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: vlansCampusPodGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Campus-Pod
+                tag_filter_query: null
+            vlanSviEosCliStatement:
+              id: vlanSviEosCliStatement
+              name: cliStatement
+              label: CLI Statement
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vlanSviEosCli:
+              id: vlanSviEosCli
+              name: eosCli
+              label: EOS CLI
+              description: Raw CLI to be applied on SVI
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vlanSviEosCliStatement
+                key: ''
+            vlanMstInstance:
+              id: vlanMstInstance
+              name: vlanMstInstance
+              label: MST Instance
+              description: MST instance this VLAN belongs to. If left blank, VLAN will be a member of the default instance (0). Create MST instances in the 'MST Instances' section on the Site page.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"mstInstanceId"}'
+            vlanStpPrioritySpline:
+              id: vlanStpPrioritySpline
+              name: vlanStpPrioritySpline
+              label: Spline STP Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vlanStpPriorityLeaf:
+              id: vlanStpPriorityLeaf
+              name: vlanStpPriorityLeaf
+              label: Leaf STP Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vlanStpPriorityMemberLeaf:
+              id: vlanStpPriorityMemberLeaf
+              name: vlanStpPriorityMemberLeaf
+              label: Member Leaf STP Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vlanSpanningTreeDetails:
+              id: vlanSpanningTreeDetails
+              name: vlanSpanningTreeDetails
+              label: VLAN Spanning Tree Details
+              description: Edit any of the default spanning tree settings
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanMstInstance
+                    - vlanStpPrioritySpline
+                    - vlanStpPriorityLeaf
+                    - vlanStpPriorityMemberLeaf
+            sviOspfEnabled:
+              id: sviOspfEnabled
+              name: enabled
+              label: Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            sviOspfPointToPoint:
+              id: sviOspfPointToPoint
+              name: pointToPoint
+              label: Point-to-Point
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            sviOspfArea:
+              id: sviOspfArea
+              name: area
+              label: Area
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            sviOspfCost:
+              id: sviOspfCost
+              name: cost
+              label: Cost
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            sviOspfAuthentication:
+              id: sviOspfAuthentication
+              name: authentication
+              label: Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Simple
+                    - Message-Digest
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            sviOspfSimpleAuthKey:
+              id: sviOspfSimpleAuthKey
+              name: simpleAuthKey
+              label: Simple Auth Key
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            sviOspfHashAlgorithm:
+              id: sviOspfHashAlgorithm
+              name: hashAlgorithm
+              label: Hash Algorithm
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: sha512
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            sviOspfKey:
+              id: sviOspfKey
+              name: key
+              label: Key
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            sviOspfKeyId:
+              id: sviOspfKeyId
+              name: id
+              label: ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            sviOspfMessageDigestKeysDetails:
+              id: sviOspfMessageDigestKeysDetails
+              name: sviOspfMessageDigestKeysDetails
+              label: Message Digest Keys Group
+              description: Group of members for messageDigestKeys
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - sviOspfHashAlgorithm
+                    - sviOspfKey
+                    - sviOspfKeyId
+            sviOspfMessageDigestKeys:
+              id: sviOspfMessageDigestKeys
+              name: messageDigestKeys
+              label: Message Digest Keys
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: sviOspfMessageDigestKeysDetails
+                key: ''
+            sviOspfConfiguration:
+              id: sviOspfConfiguration
+              name: sviOspfConfiguration
+              label: OSPF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - sviOspfEnabled
+                    - sviOspfPointToPoint
+                    - sviOspfArea
+                    - sviOspfCost
+                    - sviOspfAuthentication
+                    - sviOspfSimpleAuthKey
+                    - sviOspfMessageDigestKeys
+            vlansDetails:
+              id: vlansDetails
+              name: vlanDetails
+              label: VLAN Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vlanId
+                    - vlanCampusSviGroup
+                    - vlanDhcpHelpers
+                    - vlanName
+                    - vlansCampusPodResolver
+                    - vlanSviEosCli
+                    - vlanSpanningTreeDetails
+                    - sviOspfConfiguration
+            vlans:
+              id: vlans
+              name: vlans
+              label: VLANs
+              description: VLANs configured only on all switches at this site.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vlansDetails
+                key: vlanId
+            siteServices:
+              id: siteServices
+              name: services
+              label: Services
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - allowAllVlansOnTrunkToggle
+                    - vrfs
+                    - vlans
+            campusType:
+              id: campusType
+              name: campusType
+              label: Campus Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - L3
+                    - L2
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            p2pLinkName:
+              id: p2pLinkName
+              name: name
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            p2pLinkIncludeInUnderlayRoutingProtocol:
+              id: p2pLinkIncludeInUnderlayRoutingProtocol
+              name: includeInUnderlayRoutingProtocol
+              label: Include in Underlay Routing Protocol
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            p2pLinkHostname:
+              id: p2pLinkHostname
+              name: hostname
+              label: Hostname
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            p2pLinkEthernetInterface:
+              id: p2pLinkEthernetInterface
+              name: ethernetInterface
+              label: Ethernet Interface
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            p2pLinkIpAddress:
+              id: p2pLinkIpAddress
+              name: ipAddress
+              label: IP Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            p2pLinkInterfaces:
+              id: p2pLinkInterfaces
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - p2pLinkHostname
+                    - p2pLinkEthernetInterface
+                    - p2pLinkIpAddress
+            p2pLinkInterfaceDetails:
+              id: p2pLinkInterfaceDetails
+              name: interfaceDetails
+              label: Interface Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: p2pLinkInterfaces
+                key: ''
+            p2pLinkDetails:
+              id: p2pLinkDetails
+              name: p2PLinkDetails
+              label: P2P Link Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - p2pLinkName
+                    - p2pLinkIncludeInUnderlayRoutingProtocol
+                    - p2pLinkInterfaceDetails
+            p2pLinks:
+              id: p2pLinks
+              name: interfaces
+              label: Interfaces To Core
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: p2pLinkDetails
+                key: p2pLinkName
+            accessInterfacePortProfileName:
+              id: accessInterfacePortProfileName
+              name: portProfileName
+              label: Name
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            accessInterfacePortProfileGroup:
+              id: accessInterfacePortProfileGroup
+              name: portProfileGroup
+              label: Port Profiles Group
+              description: Group of members for Port Profiles
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - accessInterfacePortProfileName
+            accessInterfacePortProfiles:
+              id: accessInterfacePortProfiles
+              name: portProfiles
+              label: Port Profiles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: accessInterfacePortProfileGroup
+                key: accessInterfacePortProfileName
+            accessInterfaceTopLevelDescription:
+              id: accessInterfaceTopLevelDescription
+              name: TopLevelDescription
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            accessInterfaceInterfaces:
+              id: accessInterfaceInterfaces
+              name: interfaces
+              label: Interfaces
+              description: Interface or range of interfaces to configure
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            accessInterfaceTargetSwitches:
+              id: accessInterfaceTargetSwitches
+              name: accessInterfaceTargetSwitches
+              label: Switches
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: accessInterfaceInterfaces
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            accessInterfaceLowLevelDescription:
+              id: accessInterfaceLowLevelDescription
+              name: accessInterfaceLowLevelDescription
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            accessInterfacesDetails:
+              id: accessInterfacesDetails
+              name: accessInterfacesDetails
+              label: Access Interfaces Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - accessInterfaceTopLevelDescription
+                    - accessInterfaceTargetSwitches
+                    - accessInterfaceLowLevelDescription
+            accessInterfaces:
+              id: accessInterfaces
+              name: accessInterfaces
+              label: Access Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: accessInterfacesDetails
+                key: accessInterfaceTopLevelDescription
+            accessInterfaceConfiguration:
+              id: accessInterfaceConfiguration
+              name: accessInterfaceConfiguration
+              label: Access Interface Configuration
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - accessInterfacePortProfiles
+                    - accessInterfaces
+            splineEvpnRoleDefault:
+              id: splineEvpnRoleDefault
+              name: splineEvpnRoleDefault
+              label: EVPN Role
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Server
+                    - Client
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineMlagSupportDefault:
+              id: splineMlagSupportDefault
+              name: splineMlagSupportDefault
+              label: MLAG Support
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineVtepDefault:
+              id: splineVtepDefault
+              name: splineVtepDefault
+              label: VTEP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineConnectedEndpointsDefault:
+              id: splineConnectedEndpointsDefault
+              name: splineConnectedEndpointsDefault
+              label: Connected Endpoints
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineL2NetworkServicesDefault:
+              id: splineL2NetworkServicesDefault
+              name: splineL2NetworkServicesDefault
+              label: L2 Network Services
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineL3NetworkServicesDefault:
+              id: splineL3NetworkServicesDefault
+              name: splineL3NetworkServicesDefault
+              label: L3 Network Services
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultSplineProperties:
+              id: defaultSplineProperties
+              name: defaultSplineProperties
+              label: Default Spline Properties
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splineEvpnRoleDefault
+                    - splineMlagSupportDefault
+                    - splineVtepDefault
+                    - splineConnectedEndpointsDefault
+                    - splineL2NetworkServicesDefault
+                    - splineL3NetworkServicesDefault
+            leafEvpnRoleDefault:
+              id: leafEvpnRoleDefault
+              name: leafEvpnRoleDefault
+              label: EVPN Role
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Server
+                    - Client
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafMlagSupport:
+              id: leafMlagSupport
+              name: leafMlagSupport
+              label: MLAG Support
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafVtepDefault:
+              id: leafVtepDefault
+              name: leafVtepDefault
+              label: VTEP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafConnectedEndpointsDefault:
+              id: leafConnectedEndpointsDefault
+              name: leafConnectedEndpointsDefault
+              label: Connected Endpoints
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafL2NetworkServicesDefault:
+              id: leafL2NetworkServicesDefault
+              name: leafL2NetworkServicesDefault
+              label: L2 Network Services
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafL3NetworkServicesDefault:
+              id: leafL3NetworkServicesDefault
+              name: leafL3NetworkServicesDefault
+              label: L3 Network Services
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultLeafProperties:
+              id: defaultLeafProperties
+              name: defaultLeafProperties
+              label: Default Leaf Properties
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafEvpnRoleDefault
+                    - leafMlagSupport
+                    - leafVtepDefault
+                    - leafConnectedEndpointsDefault
+                    - leafL2NetworkServicesDefault
+                    - leafL3NetworkServicesDefault
+            nodeTypeProperties:
+              id: nodeTypeProperties
+              name: nodeTypeProperties
+              label: Node Type Properties
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - defaultSplineProperties
+                    - defaultLeafProperties
+            siteFacts:
+              id: siteFacts
+              name: siteFacts
+              label: Site Facts
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - campusPodDetails
+                    - splineDefaults
+                    - ospfConfiguration
+                    - siteUnderlayRoutingProtocol
+                    - campusPods
+                    - mstInstances
+                    - siteServices
+                    - campusType
+                    - p2pLinks
+                    - accessInterfaceConfiguration
+                    - nodeTypeProperties
+            siteResolver:
+              id: siteResolver
+              name: site
+              label: Site
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: siteFacts
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Site
+                tag_filter_query: null
+            campusDetails:
+              id: campusDetails
+              name: campusDetails
+              label: Campus Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - siteResolver
+            campus:
+              id: campus
+              name: campus
+              label: Campus Fabrics
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: campusDetails
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Campus
+                tag_filter_query: null
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - campus
+        layout:
+          value: |
+            {
+              "siteFacts":{
+                "key":"siteFacts",
+                "type":"INPUT",
+                "order":[
+                  "campusType",
+                  "siteUnderlayRoutingProtocol",
+                  "splineTagger",
+                  "splineDefaults",
+                  "campusPods",
+                  "campusPodDetails",
+                  "ospfConfiguration",
+                  "mstInstances",
+                  "siteServices",
+                  "accessInterfaceConfiguration",
+                  "p2pLinks",
+                  "nodeTypeProperties"
+                ]
+              },
+              "fabricSubnet":{
+                "key":"fabricSubnet",
+                "type":"INPUT",
+                "dependency":{
+                  "fabricType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "fabricChildSubnetsMask":{
+                "key":"fabricChildSubnetsMask",
+                "type":"INPUT",
+                "dependency":{
+                  "fabricType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vxlanOverlay":{
+                "key":"vxlanOverlay",
+                "type":"INPUT",
+                "dependency":{
+                  "fabricType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vtepAddressRange":{
+                "key":"vtepAddressRange",
+                "dependency":{
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "leafBgpAS":{
+                "key":"leafBgpAS",
+                "dependency":{
+                  "campusPodUnderlayRoutingProtocol":{
+                    "value":[
+                      "bgp"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "campusPodFacts":{
+                "key":"campusPodFacts",
+                "type":"INPUT",
+                "order":[
+                  "podId",
+                  "leafTagger",
+                  "leafUplinkInterfaces",
+                  "memberLeafTagger",
+                  "memberLeafUplinkInterfaces"
+                ]
+              },
+              "campusPodBgpDefaultsConfigStatement":{
+                "key":"campusPodBgpDefaultsConfigStatement",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "campusPodDetails":{
+                "key":"campusPodDetails",
+                "type":"INPUT",
+                "order":[
+                  "campusPodSpanningTreeDetails",
+                  "leafMlagDetails",
+                  "campusPodUplinkIpv4Pool",
+                  "campusPodRouterIdPool",
+                  "leafVtepLoopbackIPv4Pool",
+                  "leafBgpDetails",
+                  "l2CampusInbandManagementDetails"
+                ]
+              },
+              "splineDefaults":{
+                "key":"splineDefaults",
+                "type":"INPUT",
+                "order":[
+                  "splineSpanningTreeDetails",
+                  "splineMlagDetails",
+                  "splineRouterIdPool",
+                  "splineVtepLoopbackIPv4Pool",
+                  "splineBgpDetails"
+                ]
+              },
+              "campusPodUnderlayRoutingProtocol":{
+                "key":"campusPodUnderlayRoutingProtocol",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "campusPodRouterIdPool":{
+                "key":"campusPodRouterIdPool",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "campusPodBgpAsRange":{
+                "key":"campusPodBgpAsRange",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "splineBgpAs":{
+                "key":"splineBgpAs",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
+              },
+              "splineBgpDefaultsConfigStatement":{
+                "key":"splineBgpDefaultsConfigStatement",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "ospfProcessId":{
+                "key":"ospfProcessId",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "ospfArea":{
+                "key":"ospfArea",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "ospfMaxLsa":{
+                "key":"ospfMaxLsa",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "ospfBfdKnob":{
+                "key":"ospfBfdKnob",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "campusPodUplinkIpv4Pool":{
+                "key":"campusPodUplinkIpv4Pool",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineVtepKnob":{
+                "key":"splineVtepKnob",
+                "type":"INPUT",
+                "dependency":{
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "mlagConfiguration":{
+                "key":"mlagConfiguration",
+                "type":"INPUT",
+                "order":[
+                  "mlagPeerLinkVlan",
+                  "mlagPeerIPv4Pool",
+                  "mlagSubnetMask",
+                  "mlagPeerL3Vlan",
+                  "mlagPeerL3IPv4Pool",
+                  "mlagPeerL3SubnetMask",
+                  "mlagPortChannelId",
+                  "virtualRouterMacAddress",
+                  "lacpMode"
+                ]
+              },
+              "splineTagger":{
+                "type":"TAGGER",
+                "parentKey":"siteFacts",
+                "key":"splineTagger",
+                "name":"Splines",
+                "assignmentType":"SINGLE",
+                "prepopulate":true,
+                "tagFilterQuery":"Role:Spline",
+                "tagType":"DEVICE",
+                "description":"Splines are often the switch at the MDF layer which sit between the core and IDF layers.  Each spline at this site should have a unique NodeId value starting from 1.",
+                "columns":[
+                  {
+                    "tagLabel":"NodeId",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ]
+              },
+              "roleTagger":{
+                "type":"TAGGER",
+                "parentKey":"campusDetails",
+                "key":"roleTagger",
+                "name":"Role",
+                "assignmentType":"SINGLE",
+                "prepopulate":true,
+                "tagType":"DEVICE",
+                "description":"Assign a role to each switch in this campus.",
+                "columns":[
+                  {
+                    "tagLabel":"Site",
+                    "suggestedValues":[
+                      
+                    ]
+                  },
+                  {
+                    "tagLabel":"Role",
+                    "suggestedValues":[
+                      "Spline",
+                      "Leaf",
+                      "Member-Leaf"
+                    ]
+                  },
+                  {
+                    "tagLabel":"NodeId",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ]
+              },
+              "campusDetails":{
+                "key":"campusDetails",
+                "type":"INPUT",
+                "order":[
+                  "siteResolver",
+                  "roleTagger"
+                ]
+              },
+              "leafTagger":{
+                "type":"TAGGER",
+                "parentKey":"campusPodFacts",
+                "key":"leafTagger",
+                "name":"Leafs",
+                "assignmentType":"SINGLE",
+                "prepopulate":true,
+                "tagFilterQuery":"Role:Leaf ",
+                "tagType":"DEVICE",
+                "description":"Assign Leaf Node ID",
+                "columns":[
+                  {
+                    "tagLabel":"NodeId",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ]
+              },
+              "memberLeafTagger":{
+                "type":"TAGGER",
+                "parentKey":"campusPodFacts",
+                "key":"memberLeafTagger",
+                "name":"Member Leafs",
+                "assignmentType":"SINGLE",
+                "prepopulate":true,
+                "tagFilterQuery":"Role:Member-Leaf ",
+                "tagType":"DEVICE",
+                "description":"Assign Leaf Node ID",
+                "columns":[
+                  {
+                    "tagLabel":"NodeId",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ]
+              },
+              "campusPodResolver":{
+                "key":"campusPodResolver",
+                "type":"INPUT",
+                "isPageLayout":true,
+                "showDefaultRow":false
+              },
+              "overlayDetails":{
+                "key":"overlayDetails",
+                "type":"INPUT",
+                "order":[
+                  "vxlanOverlay",
+                  "vtepAddressRange"
+                ]
+              },
+              "campusPods":{
+                "key":"campusPods",
+                "isPageLayout":true,
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "siteResolver":{
+                "key":"siteResolver",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "campus":{
+                "key":"campus",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "vrfs":{
+                "key":"vrfs",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "vlansCampusPodResolver":{
+                "key":"vlansCampusPodResolver",
+                "type":"INPUT"
+              },
+              "vlans":{
+                "key":"vlans",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "vlansCampusPodSviIpAddress":{
+                "key":"vlansCampusPodSviIpAddress",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "vlansDetails":{
+                "key":"vlansDetails",
+                "type":"INPUT",
+                "order":[
+                  "vlanId",
+                  "vlansCampusPodResolver",
+                  "vlanName",
+                  "vlanCampusSviGroup",
+                  "vlanDhcpHelpers",
+                  "sviOspfConfiguration",
+                  "vlanSviEosCli",
+                  "vlanSpanningTreeDetails"
+                ]
+              },
+              "vlanCampusSviGroup":{
+                "key":"vlanCampusSviGroup",
+                "type":"INPUT",
+                "order":[
+                  "vlanCampusSviVrf",
+                  "l2CampusSviIpVirtualRouterAddress",
+                  "l2CampusPrimarySplineSviIpAddress",
+                  "l2CampusSecondarySplineSviIpAddress"
+                ]
+              },
+              "vlanL2CampusSviIpAddress":{
+                "key":"vlanL2CampusSviIpAddress",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT"
+              },
+              "vrfStaticRoutes":{
+                "key":"vrfStaticRoutes",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "vrfExternalBgpPeers":{
+                "key":"vrfExternalBgpPeers",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "vlanSpanningTreePriority":{
+                "key":"vlanSpanningTreePriority",
+                "dependency":{
+                  "spanningTreeMode":{
+                    "value":[
+                      "Rapid-PVST"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
+              },
+              "vlanMstInstance":{
+                "key":"vlanMstInstance",
+                "dependency":{
+                  "splineSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusPodSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
+              },
+              "mstInstanceId":{
+                "key":"mstInstanceId",
+                "dependency":{
+                  "splineSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusPodSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
+              },
+              "mstPriority":{
+                "key":"mstPriority",
+                "type":"INPUT",
+                "dependency":{
+                  "spanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "vrfExternalBgpPeersNeighborIpAddress":{
+                "key":"vrfExternalBgpPeersNeighborIpAddress",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersApply":{
+                "key":"vrfExternalBgpPeersApply",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersRemoteAs":{
+                "key":"vrfExternalBgpPeersRemoteAs",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersDescription":{
+                "key":"vrfExternalBgpPeersDescription",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersPassword":{
+                "key":"vrfExternalBgpPeersPassword",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersSendCommunity":{
+                "key":"vrfExternalBgpPeersSendCommunity",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "vrfExternalBgpPeersNextHopSelf":{
+                "key":"vrfExternalBgpPeersNextHopSelf",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersMaximumRoutes":{
+                "key":"vrfExternalBgpPeersMaximumRoutes",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "vrfExternalBgpPeersMaxRoutesWarningLimit":{
+                "key":"vrfExternalBgpPeersMaxRoutesWarningLimit",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersUpdateSource":{
+                "key":"vrfExternalBgpPeersUpdateSource",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersEbgpMultihop":{
+                "key":"vrfExternalBgpPeersEbgpMultihop",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersWeight":{
+                "key":"vrfExternalBgpPeersWeight",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersIpv4NextHop":{
+                "key":"vrfExternalBgpPeersIpv4NextHop",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersIpv6NextHop":{
+                "key":"vrfExternalBgpPeersIpv6NextHop",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersRouteMapIn":{
+                "key":"vrfExternalBgpPeersRouteMapIn",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersRouteMapOut":{
+                "key":"vrfExternalBgpPeersRouteMapOut",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersDefaultOriginateAlwaysToggle":{
+                "key":"vrfExternalBgpPeersDefaultOriginateAlwaysToggle",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfExternalBgpPeersLocalAs":{
+                "key":"vrfExternalBgpPeersLocalAs",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vlanSpanningTreeDetails":{
+                "key":"vlanSpanningTreeDetails",
+                "type":"INPUT",
+                "order":[
+                  "vlanMstInstance",
+                  "vlanStpPrioritySpline",
+                  "vlanStpPriorityLeaf",
+                  "vlanStpPriorityMemberLeaf"
+                ]
+              },
+              "mstInstanceDetails":{
+                "key":"mstInstanceDetails",
+                "type":"INPUT",
+                "order":[
+                  "mstInstanceId",
+                  "mstInstanceSplineStpPriority",
+                  "mstInstanceLeafStpPriority",
+                  "mstInstanceMemberLeafStpPriority"
+                ]
+              },
+              "p2pLinks":{
+                "key":"p2pLinks",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "p2pLinkDetails":{
+                "key":"p2pLinkDetails",
+                "type":"INPUT",
+                "order":[
+                  "p2pLinkName",
+                  "p2pLinkInterfaceDetails",
+                  "p2pLinkIncludeInUnderlayRoutingProtocol"
+                ]
+              },
+              "podId":{
+                "key":"podId",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "leafMlagPeerL3Vlan":{
+                "key":"leafMlagPeerL3Vlan",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "leafMlagPeerL3IPv4Pool":{
+                "key":"leafMlagPeerL3IPv4Pool",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafVirtualRouterMacAddress":{
+                "key":"leafVirtualRouterMacAddress",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "mstInstanceMemberLeafStpPriority":{
+                "key":"mstInstanceMemberLeafStpPriority",
+                "dependency":{
+                  "campusPodSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "mstInstanceLeafStpPriority":{
+                "key":"mstInstanceLeafStpPriority",
+                "type":"INPUT",
+                "dependency":{
+                  "campusPodSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "mstInstanceSplineStpPriority":{
+                "key":"mstInstanceSplineStpPriority",
+                "dependency":{
+                  "splineSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "vlanStpPrioritySpline":{
+                "key":"vlanStpPrioritySpline",
+                "dependency":{
+                  "splineSpanningTreeMode":{
+                    "value":[
+                      "Rapid-PVST"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "vlanStpPriorityLeaf":{
+                "key":"vlanStpPriorityLeaf",
+                "dependency":{
+                  "campusPodSpanningTreeMode":{
+                    "value":[
+                      "Rapid-PVST"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "vlanStpPriorityMemberLeaf":{
+                "key":"vlanStpPriorityMemberLeaf",
+                "type":"INPUT",
+                "dependency":{
+                  "campusPodSpanningTreeMode":{
+                    "value":[
+                      "Rapid-PVST"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "vlanAssignmentSwitchTagger":{
+                "type":"TAGGER",
+                "parentKey":"vlansCampusPodGroup",
+                "key":"vlanAssignmentSwitchTagger",
+                "name":"Switches",
+                "assignmentType":"SINGLE",
+                "prepopulate":false,
+                "tagType":"DEVICE",
+                "description":"View the switches where the VLAN will be configured.",
+                "columns":[
+                  {
+                    "tagLabel":"Campus-Pod",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ],
+                "fieldOverrides":{
+                  "description":"For viewing purposes only. Do NOT change the values in this table."
+                }
+              },
+              "sviOspfSimpleAuthKey":{
+                "key":"sviOspfSimpleAuthKey",
+                "dependency":{
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Simple"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "sviOspfMessageDigestKeysDetails":{
+                "key":"sviOspfMessageDigestKeysDetails",
+                "type":"INPUT",
+                "order":[
+                  "sviOspfKeyId",
+                  "sviOspfHashAlgorithm",
+                  "sviOspfKey"
+                ]
+              },
+              "sviOspfEnabled":{
+                "key":"sviOspfEnabled",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "sviOspfPointToPoint":{
+                "key":"sviOspfPointToPoint",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "sviOspfArea":{
+                "key":"sviOspfArea",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "sviOspfCost":{
+                "key":"sviOspfCost",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "sviOspfAuthentication":{
+                "key":"sviOspfAuthentication",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "sviOspfKeyId":{
+                "key":"sviOspfKeyId",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Message-Digest"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "sviOspfHashAlgorithm":{
+                "key":"sviOspfHashAlgorithm",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Message-Digest"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "sviOspfKey":{
+                "key":"sviOspfKey",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Message-Digest"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "l2CampusPrimarySplineSviIpAddress":{
+                "key":"l2CampusPrimarySplineSviIpAddress",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "l2CampusSecondarySplineSviIpAddress":{
+                "key":"l2CampusSecondarySplineSviIpAddress",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "l2CampusSviIpVirtualRouterAddress":{
+                "key":"l2CampusSviIpVirtualRouterAddress",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "sviOspfConfiguration":{
+                "key":"sviOspfConfiguration",
+                "type":"INPUT",
+                "order":[
+                  "sviOspfEnabled",
+                  "sviOspfArea",
+                  "sviOspfCost",
+                  "sviOspfPointToPoint",
+                  "sviOspfAuthentication",
+                  "sviOspfSimpleAuthKey",
+                  "sviOspfMessageDigestKeys"
+                ]
+              },
+              "splineVtepLoopbackIPv4Pool":{
+                "key":"splineVtepLoopbackIPv4Pool",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "splineVtepDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafVtepLoopbackIPv4Pool":{
+                "key":"leafVtepLoopbackIPv4Pool",
+                "type":"INPUT",
+                "dependency":{
+                  "leafVtepDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "vrfOspfConfiguration":{
+                "key":"vrfOspfConfiguration",
+                "type":"INPUT",
+                "order":[
+                  "vrfOspfEnabled",
+                  "vrfOspfProcessId",
+                  "vrfOspfMaxLsa",
+                  "vrfOspfBfd"
+                ]
+              },
+              "vrfOspfProcessId":{
+                "key":"vrfOspfProcessId",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "vrfOspfEnabled":{
+                "key":"vrfOspfEnabled",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfOspfMaxLsa":{
+                "key":"vrfOspfMaxLsa",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfOspfBfd":{
+                "key":"vrfOspfBfd",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "l2CampusPrimaryLeafSviIpAddress":{
+                "key":"l2CampusPrimaryLeafSviIpAddress",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "l2CampusSecondaryLeafSviIpAddress":{
+                "key":"l2CampusSecondaryLeafSviIpAddress",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineMlagPeerVlan":{
+                "key":"splineMlagPeerVlan",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineMlagPeerIPv4Pool":{
+                "key":"splineMlagPeerIPv4Pool",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineMlagPeerL3Vlan":{
+                "key":"splineMlagPeerL3Vlan",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineMlagPeerL3IPv4Pool":{
+                "key":"splineMlagPeerL3IPv4Pool",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineVirtualRouterMacAddress":{
+                "key":"splineVirtualRouterMacAddress",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineMlagPeerInterfaceName":{
+                "key":"splineMlagPeerInterfaceName",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineBgpAsn":{
+                "key":"splineBgpAsn",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafUplinkInterfaceDetails":{
+                "key":"leafUplinkInterfaceDetails",
+                "type":"INPUT",
+                "order":[
+                  "leafUplinkHostname",
+                  "leafUplinkInterfaceName",
+                  "leafUplinkSplineHostname",
+                  "leafUplinkSplineInterface"
+                ]
+              },
+              "memberLeafUplinkInterfaceDetails":{
+                "key":"memberLeafUplinkInterfaceDetails",
+                "type":"INPUT",
+                "order":[
+                  "memberLeafUplinkHostname",
+                  "memberLeafUplinkInterfaceName",
+                  "memberLeafUplinkLeafHostname",
+                  "memberLeafUplinkLeafInterface"
+                ]
+              },
+              "accessInterfaces":{
+                "key":"accessInterfaces",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "l2CampusInbandManagementVlan":{
+                "key":"l2CampusInbandManagementVlan",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "l2CampusInbandManagementSubnet":{
+                "key":"l2CampusInbandManagementSubnet",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "l2CampusInbandManagementGateway":{
+                "key":"l2CampusInbandManagementGateway",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              }
+            }
