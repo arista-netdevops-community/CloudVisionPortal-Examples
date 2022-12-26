@@ -1555,6 +1555,12 @@
           %      elif peer_group.AddressFamily == "ipv6":
             address-family ipv6
           %      elif peer_group.AddressFamily == "evpn":
+            address-family ipv4
+              no neighbor ${peer_group.PeerGroupName} activate
+              exit
+            address-family ipv6
+              no neighbor ${peer_group.PeerGroupName} activate
+              exit
             address-family evpn
           %      endif
               neighbor ${peer_group.PeerGroupName} activate
