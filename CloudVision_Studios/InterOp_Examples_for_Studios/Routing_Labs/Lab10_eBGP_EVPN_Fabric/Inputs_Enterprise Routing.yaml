@@ -652,7 +652,7 @@ inputs:
                               peerGroup: Fabric-Edge-Underlay
                             - neighborIp: 26.26.26.0
                               peerAsn: 65025
-                              peerGroup: Fabric-Edge-Underlay
+                              peerGroup: Fabric-Edge-Underlays
                             - neighborIp: 10.10.10.2
                               peerAsn: 65025
                               peerGroup: Fabric-Edge-Overlay
@@ -920,7 +920,13 @@ inputs:
                               extvrf: GUESTS
                           loopback1: {}
                           mlagGroup:
-                            mlagRole: Secondary
+                              mlagRole: Secondary
+                              mlagInterfaces:
+                                - inputs:
+                                    mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                  tags:
+                                    query: interface:Ethernet3@eos11
                           staticRoutes: []
                       tags:
                         query: device:eos13
