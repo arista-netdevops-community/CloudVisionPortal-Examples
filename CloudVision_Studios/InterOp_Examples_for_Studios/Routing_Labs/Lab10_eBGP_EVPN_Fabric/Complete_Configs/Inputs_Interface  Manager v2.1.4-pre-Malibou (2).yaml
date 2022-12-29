@@ -1,0 +1,4441 @@
+path: []
+inputs:
+  aclNames:
+    - aclLines:
+        - description: PERMIT
+          destination: any
+          log: false
+          nextHopGroup: ''
+          permitDenyRemark: permit
+          protocol: ip
+          seqNumber: '10'
+          source: any
+          tracked: false
+      aclSettings:
+        aclStandardOrExtended: extended
+        countersPerEntry: false
+        description: ACL-STUDENTS
+        type: ip
+      devices: []
+      name: ACL-STUDENTS
+  profileOfProfiles:
+    - profileOfProfilesName: TRUNK-PORT
+      vlanProfile: TRUNK
+    - aclIn: ''
+      aclType: ip
+      profileOfProfilesName: ROUTED-PORT
+      vlanProfile: ROUTED
+    - profileOfProfilesName: Fabric-Edge
+      vlanProfile: ESI1-MultiHoming-Fabric-Edge
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  interfaceRanges:
+                    - channelGroup: '23'
+                      description: Fabric-Edge
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: ''
+                      lacpEnabled: enabled
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: all-switches
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 10
+                      channelGroup: ''
+                      description: STUDENTS
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.10.1.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: V10
+                      vrf: STUDENTS
+                    - accessVlan: 10
+                      channelGroup: ''
+                      description: STUDENTS
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.10.2.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '2'
+                      vlanName: V10
+                      vrf: STUDENTS
+                    - accessVlan: 20
+                      channelGroup: ''
+                      description: STAFF
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.20.1.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: V20
+                      vrf: STAFF
+                    - accessVlan: 20
+                      channelGroup: ''
+                      description: STAFF
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.20.2.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '2'
+                      vlanName: V20
+                      vrf: STAFF
+                    - accessVlan: 30
+                      channelGroup: ''
+                      description: EXECS
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.30.1.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: V30
+                      vrf: EXECS
+                    - accessVlan: 30
+                      channelGroup: ''
+                      description: EXECS
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.30.2.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '2'
+                      vlanName: V30
+                      vrf: EXECS
+                    - accessVlan: 40
+                      channelGroup: ''
+                      description: GUESTS
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.40.1.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: V40
+                      vrf: GUESTS
+                    - accessVlan: 40
+                      channelGroup: ''
+                      description: GUESTS
+                      enabled: true
+                      interfaceName: E2
+                      ipPrefix: 1.40.2.0/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '2'
+                      vlanName: V40
+                      vrf: GUESTS
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:DFF4F54E61C9C4955403C8C433C8E3A2
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:E201069595F5E4BF1B271E6D40EE568B
+                  vlanInterfaces:
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.10.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.10.1/24
+                      vlanId: '10'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.11.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.11.1/24
+                      vlanId: '11'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.12.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.12.1/24
+                      vlanId: '12'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.13.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.13.1/24
+                      vlanId: '13'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.14.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.14.1/24
+                      vlanId: '14'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.15.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.15.1/24
+                      vlanId: '15'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.16.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.16.1/24
+                      vlanId: '16'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.17.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.17.1/24
+                      vlanId: '17'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.18.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.18.1/24
+                      vlanId: '18'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.19.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.19.1/24
+                      vlanId: '19'
+                      vrf: STUDENTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.20.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.20.1/24
+                      vlanId: '20'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.21.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.21.1/24
+                      vlanId: '21'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.22.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.22.1/24
+                      vlanId: '22'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.23.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.23.1/24
+                      vlanId: '23'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.24.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.24.1/24
+                      vlanId: '24'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.25.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.25.1/24
+                      vlanId: '25'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.26.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.26.1/24
+                      vlanId: '26'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.27.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.27.1/24
+                      vlanId: '27'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.28.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.28.1/24
+                      vlanId: '28'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.29.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.29.1/24
+                      vlanId: '29'
+                      vrf: STAFF
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.30.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.30.1/24
+                      vlanId: '30'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.31.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.31.1/24
+                      vlanId: '31'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.32.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.32.1/24
+                      vlanId: '32'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.33.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.33.1/24
+                      vlanId: '33'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.34.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.34.1/24
+                      vlanId: '34'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.35.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.35.1/24
+                      vlanId: '35'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.36.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.36.1/24
+                      vlanId: '36'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.37.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.37.1/24
+                      vlanId: '37'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.38.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.38.1/24
+                      vlanId: '38'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.39.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.39.1/24
+                      vlanId: '39'
+                      vrf: EXECS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.40.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.40.1/24
+                      vlanId: '40'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.41.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.41.1/24
+                      vlanId: '41'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.42.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.42.1/24
+                      vlanId: '42'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.43.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.43.1/24
+                      vlanId: '43'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.44.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.44.1/24
+                      vlanId: '44'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.45.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.45.1/24
+                      vlanId: '45'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.46.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.46.1/24
+                      vlanId: '46'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.47.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.47.1/24
+                      vlanId: '47'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.48.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.48.1/24
+                      vlanId: '48'
+                      vrf: GUESTS
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: ''
+                      description: GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 169.254.49.0/31
+                      secIp: []
+                      stackNumber: all-switches
+                      virtualRouterAddress: 10.0.49.1/24
+                      vlanId: '49'
+                      vrf: GUESTS
+              tags:
+                query: Edge-Router-Domain:Core-Routers
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  interfaceRanges:
+                    - accessVlan: 10
+                      channelGroup: ''
+                      description: eos11-STUDENTS
+                      enabled: true
+                      interfaceName: e2
+                      ipPrefix: 1.10.1.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 10
+                      channelGroup: ''
+                      description: eos13-STUDENTS
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 1.10.2.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 20
+                      channelGroup: ''
+                      description: eos11-STAFF
+                      enabled: true
+                      interfaceName: e2
+                      ipPrefix: 1.20.1.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 20
+                      channelGroup: ''
+                      description: eos13-STAFF
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 1.20.2.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 30
+                      channelGroup: ''
+                      description: eos11-EXECS
+                      enabled: true
+                      interfaceName: e2
+                      ipPrefix: 1.30.1.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 30
+                      channelGroup: ''
+                      description: eos13-EXECS
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 1.30.2.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 40
+                      channelGroup: ''
+                      description: eos11-GUESTS
+                      enabled: true
+                      interfaceName: e2
+                      ipPrefix: 1.40.1.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: 40
+                      channelGroup: ''
+                      description: eos13-GUESTS
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 1.40.2.1/31
+                      profileOfProfileName: ROUTED-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:eos12
+                  vlanInterfaces: []
+              tags:
+                query: Edge-Router-Domain:FW
+      tags:
+        query: Network:Ex10-Core-Routers-FW-eos11-eos12-eos13
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  interfaceRanges: []
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:64193483EF72D88C471EE852D958D52F
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:6DA5C308E9B83085E54C9E82D6C8CFA8
+                  vlanInterfaces: []
+              tags:
+                query: Edge-Router-Domain:Fabric_Edge
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  interfaceRanges:
+                    - channelGroup: ''
+                      description: eos10
+                      enabled: true
+                      interfaceName: e2
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '2'
+                      vlanName: ''
+                      vrf: ''
+                    - channelGroup: ''
+                      description: eos19
+                      enabled: true
+                      interfaceName: e4
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '2'
+                      vlanName: ''
+                      vrf: ''
+                    - channelGroup: ''
+                      description: eos20
+                      enabled: true
+                      interfaceName: e6
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:7D15D94E1D937AAFEF819BA4466877AA
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:71E8B08786E20E6FBCF8333D289721BA
+                  vlanInterfaces: []
+              tags:
+                query: Edge-Router-Domain:Building1
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  interfaceRanges:
+                    - channelGroup: ''
+                      description: eos16
+                      enabled: true
+                      interfaceName: e5
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                    - channelGroup: ''
+                      description: eos18
+                      enabled: true
+                      interfaceName: e5
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '2'
+                      vlanName: ''
+                      vrf: ''
+                    - channelGroup: ''
+                      description: eos15
+                      enabled: true
+                      interfaceName: e2
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '2'
+                      vlanName: ''
+                      vrf: ''
+                    - channelGroup: ''
+                      description: eos14
+                      enabled: true
+                      interfaceName: e4
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '2'
+                      vlanName: ''
+                      vrf: ''
+                    - channelGroup: ''
+                      description: eos9
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: '1'
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:8A6B1E15E130B85461FE1B03F8093DD4
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:37C8030B97B927D62E697C9B46580355
+                  vlanInterfaces: []
+              tags:
+                query: Edge-Router-Domain:Building2
+      tags:
+        query: Network:Ex10-Overlay-Network-eos1-eos2-eos3-eos4-eos5-eos6-eos7-eos8
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  interfaceRanges:
+                    - channelGroup: ''
+                      description: Edge-Switch
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: ''
+                      profileOfProfileName: TRUNK-PORT
+                      stackNumber: all-switches
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '19'
+                      tags:
+                        query: device:90BE70504FEB969413D3AE65A9374EDB
+                    - inputs:
+                        stackMember: '10'
+                      tags:
+                        query: device:BF12DEFA5E6C5BE9667AC5F4F641487A
+                    - inputs:
+                        stackMember: '18'
+                      tags:
+                        query: device:6AF4E14355111FB1A7318B4D77B7E91B
+                    - inputs:
+                        stackMember: '20'
+                      tags:
+                        query: device:FF2E9020186B8C7705D2FB4567722CC8
+                    - inputs:
+                        stackMember: '9'
+                      tags:
+                        query: device:5465A5AFB68607FAD295A7484C711E62
+                    - inputs:
+                        stackMember: '15'
+                      tags:
+                        query: device:3CA727B9D54E824238DAC1BBB510138D
+                    - inputs:
+                        stackMember: '16'
+                      tags:
+                        query: device:16880783DB6842458A1D4D6AF4584CAF
+                    - inputs:
+                        stackMember: '14'
+                      tags:
+                        query: device:BFEFC06687ACF23D710D661EDAFA3694
+                  vlanInterfaces:
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: eos10-STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: eos19-STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: eos20-STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: eos9-STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: eos16-STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: 'eos18-STUDENTS-V10 '
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: eos15-STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.10.1
+                      description: eos14-STUDENTS-V10
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.10.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '10'
+                      vrf: '10'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos10-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos19-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos20-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos9-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos16-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos18-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos15-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.11.1
+                      description: eos14-STUDENTS-V11
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.11.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '11'
+                      vrf: '11'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos10-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos19-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos20-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos9-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos16-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos18-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos15-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.12.1
+                      description: eos14-STUDENTS-V12
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.12.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '12'
+                      vrf: '12'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos10-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos19-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos20-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos9-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos16-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos18-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos15-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.13.1
+                      description: eos14-STUDENTS-V13
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.13.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: '13'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos10-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos19-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos20-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos9-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos16-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos18-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos15-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.14.1
+                      description: eos14-STUDENTS-V14
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.14.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '14'
+                      vrf: '14'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos10-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos19-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos20-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos9-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos16-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos18-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos15-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.15.1
+                      description: eos14-STUDENTS-V15
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.15.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: '15'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos10-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos19-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos20-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos9-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos16-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos18-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos15-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.16.1
+                      description: eos14-STUDENTS-V16
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.16.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: '16'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos10-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos19-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos20-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos9-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos16-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos18-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos15-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.17.1
+                      description: eos14-STUDENTS-V17
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.17.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '17'
+                      vrf: '17'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos10-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos19-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos20-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos9-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos16-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos18-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos15-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.18.1
+                      description: eos14-STUDENTS-V18
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.18.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '18'
+                      vrf: '18'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos10-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos19-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos20-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos9-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos16-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos18-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos15-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.19.1
+                      description: eos14-STUDENTS-V19
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.19.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '19'
+                      vrf: '19'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: eos10-STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: eos19-STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: eos20-STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: eos9-STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: eos16-STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: 'eos18-STAFF-V20 '
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: eos15-STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.20.1
+                      description: eos14-STAFF-V20
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.20.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '20'
+                      vrf: '20'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos10-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos19-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos20-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos9-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos16-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos18-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos15-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.21.1
+                      description: eos14-STAFF-V21
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.21.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '21'
+                      vrf: '21'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos10-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos19-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos20-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos9-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos16-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos18-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos15-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.22.1
+                      description: eos14-STAFF-V22
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.22.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '22'
+                      vrf: '22'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos10-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos19-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos20-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos9-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos16-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos18-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos15-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.23.1
+                      description: eos14-STAFF-V23
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.23.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '23'
+                      vrf: '23'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos10-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos19-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos20-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos9-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos16-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos18-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos15-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.24.1
+                      description: eos14-STAFF-V24
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.24.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '24'
+                      vrf: '24'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos10-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos19-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos20-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos9-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos16-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos18-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos15-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.25.1
+                      description: eos14-STAFF-V25
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.25.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '25'
+                      vrf: '25'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos10-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos19-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos20-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos9-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos16-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos18-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos15-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.26.1
+                      description: eos14-STAFF-V26
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.26.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '26'
+                      vrf: '26'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos10-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos19-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos20-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos9-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos16-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos18-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos15-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.27.1
+                      description: eos14-STAFF-V27
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.27.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '27'
+                      vrf: '27'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos10-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos19-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos20-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos9-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos16-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos18-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos15-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.28.1
+                      description: eos14-STAFF-V28
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.28.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '28'
+                      vrf: '28'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos10-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos19-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos20-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos9-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos16-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos18-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos15-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.29.1
+                      description: eos14-STAFF-V29
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.29.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '29'
+                      vrf: '29'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: eos10-EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: eos19-EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: eos20-EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: eos9-EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: eos16-EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: 'eos18-EXECS-V30 '
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: eos15-EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.30.1
+                      description: eos14-EXECS-V30
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.30.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '30'
+                      vrf: '30'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos10-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos19-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos20-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos9-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos16-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos18-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos15-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.31.1
+                      description: eos14-EXECS-V31
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.31.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '31'
+                      vrf: '31'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos10-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos19-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos20-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos9-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos16-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos18-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos15-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.32.1
+                      description: eos14-EXECS-V32
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.32.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '32'
+                      vrf: '32'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos10-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos19-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos20-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos9-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos16-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos18-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos15-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.33.1
+                      description: eos14-EXECS-V33
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.33.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '33'
+                      vrf: '33'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos10-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos19-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos20-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos9-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos16-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos18-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos15-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.34.1
+                      description: eos14-EXECS-V34
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.34.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '34'
+                      vrf: '34'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos10-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos19-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos20-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos9-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos16-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos18-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos15-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.35.1
+                      description: eos14-EXECS-V35
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.35.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '35'
+                      vrf: '35'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos10-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos19-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos20-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos9-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos16-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos18-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos15-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.36.1
+                      description: eos14-EXECS-V36
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.36.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '36'
+                      vrf: '36'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos10-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos19-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos20-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos9-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos16-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos18-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos15-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.37.1
+                      description: eos14-EXECS-V37
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.37.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '37'
+                      vrf: '37'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos10-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos19-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos20-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos9-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos16-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos18-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos15-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.38.1
+                      description: eos14-EXECS-V38
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.38.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '38'
+                      vrf: '38'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos10-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos19-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos20-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos9-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos16-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos18-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos15-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.39.1
+                      description: eos14-EXECS-V39
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.39.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '39'
+                      vrf: '39'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: eos10-GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: eos19-GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: eos20-GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: eos9-GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: eos16-GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: 'eos18-GUESTS-V40 '
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: eos15-GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.40.1
+                      description: eos14-GUESTS-V40
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.40.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '40'
+                      vrf: '40'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos10-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos19-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos20-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos9-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos16-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos18-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos15-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.41.1
+                      description: eos14-GUESTS-V41
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.41.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '41'
+                      vrf: '41'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos10-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos19-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos20-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos9-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos16-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos18-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos15-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.42.1
+                      description: eos14-GUESTS-V42
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.42.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '42'
+                      vrf: '42'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos10-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos19-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos20-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos9-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos16-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos18-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos15-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.43.1
+                      description: eos14-GUESTS-V43
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.43.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '43'
+                      vrf: '43'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos10-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos19-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos20-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos9-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos16-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos18-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos15-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.44.1
+                      description: eos14-GUESTS-V44
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.44.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '44'
+                      vrf: '44'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos10-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos19-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos20-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos9-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos16-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos18-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos15-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.45.1
+                      description: eos14-GUESTS-V45
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.45.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '45'
+                      vrf: '45'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos10-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos19-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos20-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos9-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos16-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos18-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos15-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.46.1
+                      description: eos14-GUESTS-V46
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.46.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '46'
+                      vrf: '46'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos10-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos19-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos20-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos9-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos16-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos18-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos15-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.47.1
+                      description: eos14-GUESTS-V47
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.47.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '47'
+                      vrf: '47'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos10-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos19-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos20-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos9-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos16-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos18-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos15-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.48.1
+                      description: eos14-GUESTS-V48
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.48.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '48'
+                      vrf: '48'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos10-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.10/24
+                      secIp: []
+                      stackNumber: '10'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos19-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.19/24
+                      secIp: []
+                      stackNumber: '19'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos20-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.20/24
+                      secIp: []
+                      stackNumber: '20'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos9-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.9/24
+                      secIp: []
+                      stackNumber: '9'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos16-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.16/24
+                      secIp: []
+                      stackNumber: '16'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos18-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.18/24
+                      secIp: []
+                      stackNumber: '18'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos15-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.15/24
+                      secIp: []
+                      stackNumber: '15'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+                    - createVlanOnly: false
+                      defaultGatewayNextHop: 10.0.49.1
+                      description: eos14-GUESTS-V49
+                      enabled: true
+                      ipAddressVirtualirtual: ''
+                      ipPrefix: 10.0.49.14/24
+                      secIp: []
+                      stackNumber: '14'
+                      virtualRouterAddress: ''
+                      vlanId: '49'
+                      vrf: '49'
+              tags:
+                query: END-DEVICES:ALL
+      tags:
+        query: END-DEVICES:ALL
+  vlanProfiles:
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portChannels:
+        esi: '0033:3333:3333:3333:3333'
+        ethernetSegmentRouteTarget: '00:03:00:03:00:03'
+        multiHoming: false
+      portFastEnabled: false
+      profileDescription: TRUNK-PORT $1
+      profileIpAddressVirtual: ''
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      commandLines: []
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ''
+      profileIpAddressVirtual: ''
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      commandLines: []
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: trunk
+      name: ESI1-MultiHoming-Fabric-Edge
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portChannels:
+        channelGroup: '12'
+        esi: '0033:3333:3333:3333:3331'
+        ethernetSegmentRouteTarget: '00:03:00:03:00:03'
+        lacpEnabled: enabled
+        lacpSysId: 1234.5678.0123
+        multiHoming: true
+      portFastEnabled: false
+      profileDescription: ''
+      profileIpAddressVirtual: ''
+      vlanName: ''
