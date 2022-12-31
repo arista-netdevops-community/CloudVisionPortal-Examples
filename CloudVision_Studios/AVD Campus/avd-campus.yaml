@@ -9,7 +9,7 @@
       description: Provision the fabric of an L2 or L3 campus network.
       template:
         type: TEMPLATE_TYPE_MAKO
-        body: |-
+        body: |
           <%
           import sys
           import os
@@ -35,107 +35,6 @@
               TagAssignment, \
               TagAssignmentKey, \
               TagAssignmentConfig
-
-          def convert_services_to_avd_network_services_data_model(all_vrfs, all_vlans):
-              '''
-              Convert studio services data model to avd network services data model
-
-              Args:
-                  all_vrfs: a list of studios vrf input dictionaries
-                  all_vlans: a list of studios vlan input dictionaries
-              Returns: 
-                  all_services: a dictionary that conforms to avd's network services data model
-              '''
-              tenant_name = "services"
-              tenant = {
-                  tenant_name: {
-                      "vrfs": {
-                          # initialize default vrf
-                          "default": {
-                              "svis": {}
-                          }
-                      }
-                  }
-              }
-              for vrf in all_vrfs.values():
-                  vrf_name = vrf["vrfName"]
-                  tenant[tenant_name]["vrfs"][vrf_name] = {"svis": {}}
-                  # mlag ibgp
-                  if vrf.get("ibgpDetails") and vrf["ibgpDetails"].get("vrfMlagPeerL3Vlan"):
-                      tenant[tenant_name]["vrfs"][vrf_name]["mlag_ibgp_peering_vlan"] = vrf["ibgpDetails"]["vrfMlagPeerL3Vlan"]
-                  
-                  if vrf.get("ibgpDetails") and vrf["ibgpDetails"].get("vrfMlagPeerL3IPv4Pool"):
-                      tenant[tenant_name]["vrfs"][vrf_name]["mlag_ibgp_peering_ipv4_pool"] = vrf["ibgpDetails"]["vrfMlagPeerL3IPv4Pool"]
-
-                  # static routes 
-
-                  # redistribute static routes
-
-                  # l3 interfaces
-
-                  # external bgp peers
-
-                  # ospf configuration
-
-              for vlan in all_vlans.values():
-                  vlan_id = vlan["vlanId"]
-                  if vlan["sviDetails"].get("vrf", "") == "":
-                      vrf_name =  "default"
-                  else:
-                      vrf_name = vlan["sviDetails"]["vrf"]
-                  svi = {
-                      "name": vlan.get("name", None),
-                      "description": None,
-                      "ip_virtual_router_addresses": [],
-                      "ip_helpers": {},
-                      "nodes": [],  # Nodes will be set in network services logic
-                      "mtu": vlan.get("mtu"),
-                  }
-                  # ip helper configuration
-                  for ip_helper in vlan.get("dhcpHelpers", []):
-                      svi['ip_helpers'][ip_helper.get("dhcpServer")] = {
-                          "source_interface": ip_helper.get("dhcpSourceInterface")
-                      }
-
-                  # ospf configuration
-                  if vlan.get("sviOspfConfiguration"):
-                      svi["ospf"] = {
-                          "enabled": vlan["sviOspfConfiguration"]["enabled"],
-                          "point_to_point": vlan["sviOspfConfiguration"]["pointToPoint"],
-                          "area": vlan["sviOspfConfiguration"].get("area", "0"),
-                          "cost": vlan["sviOspfConfiguration"].get("cost"),
-                      }
-                      # ospf authentication
-                      if vlan["sviOspfConfiguration"].get("authentication", "") != "":
-                          svi["ospf"]["authentication"] = vlan["sviOspfConfiguration"]["authentication"]
-                      # ospf simple auth key
-                      if vlan["sviOspfConfiguration"].get("simpleAuthKey", "") != "":  
-                          svi["ospf"]["simpleAuthKey"] = vlan["sviOspfConfiguration"]["simpleAuthKey"]
-                      # ospf message digest keys
-                      if len(vlan["sviOspfConfiguration"].get("messageDigestKeys", [])) > 0:
-                          svi["ospf"]["message_digest_keys"] = []
-                          for mdk in vlan["sviOspfConfiguration"]["messageDigestKeys"]:
-                              svi["ospf"]["message_digest_keys"].append({
-                                  "id": mdk.get("id"),
-                                  "hash_algorithm": mdk.get("hashAlgorithm"),
-                                  "key": mdk.get("key"), 
-                              }
-                              )
-                      
-                      # eos cli
-                      if len(vlan.get("eosCli", [])) > 0:
-                          svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])
-
-                      # vlan mst instance
-
-                      # vlan stp priority
-
-                  tenant[tenant_name]["vrfs"][vrf_name]["svis"][vlan_id] = svi
-
-              ctx.info(f"{tenant}")
-              all_services = {"tenants": {}}
-              all_services["tenants"].update(tenant)
-              return all_services
 
 
           campus_designs = {
@@ -1522,9 +1421,6 @@
               switch_facts["downlink_switches_ids"] = []
               if switch_facts["type"] == "spline":
                   for tmp_switch_sn, tmp_switch_facts in all_switch_facts_in_my_site.items():
-                      # ctx.info(f"tmp_switch_facts['type']: {tmp_switch_facts['type']}")
-                      # ctx.info(f"switch_facts['serial_number']: {switch_facts['serial_number']}")
-                      # ctx.info(f"tmp_switch_facts['uplink_switches_ids']: {tmp_switch_facts['uplink_switches_ids']}")
                       if tmp_switch_facts["type"] == "leaf" and switch_facts["serial_number"] in tmp_switch_facts["uplink_switches_ids"] \
                               and tmp_switch_sn not in switch_facts["downlink_switches_ids"]:    
                           switch_facts["downlink_switches_ids"].append(tmp_switch_sn)
@@ -1595,28 +1491,6 @@
               switch_facts["topology"] = topology_facts
               return switch_facts
 
-          def get_network_services_network_info(campus_resolver):
-              # Process Studio inputs
-              campus_resolved = campus_resolver.resolve(device=device_id)
-              if campus_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
-                  return None
-              campus_details = campus_resolved["campusDetails"]
-              site_resolved = campus_details["site"].resolve(device=device_id)
-              if site_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Site input.  Make sure a 'Site' tag is applied.")
-                  return None
-
-              site_details = site_resolved["siteFacts"]
-
-              # Populate all_vrfs to be used when checking svi's vrf
-              all_vrfs = site_details["services"]["vrfs"]
-
-              # Add vlan to all_vlans
-              all_vlans = site_details["services"]["vlans"]
-
-              # Transform all_vrfs and all_vlans to AVD tenants data model
-              return convert_services_to_avd_network_services_data_model(all_vrfs, all_vlans)
 
           def get_network_services_leaf_switch(switch_facts, campus_resolver):
               # device_id from switch_facts
@@ -2038,8 +1912,6 @@
 
                       config["port_channel_interfaces"]["Port-Channel{}".format(link["channel_group_id"])] = port_channel
 
-                      ctx.info(f"Port-Channel{link['channel_group_id']}: {port_channel}")
-
               # L2 and L3
               if switch_facts["network_services_l2"] == True and \
                   switch_facts["network_services_l3"] == True:
@@ -2324,6 +2196,171 @@
               return config
 
 
+          def get_tenants(switch_facts, campus_resolver):
+              '''
+              Convert studio services data model to avd network services data model
+
+              Args:
+                  
+              Returns: 
+                  all_services: a dictionary that conforms to avd's network services data model
+              '''
+              # device_id 
+              device_id = switch_facts["serial_number"]
+              # Process Studio inputs
+              campus_resolved = campus_resolver.resolve(device=device_id)
+              if campus_resolved is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
+                  return None
+              campus_details = campus_resolved["campusDetails"]
+              site_resolved = campus_details["site"].resolve(device=device_id)
+              if site_resolved is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Site input.  Make sure a 'Site' tag is applied.")
+                  return None
+
+              site_details = site_resolved["siteFacts"]
+
+              all_vrfs = site_details["services"]["vrfs"]  # a list of studios vrf input dictionaries
+              all_vlans = site_details["services"]["vlans"]  # a list of studios vlan input dictionaries
+
+              tenant_name = "services"
+              tenant = {
+                  tenant_name: {
+                      "vrfs": {
+                          # initialize default vrf
+                          "default": {
+                              "svis": {}
+                          }
+                      }
+                  }
+              }
+              for vrf in all_vrfs:
+                  vrf_name = vrf["vrfName"]
+                  tenant[tenant_name]["vrfs"][vrf_name] = {"svis": {}}
+                  # mlag ibgp
+                  if vrf.get("ibgpDetails") and vrf["ibgpDetails"].get("vrfMlagPeerL3Vlan"):
+                      tenant[tenant_name]["vrfs"][vrf_name]["mlag_ibgp_peering_vlan"] = vrf["ibgpDetails"]["vrfMlagPeerL3Vlan"]
+                  
+                  if vrf.get("ibgpDetails") and vrf["ibgpDetails"].get("vrfMlagPeerL3IPv4Pool"):
+                      tenant[tenant_name]["vrfs"][vrf_name]["mlag_ibgp_peering_ipv4_pool"] = vrf["ibgpDetails"]["vrfMlagPeerL3IPv4Pool"]
+
+                  # static routes 
+
+                  # redistribute static routes
+
+                  # l3 interfaces
+
+                  # external bgp peers
+
+                  # ospf configuration
+
+              for vlan in all_vlans:
+                  vlan_id = vlan["vlanId"]
+                  if vlan["sviDetails"].get("vrf", "") == "":
+                      vrf_name =  "default"
+                  else:
+                      vrf_name = vlan["sviDetails"]["vrf"]
+                  svi = {
+                      "name": vlan.get("name", None),
+                      "description": None,
+                      "ip_virtual_router_addresses": [],
+                      "ip_helpers": {},
+                      "nodes": {},
+                      "mtu": vlan.get("mtu"),
+                  }
+                  if switch_facts["campus_type"] == "l2ls":
+                      # virtual ip
+                      virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress")
+                      svi["ip_virtual_router_addresses"].append(virtual_ip)
+
+
+                      # Set primary/secondary node ip address
+                      if switch_facts["type"] == "spline":
+                          try:
+                              if switch_facts["mlag_role"] == "secondary":
+                                  # Get/Set secondary ip
+                                  ip_address = vlan["sviDetails"].get("secondarySwitchSviIpAddress", "")
+                                  if ip_address == "":
+                                      ip_network = ipaddress.ip_interface(virtual_ip).network
+                                      ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
+                              else:
+                                  # Get/Set primary ip
+                                  ip_address = vlan["sviDetails"].get("primarySwitchSviIpAddress", "")
+                                  if ip_address == "":
+                                      ip_network = ipaddress.ip_interface(virtual_ip).network
+                                      ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
+                              svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
+                          except IndexError as e:
+                              assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
+
+                  else:
+                      # virtual ip
+                      virtual_ip = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress')
+                      svi["ip_virtual_router_addresses"].append(virtual_ip)
+
+                      # Set primary/secondary node ip address
+                      if switch_facts["type"] == "leaf":
+                          try:
+                              if switch_facts["mlag_role"] == "secondary":
+                                  # Get/Set secondary ip
+                                  ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
+                                  if ip_address == "":
+                                      ip_network = ipaddress.ip_interface(virtual_ip).network
+                                      ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
+                              else:
+                                  # Get/Set primary ip
+                                  ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
+                                  if ip_address == "":
+                                      ip_network = ipaddress.ip_interface(virtual_ip).network
+                                      ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
+                              svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
+                          except IndexError as e:
+                              assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
+
+                  # ip helper configuration
+                  for ip_helper in vlan.get("dhcpHelpers", []):
+                      svi['ip_helpers'][ip_helper.get("dhcpServer")] = {
+                          "source_interface": ip_helper.get("dhcpSourceInterface")
+                      }
+
+                  # ospf configuration
+                  if vlan.get("sviOspfConfiguration"):
+                      svi["ospf"] = {
+                          "enabled": vlan["sviOspfConfiguration"]["enabled"],
+                          "point_to_point": vlan["sviOspfConfiguration"]["pointToPoint"],
+                          "area": vlan["sviOspfConfiguration"].get("area", "0"),
+                          "cost": vlan["sviOspfConfiguration"].get("cost"),
+                      }
+                      # ospf authentication
+                      if vlan["sviOspfConfiguration"].get("authentication", "") != "":
+                          svi["ospf"]["authentication"] = vlan["sviOspfConfiguration"]["authentication"]
+                      # ospf simple auth key
+                      if vlan["sviOspfConfiguration"].get("simpleAuthKey", "") != "":  
+                          svi["ospf"]["simpleAuthKey"] = vlan["sviOspfConfiguration"]["simpleAuthKey"]
+                      # ospf message digest keys
+                      if len(vlan["sviOspfConfiguration"].get("messageDigestKeys", [])) > 0:
+                          svi["ospf"]["message_digest_keys"] = []
+                          for mdk in vlan["sviOspfConfiguration"]["messageDigestKeys"]:
+                              svi["ospf"]["message_digest_keys"].append({
+                                  "id": mdk.get("id"),
+                                  "hash_algorithm": mdk.get("hashAlgorithm"),
+                                  "key": mdk.get("key"), 
+                              }
+                              )
+                      
+                      # eos cli
+                      if len(vlan.get("eosCli", [])) > 0:
+                          svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])
+
+                      # vlan mst instance
+
+                      # vlan stp priority
+
+                  tenant[tenant_name]["vrfs"][vrf_name]["svis"][vlan_id] = svi
+
+              switch_facts["all_tenants"] = {"tenants": tenant}
+              return switch_facts
+
           # Get studio info from ctx
           my_device = ctx.getDevice()
           workspace_id = ctx.studio.workspaceId
@@ -2391,13 +2428,15 @@
               if switch_facts["serial_number"] in my_neighbors + [my_switch_facts["serial_number"]]:
                   switch_facts = set_topology_facts(switch_facts)
 
-          # # Get network services in AVD format (part 2)
-          # network_services_tenants = get_network_services_network_info(campus_resolver)
-
           # Get my_switch_facts from all_switch_facts_in_my_site
           my_switch_facts = all_switch_facts_in_my_site[my_switch_facts["serial_number"]]
 
-          ctx.info(f"All Services: {my_switch_facts.get('all_services')}")
+          # Get network services in AVD format (part 2)
+          my_switch_facts = get_tenants(my_switch_facts, campus)
+
+
+
+          ctx.info(f"All Services: {my_switch_facts['all_tenants']}")
 
 
 
