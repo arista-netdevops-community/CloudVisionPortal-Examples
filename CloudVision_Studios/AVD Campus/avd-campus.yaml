@@ -4,12 +4,12 @@
     value:
       key:
         studio_id: 857333ca-e200-46db-808d-6d23243cca4f
-        workspace_id: ca163e28-17bb-46b1-8b7c-e8104de8bfb7
+        workspace_id: ''
       display_name: AVD Campus Fabric
       description: Provision the fabric of an L2 or L3 campus network.
       template:
         type: TEMPLATE_TYPE_MAKO
-        body: |
+        body: |-
           <%
           import sys
           import os
@@ -184,6 +184,18 @@
                   elif v1 <v2:
                       return -1
               return 0
+
+
+          def validIPAddress(ip):
+              '''
+              Returns True for a valid ipv4 address
+              Returns False for a valid ipv6 address
+              Return None for a nonvalid ip address
+              '''
+              try:
+                  return True if type(ipaddress.ip_address(ip)) is ipaddress.IPv4Address else False
+              except ValueError:
+                  return None
 
 
           def convert_dicts(dictionary, primary_key="name", secondary_key=None):
@@ -1323,7 +1335,6 @@
                           switch_facts["inband_management_role"] = "child"
 
                   # inbound management parent devices 
-                  # ctx.info(f"{switch_facts['hostname']}'s Uplink Switches' IDs: {switch_facts.get('uplink_switches_ids')}")
                   switch_facts["inband_management_parents"] = switch_facts["uplink_switches_ids"]
 
                   # inband_management_ip
@@ -1563,11 +1574,6 @@
 
                   # Add VLAN if assigned to switch; Add VRF the VLAN is in if not already added; 
                   for vlan in site_details["services"]["vlans"]:
-                      # Logging
-                      if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
-                          ctx.info(f"VLAN input: {vlan}")
-                          ctx.info(f"VLAN {vlan['vlanId']} applied to switch: {vlan['campusPod'].resolve(device=device_id)}")
-
                       # Check if vlan is applied to switch
                       if device_matches_resolver_query(vlan['campusPod'], device_id):
                           add_svis.append(vlan['vlanId'])
@@ -1588,7 +1594,7 @@
 
                   # Filter only services applied to this switch
                   if len(add_vrfs) > 0 or len(add_l2vlans) > 0:
-                      leaf['tenants'].update({ f"{switch_facts['site']}-Services": {"vrfs": add_vrfs, "l2vlans": add_l2vlans} })
+                      leaf['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": add_l2vlans} })
 
                   switch_facts["tenants"]= leaf.get('tenants', {})
                   switch_facts["vlans"] = leaf.get('vlans', [])
@@ -1619,6 +1625,22 @@
                       for vlan in tmp_switch_facts.get('vlans', []):
                           if vlan not in spline['vlans']:
                               spline['vlans'].append(vlan)
+              
+                      # Only names/ids matter, user inputs within dictionaries dont matter
+                      # Get tenant info from downstream tenants
+                      for tenant in tmp_switch_facts.get('tenants', {}):
+                          if tenant not in spline['tenants']:
+                              spline['tenants'][tenant] = tmp_switch_facts["tenants"][tenant]
+                          else:
+                              # check if vrfs exist for tenant
+                              for vrf in tmp_switch_facts["tenants"][tenant].get("vrfs", {}):
+                                  if vrf not in spline['tenants'][tenant]["vrfs"]:
+                                      spline['tenants'][tenant]["vrfs"][vrf] = tmp_switch_facts["tenants"][tenant]["vrfs"][vrf]
+                                  else:
+                                      # check if svis exist 
+                                      for svi in tmp_switch_facts["tenants"][tenant]["vrfs"][vrf].get("svis", {}):
+                                          if svi not in  spline['tenants'][tenant]["vrfs"][vrf]["svis"]:
+                                              spline['tenants'][tenant]["vrfs"][vrf]["svis"][svi] = tmp_switch_facts["tenants"][tenant]["vrfs"][vrf]["svis"][svi]
 
               switch_facts["tenants"]= spline.get("tenants")
               switch_facts["vlans"] = spline.get("vlans")
@@ -1820,7 +1842,6 @@
               for sn in switch_facts["downlink_switches_ids"]:
                   neighbor_switch_facts = all_switch_facts_in_my_site[sn]
                   for neighbor_link, neighbor_link_info in neighbor_switch_facts["topology"]["links"].items():
-                      # ctx.info(f"{neighbor_switch_facts['hostname']}: {neighbor_link_info}")
                       if neighbor_link_info["peer_id"] == switch_facts["serial_number"]:
                           link = {}
                           link["peer_id"] = neighbor_switch_facts["serial_number"]
@@ -2234,123 +2255,295 @@
                       }
                   }
               }
+              if "default" not in [vrf["vrfName"] for vrf in all_vrfs]:
+                  all_vrfs = all_vrfs + [{"vrfName": "default", "mlagL3PeeringDetails": {}, "staticRoutes": [], "vrfOspfConfiguration": {}}]
               for vrf in all_vrfs:
                   vrf_name = vrf["vrfName"]
                   tenant[tenant_name]["vrfs"][vrf_name] = {"svis": {}}
-                  # mlag ibgp
-                  if vrf.get("ibgpDetails") and vrf["ibgpDetails"].get("vrfMlagPeerL3Vlan"):
-                      tenant[tenant_name]["vrfs"][vrf_name]["mlag_ibgp_peering_vlan"] = vrf["ibgpDetails"]["vrfMlagPeerL3Vlan"]
-                  
-                  if vrf.get("ibgpDetails") and vrf["ibgpDetails"].get("vrfMlagPeerL3IPv4Pool"):
-                      tenant[tenant_name]["vrfs"][vrf_name]["mlag_ibgp_peering_ipv4_pool"] = vrf["ibgpDetails"]["vrfMlagPeerL3IPv4Pool"]
+                  if switch_facts["network_services_l3"] is True:
+                      # mlag l3 peering
+                      if vrf.get("mlagL3PeeringDetails") and vrf["mlagL3PeeringDetails"].get("vrfMlagPeerL3Vlan"):
+                          tenant[tenant_name]["vrfs"][vrf_name]["mlag_ibgp_peering_vlan"] = vrf["mlagL3PeeringDetails"]["vrfMlagPeerL3Vlan"]
+                      
+                          if vrf["mlagL3PeeringDetails"].get("vrfMlagPeerL3IPv4Pool", "") != "":
+                              mlag_ibgp_peering_ipv4_pool = vrf["mlagL3PeeringDetails"]["vrfMlagPeerL3IPv4Pool"]
+                              if switch_facts["mlag_role"] == "primary":
+                                  mlag_l3_ip = str(get_mlag_ip(switch_facts, mlag_ibgp_peering_ipv4_pool,
+                                                                              switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
 
-                  # static routes 
+                                  mlag_peer_l3_ip = str(get_mlag_ip(switch_facts, mlag_ibgp_peering_ipv4_pool,
+                                                                                  switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
 
-                  # redistribute static routes
+                              else:
+                                  mlag_l3_ip = str(get_mlag_ip(switch_facts, mlag_ibgp_peering_ipv4_pool,
+                                                                              switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
 
-                  # l3 interfaces
+                                  mlag_peer_l3_ip = str(get_mlag_ip(switch_facts, mlag_ibgp_peering_ipv4_pool,
+                                                                                  switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
+                              
+                          else:
+                              mlag_l3_ip = switch_facts["mlag_l3_ip"]
+                              mlag_peer_l3_ip = switch_facts["mlag_peer_l3_ip"]
 
-                  # external bgp peers
+                          tenant[tenant_name]["vrfs"][vrf_name]["mlag_l3_ip"] = mlag_l3_ip
+                          tenant[tenant_name]["vrfs"][vrf_name]["mlag_peer_l3_ip"] = mlag_peer_l3_ip
+                          tenant[tenant_name]["vrfs"][vrf_name]["mlag_peer_l3_subnet_mask"] = switch_facts["mlag_peer_l3_subnet_mask"]
 
-                  # ospf configuration
+                      # static routes
+                      if len(vrf.get("staticRoutes", [])) > 0:
+                          tenant[tenant_name]["vrfs"][vrf_name]["static_routes"] = []
+                          for sr in vrf.get("staticRoutes", []):
+                              if device_matches_resolver_query(sr["devices"], device_id):
+                                  static_route = {
+                                      "destination_address_prefix": sr["routeDetails"]["destinationAddressPrefix"],
+                                      "name": sr["description"].replace(" ", "_")
+                                  }
+                                  # gateway
+                                  if sr["routeDetails"].get("gateway", "") == "":
+                                      static_route["gateway"] = None
+                                  else:
+                                      static_route["gateway"] = sr["routeDetails"]["gateway"]
+                                  # interface
+                                  if sr["routeDetails"].get("interface", "") == "":
+                                      static_route["interface"] = None
+                                  else:
+                                      static_route["interface"] = sr["routeDetails"]["interface"]
+                                  # distance
+                                  if sr["routeDetails"].get("distance", "") == "":
+                                      static_route["distance"] = None
+                                  else:
+                                      static_route["distance"] = sr["routeDetails"]["distance"]
+                                  # distance
+                                  if sr["routeDetails"].get("tag", "") == "":
+                                      static_route["tag"] = None
+                                  else:
+                                      static_route["tag"] = sr["routeDetails"]["tag"]
+                                  # metric
+                                  if sr["routeDetails"].get("metric", "") == "":
+                                      static_route["metric"] = None
+                                  else:
+                                      static_route["metric"] = sr["routeDetails"]["metric"]
+                                  
+                                  tenant[tenant_name]["vrfs"][vrf_name]["static_routes"].append(static_route)
+
+                      # redistribute static routes
+
+
+                      # l3 interfaces
+                      if vrf.get("l3Interfaces") and device_matches_resolver_query(vrf["l3Interfaces"], device_id):
+                          # Create l3_interfaces list in tenant vrf if it doesn't already exist
+                          if not tenant[tenant_name]["vrfs"][vrf_name].get("l3_interfaces"):
+                              tenant[tenant_name]["vrfs"][vrf_name]["l3_interfaces"] = []
+                          # Populate l3_interfaces list in tenant vrf with user input l3 interfaces
+                          for l3_interface in vrf['l3Interfaces'].resolve(device=device_id).get("interfaces", []):
+                              interface = {}
+                              interface["interfaces"] = [l3_interface["name"]]
+                              interface["nodes"] = [switch_facts["serial_number"]]
+                              interface["ip_addresses"] = [l3_interface["ipAddress"]]
+                              interface["enabled"] = l3_interface["enabled"]
+                              if l3_interface.get("description", "") != "":
+                                  interface["description"] = l3_interface["description"]
+                              if l3_interface.get("mtu"):
+                                  interface["mtu"] = l3_interface["mtu"]
+                              if len(l3_interface.get("eosCli", [])) > 0:
+                                  interface["raw_eos_cli"] = l3_interface["eosCli"]
+                                  interface["raw_eos_cli"] = "\n".join(l3_interface["eosCli"])  # will use this method when extended text input type is available
+                              # Check ospf
+                              if switch_facts["underlay_routing_protocol"] == "ospf" and l3_interface.get("ospf"):
+                                  ospf = {
+                                      "enabled": l3_interface["ospf"]["enabled"],
+                                      "point_to_point": l3_interface["ospf"]["pointToPoint"],
+                                      "area": l3_interface["ospf"].get("area", "0"),
+                                      "cost": l3_interface["ospf"].get("cost"),
+                                  }
+                                  # ospf authentication
+                                  if l3_interface["ospf"].get("authentication", "") != "":
+                                      ospf["authentication"] = l3_interface["ospf"]["authentication"]
+                                  # ospf simple auth key
+                                  if l3_interface["ospf"].get("simpleAuthKey", "") != "":  
+                                      ospf["simpleAuthKey"] = l3_interface["ospf"]["simpleAuthKey"]
+                                  # ospf message digest keys
+                                  if len(l3_interface["ospf"].get("messageDigestKeys", [])) > 0:
+                                      ospf["message_digest_keys"] = []
+                                      for mdk in l3_interface["ospf"]["messageDigestKeys"]:
+                                          ospf["message_digest_keys"].append({
+                                              "id": mdk.get("id"),
+                                              "hash_algorithm": mdk.get("hashAlgorithm"),
+                                              "key": mdk.get("key"), 
+                                          })
+                                  interface["ospf"] = ospf
+
+                              # add interface
+                              tenant[tenant_name]["vrfs"][vrf_name]["l3_interfaces"].append(interface)
+
+                      # external bgp peers
+                      if switch_facts["underlay_routing_protocol"] == "bgp" and len(vrf.get('externalBgpPeers', {})) > 0:
+                          tenant[tenant_name]["vrfs"][vrf_name]['bgp_peers'] = {}
+                          for bgp_peer in vrf.get('externalBgpPeers', {}):
+                              # check if bgp peer is to be configured on switch
+                              if device_matches_resolver_query(bgp_peer['devices'], switch_facts['serial_number']):
+                                  peer = {}
+                                  peer['remote_as'] = bgp_peer['remoteAs']
+                                  if bgp_peer.get('description') and bgp_peer['description'].strip() != "":
+                                      peer['description'] = bgp_peer['description']
+                                  if bgp_peer.get('password', '').strip() != "":
+                                      peer['password'] = bgp_peer['password']
+                                  if bgp_peer.get('sendCommunity', '').strip() != "":
+                                      peer['send_community'] = bgp_peer['sendCommunity']
+                                  if bgp_peer.get('nextHopSelf', '').strip() != "":
+                                      peer['next_hop_self'] = bgp_peer['nextHopSelf']
+                                  if bgp_peer['maxRoutes'].get('maximumRoutes'):
+                                      peer['maximum_routes'] = bgp_peer['maxRoutes'].get('maximumRoutes')
+                                  if bgp_peer['maxRoutes'].get('warningLimit'):
+                                      peer['warning_limit_routes'] = bgp_peer['maxRoutes'].get('warningLimit')
+                                  if bgp_peer['defaultOriginate'].get('ebgpPeerDefaultOriginateEnable'):
+                                      peer['default_originate'] = {
+                                          "always": bgp_peer['defaultOriginate'].get('always')
+                                      }
+                                  if bgp_peer.get('updateSource', '').strip() != "":
+                                      peer['update_source'] = bgp_peer['updateSource']
+                                  if bgp_peer.get('ebgpMultihop'):
+                                      peer['ebgp_multihop'] = bgp_peer['ebgpMultihop']
+
+                                  peer['nodes'] = [switch_facts['serial_number']]
+
+                                  if bgp_peer['nextHop'].get('ipv4NextHop', '').strip() != "":
+                                      peer['set_ipv4_next_hop'] = bgp_peer['nextHop']['ipv4NextHop']
+                                  if bgp_peer['nextHop'].get('ipv6NextHop', '').strip() != "":
+                                      peer['set_ipv6_next_hop'] = bgp_peer['nextHop']['ipv6NextHop']
+                                  if bgp_peer['routeMap'].get('routeMapOut', '').strip() != "":
+                                      peer['route_map_out'] = bgp_peer['routeMap']['routeMapOut']
+                                  if bgp_peer['routeMap'].get('routeMapIn', '').strip() != "":
+                                      peer['route_map_in'] = bgp_peer['routeMap']['routeMapIn']
+                                  if bgp_peer.get('weight'):
+                                      peer['weight'] = bgp_peer['weight']
+                                  if bgp_peer.get('localAs'):
+                                      peer['local_as'] = bgp_peer['localAs']
+
+                                  tenant[tenant_name]["vrfs"][vrf_name]['bgp_peers'][bgp_peer['neighborIpAddress']] = peer
+
+                      # ospf configuration
+                      if (vrf["vrfOspfConfiguration"].get("vrfOspfEnabled") and switch_facts["underlay_routing_protocol"] == "ospf") \
+                              or (switch_facts["underlay_routing_protocol"] == "ospf" and vrf_name == "default"):
+                          ospf = {"enabled": True}
+                          # process_id
+                          if vrf.get("vrfOspfConfiguration", {}).get("vrfOspfProcessId") is not None:
+                              ospf["process_id"] = vrf["vrfOspfConfiguration"]["vrfOspfProcessId"]
+                          else:
+                              ospf["process_id"] = switch_facts["underlay_ospf_process_id"]
+                          # max lsa
+                          if vrf.get("vrfOspfConfiguration", {}).get("vrfOspfMaxLsa") is not None:
+                              ospf["max_lsa"] = vrf["vrfOspfConfiguration"]["vrfOspfMaxLsa"]
+                          else:
+                              ospf["max_lsa"] = switch_facts["underlay_ospf_max_lsa"]
+                          # bfd
+                          if vrf.get("vrfOspfConfiguration", {}).get("vrfOspfBfd", "") != "":
+                              ospf["bfd"] = True if vrf["vrfOspfConfiguration"]["vrfOspfBfd"] == "Yes" else False
+                          else:
+                              ospf["bfd"] = switch_facts["underlay_ospf_bfd_enable"]
+                          # add ospf details to vrf
+                          tenant[tenant_name]["vrfs"][vrf_name]["ospf"] = ospf
 
               for vlan in all_vlans:
                   vlan_id = vlan["vlanId"]
+                  svi = {}
                   if vlan["sviDetails"].get("vrf", "") == "":
                       vrf_name =  "default"
                   else:
                       vrf_name = vlan["sviDetails"]["vrf"]
-                  svi = {
-                      "name": vlan.get("name", None),
-                      "description": None,
-                      "ip_virtual_router_addresses": [],
-                      "ip_helpers": {},
-                      "nodes": {},
-                      "mtu": vlan.get("mtu"),
-                  }
-                  if switch_facts["campus_type"] == "l2ls":
-                      # virtual ip
-                      virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress")
-                      svi["ip_virtual_router_addresses"].append(virtual_ip)
-
-
-                      # Set primary/secondary node ip address
-                      if switch_facts["type"] == "spline":
-                          try:
-                              if switch_facts["mlag_role"] == "secondary":
-                                  # Get/Set secondary ip
-                                  ip_address = vlan["sviDetails"].get("secondarySwitchSviIpAddress", "")
-                                  if ip_address == "":
-                                      ip_network = ipaddress.ip_interface(virtual_ip).network
-                                      ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
-                              else:
-                                  # Get/Set primary ip
-                                  ip_address = vlan["sviDetails"].get("primarySwitchSviIpAddress", "")
-                                  if ip_address == "":
-                                      ip_network = ipaddress.ip_interface(virtual_ip).network
-                                      ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
-                              svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
-                          except IndexError as e:
-                              assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
-
-                  else:
-                      # virtual ip
-                      virtual_ip = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress')
-                      svi["ip_virtual_router_addresses"].append(virtual_ip)
-
-                      # Set primary/secondary node ip address
-                      if switch_facts["type"] == "leaf":
-                          try:
-                              if switch_facts["mlag_role"] == "secondary":
-                                  # Get/Set secondary ip
-                                  ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
-                                  if ip_address == "":
-                                      ip_network = ipaddress.ip_interface(virtual_ip).network
-                                      ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
-                              else:
-                                  # Get/Set primary ip
-                                  ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
-                                  if ip_address == "":
-                                      ip_network = ipaddress.ip_interface(virtual_ip).network
-                                      ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
-                              svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
-                          except IndexError as e:
-                              assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
-
-                  # ip helper configuration
-                  for ip_helper in vlan.get("dhcpHelpers", []):
-                      svi['ip_helpers'][ip_helper.get("dhcpServer")] = {
-                          "source_interface": ip_helper.get("dhcpSourceInterface")
+                  if switch_facts["network_services_l2"] is True:
+                      svi = {
+                          "name": vlan.get("name", None),
+                          "description": None,
+                          "ip_virtual_router_addresses": [],
+                          "ip_helpers": {},
+                          "nodes": {},
+                          "mtu": vlan.get("mtu"),
                       }
+                      if switch_facts["campus_type"] == "l2ls":
+                          # virtual ip
+                          virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress")
+                          svi["ip_virtual_router_addresses"].append(virtual_ip)
 
-                  # ospf configuration
-                  if vlan.get("sviOspfConfiguration"):
-                      svi["ospf"] = {
-                          "enabled": vlan["sviOspfConfiguration"]["enabled"],
-                          "point_to_point": vlan["sviOspfConfiguration"]["pointToPoint"],
-                          "area": vlan["sviOspfConfiguration"].get("area", "0"),
-                          "cost": vlan["sviOspfConfiguration"].get("cost"),
-                      }
-                      # ospf authentication
-                      if vlan["sviOspfConfiguration"].get("authentication", "") != "":
-                          svi["ospf"]["authentication"] = vlan["sviOspfConfiguration"]["authentication"]
-                      # ospf simple auth key
-                      if vlan["sviOspfConfiguration"].get("simpleAuthKey", "") != "":  
-                          svi["ospf"]["simpleAuthKey"] = vlan["sviOspfConfiguration"]["simpleAuthKey"]
-                      # ospf message digest keys
-                      if len(vlan["sviOspfConfiguration"].get("messageDigestKeys", [])) > 0:
-                          svi["ospf"]["message_digest_keys"] = []
-                          for mdk in vlan["sviOspfConfiguration"]["messageDigestKeys"]:
-                              svi["ospf"]["message_digest_keys"].append({
-                                  "id": mdk.get("id"),
-                                  "hash_algorithm": mdk.get("hashAlgorithm"),
-                                  "key": mdk.get("key"), 
-                              }
-                              )
-                      
+
+                          # Set primary/secondary node ip address
+                          if switch_facts["type"] == "spline":
+                              try:
+                                  if switch_facts["mlag_role"] == "secondary":
+                                      # Get/Set secondary ip
+                                      ip_address = vlan["sviDetails"].get("secondarySwitchSviIpAddress", "")
+                                      if ip_address == "":
+                                          ip_network = ipaddress.ip_interface(virtual_ip).network
+                                          ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
+                                  else:
+                                      # Get/Set primary ip
+                                      ip_address = vlan["sviDetails"].get("primarySwitchSviIpAddress", "")
+                                      if ip_address == "":
+                                          ip_network = ipaddress.ip_interface(virtual_ip).network
+                                          ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
+                                  svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
+                              except IndexError as e:
+                                  assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
+
+                      else:
+                          # virtual ip
+                          virtual_ip = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress')
+                          svi["ip_virtual_router_addresses"].append(virtual_ip)
+
+                          # Set primary/secondary node ip address
+                          if switch_facts["type"] == "leaf":
+                              try:
+                                  if switch_facts["mlag_role"] == "secondary":
+                                      # Get/Set secondary ip
+                                      ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
+                                      if ip_address == "":
+                                          ip_network = ipaddress.ip_interface(virtual_ip).network
+                                          ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
+                                  else:
+                                      # Get/Set primary ip
+                                      ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
+                                      if ip_address == "":
+                                          ip_network = ipaddress.ip_interface(virtual_ip).network
+                                          ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
+                                  svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
+                              except IndexError as e:
+                                  assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
+
+                      # ip helper configuration
+                      for ip_helper in vlan.get("dhcpHelpers", []):
+                          svi['ip_helpers'][ip_helper.get("dhcpServer")] = {
+                              "source_interface": ip_helper.get("dhcpSourceInterface")
+                          }
+
+                      # ospf configuration
+                      if switch_facts.get("underlay_routing_protocol", "") == "ospf" and vlan.get("sviOspfConfiguration"):
+                          svi["ospf"] = {
+                              "enabled": vlan["sviOspfConfiguration"]["enabled"],
+                              "point_to_point": vlan["sviOspfConfiguration"]["pointToPoint"],
+                              "area": vlan["sviOspfConfiguration"].get("area", "0"),
+                              "cost": vlan["sviOspfConfiguration"].get("cost"),
+                          }
+                          # ospf authentication
+                          if vlan["sviOspfConfiguration"].get("authentication", "") != "":
+                              svi["ospf"]["authentication"] = vlan["sviOspfConfiguration"]["authentication"]
+                          # ospf simple auth key
+                          if vlan["sviOspfConfiguration"].get("simpleAuthKey", "") != "":  
+                              svi["ospf"]["simpleAuthKey"] = vlan["sviOspfConfiguration"]["simpleAuthKey"]
+                          # ospf message digest keys
+                          if len(vlan["sviOspfConfiguration"].get("messageDigestKeys", [])) > 0:
+                              svi["ospf"]["message_digest_keys"] = []
+                              for mdk in vlan["sviOspfConfiguration"]["messageDigestKeys"]:
+                                  svi["ospf"]["message_digest_keys"].append({
+                                      "id": mdk.get("id"),
+                                      "hash_algorithm": mdk.get("hashAlgorithm"),
+                                      "key": mdk.get("key"), 
+                                  }
+                                  )
+                          
                       # eos cli
                       if len(vlan.get("eosCli", [])) > 0:
-                          svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])
+                          svi["raw_eos_cli"] = vlan["eosCli"]
+                          # svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])  # will use this method when extended text input type is available
 
                       # vlan mst instance
 
@@ -2358,8 +2551,440 @@
 
                   tenant[tenant_name]["vrfs"][vrf_name]["svis"][vlan_id] = svi
 
-              switch_facts["all_tenants"] = {"tenants": tenant}
+              switch_facts["all_tenants"] = tenant
               return switch_facts
+
+
+          def set_network_services_config(config, switch_facts):
+              # logic (Probably will be easier to break away from AVD logic)
+              if switch_facts["network_services_l2"] is True or switch_facts["network_services_l3"] is True:
+                  network_services_data = {}
+                  tmp_tenants = []
+                  # tenants
+                  for tenant in convert_dicts(switch_facts["all_tenants"]):
+                      if tenant["name"] in switch_facts.get('tenants', []):
+                          switch_tenant = switch_facts["all_tenants"][tenant["name"]]
+                          # vrfs
+                          tmp_vrfs = []
+                          for vrf in convert_dicts(tenant["vrfs"]):
+                              if vrf["name"] in switch_tenant.get("vrfs", []):
+                                  switch_vrf = switch_tenant["vrfs"][vrf["name"]]
+                                  # svis & bgp_peers
+                                  tmp_svis = []
+                                  for svi in convert_dicts(vrf["svis"], primary_key='id'):
+                                      if svi["id"] in switch_vrf.get("svis", []):
+                                          tmp_svis.append(svi)
+                                  vrf.update({'svis': tmp_svis, 'bgp_peers': vrf.get("bgp_peers", {})})
+                                  tmp_vrfs.append(vrf)
+                      # l2vlans
+                      tmp_l2vlans = []
+                      # for l2vlan in tenant.l2vlans | arista.avd.convert_dicts('id') | arista.avd.natural_sort('id')
+                      #     if l2vlan.id in switch_tenant.l2vlans | arista.avd.default([])
+                      #         tmp_l2vlans.append(l2vlan)
+
+                      tenant.update({'vrfs': tmp_vrfs, 'l2vlans': tmp_l2vlans})
+                      tmp_tenants.append(tenant)
+                  network_services_data["tenants"] = tmp_tenants
+
+                  # Log network services data
+                  # ctx.info(f"Network Services Data: {network_services_data}")
+
+              # l2
+              if switch_facts["network_services_l2"]:
+                  # vlans
+                  # tenant vlans #}
+                  for tenant in network_services_data["tenants"]:
+                      for vrf in tenant["vrfs"]:
+                          # Tenant VLANs w/SVIs #}
+                          for svi in vrf["svis"]:
+                              if svi.get("id"):
+                                  vlan = {"tenant": tenant["name"]}
+                                  if svi.get("name", "") != "":
+                                      vlan["name"] = svi["name"]
+                                  config["vlans"][svi["id"]] = vlan
+
+                          # VLAN for iBGP peering in overlay VRFs #}
+                          if switch_facts.get("mlag_l3", False) is True:
+                              configure_mlag_ibgp_peering = vrf.get("enable_mlag_ibgp_peering_vrfs", True)
+                              if configure_mlag_ibgp_peering and vrf.get("mlag_ibgp_peering_vlan"):
+                                  vlan = {
+                                      "tenant": tenant["name"],
+                                      "name": f"MLAG_iBGP_{vrf['name']}",
+                                      "trunk_groups": ["LEAF_PEER_L3"]
+                                  }
+                                  config["vlans"][vrf["mlag_ibgp_peering_vlan"]] = vlan
+                      # Tenant L2 VLANs
+                      for l2vlan in tenant["l2vlans"]:
+                          if l2vlan.get('id'):
+                              vlan = {
+                                  "tenant": tenant["name"],
+                              }
+                              if l2vlan.get("name", "") != "":
+                                  vlan["name"] = l2vlan["name"]
+                              config["vlans"][l2vlan["id"]] = vlan
+
+                  # ip-igmp-snooping
+
+              # l2 & l3
+              if switch_facts["network_services_l2"] is True and switch_facts["network_services_l3"] is True:
+                  # ip-virtual-router-mac-address
+                  if switch_facts.get("virtual_router_mac_address", "") != "":
+                      config["ip_virtual_router_mac_address"] = switch_facts["virtual_router_mac_address"].lower()
+
+                  # vlan-interface
+                  for tenant in network_services_data["tenants"]:
+                      for vrf in tenant["vrfs"]:
+                          # tenant vlan interfaces
+                          for svi in vrf["svis"]:
+                              # detect if a svi_profile exists
+                              if svi.get("profile"):
+                                  # If exists, create a shortpath to access profile data
+                                  svi_profile = svi_profiles[svi.get('profile')]
+                              else:
+                                  svi_profile = {}
+
+                              svi_name = svi.get("name") # | default(svi.get("name"), svi_profile.name)
+
+                              svi_description = default(svi.get("description"), svi_name)
+
+                              svi_enabled = svi.get("enabled", True)  # | default(svi_profile.enabled)
+                              
+                              svi_ip_virtual_router_addresses = svi.get("ip_virtual_router_addresses", [])
+
+                              svi_ip_address_virtual = svi.get("ip_address_virtual")  # default(svi.get("ip_address_virtual"), svi_profile.ip_address_virtual)
+
+                              svi_ip_address_virtual_secondaries = svi.get("ip_address_virtual_secondaries")  # default(svi.get("ip_address_virtual_secondaries"), svi_profile.ip_address_virtual_secondaries)
+                              
+                              svi_mtu = svi.get("mtu")  # default(svi.get("mtu"), svi_profile.get("mtu"))
+
+                              svi_ip_helpers = svi.get("ip_helpers")  # default(svi.get("ip_helpers"), vrf.get("ip_helpers"), svi_profile.get("ip_helpers")) 
+
+                              svi_raw_eos_cli = svi.get("raw_eos_cli")  # default(svi.get("raw_eos_cli"), svi_profile.get("raw_eos_cli"))
+
+                              vlan = {}
+                              vlan["tenant"] = tenant["name"]
+                              if svi_description.strip() != "":
+                                  vlan["description"] = svi_description
+
+                              if svi_enabled is True:
+                                  vlan["shutdown"] = False
+                              else:
+                                  vlan["shutdown"] = True
+
+                              vlan["vrf"] = vrf["name"]
+
+                              # IP address configuration
+                              if svi.get("nodes",{}).get(switch_facts['serial_number'], {}).get("ip_address"):
+                                  vlan["ip_address"] = svi["nodes"][switch_facts['serial_number']]["ip_address"]
+                              # Virtual Router IP Address
+                              vlan["ip_virtual_router_addresses"] = svi_ip_virtual_router_addresses
+
+                              # Virtual IP address
+                              if svi_ip_address_virtual is not None:
+                                  vlan["ip_address_virtual"] = svi_ip_address_virtual
+
+                              # Virtual Secondary IP address
+                              if svi_ip_address_virtual_secondaries is not None:
+                                  vlan["ip_address_virtual_secondaries"] = svi_ip_address_virtual_secondaries
+                              
+                              # MTU definition
+                              if svi_mtu is not None:
+                                  vlan["mtu"] = svi_mtu
+
+                              # IP helper configuration
+                              if svi_ip_helpers is not None:
+                                  vlan["ip_helpers"] = {}
+                                  for helper_ip in svi_ip_helpers:
+                                      vlan["ip_helpers"][helper_ip] = {
+                                          "source_interface": svi_ip_helpers[helper_ip].get("source_interface"),
+                                          "vrf": svi_ip_helpers[helper_ip].get("source_vrf")
+                                      }
+
+                              # ospf
+                              if svi.get("ospf", {}).get("enabled", False) is True and vrf.get("ospf", {}).get("enabled", True) is True:
+                                  # ospf area
+                                  vlan["ospf_area"] = default(svi["ospf"]["area"], "0")
+
+                                  # ospf network point to point
+                                  vlan["ospf_network_point_to_point"] = default(svi["ospf"]["point_to_point"], False)
+
+                                  # ospf cost
+                                  if svi["ospf"].get("cost"):
+                                      vlan["ospf_cost"] = svi["ospf"]["cost"]
+
+                                  # authentication
+                                  if svi["ospf"].get("authentication", "") == "simple" and svi["ospf"].get("simple_auth_key", "") != "":
+                                      vlan["ospf_authentication"] = "simple"
+                                      vlan["ospf_authentication"] = svi["ospf"]["simple_auth_key"]
+                                  
+                                  elif svi["ospf"].get("authentication", "") == "message-digest" and svi["ospf"].get("message_digest_keys"):
+                                      vlan["ospf_authentication"] = "message-digest"
+                                      vlan["ospf_message_digest_keys"] = {}
+                                      for key in svi["ospf"].get("message-message_digest_keys", []):
+                                          if key.get("id") and key.get("key"):
+                                              vlan["ospf_message_digest_keys"][key["id"]] = {
+                                                  "hash_algorithm": default(key.get("hash_algorithm"), "sha512"),
+                                                  "key": key.get("key")
+                                              }
+
+                              # raw eos cli
+                              if svi_raw_eos_cli is not None:
+                                  vlan["eos_cli"] = svi_raw_eos_cli  # May need to indent each line by 6 spaces when input type changes to extended string
+
+                              config["vlan_interfaces"][f"Vlan{svi['id']}"] = vlan
+
+                          # VLAN interface for iBGP peering in overlay VRFs
+                          if switch_facts.get("mlag_l3", False) is True:
+                              configure_mlag_ibgp_peering = vrf.get("enable_mlag_ibgp_peering_vrfs", True)
+                              if configure_mlag_ibgp_peering and vrf.get("mlag_ibgp_peering_vlan"):
+                                  config["vlan_interfaces"][f"Vlan{vrf['mlag_ibgp_peering_vlan']}"] = {
+                                      "tenant": tenant["name"],
+                                      "type": "underlay_peering",
+                                      "shutdown": False,
+                                      "description": f"MLAG_PEER_L3_iBGP: vrf {vrf['name']}",
+                                      "vrf": vrf["name"],
+                                      "ip_address": f"{vrf['mlag_l3_ip']}/{vrf['mlag_peer_l3_subnet_mask']}",
+                                      "mtu": switch_facts["p2p_uplinks_mtu"]
+                                  }                    
+
+              # l3
+              if switch_facts["network_services_l3"] is True:
+                  # ethernet-interfaces 
+                  for tenant in network_services_data["tenants"]:
+                      for vrf in tenant["vrfs"]:
+                          # configure ethernet interfaces
+                          if vrf.get('l3_interfaces') is not None:
+                              l3_interface_subif_parents = []
+                              for l3_interface in vrf['l3_interfaces']:
+                                  eth_iface = {}
+                                  l3_interface_subif_id = None
+                                  if "." in l3_interface['interfaces'][0]:
+                                      if l3_interface.get('encapsulation_dot1q_vlan'):
+                                          l3_interface_subif_id = l3_interface['encapsulation_dot1q_vlan']
+                                      else:
+                                          l3_interface_subif_id = l3_interface['interfaces'][0].split('.')[1]
+                                      l3_interface_subif_parents.append(l3_interface['interfaces'][0].split('.')[0])
+                                  if l3_interface_subif_id is not None:
+                                      eth_iface['type'] = "l3dot1q"
+                                      eth_iface['encapsulation_dot1q_vlan'] = l3_interface_subif_id
+                                  else:
+                                      eth_iface['type'] = "routed"
+                                  eth_iface['peer_type'] = "l3_interface"
+                                  eth_iface['vrf'] = vrf['name']
+                                  eth_iface['ip_address'] = l3_interface['ip_addresses'][0]
+                                  if l3_interface.get('mtu'):
+                                      eth_iface['mtu'] = l3_interface['mtu']
+                                  if l3_interface.get('enabled'):
+                                      eth_iface['shutdown'] = False
+                                  else:
+                                      eth_iface['shutdown'] = True
+                                  if l3_interface.get('description') and l3_interface['description'].strip() != "":
+                                      eth_iface['description'] = l3_interface['description']
+                                  if l3_interface.get("ospf") and vrf.get("ospf"):
+                                      if l3_interface["ospf"].get("enabled") and vrf["ospf"].get("enabled"):
+                                          # area
+                                          eth_iface["ospf_area"] = l3_interface["ospf"].get("area", "0")
+
+                                          # ospf network point to point
+                                          eth_iface["ospf_network_point_to_point"] = default(l3_interface["ospf"]["point_to_point"], True)
+
+                                          # ospf cost
+                                          if l3_interface["ospf"].get("cost"):
+                                              eth_iface["ospf_cost"] = l3_interface["ospf"]["cost"]
+
+                                          # authentication
+                                          if l3_interface["ospf"].get("authentication", "") == "simple" and l3_interface["ospf"].get("simple_auth_key", "") != "":
+                                              eth_iface["ospf_authentication"] = "simple"
+                                              eth_iface["ospf_authentication"] = l3_interface["ospf"]["simple_auth_key"]
+                                          
+                                          elif l3_interface["ospf"].get("authentication", "") == "message-digest" and l3_interface["ospf"].get("message_digest_keys"):
+                                              eth_iface["ospf_authentication"] = "message-digest"
+                                              eth_iface["ospf_message_digest_keys"] = {}
+                                              for key in l3_interface["ospf"].get("message-message_digest_keys", []):
+                                                  if key.get("id") and key.get("key"):
+                                                      eth_iface["ospf_message_digest_keys"][key["id"]] = {
+                                                          "hash_algorithm": default(key.get("hash_algorithm"), "sha512"),
+                                                          "key": key.get("key")
+                                                      }
+
+
+                                  if l3_interface.get('eos_cli'):
+                                      eth_iface['eos_cli'] = l3_interface['eos_cli']
+                                  config['ethernet_interfaces'][l3_interface['interfaces'][0]] = eth_iface
+                              for parent_iface in l3_interface_subif_parents:
+                                  config['ethernet_interfaces'][parent_iface] = {
+                                      "type": "routed",
+                                      "peer_type": "l3_interface",
+                                      "shutdown": False
+                                  }
+
+
+                  # route-maps
+                  for tenant in network_services_data["tenants"]:
+                      for vrf in tenant["vrfs"]: 
+                          # configure route maps
+                          for peer, peer_info in vrf.get('bgp_peers', {}).items():
+                              if peer_info.get('set_ipv4_next_hop') or peer_info.get('set_ipv6_next_hop'):
+                                  config['route_maps'][f"RM-{vrf['name']}-{peer}-SET-NEXT-HOP-OUT"] = {
+                                      "sequence_numbers": {
+                                          10: {
+                                              "type": "permit",
+                                              "set": []
+                                          }
+                                      }
+                                  }
+                                  if peer_info.get('set_ipv4_next_hop'):
+                                      (config['route_maps'][f"RM-{vrf['name']}-{peer}-SET-NEXT-HOP-OUT"]
+                                      ['sequence_numbers'][10]['set']).append(f"ip next-hop {peer_info['set_ipv4_next_hop']}")
+                                  elif peer_info.get('set_ipv6_next_hop'):
+                                      (config['route_maps'][f"RM-{vrf['name']}-{peer}-SET-NEXT-HOP-OUT"]
+                                      ['sequence_numbers'][10]['set']).append(f"ipv6 next-hop {peer_info['set_ipv6_next_hop']}")
+
+                  # static-routes 
+                  for tenant in network_services_data["tenants"]:
+                      for vrf in tenant["vrfs"]:
+                          for static_route in vrf.get("static_routes", []):
+                              sr = {}
+                              sr["destination_address_prefix"] = static_route.get("destination_address_prefix")
+                              sr["vrf"] = vrf["name"]
+                              sr["gateway"] = static_route.get("gateway")
+                              sr["distance"] = static_route.get("distance")
+                              sr["tag"] = static_route.get("tag")
+                              sr["name"] = static_route.get("name")
+                              sr["metric"] = static_route.get("metric")
+                              sr["interface"] = static_route.get("interface")
+                              config["static_routes"].append(sr)
+
+                          for svi in vrf.get("svis", []):
+                              svi_varp = svi.get("ip_virtual_router_addresses", [])
+                              for dest_addr_prefix in svi_varp:
+                                  if "/" in dest_addr_prefix:
+                                      config["static_routes"].append({
+                                          "destination_address_prefix": str(ipaddress.ip_interface(dest_addr_prefix).network),
+                                          "vrf": vrf["name"],
+                                          "name": "VARP",
+                                          "interface": f"Vlan{svi['id']}"
+                                      })
+
+                  # vrfs 
+                  for tenant in network_services_data["tenants"]:
+                      for vrf in tenant["vrfs"]:
+                          config["vrfs"][vrf["name"]] = {
+                              "tenant": tenant["name"],
+                              "ip_routing": True
+                          }
+
+                  # router-ospf
+                  if switch_facts["underlay_routing_protocol"] == "ospf":
+                      for tenant in network_services_data["tenants"]:
+                          for vrf in tenant["vrfs"]:
+                              if vrf.get("ospf") and vrf["ospf"].get("enabled"):
+                                  network_services_data["ospf_configured"] = True
+                                  break
+
+                      if network_services_data.get("ospf_configured"):
+                          # config["router_ospf"]["process_ids"][]
+                          for tenant in network_services_data["tenants"]:
+                              for vrf in tenant["vrfs"]:
+                                  if vrf.get("ospf") and vrf["ospf"].get("enabled"):
+                                      vrf_ospf_interfaces = []
+                                      ospf_process_id = vrf["ospf"]["process_id"]
+                                      ospf_router_id = vrf["ospf"].get("router_id", switch_facts["router_id"])
+                                      for l3_interface in vrf.get("l3_interfaces", []):
+                                          if switch_facts["serial_number"] in l3_interface.get("nodes", []) and l3_interface.get("interfaces") and l3_interface.get("ospf", {}).get("enabled"):
+                                              for i, node in enumerate(l3_interface["nodes"]):
+                                                  if node == switch_facts["serial_number"]:
+                                                      vrf_ospf_interfaces.append(l3_interface["interfaces"][i])
+                                      for svi in vrf.get("svis", []):
+                                          vrf_ospf_interfaces.append(f"Vlan{svi['id']}")
+                                      if switch_facts.get("mlag_l3") and vrf.get("mlag_ibgp_peering_vlan"):
+                                          vrf_ospf_interfaces.append("Vlan{}".format(vrf["mlag_ibgp_peering_vlan"]))
+                                      if ospf_process_id not in config["router_ospf"]["process_ids"]:
+                                          config["router_ospf"]["process_ids"][ospf_process_id] = {}
+                                      # vrf
+                                      config["router_ospf"]["process_ids"][ospf_process_id]["vrf"] = vrf["name"]
+                                      # passive interface default
+                                      config["router_ospf"]["process_ids"][ospf_process_id]["passive_interface_default"] = True
+                                      # ospf_router_id
+                                      config["router_ospf"]["process_ids"][ospf_process_id]["router_id"] = ospf_router_id
+                                      # no passive interfaces
+                                      config["router_ospf"]["process_ids"][ospf_process_id]["no_passive_interfaces"] = config["router_ospf"]["process_ids"][ospf_process_id].get("no_passive_interfaces", []) + vrf_ospf_interfaces
+                                      # bfd enable
+                                      if vrf["ospf"]["bfd"]:
+                                          config["router_ospf"]["process_ids"][ospf_process_id]["bfd_enable"] = True
+                                      # max_lsa
+                                      if vrf["ospf"]["max_lsa"]:
+                                          config["router_ospf"]["process_ids"][ospf_process_id]["max_lsa"] = vrf["ospf"]["max_lsa"]
+                                      # redistribute bgp
+                                      if vrf["ospf"].get("redistribute_bgp", {}).get("enabled"):
+                                          # set if not already set
+                                          if not config["router_ospf"]["process_ids"][ospf_process_id].get("redistribute"):
+                                              config["router_ospf"]["process_ids"][ospf_process_id]["redistribute"] = {"bgp": {}}
+                                          # enable
+                                          config["router_ospf"]["process_ids"][ospf_process_id]["redistribute"]["bgp"]["enabled"] = True
+                                          # route-map
+                                          if vrf["ospf"]["redistribute_bgp"].get("route_map"):
+                                              config["router_ospf"]["process_ids"][ospf_process_id]["redistribute"]["bgp"]["route_map"] = vrf["ospf"]["redistribute_bgp"]["route_map"]
+
+                  # router-bgp
+                  if switch_facts["underlay_routing_protocol"] == "bgp":
+                      config['router_bgp']['vrfs'] = {}
+                      for tenant in network_services_data["tenants"]:
+                          for vrf in tenant["vrfs"]:
+                              address_family_ipv4_neighbors = []
+                              address_family_ipv6_neighbors = []
+                              # initialize vrf
+                              config['router_bgp']['vrfs'][vrf['name']] = {
+                                  "router_id": switch_facts['router_id'],
+                                  "route_distinguisher": vrf.get("route_distinguisher"),
+                                  "neighbors": {},
+                                  "redistribute_routes": {
+                                      # "connected": {}
+                                      # "attached-host": {}
+                                  },
+                                  "address_families": {
+                                      "ipv4": {"neighbors": {}, "networks": {}},
+                                      "ipv6": {"neighbors": {}, "networks": {}}
+                                  },
+                                  "eos_cli": []
+                              }
+                              if vrf['name'] != "default":
+                                  config['router_bgp']['vrfs'][vrf['name']]['redistribute_routes']['connected'] = {}
+                              # mlag ibgp peer
+                              if switch_facts.get('mlag_l3') and vrf.get('mlag_peer_l3_ip'):
+                                  # Add mlag_ip to nieghbors and address family
+                                  config['router_bgp']['vrfs'][vrf['name']]['neighbors'][vrf['mlag_peer_l3_ip']] = {
+                                      "remote_as": switch_facts['bgp_as'],
+                                      "description": switch_facts['mlag_peer'],
+                                      "send_community": "all",
+                                      "next_hop_self": True,
+                                  }
+                                  address_family_ipv4_neighbors.append(vrf['mlag_peer_l3_ip'])
+                              # external bgp peers
+                              for peer, peer_info in vrf.get('bgp_peers', {}).items():
+                                  if validIPAddress(peer) is True:
+                                      address_family_ipv4_neighbors.append(peer)
+                                  elif validIPAddress(peer) is False:
+                                      address_family_ipv6_neighbors.append(peer)
+                                  else:
+                                      ctx.warning(f"Invalid BGP peer address provided: {switch_facts['site']} Services -> VRF {vrf['name']} -> {peer}")
+                                      continue
+                                  if peer_info.get('set_ipv4_next_hop') or peer_info.get('set_ipv6_next_hop'):
+                                      peer_info.update({"route_map_out": f"RM-{vrf['name']}-{peer}-SET-NEXT-HOP-OUT"})
+                                      if peer_info.get('default_originate'):
+                                          if not peer_info['default_originate'].get('route_map'):
+                                              peer_info['default_originate'].update(
+                                                  {"route_map": f"RM-{vrf['name']}-{peer}-SET-NEXT-HOP-OUT"}
+                                              )
+                                      if peer_info.get('set_ipv4_next_hop'):
+                                          peer_info.pop("set_ipv4_next_hop")
+                                      if peer_info.get('set_ipv6_next_hop'):
+                                          peer_info.pop("set_ipv6_next_hop")
+                                  config['router_bgp']['vrfs'][vrf['name']]['neighbors'][peer] = peer_info
+
+
+              return config
+
 
           # Get studio info from ctx
           my_device = ctx.getDevice()
@@ -2380,7 +3005,7 @@
           # Set my_switch_facts' switch properties
           my_switch_facts = set_switch_facts_properties(my_device.id, campus)
 
-          ctx.info(f"{my_switch_facts['hostname']}: {my_switch_facts}")
+          ctx.info(f"{my_switch_facts['hostname']} Device Properties: {my_switch_facts}")
 
           if my_switch_facts is None:
               return
@@ -2434,10 +3059,7 @@
           # Get network services in AVD format (part 2)
           my_switch_facts = get_tenants(my_switch_facts, campus)
 
-
-
-          ctx.info(f"All Services: {my_switch_facts['all_tenants']}")
-
+          ctx.info(f"Tenants: {my_switch_facts['all_tenants']}")
 
 
           # Set structured config
@@ -2479,13 +3101,10 @@
           my_config = set_overlay_config(my_config, my_switch_facts)
           my_config = set_vxlan_config(my_config, my_switch_facts)
           my_config = set_inband_management_config(my_config, my_switch_facts)
+          my_config = set_network_services_config(my_config, my_switch_facts)
 
           config = my_config
           %>
-          ## ${json.dumps(my_switch_facts, indent=2)}
-          ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-          ## ${json.dumps(config, indent=2)}
-          ## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           % if config.get("ip_dhcp_relay"):
           %     if config["ip_dhcp_relay"].get("information_option"):
           ip dhcp relay information option
@@ -2561,9 +3180,11 @@
           ## vrfs
           % if config.get("vrfs") is not None:
           %   for vrf in natural_sort(config["vrfs"].keys()):
+          %     if vrf != "default":
           vrf instance ${ vrf }
-          %     if config["vrfs"][vrf].get("description"):
+          %       if config["vrfs"][vrf].get("description"):
              description ${ config["vrfs"][vrf]["description"] }
+          %       endif
           %     endif
           !
           %   endfor
@@ -2612,7 +3233,7 @@
           %if config.get("ethernet_interfaces") is not None:
           %for ethernet_interface in natural_sort(config["ethernet_interfaces"].keys()):
           interface ${ethernet_interface }
-          %     if config["ethernet_interfaces"][ethernet_interface]["description"] is not None:
+          %     if config["ethernet_interfaces"][ethernet_interface].get("description") is not None:
              description ${config["ethernet_interfaces"][ethernet_interface]["description"]}
           %     endif
           %     if config["ethernet_interfaces"][ethernet_interface].get("boot_vlan"):
@@ -2626,6 +3247,13 @@
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("type") is not None and config["ethernet_interfaces"][ethernet_interface].get("type") == "routed":
              no switchport
+          %         elif config["ethernet_interfaces"][ethernet_interface].get("type", "") in ["l2dot1q", "l3dot1q"]:
+          %             if config["ethernet_interfaces"][ethernet_interface].get("vlan_id") and config["ethernet_interfaces"][ethernet_interface]["type"] == 'l2dot1q':
+             vlan id ${ config["ethernet_interfaces"][ethernet_interface]["vlan_id"] }
+          %             endif
+          %             if config["ethernet_interfaces"][ethernet_interface].get("encapsulation_dot1q_vlan"):
+             encapsulation dot1q vlan ${ config["ethernet_interfaces"][ethernet_interface]["encapsulation_dot1q_vlan"] }
+          %             endif
           %         else:
              switchport
           %         endif
@@ -2667,12 +3295,35 @@
           %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_area"):
              ip ospf area ${ config["ethernet_interfaces"][ethernet_interface]["ospf_area"] }
           %         endif
-          %     endif
+          %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_cost"):
+             ip ospf cost ${ config["ethernet_interfaces"][ethernet_interface]["ospf_cost"] }
+          %         endif
+          %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_authentication") is not None:
+          %           if config["ethernet_interfaces"][ethernet_interface]["ospf_authentication"] == "simple":
+             ip ospf authentication
+          %           elif config["ethernet_interfaces"][ethernet_interface]["ospf_authentication"] == "message-digest":
+             ip ospf authentication message-digest
+          %           endif
+          %         endif
+          %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_authentication_key") is not None:
+             ip ospf authentication-key 7 ${ config["ethernet_interfaces"][ethernet_interface]["ospf_authentication_key"] }
+          %         endif
+          %         for ospf_message_digest_key in natural_sort(config["ethernet_interfaces"][ethernet_interface].get("ospf_message_digest_keys", [])):
+          %           if config["ethernet_interfaces"][ethernet_interface]["ospf_message_digest_keys"][ospf_message_digest_key].get("hash_algorithm") is not None and config["ethernet_interfaces"][ethernet_interface]["ospf_message_digest_keys"][ospf_message_digest_key].get("key") is not None:
+             ip ospf message-digest-key ${ ospf_message_digest_key } ${ config["ethernet_interfaces"][ethernet_interface]["ospf_message_digest_keys"][ospf_message_digest_key]["hash_algorithm"] } 7 ${ config["ethernet_interfaces"][ethernet_interface]["ospf_message_digest_keys"][ospf_message_digest_key]["key"] }
+          %           endif
+          %         endfor
           %         if config["ethernet_interfaces"][ethernet_interface].get("pim"):
           %           if config["ethernet_interfaces"][ethernet_interface]["pim"]["ipv4"].get("sparse_mode"):
              pim ipv4 sparse-mode
           %           endif
           %         endif
+          %     endif
+          %     if config["ethernet_interfaces"][ethernet_interface].get("eos_cli"):
+          %         for cli_statement in config["ethernet_interfaces"][ethernet_interface]["eos_cli"]:
+             ${cli_statement}
+          %         endfor
+          %     endif
           !
           %endfor
           %endif
@@ -2759,9 +3410,9 @@
           %             endfor
           %         endif
           %     endif
-          %     if config.get("vlan_interfaces")[vlan_interface].get("ip_virtual_router_address") is not None:
-             ip virtual-router address ${ config.get("vlan_interfaces")[vlan_interface].get("ip_virtual_router_address") }
-          %     endif
+          %     for ip_virtual_router_address in config["vlan_interfaces"][vlan_interface].get("ip_virtual_router_addresses", []):
+             ip virtual-router address ${ ip_virtual_router_address }
+          %     endfor
           %     if config.get("vlan_interfaces")[vlan_interface].get("ip_address_virtual") is not None:
              ip address virtual ${ config.get("vlan_interfaces")[vlan_interface].get("ip_address_virtual") }
           %     endif
@@ -2783,6 +3434,29 @@
           %      if config.get("vlan_interfaces")[vlan_interface].get("ospf_area"):
              ip ospf area ${ config.get("vlan_interfaces")[vlan_interface]["ospf_area"] }
           %      endif
+          %      if config["vlan_interfaces"][vlan_interface].get("ospf_cost"):
+             ip ospf cost ${ config["vlan_interfaces"][vlan_interface]["ospf_cost"] }
+          %      endif
+          %     if config["vlan_interfaces"][vlan_interface].get("ospf_authentication") is not None:
+          %         if config["vlan_interfaces"][vlan_interface]["ospf_authentication"] == "simple":
+             ip ospf authentication
+          %         elif config["vlan_interfaces"][vlan_interface]["ospf_authentication"] == "message-digest":
+             ip ospf authentication message-digest
+          %         endif
+          %     endif
+          %     if config["vlan_interfaces"][vlan_interface].get("ospf_authentication_key") is not None:
+             ip ospf authentication-key 7 ${ config["vlan_interfaces"][vlan_interface]["ospf_authentication_key"] }
+          %     endif
+          %     for ospf_message_digest_key in natural_sort(config["vlan_interfaces"][vlan_interface].get("ospf_message_digest_keys", [])):
+          %         if config["vlan_interfaces"][vlan_interface]["ospf_message_digest_keys"][ospf_message_digest_key].get("hash_algorithm") is not None and config["vlan_interfaces"][vlan_interface]["ospf_message_digest_keys"][ospf_message_digest_key].get("key") is not None:
+             ip ospf message-digest-key ${ ospf_message_digest_key } ${ config["vlan_interfaces"][vlan_interface]["ospf_message_digest_keys"][ospf_message_digest_key]["hash_algorithm"] } 7 ${ config["vlan_interfaces"][vlan_interface]["ospf_message_digest_keys"][ospf_message_digest_key]["key"] }
+          %         endif
+          %     endfor
+          %     if config["vlan_interfaces"][vlan_interface].get("eos_cli"):
+          %         for cli_statement in config["vlan_interfaces"][vlan_interface]["eos_cli"]:
+             ${cli_statement}
+          %         endfor
+          %     endif
           !
           %   endfor
           % endif
@@ -4659,7 +5333,7 @@
               id: vrfMlagPeerL3IPv4Pool
               name: vrfMlagPeerL3IPv4Pool
               label: MLAG Peer L3 IPv4 Pool
-              description: ''
+              description: If no IPv4 pool is entered, will default to IPv4 pool entered in default VRF.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -4671,7 +5345,7 @@
                 dynamic_options: null
             vrfMlagL3Peering:
               id: vrfMlagL3Peering
-              name: ibgpDetails
+              name: mlagL3PeeringDetails
               label: MLAG L3 Peering
               description: ''
               required: false
@@ -5280,7 +5954,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: false
+                default_value: true
             vrfOspfConfiguration:
               id: vrfOspfConfiguration
               name: vrfOspfConfiguration
@@ -5382,6 +6056,161 @@
               collection_props:
                 base_field_id: vrfL3InterfaceCliStatement
                 key: ''
+            vrfL3InterfaceOspfEnabled:
+              id: vrfL3InterfaceOspfEnabled
+              name: enabled
+              label: Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            vrfL3InterfaceOspfArea:
+              id: vrfL3InterfaceOspfArea
+              name: area
+              label: Area
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfL3InterfaceOspfCost:
+              id: vrfL3InterfaceOspfCost
+              name: cost
+              label: Cost
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfL3InterfaceOspfPointToPoint:
+              id: vrfL3InterfaceOspfPointToPoint
+              name: pointToPoint
+              label: Point-to-Point
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            vrfL3InterfaceOspfAuthentication:
+              id: vrfL3InterfaceOspfAuthentication
+              name: authentication
+              label: Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Simple
+                    - Message-Digest
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfL3InterfaceOspfSimpleAuthKey:
+              id: vrfL3InterfaceOspfSimpleAuthKey
+              name: simpleAuthKey
+              label: Simple Auth Key
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfL3InterfaceOspfMessageDigestKeyId:
+              id: vrfL3InterfaceOspfMessageDigestKeyId
+              name: id
+              label: ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            vrfL3InterfaceOspfMessageDigestKeyHashAlgorithm:
+              id: vrfL3InterfaceOspfMessageDigestKeyHashAlgorithm
+              name: hashAlgorithm
+              label: Hash Algorithm
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfL3InterfaceOspfMessageDigestKeyKey:
+              id: vrfL3InterfaceOspfMessageDigestKeyKey
+              name: key
+              label: Key
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            vrfL3InterfaceOspfMessageDigestKeysGroup:
+              id: vrfL3InterfaceOspfMessageDigestKeysGroup
+              name: messageDigestKeysGroup
+              label: Message Digest Keys Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfL3InterfaceOspfMessageDigestKeyId
+                    - vrfL3InterfaceOspfMessageDigestKeyHashAlgorithm
+                    - vrfL3InterfaceOspfMessageDigestKeyKey
+            vrfL3InterfaceOspfMessageDigestKeys:
+              id: vrfL3InterfaceOspfMessageDigestKeys
+              name: messageDigestKeys
+              label: Message Digest Keys
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: vrfL3InterfaceOspfMessageDigestKeysGroup
+                key: ''
+            vrfL3InterfaceOspf:
+              id: vrfL3InterfaceOspf
+              name: ospf
+              label: OSPF
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - vrfL3InterfaceOspfEnabled
+                    - vrfL3InterfaceOspfArea
+                    - vrfL3InterfaceOspfCost
+                    - vrfL3InterfaceOspfPointToPoint
+                    - vrfL3InterfaceOspfAuthentication
+                    - vrfL3InterfaceOspfSimpleAuthKey
+                    - vrfL3InterfaceOspfMessageDigestKeys
             vrfL3InterfaceDetails:
               id: vrfL3InterfaceDetails
               name: interfaceDetails
@@ -5398,6 +6227,7 @@
                     - vrfL3InterfaceEnabled
                     - vrfL3InterfaceMtu
                     - vrfL3InterfaceEosCli
+                    - vrfL3InterfaceOspf
             vrfL3InterfacesCollection:
               id: vrfL3InterfacesCollection
               name: interfaces
@@ -5407,7 +6237,7 @@
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
                 base_field_id: vrfL3InterfaceDetails
-                key: ''
+                key: vrfL3InterfaceName
             vrfL3InterfacesDevice:
               id: vrfL3InterfacesDevice
               name: l3Interfaces
@@ -5418,8 +6248,8 @@
               resolver_props:
                 base_field_id: vrfL3InterfacesCollection
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
                 tag_filter_query: null
             vrfDetails:
               id: vrfDetails
@@ -5496,7 +6326,7 @@
               id: l2CampusPrimarySplineSviIpAddress
               name: primarySwitchSviIpAddress
               label: Primary Spline SVI IP Address
-              description: 'IP address (in CIDR notation) for SVI assigned to primary spline. If no value is entered, IP address will be allocated automatically based on virtual IP address. '
+              description: IP address (in CIDR notation) for SVI assigned to primary spline.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5510,7 +6340,7 @@
               id: l2CampusSecondarySplineSviIpAddress
               name: secondarySwitchSviIpAddress
               label: Secondary Spline SVI IP Address
-              description: 'IP address (in CIDR notation) for SVI assigned to secondary spline. If no value is entered, IP address will be allocated automatically based on virtual IP address. '
+              description: IP address (in CIDR notation) for SVI assigned to secondary spline.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5616,7 +6446,7 @@
               id: l3CampusPrimaryLeafSviIpAddress
               name: primarySwitchSviIpAddress
               label: Primary Leaf SVI IP Address
-              description: 'IP address (in CIDR notation) for SVI assigned to primary leaf. If no value is entered, IP address will be allocated automatically based on virtual IP address. '
+              description: IP address (in CIDR notation) for SVI assigned to primary leaf.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -5640,6 +6470,20 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            l3CampusVlanName:
+              id: l3CampusVlanName
+              name: name
+              label: Name
+              description: If no value is entered, the value entered in the Name field below will be used.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             vlansCampusPodGroup:
               id: vlansCampusPodGroup
               name: podDetails
@@ -5653,6 +6497,7 @@
                     - l3CampusSviIpVirtualRouterAddress
                     - l3CampusPrimaryLeafSviIpAddress
                     - l3CampusSecondaryLeafSviIpAddress
+                    - l3CampusVlanName
             vlansCampusPodResolver:
               id: vlansCampusPodResolver
               name: campusPod
@@ -5771,7 +6616,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: false
+                default_value: true
             sviOspfArea:
               id: sviOspfArea
               name: area
@@ -5780,7 +6625,7 @@
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
-                default_value: null
+                default_value: 0.0.0.0
                 static_options: null
                 format: null
                 length: null
@@ -7135,7 +7980,6 @@
               },
               "vrfExternalBgpPeersNeighborIpAddress":{
                 "key":"vrfExternalBgpPeersNeighborIpAddress",
-                "type":"INPUT",
                 "dependency":{
                   "siteUnderlayRoutingProtocol":{
                     "value":[
@@ -7143,19 +7987,22 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               },
               "vrfExternalBgpPeersApply":{
                 "key":"vrfExternalBgpPeersApply",
-                "type":"INPUT",
                 "dependency":{
-                  "siteUnderlayRoutingProtocol":{
+                  "campusType":{
                     "value":[
-                      "BGP"
+                      "__ANY__"
                     ],
-                    "mode":"SHOW"
+                    "mode":"HIDE"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               },
               "vrfExternalBgpPeersRemoteAs":{
                 "key":"vrfExternalBgpPeersRemoteAs",
@@ -8112,9 +8959,252 @@
                   "vrfMlagL3Peering",
                   "vrfStaticRoutes",
                   "vrfRedistributeStaticRoutesToggle",
-                  "vrfL3InterfacesDevice",
+                  "vrfOspfConfiguration",
                   "vrfExternalBgpPeers",
-                  "vrfOspfConfiguration"
+                  "vrfL3InterfacesDevice"
                 ]
+              },
+              "l3CampusVlanName":{
+                "key":"l3CampusVlanName",
+                "dependencyType":"AND",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfRedistributeStaticRoutesToggle":{
+                "key":"vrfRedistributeStaticRoutesToggle",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "cfedd130-b898-4446-91ec-971c7d1c2985":{
+                "type":"TAGGER",
+                "parentKey":"vrfStaticRoutesDevicesGroup",
+                "key":"cfedd130-b898-4446-91ec-971c7d1c2985",
+                "name":"Switches",
+                "assignmentType":"SINGLE",
+                "prepopulate":false,
+                "tagType":"DEVICE",
+                "description":"View the switches which will have the static route configured on them.",
+                "columns":[
+                  {
+                    "tagLabel":"Site",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ]
+              },
+              "vrfStaticRoutesApply":{
+                "key":"vrfStaticRoutesApply",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "vrfL3InterfacesCollection":{
+                "key":"vrfL3InterfacesCollection",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "vrfL3InterfaceDetails":{
+                "key":"vrfL3InterfaceDetails",
+                "type":"INPUT",
+                "order":[
+                  "vrfL3InterfaceName",
+                  "vrfL3InterfaceIpAddress",
+                  "vrfL3InterfaceDescription",
+                  "vrfL3InterfaceEnabled",
+                  "vrfL3InterfaceMtu",
+                  "vrfL3InterfaceOspf",
+                  "vrfL3InterfaceEosCli"
+                ]
+              },
+              "vrfL3InterfaceOspfSimpleAuthKey":{
+                "key":"vrfL3InterfaceOspfSimpleAuthKey",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Simple"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "vrfL3InterfaceOspfEnabled":{
+                "key":"vrfL3InterfaceOspfEnabled",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfL3InterfaceOspfArea":{
+                "key":"vrfL3InterfaceOspfArea",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfL3InterfaceOspfCost":{
+                "key":"vrfL3InterfaceOspfCost",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfL3InterfaceOspfPointToPoint":{
+                "key":"vrfL3InterfaceOspfPointToPoint",
+                "type":"INPUT",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "vrfL3InterfaceOspfAuthentication":{
+                "key":"vrfL3InterfaceOspfAuthentication",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vrfL3InterfaceOspfMessageDigestKeyId":{
+                "key":"vrfL3InterfaceOspfMessageDigestKeyId",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Message-Digest"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "vrfL3InterfaceOspfMessageDigestKeyHashAlgorithm":{
+                "key":"vrfL3InterfaceOspfMessageDigestKeyHashAlgorithm",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Message-Digest"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "vrfL3InterfaceOspfMessageDigestKeyKey":{
+                "key":"vrfL3InterfaceOspfMessageDigestKeyKey",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "OSPF"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "sviOspfAuthentication":{
+                    "value":[
+                      "Message-Digest"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "1d13d361-e090-456d-8f9e-22ac4c97af48":{
+                "type":"TAGGER",
+                "parentKey":"vrfExternalBgpPeersDevicesGroup",
+                "key":"1d13d361-e090-456d-8f9e-22ac4c97af48",
+                "name":"Switches",
+                "assignmentType":"SINGLE",
+                "prepopulate":false,
+                "tagType":"DEVICE",
+                "description":"View the switches which will have the BGP peer configured on them.",
+                "columns":[
+                  {
+                    "tagLabel":"Site",
+                    "suggestedValues":[
+                      
+                    ]
+                  }
+                ],
+                "dependencyType":"AND",
+                "dependency":{
+                  "siteUnderlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
