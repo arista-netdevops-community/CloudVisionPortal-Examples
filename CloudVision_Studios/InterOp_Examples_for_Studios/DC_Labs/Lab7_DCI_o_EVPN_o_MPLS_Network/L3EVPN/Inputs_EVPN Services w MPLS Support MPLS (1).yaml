@@ -1,0 +1,163 @@
+path: []
+inputs:
+  encapType: MPLS
+  tenants:
+    - macVrfVniBase: 10000
+      name: mpls-network
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v9
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-core1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-core2
+              tags:
+                query: device:s1-core1,s1-core2
+          vlanId: 9
+          vrf: red
+          vxlan: false
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v19
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-core1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-core2
+              tags:
+                query: device:s2-core1,s2-core2
+          vlanId: 19
+          vrf: red
+          vxlan: false
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: dc1-red-ip-network->border1
+              defaultOriginate: {}
+              description: ''
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-core1
+                  tags:
+                    query: device:s1-core1
+              maxRoutes: {}
+              neighborIpAddress: 9.1.1.1
+              nextHop: {}
+              password: ''
+              remoteAs: 65004
+              routeMap: {}
+              updateSource: ''
+            - bgpPeeringName: dc1-red-ip-network->border2
+              defaultOriginate: {}
+              description: ''
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-core2
+                  tags:
+                    query: device:s1-core2
+              maxRoutes: {}
+              neighborIpAddress: 9.1.1.2
+              nextHop: {}
+              password: ''
+              remoteAs: 65004
+              routeMap: {}
+              updateSource: ''
+            - bgpPeeringName: dc2-red-ip-network->border1
+              defaultOriginate: {}
+              description: ''
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-core1
+                  tags:
+                    query: device:s2-core1
+              maxRoutes: {}
+              neighborIpAddress: 19.1.1.1
+              nextHop: {}
+              password: ''
+              remoteAs: 65104
+              routeMap: {}
+              updateSource: ''
+            - bgpPeeringName: dc2-red-ip-network->border2
+              defaultOriginate: {}
+              description: ''
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-core2
+                  tags:
+                    query: device:s2-core2
+              maxRoutes: {}
+              neighborIpAddress: 19.1.1.2
+              nextHop: {}
+              password: ''
+              remoteAs: 65104
+              routeMap: {}
+              updateSource: ''
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: red
+          natSourceDetails: {}
+          overrideVariables:
+            routeDistinguisher: ROUTER-ID:123
+            routeTarget: '123:123'
+          redistributeStaticRoutes: false
+          staticRoutes: []
+  vlanBasedMacVrfAttributeFormats:
+    macVrfRouteDistinguisherFormat: Router-ID:VNI
+    macVrfRouteTargetFormat: VNI:VNI
+  vlanBundleMacVrfAttributeFormats:
+    macVrfRouteDistinguisherFormat: Router-ID:First-VNI
+    macVrfRouteTargetFormat: First-VNI:First-VNI
