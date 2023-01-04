@@ -1,0 +1,409 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 914
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: dual-stack
+            vxlanSourceInterface: Loopback1
+            vxlanVirtualRouterEncapMacAddress: mlag-system-id
+          commonMlagConfig:
+            internalVlan: 4094
+            ipv6MlagLinkSubnet: fe80::/64
+            lacpMode: Active
+            mlagLinkSubnet: 169.254.0.0/31
+            mlagPortChannelId: 2000
+            virtualRouterMac: 00:1c:73:00:00:99
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: ''
+                              neighborIp: 3.3.3.3
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 4.4.4.4
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 5.1.1.1
+                              peerAsn: 65004
+                              peerGroup: eBGP-WAN
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c1
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 11.21.0.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s1-core1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 12.12.12.12
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s1-core1
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s1-core1
+                            mlagRole: Primary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: ''
+                              neighborIp: 3.3.3.3
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 4.4.4.4
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 5.1.1.2
+                              peerAsn: 65004
+                              peerGroup: eBGP-WAN
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c2
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.22.0.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s1-core2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 12.12.12.12
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s1-core2
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s1-core2
+                            mlagRole: Secondary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core2
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: ''
+                              neighborIp: 1.1.1.1
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 2.2.2.2
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 15.1.1.1
+                              peerAsn: 65104
+                              peerGroup: eBGP-WAN
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c1
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 11.21.0.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s2-core1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 34.34.34.34
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s2-core1
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s2-core1
+                            mlagRole: Primary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-core1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: ''
+                              neighborIp: 1.1.1.1
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 2.2.2.2
+                              peerAsn: 941
+                              peerGroup: IBGP-EVPN
+                            - description: ''
+                              neighborIp: 15.1.1.2
+                              peerAsn: 65104
+                              peerGroup: eBGP-WAN
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c2
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.22.0.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s2-core2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 34.34.34.34
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s2-core2
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s2-core2
+                            mlagRole: Secondary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-core2
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 200 200 200
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                        updateSource: Loopback0
+                      dciOptions: {}
+                      description: IBGP-EVPN
+                      erAddressFamily: evpn
+                      peerGroupName: IBGP-EVPN
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: true
+                        redistributeStaticRoutes: false
+                      dciOptions: {}
+                      description: 'EBGP-WAN '
+                      erAddressFamily: ipv4
+                      peerGroupName: eBGP-WAN
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: WAN-DEFAULT-ROUTE
+                          seqNum: 10
+                          setCommunity: ''
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: WAN-DEFAULT-ROUTE
+                      seqNums:
+                        - permitDeny: permit
+                          prefix: 0.0.0.0/0
+                          prefixLength: exact-route
+                          seqNum: 10
+                  rrHostnames: []
+              tags:
+                query: Edge-Router-Domain:IP-Network
+          rrs: []
+          underlayRoutingGroup:
+            igp: OSPF
+            redistributeConnected: Enabled
+      tags:
+        query: Network:IP-Network
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+            vxlanSourceInterface: Loopback1
+            vxlanVirtualRouterEncapMacAddress: mlag-system-id
+          commonMlagConfig:
+            internalVlan: 4094
+            ipv6MlagLinkSubnet: fe80::/64
+            lacpMode: Active
+            mlagLinkSubnet: 169.254.0.0/31
+            mlagPortChannelId: 2000
+            virtualRouterMac: 00:1c:73:00:00:99
+            vxlanMlagSourceInterface: Loopback2
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors: []
+                          interfaces: []
+                          loopback1: {}
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s1-brdr1
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s1-brdr1
+                            mlagRole: Primary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors: []
+                          interfaces: []
+                          loopback1: {}
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s1-brdr2
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s1-brdr2
+                            mlagRole: Secondary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors: []
+                          interfaces: []
+                          loopback1: {}
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s2-brdr1
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s2-brdr1
+                            mlagRole: Primary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors: []
+                          interfaces: []
+                          loopback1: {}
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s2-brdr2
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s2-brdr2
+                            mlagRole: Secondary
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-brdr2
+                  peerGroups: []
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: PL-LOOPBACKS-EVPN-OVERLAY
+                      seqNums:
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 172.16.3.0/24
+                          prefixLength: eq
+                          seqNum: 30
+                        - permitDeny: permit
+                          prefix: 88.88.88.88/32
+                          prefixLength: exact-route
+                          seqNum: 40
+                        - permitDeny: permit
+                          prefix: 99.99.99.99/32
+                          prefixLength: exact-route
+                          seqNum: 50
+                  rrHostnames: []
+              tags:
+                query: Edge-Router-Domain:Border_Leafs
+          rrs: []
+          underlayRoutingGroup:
+            igp: None
+      tags:
+        query: Network:Border-Leafs
