@@ -3,8 +3,8 @@
   body:
     value:
       key:
-        studio_id: 857333ca-e200-46db-808d-6d23243cca4f
-        workspace_id: ''
+        studio_id: 8db0d9c5-7512-4fa4-8f15-1177e08719db
+        workspace_id: 7252dcd7-6e0b-46df-83e8-d04763e48201
       display_name: AVD Campus Fabric
       description: Provision the fabric of an L2 or L3 campus network.
       template:
@@ -196,6 +196,26 @@
                   return True if type(ipaddress.ip_address(ip)) is ipaddress.IPv4Address else False
               except ValueError:
                   return None
+
+
+          def extend_ip_ranges(ip_ranges):
+              '''
+              Args:
+                  ip_ranges: list of strings that resemble ip address ranges (i.e. 192.168.0.4-192.168.0.12)
+              '''
+              output = []
+              for ip_range in ip_ranges:
+                  ip_elements = [
+                      ipaddress.ip_address(element.strip()) for element in ip_range.strip().split("-")
+                  ]
+                  if ip_elements[0] <= ip_elements[1]:
+                      ip_addresses = range(int(ip_elements[0]), int(ip_elements[1]) + 1)
+                  else:
+                      ip_addresses = range(int(ip_elements[0]), int(ip_elements[1]) - 1, -1)
+
+                  output.extend([str(ipaddress.ip_address(ip)) for ip in ip_addresses])
+              return output
+
 
 
           def convert_dicts(dictionary, primary_key="name", secondary_key=None):
@@ -934,12 +954,24 @@
                           # Return inband management subnet network address + 1
                           return list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[1]
                   else:
-                      return list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[switch_facts["id"] + 2]
+                      if switch_facts.get("inband_management_ip_range", "").strip() != "":
+                          # get switches in same pod
+                          leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in all_switch_facts_in_my_site.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
+                          memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in all_switch_facts_in_my_site.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
+                          switches_in_pod = leaf_switches_in_pod + memberleaf_switches_in_pod
+                          ip_ranges = switch_facts["inband_management_ip_range"].split(",")
+                          ip_address_pool = extend_ip_ranges(ip_ranges)
+                          for i, tmp_switch_facts in enumerate(switches_in_pod):
+                              if tmp_switch_facts['serial_number'] == switch_facts['serial_number']:
+                                  index = i
+                                  break
+
+                          return ip_address_pool[index]
               return 
 
 
 
-          def set_switch_facts_properties(device_id, campus_resolver):
+          def set_switch_facts_properties(device_id, campus_resolver, default_interfaces_group):
               # Initialize switch_facts
               switch_facts = {}
               switch_facts = {"serial_number": device_id}
@@ -1071,10 +1103,26 @@
                       ctx.warning(f"{switch_facts['hostname']} does not have a Campus-Pod tag applied.")
                       return
 
+              # Set default interfaces
+              if switch_facts["type"] == "spline":
+                  default_interface_info = default_interfaces_group["splinePlatforms"]
+              elif switch_facts["type"] == "leaf":
+                  default_interface_info = default_interfaces_group["leafPlatforms"]
+              else:  # if switch_facts["type"] == "memberleaf":
+                  default_interface_info = default_interfaces_group["memberLeafPlatforms"]
+              
+              for info in default_interface_info:
+                  if info.get("deviceModelRegex", "").strip() == "":
+                      continue
+                  if re.search(f"{info['deviceModelRegex']}", switch_facts["platform"]):
+                      switch_facts["uplink_interfaces"] = range_expand(get(info, "uplinkInterfaces", default=[]))
+                      switch_facts["downlink_interfaces"] = range_expand(get(info, "downlinkInterfaces", default=[]))
+                      switch_facts["mlag_interfaces"] = range_expand(get(info, "mlagInterfaces", default=[]))
+
               return switch_facts
 
 
-          def set_switch_facts_properties_for_query(label, value, campus_resolver):
+          def set_switch_facts_properties_for_query(label, value, campus_resolver, default_interfaces_group):
               # Dictionary of switches that will be returned
               all_switch_facts = {}
 
@@ -1086,7 +1134,7 @@
               tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
               tagmresp =  tsclient.GetTagMatchesV2(tagmr)
               for match in tagmresp.matches:
-                  switch_facts_from_query = set_switch_facts_properties(match.device.device_id, campus_resolver)
+                  switch_facts_from_query = set_switch_facts_properties(match.device.device_id, campus_resolver, default_interfaces_group)
                   if switch_facts_from_query is None:
                       continue
                   if match.device.device_id not in all_switch_facts:
@@ -1109,6 +1157,9 @@
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Site input.  Make sure a 'Site' tag is applied.")
                   return
               site_details = site_resolved["siteFacts"]
+              campus_pod_details = site_details["campusPods"].resolve(device=device_id)
+              if campus_pod_details:
+                  campus_pod_details = campus_pod_details["campusPodFacts"]
 
               # Get fabric details
               if switch_facts["underlay_router"] == True:
@@ -1140,6 +1191,24 @@
                       switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("leafSpanningTreePriority")
                   elif switch_facts["type"] == "memberleaf":
                       switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("memberLeafSpanningTreePriority")
+
+                  if switch_facts["spanning_tree_mode"] == "mstp":
+                      if len(site_details.get("mstInstances", [])) > 0:
+                          switch_facts["mst_instances"] = {}
+                          for instance in site_details["mstInstances"]:
+                              # vlans
+                              if instance.get("mstInstanceVlans", "").strip() != "":
+                                  vlans = list_compress(string_to_list(instance["mstInstanceVlans"]))
+                                  switch_facts["mst_instances"][instance["mstInstanceId"]] = {"vlans": vlans}
+                                  # priority
+                                  if switch_facts["type"] == "spline":
+                                      spanning_tree_priority = instance.get("mstInstanceSplineStpPriority")
+                                  elif switch_facts["type"] == "leaf":
+                                      spanning_tree_priority = instance.get("mstInstanceLeafStpPriority")
+                                  else:  # switch_facts["type"] == "memberleaf"
+                                      spanning_tree_priority = instance.get("mstInstanceMemberLeafStpPriority")
+
+                                  switch_facts["mst_instances"][instance["mstInstanceId"]]["spanning_tree_priority"] = spanning_tree_priority if spanning_tree_priority is not None else switch_facts["spanning_tree_priority"]
 
               # virtual router mac
               if switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
@@ -1292,10 +1361,11 @@
                               switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
                                                                                 switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
               
-                      # Set mlag interfaces                
-                      switch_facts["mlag_interfaces"] = node_defaults["mlagDetails"]["mlagPeerInterfaces"]
-                      if switch_facts["type"] == "leaf":
-                          campus_pod_mlag_interfaces = site_details["campusPods"].resolve(device=device_id)["campusPodFacts"]["campusPodMlagPeerInterfaces"]
+                      # Set mlag interfaces
+                      if len(switch_facts.get("mlag_interfaces", [])) == 0:
+                          switch_facts["mlag_interfaces"] = node_defaults["mlagDetails"]["mlagPeerInterfaces"]
+                      if switch_facts["type"] == "leaf" and campus_pod_details["hideShowToggles"].get("displayPodFabricInterfaceInputs", False) is True:
+                          campus_pod_mlag_interfaces = campus_pod_details["campusPodMlagPeerInterfaces"]
                           if len(campus_pod_mlag_interfaces) > 0:
                               switch_facts["mlag_interfaces"] = campus_pod_mlag_interfaces
                       switch_facts["mlag_peer_switch_interfaces"] = switch_facts["mlag_interfaces"]
@@ -1324,6 +1394,12 @@
                   # inband management subnet
                   switch_facts["inband_management_subnet"] = node_defaults["inbandManagementDetails"].get("inbandManagementSubnet")
               
+                  # get pod inband management pool
+                  if campus_pod_details:
+                      switch_facts["inband_management_ip_range"] = campus_pod_details["inbandManagementDetails"]["podInbandManagementIpv4Range"]
+                  else:
+                      switch_facts["inband_management_ip_range"] = None
+
               # Set inband management details
               if switch_facts.get("inband_management_subnet") and switch_facts.get("inband_management_vlan"):
                   # inband management role and parents
@@ -1370,6 +1446,7 @@
               '''
               Returns switch_facts' uplink_interfaces, uplink_switches, and uplink switches' downlink_interfaces
               '''
+              ctx.info(f"Getting uplinks for {switch_facts['hostname']}")
               device_id = switch_facts["serial_number"]
               # Process Studio inputs
               campus_resolved = campus_resolver.resolve(device=device_id)
@@ -1382,27 +1459,77 @@
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Site input.  Make sure a 'Site' tag is applied.")
                   return
               site_details = site_resolved["siteFacts"]
+              campus_pod_details = site_details["campusPods"].resolve(device=device_id)
+              if campus_pod_details:
+                  campus_pod_details = campus_pod_details["campusPodFacts"]
 
               # Initialize return variables
-              uplink_interfaces = []
+              uplink_interfaces = switch_facts.get("uplink_interfaces", [])
+              uplink_switches_switch_facts = []
               uplink_switches = []
+              uplink_switches_ids = []
               uplink_switch_interfaces = []
+              # Attempt to get uplink switches
+              if len(uplink_interfaces) > 0:
+                  if switch_facts["type"] == "leaf":
+                      # get ids of spline switches in this site
+                      for tmp_switch_facts in all_switch_facts_in_my_site.values():
+                          if tmp_switch_facts["type"] == "spline":
+                              uplink_switches_switch_facts.append(tmp_switch_facts)
+
+                  elif switch_facts["type"] == "memberleaf":
+                      # get ids of leaf switches in this site and this pod
+                      for tmp_switch_facts in all_switch_facts_in_my_site.values():
+                          if tmp_switch_facts["type"] == "leaf" and tmp_switch_facts["group"] == switch_facts["group"]:
+                              uplink_switches_switch_facts.append(tmp_switch_facts)
+                  
+              if len(uplink_switches_switch_facts) > 0:
+                  for uplink_switch_facts in natural_sort(uplink_switches_switch_facts, sort_key="id"):
+                      uplink_switches.append(uplink_switch_facts["hostname"])
+                      uplink_switches_ids.append(uplink_switch_facts["serial_number"])
+
+              # Get uplink_switch_interfaces from defaults
+              for uplink_switch_id in uplink_switches_ids:
+                  tmp_switch_facts = all_switch_facts_in_my_site[uplink_switch_id]
+                  ctx.info(f"tmp_switch_facts {tmp_switch_facts['hostname']}: {tmp_switch_facts['downlink_interfaces']}")
+                  ctx.info(f"switch_facts {switch_facts['hostname']}: {switch_facts['id']}")
+                  if len(tmp_switch_facts.get("downlink_interfaces", [])) > 0:
+                      uplink_switch_interfaces.append(tmp_switch_facts["downlink_interfaces"][switch_facts['id'] - 1])
 
               # Get input values
-              uplink_interface_dicts = []
-              if switch_facts["type"] == "leaf":
-                  uplink_interface_dicts = site_details["campusPods"].resolve(device=device_id)["campusPodFacts"]["leafUplinkInterfaces"]
-              elif switch_facts["type"] == "memberleaf":
-                  uplink_interface_dicts = site_details["campusPods"].resolve(device=device_id)["campusPodFacts"]["memberLeafUplinkInterfaces"]
-              
-              # Set return variables
-              for uplink_interface_dict in uplink_interface_dicts:
-                  if uplink_interface_dict["hostname"] == switch_facts["hostname"]:
-                      uplink_interfaces.append(uplink_interface_dict["uplinkInterface"])
-                      uplink_switches.append(uplink_interface_dict["uplinkSwitchHostname"])
-                      uplink_switch_interfaces.append(uplink_interface_dict["uplinkSwitchInterface"])
+              ctx.info(f"{switch_facts['hostname']}: {site_details['campusPods'].resolve(device=device_id)}")
+              if campus_pod_details and campus_pod_details["hideShowToggles"]["displayPodFabricInterfaceInputs"] is True:
+                  uplink_interface_dicts = []
+                  if switch_facts["type"] == "leaf":
+                      uplink_interface_dicts = campus_pod_details["leafUplinkInterfaces"]
+                  elif switch_facts["type"] == "memberleaf":
+                      uplink_interface_dicts = campus_pod_details["memberLeafUplinkInterfaces"]
+                  
+                  # Check if there are user inputs for switch uplinks
+                  user_input_uplink_info = False
+                  for uplink_interface_dict in uplink_interface_dicts:
+                      if uplink_interface_dict["hostname"] == switch_facts["hostname"] \
+                              and uplink_interface_dict["uplinkInterface"].strip() != "" \
+                              and uplink_interface_dict["uplinkSwitchHostname"].strip() != "" \
+                              and uplink_interface_dict["uplinkSwitchInterface"].strip() != "":
+                          user_input_uplink_info = True
+                          break
+                  if user_input_uplink_info is True:
+                      # set uplink info based on user input
+                      uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces = [], [], [], []
+                      for uplink_interface_dict in uplink_interface_dicts:
+                          if uplink_interface_dict["hostname"] == switch_facts["hostname"]:
+                              uplink_interfaces.append(uplink_interface_dict["uplinkInterface"])
+                              uplink_switches.append(uplink_interface_dict["uplinkSwitchHostname"])
+                              uplink_switch_interfaces.append(uplink_interface_dict["uplinkSwitchInterface"])
 
-              return uplink_interfaces, uplink_switches, uplink_switch_interfaces
+                      # Get uplink_switch_ids if not already set (This is time consuming way to get switch_facts)
+                      for hostname in uplink_switches:
+                          for tmp_switch_sn, tmp_switch_facts in all_switch_facts_in_my_site.items():
+                              if tmp_switch_facts["hostname"] == hostname:
+                                  uplink_switches_ids.append(tmp_switch_sn)
+
+              return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
           def set_switch_uplink_info(switch_facts, campus_resolver):
@@ -1412,14 +1539,13 @@
               # mlag_peer_link_interfaces = switch_facts["mlag_peer_link_interfaces"]
 
               # switch uplink info
-              switch_facts["uplink_interfaces"], switch_facts["uplink_switches"], switch_facts["uplink_switch_interfaces"]  = get_uplink_info(switch_facts, campus_resolver)
+              switch_facts["uplink_interfaces"], switch_facts["uplink_switches"], switch_facts["uplink_switches_ids"], switch_facts["uplink_switch_interfaces"]  = get_uplink_info(switch_facts, campus_resolver)
 
-              # uplink_switches ids (This is time consuming way to get switch_facts)
-              switch_facts["uplink_switches_ids"] = []
-              for hostname in switch_facts["uplink_switches"]:
-                  for tmp_switch_sn, tmp_switch_facts in all_switch_facts_in_my_site.items():
-                      if tmp_switch_facts["hostname"] == hostname:
-                          switch_facts["uplink_switches_ids"].append(tmp_switch_sn)
+              if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
+                  ctx.info(f"Uplink Interfaces: {switch_facts['uplink_interfaces']}")
+                  ctx.info(f"Uplink Switches: {switch_facts['uplink_switches']}")
+                  ctx.info(f"Uplink Switches IDs: {switch_facts['uplink_switches_ids']}")
+                  ctx.info(f"Uplink Switch Interfaces: {switch_facts['uplink_switch_interfaces']}")
 
               return switch_facts
 
@@ -1653,6 +1779,7 @@
                   config["spanning_tree"]["mode"] = switch_facts["spanning_tree_mode"]
                   if switch_facts.get("spanning_tree_priority"):
                       if config["spanning_tree"]["mode"] == "mstp":
+                          # Base spanning tree settings
                           config["spanning_tree"]["mst_instances"] = {
                               0: {"priority": switch_facts["spanning_tree_priority"]}
                           }
@@ -1661,6 +1788,15 @@
                                   "instances": {}
                               }
                           }
+                          # MST instance collection user inputs 
+                          for instance in convert_dicts(switch_facts.get("mst_instances", {}), primary_key='id'):
+                              # instance priority
+                              config["spanning_tree"]["mst_instances"][instance["id"]] = {"priority": instance["spanning_tree_priority"]}
+                              # instance vlans
+                              if instance.get("vlans") is not None:
+                                  config["spanning_tree"]["mst"]["configuration"]["instances"][instance["id"]] = {"vlans": instance["vlans"]}
+
+
                       elif config["spanning_tree"]["mode"] == "rapid-pvst":
                           config["spanning_tree"]["rapid_pvst_instances"] = {
                               1: {"priority": switch_facts["spanning_tree_priority"]}
@@ -2546,8 +2682,19 @@
                           # svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])  # will use this method when extended text input type is available
 
                       # vlan mst instance
+                      if switch_facts.get("spanning_tree_mode") == "mstp":
+                          svi["mst_instance_id"] = vlan["vlanSpanningTreeDetails"].get("vlanMstInstance")
 
                       # vlan stp priority
+                      elif switch_facts.get("spanning_tree_mode") == "rapid-pvst":
+                          if switch_facts["type"] == "spline":
+                              spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPrioritySpline")
+                          elif switch_facts["type"] == "leaf":
+                              spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPriorityLeaf")
+                          else:  # switch_facts["type"] == "memberleaf":
+                              spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPriorityMemberLeaf")
+
+                          svi["spanning_tree_priority"] = spanning_tree_priority if spanning_tree_priority is not None else switch_facts["spanning_tree_priority"]
 
                   tenant[tenant_name]["vrfs"][vrf_name]["svis"][vlan_id] = svi
 
@@ -2599,9 +2746,14 @@
                           for svi in vrf["svis"]:
                               if svi.get("id"):
                                   vlan = {"tenant": tenant["name"]}
+                                  # name
                                   if svi.get("name", "") != "":
                                       vlan["name"] = svi["name"]
                                   config["vlans"][svi["id"]] = vlan
+                                  # spanning_tree_priority
+                                  if svi.get("spanning_tree_priority"):
+                                      config["spanning_tree"]["rapid_pvst_instances"][svi["id"]]= {"priority": svi["spanning_tree_priority"]}
+
 
                           # VLAN for iBGP peering in overlay VRFs #}
                           if switch_facts.get("mlag_l3", False) is True:
@@ -3003,7 +3155,7 @@
           node_id_dict = populate_single_value_dict(workspace_id, 'NodeId')
 
           # Set my_switch_facts' switch properties
-          my_switch_facts = set_switch_facts_properties(my_device.id, campus)
+          my_switch_facts = set_switch_facts_properties(my_device.id, campus, defaultFabricInterfaces)
 
           ctx.info(f"{my_switch_facts['hostname']} Device Properties: {my_switch_facts}")
 
@@ -3011,13 +3163,12 @@
               return
 
           # Set all switches in same site as my_switch's switch_facts properties
-          all_switch_facts_in_my_site = set_switch_facts_properties_for_query("Site", my_switch_facts["site"], campus)
+          all_switch_facts_in_my_site = set_switch_facts_properties_for_query("Site", my_switch_facts["site"], campus, defaultFabricInterfaces)
 
           # Set uplink info for all switch_facts in all_switch_facts_in_my_site
           for switch_facts in all_switch_facts_in_my_site.values():
               switch_facts = set_switch_uplink_info(switch_facts, campus)
 
-          # The below can probably be done just on my_switch_facts at first but then needs to be done on all of my_switch_facts neighbors
           # Set downlink info for my_switch_facts from all_switch_facts_in_my_site
           for switch_facts in all_switch_facts_in_my_site.values():
               if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
@@ -3130,7 +3281,6 @@
           spanning-tree mst ${ mst_instance_id } priority ${ config["spanning_tree"]["mst_instances"][mst_instance_id]["priority"] }
           %             endif
           %         endfor
-
           %     elif  config["spanning_tree"].get("mode", "") == "rapid-pvst":
           %         for vlan_id in natural_sort(config["spanning_tree"].get("rapid_pvst_instances", {}).keys()):
           %             if config["spanning_tree"]["rapid_pvst_instances"][vlan_id].get("priority"):
@@ -3153,7 +3303,7 @@
           %         endif
           %         for instance in natural_sort(config['spanning_tree']['mst']['configuration'].get('instances', {}).keys()):
           %             if config['spanning_tree']['mst']['configuration']['instances'][instance].get('vlans'):
-             instance ${ instance } vlan ${ list_compress(config['spanning_tree']['mst']['configuration']['instances'][instance]['vlans']) }
+             instance ${ instance } vlan ${ config['spanning_tree']['mst']['configuration']['instances'][instance]['vlans'] }
           %             endif
           %         endfor
           %     endif
@@ -5195,6 +5345,51 @@
               collection_props:
                 base_field_id: campusPodMlagPeerInterfaceName
                 key: ''
+            displayPodFabricInterfaceInputsToggle:
+              id: displayPodFabricInterfaceInputsToggle
+              name: displayPodFabricInterfaceInputs
+              label: Override Default Fabric Interfaces
+              description: Toggle on to display fields which allow users to define interface connections at the Campus Pod level, overriding the default interfaces defined for each switch model at the root level of the studio.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            campusPodHideShowTogglesGroup:
+              id: campusPodHideShowTogglesGroup
+              name: hideShowToggles
+              label: Hide/Show Toggles
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - displayPodFabricInterfaceInputsToggle
+            podInbandManagementIpv4Range:
+              id: podInbandManagementIpv4Range
+              name: podInbandManagementIpv4Range
+              label: Inband Management IP Allocation Range
+              description: Enter the IP range from which to allocate inband management IP addresses from.  This range should fall within the larger Inband Management Subnet Pool defined in the Inband Management Details section of Campus Pod Defaults.  For example, if the Inband Management subnet is 192.168.0.0/24, a valid range of IP addresses would be 192.168.0.4-192.168.12.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            podInbandManagementGroup:
+              id: podInbandManagementGroup
+              name: inbandManagementDetails
+              label: Inband Management Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - podInbandManagementIpv4Range
             campusPodFacts:
               id: campusPodFacts
               name: campusPodFacts
@@ -5209,6 +5404,8 @@
                     - leafUplinkInterfaces
                     - memberLeafUplinkInterfaces
                     - campusPodMlagPeerInterfaces
+                    - campusPodHideShowTogglesGroup
+                    - podInbandManagementGroup
             campusPods:
               id: campusPods
               name: campusPods
@@ -5270,6 +5467,20 @@
                 range: null
                 static_options: null
                 dynamic_options: null
+            mstInstanceVlans:
+              id: mstInstanceVlans
+              name: mstInstanceVlans
+              label: VLANs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             mstInstanceDetails:
               id: mstInstanceDetails
               name: mstInstanceDetails
@@ -5284,6 +5495,7 @@
                     - mstInstanceSplineStpPriority
                     - mstInstanceLeafStpPriority
                     - mstInstanceMemberLeafStpPriority
+                    - mstInstanceVlans
             mstInstances:
               id: mstInstances
               name: mstInstances
@@ -6535,20 +6747,6 @@
               collection_props:
                 base_field_id: vlanSviEosCliStatement
                 key: ''
-            vlanMstInstance:
-              id: vlanMstInstance
-              name: vlanMstInstance
-              label: MST Instance
-              description: MST instance this VLAN belongs to. If left blank, VLAN will be a member of the default instance (0). Create MST instances in the 'MST Instances' section on the Site page.
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options:
-                  values:
-                    - '{"fieldId":"mstInstanceId"}'
             vlanStpPrioritySpline:
               id: vlanStpPrioritySpline
               name: vlanStpPrioritySpline
@@ -6595,7 +6793,6 @@
               group_props:
                 members:
                   values:
-                    - vlanMstInstance
                     - vlanStpPrioritySpline
                     - vlanStpPriorityLeaf
                     - vlanStpPriorityMemberLeaf
@@ -7399,6 +7596,274 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: Campus
                 tag_filter_query: null
+            defaultSplineFabricInterfacesDeviceModelRegex:
+              id: defaultSplineFabricInterfacesDeviceModelRegex
+              name: deviceModelRegex
+              label: Device Model Regex
+              description: This is defined as a Python regular expression that matches the full switch model name
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            d770552d-ad4f-49bd-9ade-c08e4be7200f:
+              id: d770552d-ad4f-49bd-9ade-c08e4be7200f
+              name: interfaces
+              label: Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultSplineFabricInterfacesDownlinkInterfaces:
+              id: defaultSplineFabricInterfacesDownlinkInterfaces
+              name: downlinkInterfaces
+              label: Downlink Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: d770552d-ad4f-49bd-9ade-c08e4be7200f
+                key: ''
+            defaultSplineFabricInterfacesMlagInterface:
+              id: defaultSplineFabricInterfacesMlagInterface
+              name: interfaces
+              label: Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultSplineFabricInterfacesMlagInterfaces:
+              id: defaultSplineFabricInterfacesMlagInterfaces
+              name: mlagInterfaces
+              label: MLAG Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultSplineFabricInterfacesMlagInterface
+                key: ''
+            defaultSplineFabricInterfacesGroup:
+              id: defaultSplineFabricInterfacesGroup
+              name: platformDetails
+              label: Platform Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - defaultSplineFabricInterfacesDeviceModelRegex
+                    - defaultSplineFabricInterfacesDownlinkInterfaces
+                    - defaultSplineFabricInterfacesMlagInterfaces
+            defaultSplineFabricInterfaces:
+              id: defaultSplineFabricInterfaces
+              name: splinePlatforms
+              label: Splines
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultSplineFabricInterfacesGroup
+                key: defaultSplineFabricInterfacesDeviceModelRegex
+            defaultLeafFabricInterfacesDeviceModelRegex:
+              id: defaultLeafFabricInterfacesDeviceModelRegex
+              name: deviceModelRegex
+              label: Device Model Regex
+              description: This is defined as a Python regular expression that matches the full switch model name
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultLeafFabricInterfacesUplinkInterface:
+              id: defaultLeafFabricInterfacesUplinkInterface
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultLeafFabricInterfacesUplinkInterfaces:
+              id: defaultLeafFabricInterfacesUplinkInterfaces
+              name: uplinkInterfaces
+              label: Uplink Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultLeafFabricInterfacesUplinkInterface
+                key: ''
+            defaultLeafFabricInterfacesDownlinkInterface:
+              id: defaultLeafFabricInterfacesDownlinkInterface
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultLeafFabricInterfacesDownlinkInterfaces:
+              id: defaultLeafFabricInterfacesDownlinkInterfaces
+              name: downlinkInterfaces
+              label: Downlink Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultLeafFabricInterfacesDownlinkInterface
+                key: ''
+            defaultLeafFabricInterfacesMlagInterface:
+              id: defaultLeafFabricInterfacesMlagInterface
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultLeafFabricInterfacesMlagInterfaces:
+              id: defaultLeafFabricInterfacesMlagInterfaces
+              name: mlagInterfaces
+              label: MLAG Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultLeafFabricInterfacesMlagInterface
+                key: ''
+            defaultLeafFabricInterfacesGroup:
+              id: defaultLeafFabricInterfacesGroup
+              name: platformsDetails
+              label: Platforms Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - defaultLeafFabricInterfacesDeviceModelRegex
+                    - defaultLeafFabricInterfacesUplinkInterfaces
+                    - defaultLeafFabricInterfacesDownlinkInterfaces
+                    - defaultLeafFabricInterfacesMlagInterfaces
+            defaultLeafFabricInterfaces:
+              id: defaultLeafFabricInterfaces
+              name: leafPlatforms
+              label: Leafs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultLeafFabricInterfacesGroup
+                key: defaultLeafFabricInterfacesDeviceModelRegex
+            defaultMemberLeafFabricInterfacesDeviceModelRegex:
+              id: defaultMemberLeafFabricInterfacesDeviceModelRegex
+              name: deviceModelRegex
+              label: Device Model Regex
+              description: This is defined as a Python regular expression that matches the full switch model name
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultMemberLeafFabricInterfacesUplinkInterface:
+              id: defaultMemberLeafFabricInterfacesUplinkInterface
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            defaultMemberLeafFabricInterfacesUplinkInterfaces:
+              id: defaultMemberLeafFabricInterfacesUplinkInterfaces
+              name: uplinkInterfaces
+              label: Uplink Interfaces
+              description: Interfaces or interfaces ranges
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultMemberLeafFabricInterfacesUplinkInterface
+                key: ''
+            defaultMemberLeafFabricInterfacesGroup:
+              id: defaultMemberLeafFabricInterfacesGroup
+              name: platformsDetails
+              label: Platform Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - defaultMemberLeafFabricInterfacesDeviceModelRegex
+                    - defaultMemberLeafFabricInterfacesUplinkInterfaces
+            defaultMemberLeafFabricInterfaces:
+              id: defaultMemberLeafFabricInterfaces
+              name: memberLeafPlatforms
+              label: Member Leafs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: defaultMemberLeafFabricInterfacesGroup
+                key: defaultMemberLeafFabricInterfacesDeviceModelRegex
+            defaultFabricInterfaces:
+              id: defaultFabricInterfaces
+              name: defaultFabricInterfaces
+              label: Default Fabric Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - defaultSplineFabricInterfaces
+                    - defaultLeafFabricInterfaces
+                    - defaultMemberLeafFabricInterfaces
             root:
               id: root
               name: ''
@@ -7410,6 +7875,7 @@
                 members:
                   values:
                     - campus
+                    - defaultFabricInterfaces
         layout:
           value: |
             {
@@ -7497,10 +7963,12 @@
                 "type":"INPUT",
                 "order":[
                   "podId",
+                  "podInbandManagementGroup",
                   "leafTagger",
+                  "memberLeafTagger",
+                  "campusPodHideShowTogglesGroup",
                   "leafUplinkInterfaces",
                   "campusPodMlagPeerInterfaces",
-                  "memberLeafTagger",
                   "memberLeafUplinkInterfaces"
                 ]
               },
@@ -7927,25 +8395,6 @@
                 "dependencyType":"OR",
                 "type":"INPUT"
               },
-              "vlanMstInstance":{
-                "key":"vlanMstInstance",
-                "dependency":{
-                  "splineSpanningTreeMode":{
-                    "value":[
-                      "MSTP"
-                    ],
-                    "mode":"SHOW"
-                  },
-                  "campusPodSpanningTreeMode":{
-                    "value":[
-                      "MSTP"
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "dependencyType":"OR",
-                "type":"INPUT"
-              },
               "mstInstanceId":{
                 "key":"mstInstanceId",
                 "dependency":{
@@ -8216,7 +8665,6 @@
                 "key":"vlanSpanningTreeDetails",
                 "type":"INPUT",
                 "order":[
-                  "vlanMstInstance",
                   "vlanStpPrioritySpline",
                   "vlanStpPriorityLeaf",
                   "vlanStpPriorityMemberLeaf"
@@ -8227,6 +8675,7 @@
                 "type":"INPUT",
                 "order":[
                   "mstInstanceId",
+                  "mstInstanceVlans",
                   "mstInstanceSplineStpPriority",
                   "mstInstanceLeafStpPriority",
                   "mstInstanceMemberLeafStpPriority"
@@ -8990,10 +9439,10 @@
                 "dependencyType":"AND",
                 "type":"INPUT"
               },
-              "cfedd130-b898-4446-91ec-971c7d1c2985":{
+              "vrfStaticRoutesDevicesTagger":{
                 "type":"TAGGER",
                 "parentKey":"vrfStaticRoutesDevicesGroup",
-                "key":"cfedd130-b898-4446-91ec-971c7d1c2985",
+                "key":"vrfStaticRoutesDevicesTagger",
                 "name":"Switches",
                 "assignmentType":"SINGLE",
                 "prepopulate":false,
@@ -9180,10 +9629,10 @@
                 "dependencyType":"AND",
                 "type":"INPUT"
               },
-              "1d13d361-e090-456d-8f9e-22ac4c97af48":{
+              "vrfExternalBgpPeersDevicesTagger":{
                 "type":"TAGGER",
                 "parentKey":"vrfExternalBgpPeersDevicesGroup",
-                "key":"1d13d361-e090-456d-8f9e-22ac4c97af48",
+                "key":"vrfExternalBgpPeersDevicesTagger",
                 "name":"Switches",
                 "assignmentType":"SINGLE",
                 "prepopulate":false,
@@ -9202,6 +9651,138 @@
                   "siteUnderlayRoutingProtocol":{
                     "value":[
                       "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "defaultSplineFabricInterfaces":{
+                "key":"defaultSplineFabricInterfaces",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "defaultLeafFabricInterfaces":{
+                "key":"defaultLeafFabricInterfaces",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "defaultMemberLeafFabricInterfaces":{
+                "key":"defaultMemberLeafFabricInterfaces",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "leafUplinkHostname":{
+                "key":"leafUplinkHostname",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafUplinkInterfaceName":{
+                "key":"leafUplinkInterfaceName",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafUplinkSplineHostname":{
+                "key":"leafUplinkSplineHostname",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafUplinkSplineInterface":{
+                "key":"leafUplinkSplineInterface",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "campusPodMlagPeerInterfaceName":{
+                "key":"campusPodMlagPeerInterfaceName",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "memberLeafUplinkHostname":{
+                "key":"memberLeafUplinkHostname",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "memberLeafUplinkInterfaceName":{
+                "key":"memberLeafUplinkInterfaceName",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "memberLeafUplinkLeafHostname":{
+                "key":"memberLeafUplinkLeafHostname",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "memberLeafUplinkLeafInterface":{
+                "key":"memberLeafUplinkLeafInterface",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "displayPodFabricInterfaceInputsToggle":{
+                    "value":[
+                      true
                     ],
                     "mode":"SHOW"
                   }
