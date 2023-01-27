@@ -3,8 +3,8 @@
   body:
     value:
       key:
-        studio_id: 8db0d9c5-7512-4fa4-8f15-1177e08719db
-        workspace_id: 7252dcd7-6e0b-46df-83e8-d04763e48201
+        studio_id: avd-campus-fabric
+        workspace_id: ''
       display_name: AVD Campus Fabric
       description: Provision the fabric of an L2 or L3 campus network.
       template:
@@ -16,6 +16,7 @@
           import json
           import ipaddress
           import re
+          import time
           from collections import Counter, OrderedDict
           import tagsearch_python.tagsearch_pb2_grpc as tsgr
           import tagsearch_python.tagsearch_pb2 as tspb
@@ -30,11 +31,13 @@
               TagAssignmentStreamRequest, \
               TagAssignmentConfigSetRequest, \
               TagAssignmentConfigStreamRequest
-          from arista.tag.v2.tag_pb2 import Tag, \
+          from arista.tag.v2.tag_pb2 import ELEMENT_TYPE_DEVICE, \
+              Tag, \
               TagKey, \
               TagAssignment, \
               TagAssignmentKey, \
               TagAssignmentConfig
+              
 
 
           campus_designs = {
@@ -158,6 +161,58 @@
                   "tcam_profile": None,
                   "info": "Configured in standard settings"
               },
+              "trident3x1-fixed": {
+                  "regexes": [r'CCS-720DP-24', r'CCS-720DT-24'],
+                  "reload_delay": {
+                      "mlag": 300,
+                      "non_mlag": 330
+                  },
+                  "tcam_profile": None,
+                  "info": "Configured in standard settings",
+                  "asu": {
+                      "support": False,
+                      "starting_eos": "0"
+                  }
+              },
+              "trident3x2-fixed": {
+                  "regexes": [r'CCS-720DP-48', r'CCS-720DT-48', r'DCS-7050(S|T)X-\d\d'],
+                  "reload_delay": {
+                      "mlag": 300,
+                      "non_mlag": 330
+                  },
+                  "tcam_profile": None,
+                  "info": "Configured in standard settings",
+                  "asu": {
+                      "support": True,
+                      "starting_eos": "0"
+                  }
+              },
+              "trident3x3-fixed": {
+                  "regexes": [r'CCS-720XP-\d\d', r'CCS-720DF-\d\d'],
+                  "reload_delay": {
+                      "mlag": 300,
+                      "non_mlag": 330
+                  },
+                  "tcam_profile": None,
+                  "info": "Configured in standard settings",
+                  "asu": {
+                      "support": True,
+                      "starting_eos": "0"
+                  }
+              },
+              "trident3x5|7-fixed": {
+                  "regexes": [r'DCS-7050\wX3'],
+                  "reload_delay": {
+                      "mlag": 300,
+                      "non_mlag": 330
+                  },
+                  "tcam_profile": None,
+                  "info": "Configured in standard settings",
+                  "asu": {
+                      "support": True,
+                      "starting_eos": "0"
+                  }
+              },
               "default": {
                   "regexes": [r'.+'],
                   "reload_delay": {
@@ -170,6 +225,101 @@
           }
           veos_regex = r'(v|c)EOS(-)*(Lab)*'
 
+
+          def get_default_node_id(hostname, default_hostname_id_rules):
+              """
+              default_ids:
+              - matchHostnames: < regex >
+                  regexGroups:
+                  - group: < regex_match_group - required - 0 is the first group >
+                      # Type number will convert the group to integer
+                      # Type letter will lowercase a single letter and take the ascii_code - 97. So a == 0
+                      # An error will be raised if multiple letters are matched in the group.
+                      type: number | letter - default number >
+                      offset: < offset_applied_before_multiplying - default 0 >
+                      multiplier: < multiplier_applied_on_value_of_group - default 1 >
+                      optional: <bool - default False if not found the value 0 will be used and offset will still apply>
+              """
+              DEFAULT_IDS = default_hostname_id_rules
+              node_id = 0
+              for default_id in DEFAULT_IDS:
+                  regex_match = re.match(rf"^{default_id['matchHostnames']}$", hostname)
+                  if not regex_match:
+                      continue
+                  match_groups = regex_match.groups()
+                  # Using id_group to make it easier to keep track below
+                  for id_group in default_id["regexGroups"]:
+                      match_group_value = match_groups[id_group["group"]]
+                      if match_group_value is None:
+                          # Missing group, implicit value=0 so just add offset.
+                          node_id += id_group.get("offset", 0)
+                          continue
+
+                      if id_group.get("type") == "letter":
+                          if not len(match_group_value) == 1:
+                              raise Exception(
+                                  f"Value of group {id_group['group']}: '{match_group_value}' must be a "
+                                  f"single letter string for hostname {hostname} and regex "
+                                  f"{default_id['matchHostnames']}"
+                              )
+                          value = ord(match_group_value.lower()) - 97
+                      else:
+                          try:
+                              value = int(match_group_value)
+                          except Exception as e:
+                              raise Exception(
+                                  f"Value of group {id_group['group']}: '{match_group_value}' could not "
+                                  f"be converted to integer for hostname {hostname} and regex "
+                                  f"{default_id['matchHostnames']}"
+                              ) from e
+
+                      value += id_group.get("offset", 0)
+                      value *= id_group.get("multiplier", 1)
+                      node_id += value
+
+                  break
+
+              return node_id
+
+          def get_default_tags(hostname, default_hostname_tag_rules):
+              """
+              default_hostname_tag_rules:
+              - matchHostnames: < regex >
+                  regexGroups:
+                  - group: < regex_match_group - required - 0 is the first group >
+                      # Type number will convert the group to integer
+                      # Type letter will lowercase a single letter and take the ascii_code - 97. So a == 0
+                      # An error will be raised if multiple letters are matched in the group.
+                      label: number | letter - default number >
+                      value: < offset_applied_before_multiplying - default 0 >
+              """
+              device_tags = []
+              for tag_rule in default_hostname_tag_rules:
+                  regex_match = re.match(rf"^{tag_rule['matchHostnames']}$", hostname)
+                  if not regex_match:
+                      continue
+                  match_groups = regex_match.groups()
+                  # Using tag_group to make it easier to keep track below
+                  for tag_group in tag_rule["regexGroups"]:
+                      match_group_value = match_groups[tag_group["group"]]
+                      if match_group_value is None:
+                          continue
+                      label = None
+                      value = None
+                      if tag_group.get("label", "").strip() != "":
+                          label = tag_group["label"]
+                      if tag_group.get("value", "").strip() != "":
+                          value = tag_group["value"]
+                          # Process value
+                          string_groups = re.findall('\$(\d+)', value)
+                          for string_group in string_groups:
+                              value = value.replace(f"${string_group}", match_groups[int(string_group)])
+                          
+                      # Do something with the tag
+                      if label and value:
+                          device_tags.append({"label": label, "value": value})
+
+              return device_tags
 
           def compare_eos_versions(version1, version2):
               version1 = re.sub(r'[a-zA-Z]', "", version1)
@@ -623,9 +773,10 @@
                   tag_assignment_key.device_id.value =  device_id
               if label is not None:
                   tag_assignment_key.label.value = label
-              tag_values = get_tag_values_applied_to_device(tag_assignment_key, topology_studio_request=topology_studio_request)
+              tag_values = get_tag_values_applied_to_device(tag_assignment_key, topology_studio_request=topology_studio_request, get_one=True)
               if len(tag_values) > 0:
                   return tag_values[0].value
+
 
           def get_tag_values(device_id=None, label=None, workspace_id=None):
               tag_assignment_key = TagAssignmentKey()
@@ -640,203 +791,36 @@
               if len(tag_values) > 0:
                   return [ tag_value.value for tag_value in tag_values ]
 
-          def create_tag(tag_key):
-              '''
-              tag_key is a TagKey
-              '''
-              tcsr = TagConfigSetRequest()
-              tcsr.value.key.workspace_id.value = tag_key.workspace_id.value
-              tcsr.value.key.element_type = tag_key.element_type
-              tcsr.value.key.label.value = tag_key.label.value
-              tcsr.value.key.value.value = tag_key.value.value
-              client = ctx.getApiClient(TagConfigServiceStub)
-              client.Set(tcsr)
 
-          def apply_tag(tag_assignment_key):
-              '''
-              tag_assignment_key is a TagAssignmentKey
-              '''
-              tacsr = TagAssignmentConfigSetRequest()
-              tacsr.value.key.workspace_id.value = tag_assignment_key.workspace_id.value
-              tacsr.value.key.element_type = tag_assignment_key.element_type
-              tacsr.value.key.label.value = tag_assignment_key.label.value
-              tacsr.value.key.value.value = tag_assignment_key.value.value
-              tacsr.value.key.device_id.value = tag_assignment_key.device_id.value
-              tacsr.value.key.interface_id.value = tag_assignment_key.interface_id.value
-              tacsr.value.remove.value = False
-              client = ctx.getApiClient(TagAssignmentConfigServiceStub)
-              client.Set(tacsr)
+          def get_tag_for_device_by_label(device_id, workspace_id, tag_label):
+              result = {}
+              defaultValues = []
+              workspaceValues = []
 
-          def remove_tag(tag_assignment_key):
-              '''
-              tag_assignment_key is a TagAssignmentKey
-              '''
-              tacsr = TagAssignmentConfigSetRequest()
-              tacsr.value.key.workspace_id.value = tag_assignment_key.workspace_id.value
-              tacsr.value.key.element_type = tag_assignment_key.element_type
-              tacsr.value.key.label.value = tag_assignment_key.label.value
-              tacsr.value.key.value.value = tag_assignment_key.value.value
-              tacsr.value.key.device_id.value = tag_assignment_key.device_id.value
-              tacsr.value.key.interface_id.value = tag_assignment_key.interface_id.value
-              tacsr.value.remove.value = True
-              client = ctx.getApiClient(TagAssignmentConfigServiceStub)
-              client.Set(tacsr)
+              tagClient = ctx.getApiClient(TagAssignmentServiceStub)
+              get_all_req = TagAssignmentStreamRequest()
+              tag_filter = TagAssignment()
+              tag_filter.key.element_type = ELEMENT_TYPE_DEVICE
+              tag_filter.key.device_id.value = device_id
+              tag_filter.key.label.value = tag_label
+              tag_filter.key.workspace_id.value = ""
 
-          def remove_all_tag_values(tag_label, device_id, workspace_id, value=None):
-              '''
-              Removes all tags with the input tag label matchiing the input device_id
-              If a value is supplied, only tags matching the label and value will be removed from the device
-              '''
-              tag_assignment_key = TagAssignmentKey()
-              tag_assignment_key.workspace_id.value = workspace_id
-              tag_assignment_key.element_type = 1
-              tag_assignment_key.device_id.value =  device_id
-              tag_assignment_key.label.value = tag_label
-              # tag_assignment_key.value.value = None
-              matching_tags = get_tag_values_applied_to_device(tag_assignment_key)
-              # If there are any mlag_configuration.peer_link tags applied
-              if len(matching_tags) > 0:
-                  # Remove tags
-                  for tag in matching_tags:
-                      tak_to_remove = TagAssignmentKey()
-                      tak_to_remove.workspace_id.value = tag_assignment_key.workspace_id.value
-                      tak_to_remove.element_type = 1
-                      tak_to_remove.device_id.value =  tag_assignment_key.device_id.value
-                      tak_to_remove.label.value = tag_assignment_key.label.value
-                      tak_to_remove.value.value = tag.value
-                      if value is None:
-                          remove_tag(tak_to_remove)
-                      else:
-                          if tag.value == value:
-                              remove_tag(tak_to_remove)
-
-
-          def update_device_tag(tag_assignment_key, multiple_values=False):
-              """
-              tag_assignment_key is a TagAssignmentKey that you want to update the device with
-              """
-              applied_tags = get_tag_values_applied_to_device(tag_assignment_key)
-              already_assigned = False
-              for tag in applied_tags:
-                  if tag.value != tag_assignment_key.value.value:
-                      if multiple_values == True:
-                          continue
-                      tak_to_remove = TagAssignmentKey()
-                      tak_to_remove.workspace_id.value = tag_assignment_key.workspace_id.value
-                      tak_to_remove.element_type = 1
-                      tak_to_remove.device_id.value =  tag_assignment_key.device_id.value
-                      tak_to_remove.label.value = tag_assignment_key.label.value
-                      tak_to_remove.value.value = tag.value
-                      remove_tag(tak_to_remove)
+              get_all_req.partial_eq_filter.append(tag_filter)
+              tag_filter.key.workspace_id.value = workspace_id
+              get_all_req.partial_eq_filter.append(tag_filter)
+              for resp in tagClient.GetAll(get_all_req):
+                  if resp.value.key.workspace_id.value:
+                      workspaceValues.append(resp.value.key.value.value)
                   else:
-                      already_assigned = True
+                      defaultValues.append(resp.value.key.value.value)
 
-              if already_assigned:
-                  return
+              if len(workspaceValues):
+                  result[tag_label] = workspaceValues
+              elif len(defaultValues):
+                  result[tag_label] = defaultValues
 
-              #Create desired tag
-              tag_key = TagKey()
-              tag_key.workspace_id.value = workspace_id
-              tag_key.element_type = 1
-              tag_key.label.value = tag_assignment_key.label.value
-              tag_key.value.value = tag_assignment_key.value.value
-              create_tag(tag_key)
+              return result
 
-              # Apply desired tag
-              apply_tag(tag_assignment_key)
-
-
-          def update_tags(switch_facts):
-              device_id = switch_facts["serial_number"]
-              # node_id tag
-              # Create/Update/Apply the node_id tag
-              tag_assignment_key = TagAssignmentKey()
-              tag_assignment_key.workspace_id.value = workspace_id
-              tag_assignment_key.element_type = 1
-              tag_assignment_key.device_id.value =  device_id
-              tag_assignment_key.label.value = "node_id"
-              tag_assignment_key.value.value = str(switch_facts["id"])
-              update_device_tag(tag_assignment_key)
-              # Update campus-pod tag
-              if switch_facts["type"] in ["leaf", "memberleaf"]:
-                  tag_assignment_key = TagAssignmentKey()
-                  tag_assignment_key.workspace_id.value = workspace_id
-                  tag_assignment_key.element_type = 1
-                  tag_assignment_key.device_id.value =  device_id
-                  tag_assignment_key.label.value = "Campus-Pod"
-                  tag_assignment_key.value.value = str(switch_facts["group"])
-                  update_device_tag(tag_assignment_key)
-              # Update network services tags
-              if switch_facts["network_services"].get("l2"):
-                  # Create/Apply the following tag 'network_services:L2'
-                  tag_assignment_key = TagAssignmentKey()
-                  tag_assignment_key.workspace_id.value = workspace_id
-                  tag_assignment_key.element_type = 1
-                  tag_assignment_key.device_id.value =  device_id
-                  tag_assignment_key.label.value = "NetworkServices"
-                  tag_assignment_key.value.value = "L2"
-                  update_device_tag(tag_assignment_key, multiple_values=True)
-              else:
-                  # Remove the following tag 'network_services:L2'
-                  remove_all_tag_values("NetworkServices", device_id, workspace_id, value="L2")
-              if switch_facts["network_services"].get("l3"):
-                  # Create/Apply the following tag 'network_services:L3'
-                  tag_assignment_key = TagAssignmentKey()
-                  tag_assignment_key.workspace_id.value = workspace_id
-                  tag_assignment_key.element_type = 1
-                  tag_assignment_key.device_id.value =  device_id
-                  tag_assignment_key.label.value = "NetworkServices"
-                  tag_assignment_key.value.value = "L3"
-                  update_device_tag(tag_assignment_key, multiple_values=True)
-              else:
-                  # Remove the following tag 'network_services:L3'
-                  remove_all_tag_values("NetworkServices", device_id, workspace_id, value="L3")
-              # Update mlag_configuration.peer_link
-              if switch_facts.get("mlag"):
-                  mlag_peer_link = "Port-Channel{}".format(switch_facts["mlag_port_channel_id"])
-                  tag_assignment_key = TagAssignmentKey()
-                  tag_assignment_key.workspace_id.value = workspace_id
-                  tag_assignment_key.element_type = 1
-                  tag_assignment_key.device_id.value =  device_id
-                  tag_assignment_key.label.value = "mlag_configuration.peer_link"
-                  tag_assignment_key.value.value = str(mlag_peer_link)
-                  update_device_tag(tag_assignment_key)
-              else:
-                  remove_all_tag_values("mlag_configuration.peer_link", device_id, workspace_id)
-
-              # Update routing tags
-              bgp_tags = {"router_bgp.as": switch_facts.get("bgp_as"), "router_bgp.router_id": switch_facts.get("router_id")}
-              if switch_facts.get("underlay_router") \
-                 and (switch_facts["underlay_routing_protocol"] == "bgp" \
-                 or switch_facts["overlay_routing_protocol"] == "bgp"):
-                  # Set bgp as and router id tags
-                  for label, value in bgp_tags.items():
-                      tag_assignment_key = TagAssignmentKey()
-                      tag_assignment_key.workspace_id.value = workspace_id
-                      tag_assignment_key.element_type = 1
-                      tag_assignment_key.device_id.value =  device_id
-                      tag_assignment_key.label.value = str(label)
-                      tag_assignment_key.value.value = str(value)
-                      update_device_tag(tag_assignment_key)
-              else:
-                  # Remove possible bgp tags
-                  for label, value in bgp_tags.items():
-                      #Remove tags with same label that don't match proper value
-                      if value is None:
-                          remove_all_tag_values(str(label), device_id, workspace_id)
-              # Update VTEP tag
-              # ctx.info(f"{switch_facts['hostname']} VTEP: {switch_facts.get('vtep')}")
-              if switch_facts.get("vtep"):
-                  tag_assignment_key = TagAssignmentKey()
-                  tag_assignment_key.workspace_id.value = workspace_id
-                  tag_assignment_key.element_type = 1
-                  tag_assignment_key.device_id.value =  device_id
-                  tag_assignment_key.label.value = "Vtep"
-                  tag_assignment_key.value.value = "True"
-                  update_device_tag(tag_assignment_key)
-              else:
-                  remove_all_tag_values("Vtep", device_id, workspace_id)
-              return
 
 
           def device_matches_resolver_query(resolver, device_id):
@@ -867,6 +851,7 @@
                   for match in tagmresp.matches:
                       sv_dict[match.device.device_id] = tag.value
               return sv_dict
+
 
           # returns dictionary of device to label values based on workspace tag assignments
           def populate_multi_value_dict(workspace_id, label):
@@ -908,7 +893,7 @@
                   if len(potential_mlag_peer_sns) > 1:
                       ctx.warning(f"Detected multiple MLAG peers for {switch_facts['hostname']}: {potential_mlag_peer_sns}")
                   if len(potential_mlag_peer_sns) > 0:
-                      mlag_peer_switch_facts = all_switch_facts_in_my_site.get(potential_mlag_peer_sns[0])
+                      mlag_peer_switch_facts = my_switch_facts_neighbors.get(potential_mlag_peer_sns[0])
 
               return mlag_peer_switch_facts
 
@@ -956,8 +941,8 @@
                   else:
                       if switch_facts.get("inband_management_ip_range", "").strip() != "":
                           # get switches in same pod
-                          leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in all_switch_facts_in_my_site.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
-                          memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in all_switch_facts_in_my_site.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
+                          leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
+                          memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
                           switches_in_pod = leaf_switches_in_pod + memberleaf_switches_in_pod
                           ip_ranges = switch_facts["inband_management_ip_range"].split(",")
                           ip_address_pool = extend_ip_ranges(ip_ranges)
@@ -971,29 +956,64 @@
 
 
 
-          def set_switch_facts_properties(device_id, campus_resolver, default_interfaces_group):
+          def set_switch_facts_properties(device_id, campus_resolver, default_hostname_id_rules, default_interfaces_group, default_hostname_tag_rules):
               # Initialize switch_facts
               switch_facts = {}
               switch_facts = {"serial_number": device_id}
 
               # Get facts from tags
               switch_facts["hostname"] = [ dev.hostName for dev in ctx.topology.getDevices(deviceIds=[device_id])][0]
+
               switch_facts["platform"] = [ dev.modelName for dev in ctx.topology.getDevices(deviceIds=[device_id])][0]
-              switch_facts["eos_version"] = get_tag_value(device_id=device_id, label="eos", workspace_id=workspace_id, topology_studio_request=False)
+
+              eos_version = get_tag_for_device_by_label(device_id, workspace_id, "eos").get("eos", [])
+              if len(eos_version) > 0:
+                  switch_facts["eos_version"] = eos_version[0]
+              else:
+                  switch_facts["eos_version"] = "0"
+
               switch_facts["campus"] = campus_dict.get(device_id)
+
               switch_facts["site"] = site_dict.get(device_id)
 
               # Process Studio inputs
               campus_resolved = campus_resolver.resolve(device=device_id)
-              if campus_resolved is None:
+              campus_details = None
+              if campus_resolved:
+                  campus_details = campus_resolved.get('campusDetails', None)
+              if campus_details is None:
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
                   return
-              campus_details = campus_resolved["campusDetails"]
+
               site_resolved = campus_details["site"].resolve(device=device_id)
-              if site_resolved is None:
+              site_details = None
+              if site_resolved:
+                  site_details = site_resolved.get('siteFacts', None)
+              if site_details is None:
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Site input.  Make sure a 'Site' tag is applied.")
                   return
-              site_details = site_resolved["siteFacts"]
+
+              # Get device tags from defaults
+              # device_tags = get_default_tags(switch_facts['hostname'], default_hostname_tag_rules)
+              # ctx.info(f"Device Tags: {device_tags}")
+
+              # Set node id
+              # Set node id based on NodeId mini-tagger values
+              node_id = node_id_dict.get(device_id, 0)
+              if node_id == 0:
+                  # Attempt to get node_id from defaults
+                  try:
+                      node_id = get_default_node_id(switch_facts["hostname"], default_hostname_id_rules)
+                  except Exception as e:
+                      node_id = 0
+                      ctx.error(f"Error retrieving node id from hostname for {switch_facts['hostname']}: {e}")
+                      return
+           
+              if node_id == 0:
+                  ctx.warning(f"No NodeId tag set for {switch_facts['hostname']}")
+                  return
+
+              switch_facts['id'] = int(node_id)
 
               # Set switch node type
               switch_facts["type"] = None
@@ -1086,14 +1106,6 @@
               # switch_facts["ip_addressing"] = 
               # switch_facts["interface_descriptions"] = 
 
-              # Set node id based on NodeId mini-tagger values
-              node_id = node_id_dict.get(device_id)
-              if node_id is not None:
-                  switch_facts['id'] = int(node_id)
-              else:
-                  ctx.warning(f"No NodeId tag set for {switch_facts['hostname']}")
-                  return
-
               # Set group
               if switch_facts["type"] == "spline":
                   switch_facts["group"] = "{}_{}_Splines".format(switch_facts["campus"], switch_facts["site"])
@@ -1101,6 +1113,9 @@
                   switch_facts['group'] = campus_pod_dict.get(device_id)
                   if switch_facts['group'] is None:
                       ctx.warning(f"{switch_facts['hostname']} does not have a Campus-Pod tag applied.")
+                      return
+                  if site_details["campusPods"].resolve(device=device_id).get('campusPodFacts', None) is None:
+                      ctx.warning(f"No input resolver found for {switch_facts['group']}.")
                       return
 
               # Set default interfaces
@@ -1119,10 +1134,27 @@
                       switch_facts["downlink_interfaces"] = range_expand(get(info, "downlinkInterfaces", default=[]))
                       switch_facts["mlag_interfaces"] = range_expand(get(info, "mlagInterfaces", default=[]))
 
+
+              # Set platform settings
+              if switch_facts.get('platform_settings') is None:
+                  for platform, settings in platform_settings.items():
+                      # Skip default as this will be applied at the end
+                      # to any switch that doesn't match any other platform
+                      if platform == "default":
+                          continue
+                      # check to see if any default platform regex is matched
+                      for regex in settings['regexes']:
+                          if re.search(regex, switch_facts['platform'], re.IGNORECASE):
+                              switch_facts['platform_settings'] = settings
+
+              # If no platform setting is matched, set to default
+              if switch_facts.get('platform_settings') is None:
+                  switch_facts['platform_settings'] = platform_settings['default']
+
               return switch_facts
 
 
-          def set_switch_facts_properties_for_query(label, value, campus_resolver, default_interfaces_group):
+          def set_switch_facts_properties_for_query(query, campus_resolver, default_hostname_id_rules, default_interfaces_group, default_hostname_tag_rules):
               # Dictionary of switches that will be returned
               all_switch_facts = {}
 
@@ -1130,11 +1162,10 @@
               tsclient = ctx.getApiClient(tsgr.TagSearchStub)
 
               #Get switches in same Campus
-              query= "{}:\"{}\"".format(label, value)
               tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
               tagmresp =  tsclient.GetTagMatchesV2(tagmr)
               for match in tagmresp.matches:
-                  switch_facts_from_query = set_switch_facts_properties(match.device.device_id, campus_resolver, default_interfaces_group)
+                  switch_facts_from_query = set_switch_facts_properties(match.device.device_id, campus_resolver, default_hostname_id_rules, default_interfaces_group, default_hostname_tag_rules)
                   if switch_facts_from_query is None:
                       continue
                   if match.device.device_id not in all_switch_facts:
@@ -1176,6 +1207,7 @@
                   node_defaults = site_details["campusPodDefaults"]
 
               # Logs
+              # ctx.info(f"{switch_facts['hostname']}")
               # ctx.info(f"Site Details: {site_details}")
               # ctx.info(f"Node Defaults: {node_defaults}")
 
@@ -1193,9 +1225,9 @@
                       switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("memberLeafSpanningTreePriority")
 
                   if switch_facts["spanning_tree_mode"] == "mstp":
-                      if len(site_details.get("mstInstances", [])) > 0:
+                      if len(site_details["advancedFabricConfigurations"].get("mstInstances", [])) > 0:
                           switch_facts["mst_instances"] = {}
-                          for instance in site_details["mstInstances"]:
+                          for instance in site_details["advancedFabricConfigurations"]["mstInstances"]:
                               # vlans
                               if instance.get("mstInstanceVlans", "").strip() != "":
                                   vlans = list_compress(string_to_list(instance["mstInstanceVlans"]))
@@ -1275,10 +1307,10 @@
 
                   # Set OSPF parameters
                   if switch_facts["underlay_routing_protocol"] == "ospf":
-                      switch_facts["underlay_ospf_process_id"] = site_details["ospfDetails"]["processId"]
-                      switch_facts["underlay_ospf_area"] = site_details["ospfDetails"]["area"]
-                      switch_facts["underlay_ospf_max_lsa"] = site_details["ospfDetails"]["maxLsa"]
-                      switch_facts["underlay_ospf_bfd_enable"] = site_details["ospfDetails"]["bfd"]
+                      switch_facts["underlay_ospf_process_id"] = site_details["advancedFabricConfigurations"]["ospfDetails"]["processId"]
+                      switch_facts["underlay_ospf_area"] = site_details["advancedFabricConfigurations"]["ospfDetails"]["area"]
+                      switch_facts["underlay_ospf_max_lsa"] = site_details["advancedFabricConfigurations"]["ospfDetails"]["maxLsa"]
+                      switch_facts["underlay_ospf_bfd_enable"] = site_details["advancedFabricConfigurations"]["ospfDetails"]["bfd"]
                       switch_facts["ospf_defaults"] = node_defaults["ospfDetails"]["ospfDefaults"]
 
               # Get mlag settings
@@ -1318,8 +1350,14 @@
                               switch_facts['mlag_peer_l3_subnet_mask']= switch_facts["mlag_peer_subnet_mask"]
 
                       switch_facts["mlag_lacp_mode"] = "active"
-                      # switch_facts["reload_delay_mlag"] = 300
-                      # switch_facts["reload_delay_non_mlag"] = 330
+                      switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
+                      switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
+                      # Check to see if this is proper design
+                      if switch_facts["campus_type"] == "l2ls":
+                          if switch_facts["type"] in ["leaf", "memberleaf"]:  # switch_facts['platform_settings'].get("asu", False) == True:  
+                              switch_facts["reload_delay_mlag"] = 0
+                              switch_facts["reload_delay_non_mlag"] = 0
+
                       # switch_facts["mlag_ibgp_origin_incomplete"] = True
 
                       if int(switch_facts["id"]) < int(mlag_peer_switch_facts["id"]):
@@ -1387,6 +1425,10 @@
                   #     switch_facts["vtep"] = False
 
               # Get inband management details
+              # Since we can't resolve for all IDFs with Studios, need to get ZTP vlan for splines in order to let them advertise
+              if switch_facts["type"] == "spline":
+                  switch_facts["boot_vlan"] = site_details["campusPodDefaults"]["inbandManagementDetails"].get("inbandManagementVlan")
+              # Set inband management details for campus pod switches
               if node_defaults.get("inbandManagementDetails"):
                   # inband management vlan
                   switch_facts["inband_management_vlan"] = node_defaults["inbandManagementDetails"].get("inbandManagementVlan")
@@ -1446,7 +1488,6 @@
               '''
               Returns switch_facts' uplink_interfaces, uplink_switches, and uplink switches' downlink_interfaces
               '''
-              ctx.info(f"Getting uplinks for {switch_facts['hostname']}")
               device_id = switch_facts["serial_number"]
               # Process Studio inputs
               campus_resolved = campus_resolver.resolve(device=device_id)
@@ -1464,7 +1505,7 @@
                   campus_pod_details = campus_pod_details["campusPodFacts"]
 
               # Initialize return variables
-              uplink_interfaces = switch_facts.get("uplink_interfaces", [])
+              uplink_interfaces = switch_facts.get("uplink_interfaces", [])  # set from node-type default interfaces
               uplink_switches_switch_facts = []
               uplink_switches = []
               uplink_switches_ids = []
@@ -1472,14 +1513,19 @@
               # Attempt to get uplink switches
               if len(uplink_interfaces) > 0:
                   if switch_facts["type"] == "leaf":
+                      # set this switch's downlink switch id
+                      downlink_switch_index = switch_facts['id']
                       # get ids of spline switches in this site
-                      for tmp_switch_facts in all_switch_facts_in_my_site.values():
+                      for tmp_switch_facts in my_switch_facts_neighbors.values():
                           if tmp_switch_facts["type"] == "spline":
                               uplink_switches_switch_facts.append(tmp_switch_facts)
 
                   elif switch_facts["type"] == "memberleaf":
+                      # set this switch's downlink switch id
+                      memberleaf_switches_in_pod = natural_sort([tmp_switch_facts["serial_number"] for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
+                      downlink_switch_index = memberleaf_switches_in_pod.index(switch_facts['serial_number'])
                       # get ids of leaf switches in this site and this pod
-                      for tmp_switch_facts in all_switch_facts_in_my_site.values():
+                      for tmp_switch_facts in my_switch_facts_neighbors.values():
                           if tmp_switch_facts["type"] == "leaf" and tmp_switch_facts["group"] == switch_facts["group"]:
                               uplink_switches_switch_facts.append(tmp_switch_facts)
                   
@@ -1488,16 +1534,21 @@
                       uplink_switches.append(uplink_switch_facts["hostname"])
                       uplink_switches_ids.append(uplink_switch_facts["serial_number"])
 
+              uplink_switch_counter = {}  # Used to track number of times uplink switch has been seen
+
               # Get uplink_switch_interfaces from defaults
               for uplink_switch_id in uplink_switches_ids:
-                  tmp_switch_facts = all_switch_facts_in_my_site[uplink_switch_id]
-                  ctx.info(f"tmp_switch_facts {tmp_switch_facts['hostname']}: {tmp_switch_facts['downlink_interfaces']}")
-                  ctx.info(f"switch_facts {switch_facts['hostname']}: {switch_facts['id']}")
-                  if len(tmp_switch_facts.get("downlink_interfaces", [])) > 0:
-                      uplink_switch_interfaces.append(tmp_switch_facts["downlink_interfaces"][switch_facts['id'] - 1])
+                  # Get parallel uplink info
+                  uplink_switch_counter[uplink_switch_id] = uplink_switch_counter.get(uplink_switch_id, 0) + 1
+                  index_of_parallel_uplinks = uplink_switch_counter[uplink_switch_id] - 1
+
+                  downlink_index = (downlink_switch_index - 1) * switch_facts.get("max_parallel_uplinks", 1) + index_of_parallel_uplinks
+
+                  tmp_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
+                  if len(tmp_switch_facts.get("downlink_interfaces", [])) > downlink_index:
+                      uplink_switch_interfaces.append(tmp_switch_facts["downlink_interfaces"][downlink_index])
 
               # Get input values
-              ctx.info(f"{switch_facts['hostname']}: {site_details['campusPods'].resolve(device=device_id)}")
               if campus_pod_details and campus_pod_details["hideShowToggles"]["displayPodFabricInterfaceInputs"] is True:
                   uplink_interface_dicts = []
                   if switch_facts["type"] == "leaf":
@@ -1525,7 +1576,7 @@
 
                       # Get uplink_switch_ids if not already set (This is time consuming way to get switch_facts)
                       for hostname in uplink_switches:
-                          for tmp_switch_sn, tmp_switch_facts in all_switch_facts_in_my_site.items():
+                          for tmp_switch_sn, tmp_switch_facts in my_switch_facts_neighbors.items():
                               if tmp_switch_facts["hostname"] == hostname:
                                   uplink_switches_ids.append(tmp_switch_sn)
 
@@ -1541,28 +1592,22 @@
               # switch uplink info
               switch_facts["uplink_interfaces"], switch_facts["uplink_switches"], switch_facts["uplink_switches_ids"], switch_facts["uplink_switch_interfaces"]  = get_uplink_info(switch_facts, campus_resolver)
 
-              if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
-                  ctx.info(f"Uplink Interfaces: {switch_facts['uplink_interfaces']}")
-                  ctx.info(f"Uplink Switches: {switch_facts['uplink_switches']}")
-                  ctx.info(f"Uplink Switches IDs: {switch_facts['uplink_switches_ids']}")
-                  ctx.info(f"Uplink Switch Interfaces: {switch_facts['uplink_switch_interfaces']}")
-
               return switch_facts
 
 
           def set_switch_downlink_info(switch_facts):
               '''
               Using switch_facts uplink info which is previously set by set_switch_uplink_info(switch_facts. campus_resolver), set the
-              downlink info for switch_facts using the uplink info from other switches in all_switch_facts_in_my_site
+              downlink info for switch_facts using the uplink info from other switches in my_switch_facts_neighbors
               '''
               switch_facts["downlink_switches_ids"] = []
               if switch_facts["type"] == "spline":
-                  for tmp_switch_sn, tmp_switch_facts in all_switch_facts_in_my_site.items():
+                  for tmp_switch_sn, tmp_switch_facts in my_switch_facts_neighbors.items():
                       if tmp_switch_facts["type"] == "leaf" and switch_facts["serial_number"] in tmp_switch_facts["uplink_switches_ids"] \
                               and tmp_switch_sn not in switch_facts["downlink_switches_ids"]:    
                           switch_facts["downlink_switches_ids"].append(tmp_switch_sn)
               elif switch_facts["type"] == "leaf":
-                  for tmp_switch_sn, tmp_switch_facts in all_switch_facts_in_my_site.items():
+                  for tmp_switch_sn, tmp_switch_facts in my_switch_facts_neighbors.items():
                       if tmp_switch_facts["type"] == "memberleaf" and tmp_switch_facts["group"] == switch_facts["group"] \
                               and switch_facts["serial_number"] in tmp_switch_facts["uplink_switches_ids"] and tmp_switch_sn not in switch_facts["downlink_switches_ids"]:                
                           switch_facts["downlink_switches_ids"].append(tmp_switch_sn)
@@ -1578,7 +1623,7 @@
                   for i, uplink_interface in enumerate(switch_facts["uplink_interfaces"]):
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
-                      uplink_switch_facts = all_switch_facts_in_my_site[uplink_switch_id]
+                      uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
                       link_facts["peer_id"] = uplink_switch_facts["serial_number"]
                       link_facts["peer"] = uplink_switch_facts["hostname"]
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
@@ -1597,7 +1642,7 @@
                   for i, uplink_interface in enumerate(switch_facts["uplink_interfaces"]):
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
-                      uplink_switch_facts = all_switch_facts_in_my_site[uplink_switch_id]
+                      uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
                       link_facts["peer_id"] = uplink_switch_facts["serial_number"]
                       link_facts["peer"] = uplink_switch_facts["hostname"]
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
@@ -1617,7 +1662,7 @@
                           link_facts["peer_channel_description"] = switch_facts["mlag_group"]
 
                       if switch_facts.get("mlag_role") is not None and switch_facts["mlag_role"] == "secondary":
-                          mlag_peer_switch_facts =  all_switch_facts_in_my_site[switch_facts["mlag_peer_serial_number"]]
+                          mlag_peer_switch_facts =  my_switch_facts_neighbors[switch_facts["mlag_peer_serial_number"]]
                           link_facts["channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_interfaces"][0]))
                           link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_switch_interfaces"][0]))
                       else:
@@ -1725,28 +1770,90 @@
                   switch_facts["tenants"]= leaf.get('tenants', {})
                   switch_facts["vlans"] = leaf.get('vlans', [])
 
-                  if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
-                      ctx.info(f"VRFs to be configured on switch: {list(add_vrfs.keys())}")
-                      ctx.info(f"VLANs to be configured on switch: {add_svis}")
+                  # if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
+                  #     ctx.info(f"VRFs to be configured on switch: {list(add_vrfs.keys())}")
+                  #     ctx.info(f"VLANs to be configured on switch: {add_svis}")
 
               return switch_facts
 
 
-          def get_network_services_spline_switch(switch_facts):
+          def get_network_services_spline_switch(switch_facts, campus_resolver):
               '''
               Get VLANs applied to spline switch via downstream neighbors
               '''
+              if switch_facts["type"] != "spline":
+                  return switch_facts
+
+              device_id = switch_facts["serial_number"]
+              # Process Studio inputs
+              campus_resolved = campus_resolver.resolve(device=device_id)
+              if campus_resolved is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
+                  return switch_facts
+              campus_details = campus_resolved["campusDetails"]
+              site_resolved = campus_details["site"].resolve(device=device_id)
+              if site_resolved is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Site input.  Make sure a 'Site' tag is applied.")
+                  return switch_facts
+              site_details = site_resolved["siteFacts"]
+
               spline = {
                   "vlans": [],
                   "tenants": {}
               }
-              if switch_facts["type"] != "spline":
-                  return switch_facts
+
+              add_vrfs = {}  # Used to determine which services are applied to this switch
+              # Add VRF if node is found in any of vrf fields
+              for vrf in site_details["services"]["vrfs"]:
+                  if switch_facts["network_services_l3"]:
+                      # Add all vrfs if add_all_vrfs flag is set to True
+                      if site_details["services"].get("applyAllVrfs", False) is True:
+                          add_vrfs[vrf['vrfName']] = {
+                              "svis": []
+                          }
+                          continue
+
+                      # if l3 interface is to be configured on switch
+                      if len(vrf.get('l3Interfaces').resolve(device=switch_facts['serial_number'])['interfaces']) > 0:
+                          add_vrfs[vrf['vrfName']] = {
+                              "svis": []
+                          }
+                          continue
+
+                      # Add VRF if there is a BGP neighbor for this node in vrf
+                      for bgp_peer in vrf.get("externalBgpPeers", []):
+                          # if bgp peer is to be configured on switch
+                          if device_matches_resolver_query(bgp_peer['devices'], switch_facts['serial_number']):
+                              add_vrfs[vrf['vrfName']] = {
+                                  "svis": []
+                              }
+                              break
+
+                      if add_vrfs.get(vrf['vrfName']):
+                          continue
+
+                      # Add VRF if there is a static route for this node in vrf
+                      for sr in vrf.get('staticRoutes', []):
+                          # if static route is to be configured on switch
+                          if device_matches_resolver_query(sr['devices'], switch_facts['serial_number']):
+                              add_vrfs[vrf['vrfName']] = {
+                                  "svis": []
+                              }
+                              break
+
+                      # Last check in loop is unnecessary
+                      # if add_vrfs.get(vrf['vrfName']):
+                      #     continue
+
+              # Filter only services applied to this switch
+              if len(add_vrfs) > 0:
+                  spline['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": []} })
 
               if switch_facts["campus_type"] == "l2ls":
+                  campus_pods_checked = []
                   for switch_id in switch_facts.get("downlink_switches_ids", []):
-                      tmp_switch_facts = all_switch_facts_in_my_site.get(switch_id)
-                      if tmp_switch_facts is None:
+                      tmp_switch_facts = my_switch_facts_neighbors.get(switch_id)
+                      if tmp_switch_facts is None or tmp_switch_facts["group"] in campus_pods_checked:
                           continue
                       for vlan in tmp_switch_facts.get('vlans', []):
                           if vlan not in spline['vlans']:
@@ -1766,7 +1873,9 @@
                                       # check if svis exist 
                                       for svi in tmp_switch_facts["tenants"][tenant]["vrfs"][vrf].get("svis", {}):
                                           if svi not in  spline['tenants'][tenant]["vrfs"][vrf]["svis"]:
-                                              spline['tenants'][tenant]["vrfs"][vrf]["svis"][svi] = tmp_switch_facts["tenants"][tenant]["vrfs"][vrf]["svis"][svi]
+                                              spline['tenants'][tenant]["vrfs"][vrf]["svis"].append(svi)
+
+                      campus_pods_checked.append(tmp_switch_facts["group"])
 
               switch_facts["tenants"]= spline.get("tenants")
               switch_facts["vlans"] = spline.get("vlans")
@@ -1916,9 +2025,11 @@
                       "local_interface": f"Vlan{switch_facts['mlag_peer_vlan']}",
                       "peer_address": switch_facts['mlag_peer_ip'],
                       "peer_link": f"Port-Channel{switch_facts['mlag_port_channel_id']}",
-                      # "reload_delay_mlag": switch_facts['reload_delay_mlag'],
-                      # "reload_delay_non_mlag": switch_facts['reload_delay_non_mlag']
                   }
+                  if switch_facts.get('reload_delay_mlag') is not None:
+                      config['mlag_configuration']["reload_delay_mlag"] = switch_facts["reload_delay_mlag"]
+                  if switch_facts.get('reload_delay_non_mlag') is not None:
+                      config['mlag_configuration']["reload_delay_non_mlag"] = switch_facts["reload_delay_non_mlag"] 
 
                   # Set route maps
                   # Origin Incomplete for MLAG iBGP learned routes
@@ -1972,11 +2083,25 @@
 
 
           def set_underlay_config(config, switch_facts):
+              # logic
               underlay_data = {}
               underlay_data["links"] = switch_facts["topology"]["links"]
+              # Determine whether or not boot ztp can be configured on this switch
+              issue_boot_ztp_warning = False
+              boot_ztp_eligible = False
+              if compare_eos_versions(switch_facts["eos_version"], "4.27.1F") >= 0:
+                  boot_ztp_eligible = True
+              # Add boot ztp vlan to downstream interfaces
+              if switch_facts.get("boot_vlan") is not None and switch_facts["network_services_l2"] is True:
+                  for interface in switch_facts.get("downlink_interfaces", []):
+                      underlay_data["links"][interface] = {
+                          "boot_vlan": switch_facts["boot_vlan"],
+                          "type": "underlay_l2"
+                      }
+
               # First add interface details from devices whose uplink interface neighbors are this switch
               for sn in switch_facts["downlink_switches_ids"]:
-                  neighbor_switch_facts = all_switch_facts_in_my_site[sn]
+                  neighbor_switch_facts = my_switch_facts_neighbors[sn]
                   for neighbor_link, neighbor_link_info in neighbor_switch_facts["topology"]["links"].items():
                       if neighbor_link_info["peer_id"] == switch_facts["serial_number"]:
                           link = {}
@@ -1999,12 +2124,7 @@
 
                           interface = neighbor_link_info["peer_interface"]
                           underlay_data["links"][interface] = link
-                      
-              # Determine whether or not boot ztp can be configured on this switch
-              issue_boot_ztp_warning = False
-              boot_ztp_eligible = False
-              if compare_eos_versions(switch_facts["eos_version"], "4.27.1F") >= 0:
-                  boot_ztp_eligible = True
+
               # Set Ethernet interfaces
               for iface in underlay_data["links"]:
                   link = underlay_data["links"][iface]
@@ -2028,13 +2148,17 @@
                           }
                   elif link["type"] == "underlay_l2":
                       config["ethernet_interfaces"][iface] = {
-                          "peer": link["peer"],
-                          "peer_interface": link["peer_interface"],
-                          "peer_type": link["peer_type"],
-                          "description": "TO_{}_{}".format(link["peer"].upper(), link["peer_interface"]),
-                          "type": "routed",
+                          "type": "switched",
                           "shutdown": False
                       }
+                      if link.get("peer"):
+                          config["ethernet_interfaces"][iface]["peer"] = link["peer"]
+                      if link.get("peer_interface"):
+                          config["ethernet_interfaces"][iface]["peer_interface"] = link["peer_interface"]
+                      if link.get("peer_type"):
+                          config["ethernet_interfaces"][iface]["peer_type"] = link["peer_type"]
+                      if link.get("peer_type") and link.get("peer_interface"):
+                          config["ethernet_interfaces"][iface]["description"] = "TO_{}_{}".format(link["peer"].upper(), link["peer_interface"])
                       if link.get("boot_vlan") and boot_ztp_eligible is True:
                           config["ethernet_interfaces"][iface]["boot_vlan"] = link["boot_vlan"]
                       else:
@@ -2085,6 +2209,7 @@
                           "ip_address": "{}/32".format(switch_facts["router_id"]),
                       }
                       if switch_facts["underlay_routing_protocol"] == "ospf":
+                          # config["loopback_interfaces"]["Loopback0"]["ospf_network_point_to_point"] = True
                           config["loopback_interfaces"]["Loopback0"]["ospf_area"] = switch_facts["underlay_ospf_area"]
                   if switch_facts["vtep"] == True:
                       config["loopback_interfaces"][switch_facts["vtep_loopback"]] = {
@@ -2181,7 +2306,7 @@
               # Set evpn route servers
               overlay_data["evpn_route_servers"] = {}
               for rs_id in switch_facts["evpn_route_server_ids"]:
-                  rs_switch_facts = all_switch_facts_in_my_site[rs_id]
+                  rs_switch_facts = my_switch_facts_neighbors[rs_id]
                   if rs_switch_facts["evpn_role"] == "server":
                       server = {
                           "bgp_as": rs_switch_facts["bgp_as"],
@@ -2192,7 +2317,7 @@
               # Set evpn route clients
               overlay_data["evpn_route_clients"] = {}
               if switch_facts["evpn_role"] == "server":
-                  for campus_switch_facts in all_switch_facts_in_my_site.values():
+                  for campus_switch_facts in my_switch_facts_neighbors.values():
                       if campus_switch_facts["evpn_role"] is not None and campus_switch_facts["evpn_role"] == "client":
                           if switch_facts['serial_number'] in campus_switch_facts["evpn_route_server_ids"]:
                               client = {
@@ -2292,7 +2417,7 @@
                       "vlans": [],
                       "subnets": []
                   }
-                  for tmp_switch_facts in all_switch_facts_in_my_site.values():
+                  for tmp_switch_facts in my_switch_facts_neighbors.values():
                       if switch_facts["serial_number"] in tmp_switch_facts.get("inband_management_parents", []):
                           inband_management_data["role"] = "parent"
                           if tmp_switch_facts["inband_management_subnet"] not in inband_management_data["subnets"]:
@@ -2581,7 +2706,7 @@
                           tenant[tenant_name]["vrfs"][vrf_name]["ospf"] = ospf
 
               for vlan in all_vlans:
-                  vlan_id = vlan["vlanId"]
+                  vlan_id = int(vlan["vlanId"])
                   svi = {}
                   if vlan["sviDetails"].get("vrf", "") == "":
                       vrf_name =  "default"
@@ -2598,9 +2723,9 @@
                       }
                       if switch_facts["campus_type"] == "l2ls":
                           # virtual ip
-                          virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress")
-                          svi["ip_virtual_router_addresses"].append(virtual_ip)
-
+                          virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress", "").strip()
+                          if virtual_ip != "":
+                              svi["ip_virtual_router_addresses"].append(virtual_ip)
 
                           # Set primary/secondary node ip address
                           if switch_facts["type"] == "spline":
@@ -2608,13 +2733,13 @@
                                   if switch_facts["mlag_role"] == "secondary":
                                       # Get/Set secondary ip
                                       ip_address = vlan["sviDetails"].get("secondarySwitchSviIpAddress", "")
-                                      if ip_address == "":
+                                      if ip_address == "" and virtual_ip != "":
                                           ip_network = ipaddress.ip_interface(virtual_ip).network
                                           ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
                                   else:
                                       # Get/Set primary ip
                                       ip_address = vlan["sviDetails"].get("primarySwitchSviIpAddress", "")
-                                      if ip_address == "":
+                                      if ip_address == ""  and virtual_ip != "":
                                           ip_network = ipaddress.ip_interface(virtual_ip).network
                                           ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
                                   svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
@@ -2623,8 +2748,9 @@
 
                       else:
                           # virtual ip
-                          virtual_ip = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress')
-                          svi["ip_virtual_router_addresses"].append(virtual_ip)
+                          virtual_ip = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress', "").strip()
+                          if virtual_ip != "":
+                              svi["ip_virtual_router_addresses"].append(virtual_ip)
 
                           # Set primary/secondary node ip address
                           if switch_facts["type"] == "leaf":
@@ -2632,13 +2758,13 @@
                                   if switch_facts["mlag_role"] == "secondary":
                                       # Get/Set secondary ip
                                       ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
-                                      if ip_address == "":
+                                      if ip_address == "" and virtual_ip != "":
                                           ip_network = ipaddress.ip_interface(virtual_ip).network
                                           ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
                                   else:
                                       # Get/Set primary ip
                                       ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
-                                      if ip_address == "":
+                                      if ip_address == "" and virtual_ip != "":
                                           ip_network = ipaddress.ip_interface(virtual_ip).network
                                           ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
                                   svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
@@ -2648,9 +2774,8 @@
                       # ip helper configuration
                       for ip_helper in vlan.get("dhcpHelpers", []):
                           svi['ip_helpers'][ip_helper.get("dhcpServer")] = {
-                              "source_interface": ip_helper.get("dhcpSourceInterface")
+                              "source_interface": ip_helper["dhcpSourceInterface"]
                           }
-
                       # ospf configuration
                       if switch_facts.get("underlay_routing_protocol", "") == "ospf" and vlan.get("sviOspfConfiguration"):
                           svi["ospf"] = {
@@ -2714,23 +2839,23 @@
                           # vrfs
                           tmp_vrfs = []
                           for vrf in convert_dicts(tenant["vrfs"]):
-                              if vrf["name"] in switch_tenant.get("vrfs", []):
+                              if vrf["name"] in switch_facts["tenants"][tenant["name"]].get("vrfs", {}):
                                   switch_vrf = switch_tenant["vrfs"][vrf["name"]]
                                   # svis & bgp_peers
                                   tmp_svis = []
-                                  for svi in convert_dicts(vrf["svis"], primary_key='id'):
-                                      if svi["id"] in switch_vrf.get("svis", []):
+                                  for svi in convert_dicts(vrf["svis"], primary_key='id'):                  
+                                      if svi["id"] in switch_facts["tenants"][tenant["name"]]["vrfs"][vrf["name"]].get("svis", []):
                                           tmp_svis.append(svi)
                                   vrf.update({'svis': tmp_svis, 'bgp_peers': vrf.get("bgp_peers", {})})
                                   tmp_vrfs.append(vrf)
-                      # l2vlans
-                      tmp_l2vlans = []
-                      # for l2vlan in tenant.l2vlans | arista.avd.convert_dicts('id') | arista.avd.natural_sort('id')
-                      #     if l2vlan.id in switch_tenant.l2vlans | arista.avd.default([])
-                      #         tmp_l2vlans.append(l2vlan)
+                          # l2vlans
+                          tmp_l2vlans = []
+                          # for l2vlan in tenant.l2vlans | arista.avd.convert_dicts('id') | arista.avd.natural_sort('id')
+                          #     if l2vlan.id in switch_tenant.l2vlans | arista.avd.default([])
+                          #         tmp_l2vlans.append(l2vlan)
 
-                      tenant.update({'vrfs': tmp_vrfs, 'l2vlans': tmp_l2vlans})
-                      tmp_tenants.append(tenant)
+                          tenant.update({'vrfs': tmp_vrfs, 'l2vlans': tmp_l2vlans})
+                          tmp_tenants.append(tenant)
                   network_services_data["tenants"] = tmp_tenants
 
                   # Log network services data
@@ -2848,17 +2973,17 @@
                                   vlan["ip_helpers"] = {}
                                   for helper_ip in svi_ip_helpers:
                                       vlan["ip_helpers"][helper_ip] = {
-                                          "source_interface": svi_ip_helpers[helper_ip].get("source_interface"),
                                           "vrf": svi_ip_helpers[helper_ip].get("source_vrf")
                                       }
-
+                                      if svi_ip_helpers[helper_ip].get("source_interface", "").strip() != "":
+                                          vlan["ip_helpers"][helper_ip]["source_interface"] = svi_ip_helpers[helper_ip]["source_interface"]
                               # ospf
                               if svi.get("ospf", {}).get("enabled", False) is True and vrf.get("ospf", {}).get("enabled", True) is True:
                                   # ospf area
                                   vlan["ospf_area"] = default(svi["ospf"]["area"], "0")
 
                                   # ospf network point to point
-                                  vlan["ospf_network_point_to_point"] = default(svi["ospf"]["point_to_point"], False)
+                                  vlan["ospf_network_point_to_point"] = default(svi["ospf"]["point_to_point"], True)
 
                                   # ospf cost
                                   if svi["ospf"].get("cost"):
@@ -3137,6 +3262,12 @@
 
               return config
 
+          log_all_checkpoint_times = False
+
+          start_time = time.time()
+
+          if log_all_checkpoint_times:
+              task_time = time.time()
 
           # Get studio info from ctx
           my_device = ctx.getDevice()
@@ -3148,70 +3279,102 @@
 
           # Pre-populate dictionaries used for getting switch facts
           role_dict = populate_multi_value_dict(workspace_id, 'Role')
-
           campus_dict = populate_single_value_dict(workspace_id, 'Campus')
           site_dict = populate_single_value_dict(workspace_id, 'Site')
           campus_pod_dict = populate_single_value_dict(workspace_id, 'Campus-Pod')
           node_id_dict = populate_single_value_dict(workspace_id, 'NodeId')
 
-          # Set my_switch_facts' switch properties
-          my_switch_facts = set_switch_facts_properties(my_device.id, campus, defaultFabricInterfaces)
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to get tags: {time.time() - task_time} seconds")
+              task_time = time.time()
 
-          ctx.info(f"{my_switch_facts['hostname']} Device Properties: {my_switch_facts}")
+          # Set my_switch_facts' switch properties
+          my_switch_facts = set_switch_facts_properties(my_device.id, campus, defaultNamingRules["nodeIdNamingConventionRules"], defaultFabricInterfaces, defaultNamingRules["groupNamingConventionRules"])
+
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to set my_switch_facts properties: {time.time() - task_time} seconds")
+              task_time = time.time()
 
           if my_switch_facts is None:
+              ctx.info(f"{my_device.id}: my_switch_facts is {my_switch_facts}")
               return
 
-          # Set all switches in same site as my_switch's switch_facts properties
-          all_switch_facts_in_my_site = set_switch_facts_properties_for_query("Site", my_switch_facts["site"], campus, defaultFabricInterfaces)
+          ctx.info(f"{my_switch_facts.get('hostname')} Device Properties: {my_switch_facts}")
 
-          # Set uplink info for all switch_facts in all_switch_facts_in_my_site
-          for switch_facts in all_switch_facts_in_my_site.values():
+          # Set all switches in same site as my_switch's switch_facts properties
+          if my_switch_facts["type"] == "spline":
+              query = "Campus:\"{}\" AND Site:\"{}\" AND (Role:Spline OR Role:Leaf)".format(my_switch_facts['campus'], my_switch_facts['site'])
+          else:  #if my_switch_facts["type"] in ["leaf", "memberleaf"]
+              query = "Campus:\"{}\" AND Site:\"{}\" AND (Role:Spline OR Campus-Pod:\"{}\")".format(my_switch_facts['campus'], my_switch_facts['site'], my_switch_facts['group'])
+
+          my_switch_facts_neighbors = set_switch_facts_properties_for_query(query, campus, defaultNamingRules["nodeIdNamingConventionRules"], defaultFabricInterfaces, defaultNamingRules["groupNamingConventionRules"])
+
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to set switch_facts properties for all switches in site: {time.time() - task_time} seconds")
+              task_time = time.time()
+
+          # Set uplink info for all switch_facts in my_switch_facts_neighbors
+          for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_uplink_info(switch_facts, campus)
 
-          # Set downlink info for my_switch_facts from all_switch_facts_in_my_site
-          for switch_facts in all_switch_facts_in_my_site.values():
-              if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
-                  switch_facts = set_switch_downlink_info(switch_facts)
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to set switch_facts uplink info for all switches in site: {time.time() - task_time} seconds")
+              task_time = time.time()
 
-          my_neighbors = all_switch_facts_in_my_site[my_switch_facts["serial_number"]]["uplink_switches_ids"] + \
-                          all_switch_facts_in_my_site[my_switch_facts["serial_number"]]["downlink_switches_ids"]
+          # Set downlink info for all of my_switch_facts' neighbors
+          for switch_facts in my_switch_facts_neighbors.values():
+              switch_facts = set_switch_downlink_info(switch_facts)
 
-          for switch_facts in all_switch_facts_in_my_site.values():
-              if switch_facts["serial_number"] in my_neighbors:
-                  switch_facts = set_switch_downlink_info(switch_facts)
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to set downlink info for all of my_switch_facts' neighbors: {time.time() - task_time} seconds")
+              task_time = time.time()
 
           # Set switch_facts for all of my_switch_facts neighbors and my_switch_facts
-          for switch_facts in all_switch_facts_in_my_site.values():
-              if switch_facts["serial_number"] in my_neighbors + [my_switch_facts["serial_number"]]:
-                  switch_facts = set_switch_facts(switch_facts, campus)
+          for switch_facts in my_switch_facts_neighbors.values():
+              switch_facts = set_switch_facts(switch_facts, campus)
+
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to set switch_facts for all of my_switch_facts neighbors and my_switch_facts: {time.time() - task_time} seconds")
+              task_time = time.time()
 
           # Get network services applied to each campus_pod switch (part 1a)
-          for switch_facts in all_switch_facts_in_my_site.values():
-              if switch_facts["serial_number"] in my_neighbors + [my_switch_facts["serial_number"]] and switch_facts["type"] in ["leaf", "memberleaf"]:
+          for switch_facts in my_switch_facts_neighbors.values():
+              if switch_facts["type"] in ["leaf", "memberleaf"]:
                   switch_facts = get_network_services_leaf_switch(switch_facts, campus)
+
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to get network services applied to each campus_pod switch (part 1a): {time.time() - task_time} seconds")
+              task_time = time.time()
 
           # Get network services applied to each spline switch (part 1b)
           #  Need to get network services for spline switches after campus pod leaf switches because
           #  the studio does not allow users to assign VLANs to spline switches so VLANs are assigned to splines
           #  based on downstream campus pod VLANs
-          for switch_facts in all_switch_facts_in_my_site.values():
-              if switch_facts["serial_number"] in my_neighbors + [my_switch_facts["serial_number"]] and switch_facts["type"] in ["spline"]:
-                  switch_facts = get_network_services_spline_switch(switch_facts)
+          for switch_facts in my_switch_facts_neighbors.values():
+              if switch_facts["type"] == "spline":
+                  switch_facts = get_network_services_spline_switch(switch_facts, campus)
+
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to network services applied to each spline switch (part 1b): {time.time() - task_time} seconds")
+              task_time = time.time()
 
           # Set topology facts ( in order to set transit p2p and port-channel links ) 
-          for switch_facts in all_switch_facts_in_my_site.values():
-              if switch_facts["serial_number"] in my_neighbors + [my_switch_facts["serial_number"]]:
-                  switch_facts = set_topology_facts(switch_facts)
+          for switch_facts in my_switch_facts_neighbors.values():
+              switch_facts = set_topology_facts(switch_facts)
 
-          # Get my_switch_facts from all_switch_facts_in_my_site
-          my_switch_facts = all_switch_facts_in_my_site[my_switch_facts["serial_number"]]
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to set topology_facts: {time.time() - task_time} seconds")
+              task_time = time.time()
+
+          # Get my_switch_facts from my_switch_facts_neighbors
+          my_switch_facts = my_switch_facts_neighbors[my_switch_facts["serial_number"]]
 
           # Get network services in AVD format (part 2)
           my_switch_facts = get_tenants(my_switch_facts, campus)
 
-          ctx.info(f"Tenants: {my_switch_facts['all_tenants']}")
-
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to get network services in AVD format (part 2) for my_switch_facts: {time.time() - task_time} seconds")
+              task_time = time.time()
 
           # Set structured config
           my_config = {
@@ -3255,7 +3418,14 @@
           my_config = set_network_services_config(my_config, my_switch_facts)
 
           config = my_config
+
+          if log_all_checkpoint_times:
+              ctx.info(f"Time taken to get set config for my_switch_facts: {time.time() - task_time} seconds")
+              task_time = time.time()
+          import yaml    
           %>
+          ${yaml.dump(config)}
+          <% return %>
           % if config.get("ip_dhcp_relay"):
           %     if config["ip_dhcp_relay"].get("information_option"):
           ip dhcp relay information option
@@ -3439,7 +3609,7 @@
           %                 endfor
           %             endif
           %         endif
-          %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_network_point_to_point"):
+          %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_network_point_to_point", False):
              ip ospf network point-to-point
           %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_area"):
@@ -3500,6 +3670,9 @@
           %               endfor
           %           endif
           %       endif
+          %     if config["loopback_interfaces"][loopback_interface].get("ospf_network_point_to_point"):
+             ip ospf network point-to-point
+          %     endif
           %     if config["loopback_interfaces"][loopback_interface].get("ospf_area"):
              ip ospf area ${ config["loopback_interfaces"][loopback_interface]["ospf_area"] }
           %     endif
@@ -3573,7 +3746,7 @@
           <%            ip_helper_cli = ip_helper_cli + " vrf " + config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("vrf") %>
           %         endif
           %         if config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("source_interface") is not None:
-          <%            ip_helper_cli = ip_helper_cli + " source-interface " + config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper].get("source_interface") %>
+          <%            ip_helper_cli = ip_helper_cli + " source-interface " + config.get("vlan_interfaces")[vlan_interface]["ip_helpers"][ip_helper]["source_interface"] %>
           %         endif %}
              ${ ip_helper_cli }
           %       endfor
@@ -4464,6 +4637,7 @@
           !
           %endfor
           %endif
+          <% ctx.info(f"Time taken to run studio: {time.time() - start_time} seconds") %>
       input_schema:
         fields:
           values:
@@ -4629,7 +4803,23 @@
               integer_props:
                 default_value: null
                 range: null
-                static_options: null
+                static_options:
+                  values:
+                    - '4096'
+                    - '8192'
+                    - '12288'
+                    - '16384'
+                    - '20480'
+                    - '24576'
+                    - '28672'
+                    - '32768'
+                    - '36864'
+                    - '40960'
+                    - '45056'
+                    - '49152'
+                    - '53248'
+                    - '57344'
+                    - '61440'
                 dynamic_options: null
             memberLeafSpanningTreePriority:
               id: memberLeafSpanningTreePriority
@@ -4641,7 +4831,23 @@
               integer_props:
                 default_value: null
                 range: null
-                static_options: null
+                static_options:
+                  values:
+                    - '4096'
+                    - '8192'
+                    - '12288'
+                    - '16384'
+                    - '20480'
+                    - '24576'
+                    - '28672'
+                    - '32768'
+                    - '36864'
+                    - '40960'
+                    - '45056'
+                    - '49152'
+                    - '53248'
+                    - '57344'
+                    - '61440'
                 dynamic_options: null
             campusPodSpanningTreeDetails:
               id: campusPodSpanningTreeDetails
@@ -4853,7 +5059,23 @@
               integer_props:
                 default_value: null
                 range: null
-                static_options: null
+                static_options:
+                  values:
+                    - '4096'
+                    - '8192'
+                    - '12288'
+                    - '16384'
+                    - '20480'
+                    - '24576'
+                    - '28672'
+                    - '32768'
+                    - '36864'
+                    - '40960'
+                    - '45056'
+                    - '49152'
+                    - '53248'
+                    - '57344'
+                    - '61440'
                 dynamic_options: null
             splineSpanningTreeDetails:
               id: splineSpanningTreeDetails
@@ -5088,67 +5310,6 @@
                     - splineVtepLoopbackIPv4Pool
                     - splineBgpDetails
                     - splineOspfDetails
-            ospfProcessId:
-              id: ospfProcessId
-              name: processId
-              label: Process ID
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: '100'
-                range: null
-                static_options: null
-                dynamic_options: null
-            ospfArea:
-              id: ospfArea
-              name: area
-              label: Area
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: 0.0.0.0
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            ospfMaxLsa:
-              id: ospfMaxLsa
-              name: maxLsa
-              label: Max LSA
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: '12000'
-                range: null
-                static_options: null
-                dynamic_options: null
-            ospfBfdKnob:
-              id: ospfBfdKnob
-              name: bfd
-              label: BFD
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            ospfConfiguration:
-              id: ospfConfiguration
-              name: ospfDetails
-              label: OSPF
-              description: Underlay OSFP settings
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - ospfProcessId
-                    - ospfArea
-                    - ospfMaxLsa
-                    - ospfBfdKnob
             podId:
               id: podId
               name: podId
@@ -5419,93 +5580,6 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: Campus-Pod
                 tag_filter_query: null
-            mstInstanceId:
-              id: mstInstanceId
-              name: mstInstanceId
-              label: Instance ID
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
-            mstInstanceSplineStpPriority:
-              id: mstInstanceSplineStpPriority
-              name: mstInstanceSplineStpPriority
-              label: Spline Priority
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
-            mstInstanceLeafStpPriority:
-              id: mstInstanceLeafStpPriority
-              name: mstInstanceLeafStpPriority
-              label: Leaf Priority
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
-            mstInstanceMemberLeafStpPriority:
-              id: mstInstanceMemberLeafStpPriority
-              name: mstInstanceMemberLeafStpPriority
-              label: Member Leaf Priority
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
-            mstInstanceVlans:
-              id: mstInstanceVlans
-              name: mstInstanceVlans
-              label: VLANs
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            mstInstanceDetails:
-              id: mstInstanceDetails
-              name: mstInstanceDetails
-              label: MST Instance Details
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - mstInstanceId
-                    - mstInstanceSplineStpPriority
-                    - mstInstanceLeafStpPriority
-                    - mstInstanceMemberLeafStpPriority
-                    - mstInstanceVlans
-            mstInstances:
-              id: mstInstances
-              name: mstInstances
-              label: MST Instances
-              description: MST Instance Settings
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: mstInstanceDetails
-                key: mstInstanceId
             allowAllVlansOnTrunkToggle:
               id: allowAllVlansOnTrunkToggle
               name: allowAllVLANs
@@ -6699,7 +6773,7 @@
             vlansCampusPodGroup:
               id: vlansCampusPodGroup
               name: podDetails
-              label: PoD Details
+              label: Pod Details
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_GROUP
@@ -6713,7 +6787,7 @@
             vlansCampusPodResolver:
               id: vlansCampusPodResolver
               name: campusPod
-              label: Campus PoDs
+              label: Campus Pods
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
@@ -6757,7 +6831,23 @@
               integer_props:
                 default_value: null
                 range: null
-                static_options: null
+                static_options:
+                  values:
+                    - '4096'
+                    - '8192'
+                    - '12288'
+                    - '16384'
+                    - '20480'
+                    - '24576'
+                    - '28672'
+                    - '32768'
+                    - '36864'
+                    - '40960'
+                    - '45056'
+                    - '49152'
+                    - '53248'
+                    - '57344'
+                    - '61440'
                 dynamic_options: null
             vlanStpPriorityLeaf:
               id: vlanStpPriorityLeaf
@@ -6804,7 +6894,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: true
+                default_value: false
             sviOspfPointToPoint:
               id: sviOspfPointToPoint
               name: pointToPoint
@@ -6934,6 +7024,15 @@
               collection_props:
                 base_field_id: sviOspfMessageDigestKeysDetails
                 key: ''
+            5ba8a171-71bc-485b-a553-122163815497:
+              id: 5ba8a171-71bc-485b-a553-122163815497
+              name: passive
+              label: Passive
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
             sviOspfConfiguration:
               id: sviOspfConfiguration
               name: sviOspfConfiguration
@@ -6951,6 +7050,7 @@
                     - sviOspfAuthentication
                     - sviOspfSimpleAuthKey
                     - sviOspfMessageDigestKeys
+                    - 5ba8a171-71bc-485b-a553-122163815497
             vlansDetails:
               id: vlansDetails
               name: vlanDetails
@@ -7009,242 +7109,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            p2pLinkName:
-              id: p2pLinkName
-              name: name
-              label: Name
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            p2pLinkIncludeInUnderlayRoutingProtocol:
-              id: p2pLinkIncludeInUnderlayRoutingProtocol
-              name: includeInUnderlayRoutingProtocol
-              label: Include in Underlay Routing Protocol
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            p2pLinkHostname:
-              id: p2pLinkHostname
-              name: hostname
-              label: Hostname
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            p2pLinkEthernetInterface:
-              id: p2pLinkEthernetInterface
-              name: ethernetInterface
-              label: Ethernet Interface
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            p2pLinkIpAddress:
-              id: p2pLinkIpAddress
-              name: ipAddress
-              label: IP Address
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            p2pLinkInterfaces:
-              id: p2pLinkInterfaces
-              name: interfaces
-              label: Interfaces
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - p2pLinkHostname
-                    - p2pLinkEthernetInterface
-                    - p2pLinkIpAddress
-            p2pLinkInterfaceDetails:
-              id: p2pLinkInterfaceDetails
-              name: interfaceDetails
-              label: Interface Details
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: p2pLinkInterfaces
-                key: ''
-            p2pLinkDetails:
-              id: p2pLinkDetails
-              name: p2PLinkDetails
-              label: P2P Link Details
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - p2pLinkName
-                    - p2pLinkIncludeInUnderlayRoutingProtocol
-                    - p2pLinkInterfaceDetails
-            p2pLinks:
-              id: p2pLinks
-              name: interfaces
-              label: Interfaces To Core
-              description: Configure L3 interfaces northbound from the Spline switches to a core router.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: p2pLinkDetails
-                key: p2pLinkName
-            accessInterfacePortProfileName:
-              id: accessInterfacePortProfileName
-              name: portProfileName
-              label: Name
-              description: Name of Port-Profile that can be referenced under Access Interfaces configuration
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            accessInterfacePortProfileGroup:
-              id: accessInterfacePortProfileGroup
-              name: portProfileGroup
-              label: Port Profiles Group
-              description: Group of members for Port Profiles
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - accessInterfacePortProfileName
-            accessInterfacePortProfiles:
-              id: accessInterfacePortProfiles
-              name: portProfiles
-              label: Port Profiles
-              description: Create port profiles that serve as templates for certain interface configuration characteristics.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: accessInterfacePortProfileGroup
-                key: accessInterfacePortProfileName
-            accessInterfaceTopLevelDescription:
-              id: accessInterfaceTopLevelDescription
-              name: TopLevelDescription
-              label: Interface Set Name
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            accessInterfaceInterfaces:
-              id: accessInterfaceInterfaces
-              name: interfaces
-              label: Interfaces
-              description: Interface or range of interfaces to configure using AVD's range_expand syntax (https://avd.sh/en/stable/plugins/index.html#range_expand-filter)
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            accessInterfaceTargetSwitches:
-              id: accessInterfaceTargetSwitches
-              name: accessInterfaceTargetSwitches
-              label: Switches
-              description: Select the switches to configure a range of interfaces on.
-              required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: accessInterfaceInterfaces
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
-                tag_filter_query: null
-            accessInterfaceLowLevelDescription:
-              id: accessInterfaceLowLevelDescription
-              name: accessInterfaceLowLevelDescription
-              label: Description
-              description: Description to be set on access interfaces
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            accessInterfacesDetails:
-              id: accessInterfacesDetails
-              name: accessInterfacesDetails
-              label: Access Interfaces Details
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - accessInterfaceTopLevelDescription
-                    - accessInterfaceTargetSwitches
-                    - accessInterfaceLowLevelDescription
-            accessInterfaces:
-              id: accessInterfaces
-              name: accessInterfaces
-              label: Access Interfaces
-              description: Define sets of access interfaces to configure
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: accessInterfacesDetails
-                key: accessInterfaceTopLevelDescription
-            accessInterfaceConfiguration:
-              id: accessInterfaceConfiguration
-              name: accessInterfaceConfiguration
-              label: Access Interface Configuration
-              description: Configure access interfaces for switches in this site.
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - accessInterfacePortProfiles
-                    - accessInterfaces
             splineEvpnRoleDefault:
               id: splineEvpnRoleDefault
               name: splineEvpnRoleDefault
@@ -7538,6 +7402,214 @@
                   values:
                     - siteUnderlayRoutingProtocol
                     - siteOverlayRoutingProtocol
+            ospfProcessId:
+              id: ospfProcessId
+              name: processId
+              label: Process ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '100'
+                range: null
+                static_options: null
+                dynamic_options: null
+            ospfArea:
+              id: ospfArea
+              name: area
+              label: Area
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: 0.0.0.0
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            ospfMaxLsa:
+              id: ospfMaxLsa
+              name: maxLsa
+              label: Max LSA
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '12000'
+                range: null
+                static_options: null
+                dynamic_options: null
+            ospfBfdKnob:
+              id: ospfBfdKnob
+              name: bfd
+              label: BFD
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            ospfConfiguration:
+              id: ospfConfiguration
+              name: ospfDetails
+              label: OSPF
+              description: Underlay OSFP fabric settings
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - ospfProcessId
+                    - ospfArea
+                    - ospfMaxLsa
+                    - ospfBfdKnob
+            mstInstanceId:
+              id: mstInstanceId
+              name: mstInstanceId
+              label: Instance ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            mstInstanceSplineStpPriority:
+              id: mstInstanceSplineStpPriority
+              name: mstInstanceSplineStpPriority
+              label: Spline Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '4096'
+                    - '8192'
+                    - '12288'
+                    - '16384'
+                    - '20480'
+                    - '24576'
+                    - '28672'
+                    - '32768'
+                    - '36864'
+                    - '40960'
+                    - '45056'
+                    - '49152'
+                    - '53248'
+                    - '57344'
+                    - '61440'
+                dynamic_options: null
+            mstInstanceLeafStpPriority:
+              id: mstInstanceLeafStpPriority
+              name: mstInstanceLeafStpPriority
+              label: Leaf Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '4096'
+                    - '8192'
+                    - '12288'
+                    - '16384'
+                    - '20480'
+                    - '24576'
+                    - '28672'
+                    - '32768'
+                    - '36864'
+                    - '40960'
+                    - '45056'
+                    - '49152'
+                    - '53248'
+                    - '57344'
+                    - '61440'
+                dynamic_options: null
+            mstInstanceMemberLeafStpPriority:
+              id: mstInstanceMemberLeafStpPriority
+              name: mstInstanceMemberLeafStpPriority
+              label: Member Leaf Priority
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options:
+                  values:
+                    - '4096'
+                    - '8192'
+                    - '12288'
+                    - '16384'
+                    - '20480'
+                    - '24576'
+                    - '28672'
+                    - '32768'
+                    - '36864'
+                    - '40960'
+                    - '45056'
+                    - '49152'
+                    - '53248'
+                    - '57344'
+                    - '61440'
+                dynamic_options: null
+            mstInstanceVlans:
+              id: mstInstanceVlans
+              name: mstInstanceVlans
+              label: VLANs
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            mstInstanceDetails:
+              id: mstInstanceDetails
+              name: mstInstanceDetails
+              label: MST Instance Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - mstInstanceId
+                    - mstInstanceSplineStpPriority
+                    - mstInstanceLeafStpPriority
+                    - mstInstanceMemberLeafStpPriority
+                    - mstInstanceVlans
+            mstInstances:
+              id: mstInstances
+              name: mstInstances
+              label: MST Instances
+              description: MST instances settings
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: mstInstanceDetails
+                key: mstInstanceId
+            advancedFabricConfigurations:
+              id: advancedFabricConfigurations
+              name: advancedFabricConfigurations
+              label: Advanced Fabric Configurations
+              description: Modify default fabric configuration parameters if necessary.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - ospfConfiguration
+                    - mstInstances
             siteFacts:
               id: siteFacts
               name: siteFacts
@@ -7550,15 +7622,12 @@
                   values:
                     - campusPodDefaults
                     - splineDefaults
-                    - ospfConfiguration
                     - campusPods
-                    - mstInstances
                     - siteServices
                     - campusType
-                    - p2pLinks
-                    - accessInterfaceConfiguration
                     - nodeTypeProperties
                     - siteRoutingProtocols
+                    - advancedFabricConfigurations
             siteResolver:
               id: siteResolver
               name: site
@@ -7628,7 +7697,7 @@
               id: defaultSplineFabricInterfacesDownlinkInterfaces
               name: downlinkInterfaces
               label: Downlink Interfaces
-              description: Interfaces or interfaces ranges
+              description: Interfaces used for downlinks to Leaf switches
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7652,7 +7721,7 @@
               id: defaultSplineFabricInterfacesMlagInterfaces
               name: mlagInterfaces
               label: MLAG Interfaces
-              description: Interfaces or interfaces ranges
+              description: Interfaces used for MLAG peer link to opposite Spline switch
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7675,7 +7744,7 @@
               id: defaultSplineFabricInterfaces
               name: splinePlatforms
               label: Splines
-              description: ''
+              description: Set the default interfaces for Spline switches.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7699,7 +7768,7 @@
               id: defaultLeafFabricInterfacesUplinkInterface
               name: interfaces
               label: Interfaces
-              description: ''
+              description: Interfaces or interfaces ranges
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -7713,7 +7782,7 @@
               id: defaultLeafFabricInterfacesUplinkInterfaces
               name: uplinkInterfaces
               label: Uplink Interfaces
-              description: Interfaces or interfaces ranges
+              description: Interfaces used for uplinks to Spline switches
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7723,7 +7792,7 @@
               id: defaultLeafFabricInterfacesDownlinkInterface
               name: interfaces
               label: Interfaces
-              description: ''
+              description: Interfaces or interfaces ranges
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -7737,7 +7806,7 @@
               id: defaultLeafFabricInterfacesDownlinkInterfaces
               name: downlinkInterfaces
               label: Downlink Interfaces
-              description: Interfaces or interfaces ranges
+              description: Interfaces used for downlinks to Member Leaf switches
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7747,7 +7816,7 @@
               id: defaultLeafFabricInterfacesMlagInterface
               name: interfaces
               label: Interfaces
-              description: ''
+              description: Interfaces or interfaces ranges
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -7761,7 +7830,7 @@
               id: defaultLeafFabricInterfacesMlagInterfaces
               name: mlagInterfaces
               label: MLAG Interfaces
-              description: Interfaces or interfaces ranges
+              description: Interfaces used for MLAG peer link to opposite Leaf switch
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7809,7 +7878,7 @@
               id: defaultMemberLeafFabricInterfacesUplinkInterface
               name: interfaces
               label: Interfaces
-              description: ''
+              description: Interfaces or interfaces ranges
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -7823,7 +7892,7 @@
               id: defaultMemberLeafFabricInterfacesUplinkInterfaces
               name: uplinkInterfaces
               label: Uplink Interfaces
-              description: Interfaces or interfaces ranges
+              description: Interfaces used for uplinks to Leaf switches
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7855,7 +7924,7 @@
               id: defaultFabricInterfaces
               name: defaultFabricInterfaces
               label: Default Fabric Interfaces
-              description: ''
+              description: Set default uplink, downlink and mlag interfaces for different node types per device model.  These default interfaces will be used if interfaces are not defined on the device at the Campus - Site - Campus Pod section.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -7864,6 +7933,230 @@
                     - defaultSplineFabricInterfaces
                     - defaultLeafFabricInterfaces
                     - defaultMemberLeafFabricInterfaces
+            20b56f3b-8e82-4da4-a01c-98279875ae4b:
+              id: 20b56f3b-8e82-4da4-a01c-98279875ae4b
+              name: matchHostnames
+              label: Matching Hostname Regex
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            822ac100-cf16-4761-a9a9-77030b6b3804:
+              id: 822ac100-cf16-4761-a9a9-77030b6b3804
+              name: group
+              label: Group
+              description: The group in the regex match (0 is the first group)
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            b001bbc6-72fc-4da5-8125-52036fd295e5:
+              id: b001bbc6-72fc-4da5-8125-52036fd295e5
+              name: type
+              label: Type
+              description: Type will convert the group value to an integer. Type number will convert the group to integer.  Type letter will lowercase a single letter and take the ascii_code - 97. (a=0, b=1, ... , z=25). An error will be raised if multiple letters are matched in the group.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - number
+                    - letter
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            abe470a0-fbe5-4d50-b731-e212df90ed78:
+              id: abe470a0-fbe5-4d50-b731-e212df90ed78
+              name: multiplier
+              label: Multiplier
+              description: Multiplier applied on value of group.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '1'
+                range: null
+                static_options: null
+                dynamic_options: null
+            323b54fe-9ce9-4e8b-841d-7d960f981389:
+              id: 323b54fe-9ce9-4e8b-841d-7d960f981389
+              name: offset
+              label: Offset
+              description: Offset applied before multiplying.
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            4f78d68a-4ed6-4cec-a691-0ce711e7b888:
+              id: 4f78d68a-4ed6-4cec-a691-0ce711e7b888
+              name: groupRules
+              label: Group Rules
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 822ac100-cf16-4761-a9a9-77030b6b3804
+                    - b001bbc6-72fc-4da5-8125-52036fd295e5
+                    - abe470a0-fbe5-4d50-b731-e212df90ed78
+                    - 323b54fe-9ce9-4e8b-841d-7d960f981389
+            583481a8-cae0-40ac-ac92-9f98a9d90591:
+              id: 583481a8-cae0-40ac-ac92-9f98a9d90591
+              name: regexGroups
+              label: Group Rules
+              description: Set rules to generate unique NodeIds based on the hostname.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 4f78d68a-4ed6-4cec-a691-0ce711e7b888
+                key: 822ac100-cf16-4761-a9a9-77030b6b3804
+            ffd071dc-b7b9-4567-a264-442cb18bbe03:
+              id: ffd071dc-b7b9-4567-a264-442cb18bbe03
+              name: rules
+              label: Rules
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 20b56f3b-8e82-4da4-a01c-98279875ae4b
+                    - 583481a8-cae0-40ac-ac92-9f98a9d90591
+            dba80cb8-95c2-4fab-9f91-c806d4f2bdd8:
+              id: dba80cb8-95c2-4fab-9f91-c806d4f2bdd8
+              name: nodeIdNamingConventionRules
+              label: Node ID Naming Convention Rules
+              description: Use hostname matches against a regular expression and formula to generate a device's NodeId
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: ffd071dc-b7b9-4567-a264-442cb18bbe03
+                key: 20b56f3b-8e82-4da4-a01c-98279875ae4b
+            f1c30415-06f1-4fc7-b38b-5d1f30eb3454:
+              id: f1c30415-06f1-4fc7-b38b-5d1f30eb3454
+              name: matchHostnames
+              label: Matching Hostname Regex
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            b00fb5ee-1d58-4aad-9dbd-859fdbf43b75:
+              id: b00fb5ee-1d58-4aad-9dbd-859fdbf43b75
+              name: group
+              label: Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            334beeef-9762-4d29-b6c4-000419b173b2:
+              id: 334beeef-9762-4d29-b6c4-000419b173b2
+              name: label
+              label: Tag Label
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            285aea05-b802-4cbc-9eab-ec1768a94b34:
+              id: 285aea05-b802-4cbc-9eab-ec1768a94b34
+              name: value
+              label: Tag Value
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            1960442c-4731-448f-a8ba-9cbc8e682437:
+              id: 1960442c-4731-448f-a8ba-9cbc8e682437
+              name: value
+              label: Group Rules Group
+              description: Group of members for Group Rules
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - b00fb5ee-1d58-4aad-9dbd-859fdbf43b75
+                    - 334beeef-9762-4d29-b6c4-000419b173b2
+                    - 285aea05-b802-4cbc-9eab-ec1768a94b34
+            17da3583-18be-4246-ad42-2ad291287010:
+              id: 17da3583-18be-4246-ad42-2ad291287010
+              name: regexGroups
+              label: Group Rules
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 1960442c-4731-448f-a8ba-9cbc8e682437
+                key: b00fb5ee-1d58-4aad-9dbd-859fdbf43b75
+            afa2b137-9dc0-4bc5-94d2-858dadcc1723:
+              id: afa2b137-9dc0-4bc5-94d2-858dadcc1723
+              name: rules
+              label: Rules
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - f1c30415-06f1-4fc7-b38b-5d1f30eb3454
+                    - 17da3583-18be-4246-ad42-2ad291287010
+            e032d1ad-af90-406b-a353-93e08a6c061d:
+              id: e032d1ad-af90-406b-a353-93e08a6c061d
+              name: groupNamingConventionRules
+              label: Group Naming Convention Rules
+              description: Use hostname matches against a regular expression and label, value inputs to tag devices based on the hostname.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: afa2b137-9dc0-4bc5-94d2-858dadcc1723
+                key: f1c30415-06f1-4fc7-b38b-5d1f30eb3454
+            37837a95-a505-4b8d-8f64-4ad94967b0a6:
+              id: 37837a95-a505-4b8d-8f64-4ad94967b0a6
+              name: defaultNamingRules
+              label: Naming Convention Rules
+              description: Use hostname matches against a regular expression to determine device role.
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - dba80cb8-95c2-4fab-9f91-c806d4f2bdd8
+                    - e032d1ad-af90-406b-a353-93e08a6c061d
             root:
               id: root
               name: ''
@@ -7876,6 +8169,7 @@
                   values:
                     - campus
                     - defaultFabricInterfaces
+                    - 37837a95-a505-4b8d-8f64-4ad94967b0a6
         layout:
           value: |
             {
@@ -7889,11 +8183,8 @@
                   "splineDefaults",
                   "campusPods",
                   "campusPodDefaults",
-                  "ospfConfiguration",
-                  "mstInstances",
+                  "advancedFabricConfigurations",
                   "siteServices",
-                  "accessInterfaceConfiguration",
-                  "p2pLinks",
                   "nodeTypeProperties"
                 ]
               },
@@ -9039,7 +9330,8 @@
                   "sviOspfPointToPoint",
                   "sviOspfAuthentication",
                   "sviOspfSimpleAuthKey",
-                  "sviOspfMessageDigestKeys"
+                  "sviOspfMessageDigestKeys",
+                  "5ba8a171-71bc-485b-a553-122163815497"
                 ]
               },
               "splineVtepLoopbackIPv4Pool":{
@@ -9783,6 +10075,34 @@
                   "displayPodFabricInterfaceInputsToggle":{
                     "value":[
                       true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "dba80cb8-95c2-4fab-9f91-c806d4f2bdd8":{
+                "key":"dba80cb8-95c2-4fab-9f91-c806d4f2bdd8",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "e032d1ad-af90-406b-a353-93e08a6c061d":{
+                "key":"e032d1ad-af90-406b-a353-93e08a6c061d",
+                "type":"INPUT",
+                "isPageLayout":true
+              },
+              "mstInstanceVlans":{
+                "key":"mstInstanceVlans",
+                "type":"INPUT",
+                "dependency":{
+                  "splineSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusPodSpanningTreeMode":{
+                    "value":[
+                      "MSTP"
                     ],
                     "mode":"SHOW"
                   }
