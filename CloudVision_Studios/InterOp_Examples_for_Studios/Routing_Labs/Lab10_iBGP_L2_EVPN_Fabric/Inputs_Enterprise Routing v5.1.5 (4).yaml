@@ -1,0 +1,1256 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: true
+            globalAS: 11214
+            iBgpAuthKey: UNF
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+            vxlanSourceInterface: Loopback1
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreeBgpNeighbors: []
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 23.23.23.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos3
+                      tags:
+                        query: interface:Ethernet1@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 24.24.24.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos4
+                      tags:
+                        query: interface:Ethernet2@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 26.26.26.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos6
+                      tags:
+                        query: interface:Ethernet4@eos2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 12.12.12.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos1
+                      tags:
+                        query: interface:Ethernet5@eos2
+                  corepeerGroups: []
+                  coreprefixLists:
+                    - coreAddressFamily: ipv4
+                      coreprefixListName: My_Loopback
+                      coreseqNums:
+                        - corematch: exact-route
+                          corepermitDeny: permit
+                          coreprefix: 10.10.10.2/32
+                          coreseqNum: 10
+                  corestaticRoutes: []
+                  interfaces: []
+              tags:
+                query: device:eos2
+            - inputs:
+                coreLinkDetails:
+                  coreeBgpNeighbors: []
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 45.45.45.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos4
+                      tags:
+                        query: interface:Ethernet1@eos5
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 35.35.35.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos3
+                      tags:
+                        query: interface:Ethernet2@eos5
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 15.15.15.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos1
+                      tags:
+                        query: interface:Ethernet4@eos5
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 56.56.56.0
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: eos6
+                      tags:
+                        query: interface:Ethernet5@eos5
+                  corepeerGroups: []
+                  coreprefixLists:
+                    - coreAddressFamily: ipv4
+                      coreprefixListName: My_Loopback
+                      coreseqNums:
+                        - corematch: exact-route
+                          corepermitDeny: permit
+                          coreprefix: 10.10.10.5/32
+                          coreseqNum: 10
+                  corestaticRoutes: []
+                  interfaces: []
+              tags:
+                query: device:eos5
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 23.23.23.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos3
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos5
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 35.35.35.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@eos3
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 10.20.20.37
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet2@eos3
+                            mlagRole: Primary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos3
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos1
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 17.17.17.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos7
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 10.20.20.37
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@eos7
+                            mlagRole: Secondary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos7
+                  peerGroups: []
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: Loopbacks
+                      seqNums:
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 10.10.10.0/24
+                          prefixLength: eq
+                          seqNum: 10
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 10.20.20.0/24
+                          prefixLength: eq
+                          seqNum: 20
+                  rrHostnames:
+                    - rrHostname: eos2
+                    - rrHostname: eos5
+              tags:
+                query: Edge-Router-Domain:Building1
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos5
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 45.45.45.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos4
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 24.24.24.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@eos4
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 10.20.20.48
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet2@eos4
+                            mlagRole: Primary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos4
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos6
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 68.68.68.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@eos8
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 10.20.20.48
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@eos8
+                            mlagRole: Secondary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos8
+                  peerGroups: []
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: Loopbacks
+                      seqNums:
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 10.10.10.0/24
+                          prefixLength: eq
+                          seqNum: 10
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 10.20.20.0/24
+                          prefixLength: eq
+                          seqNum: 20
+                  rrHostnames:
+                    - rrHostname: eos2
+                    - rrHostname: eos5
+              tags:
+                query: Edge-Router-Domain:Building2
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos7
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 17.17.17.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@eos1
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.12.12.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos1
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos5
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 15.15.15.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet5@eos1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 10.20.20.16
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet4@eos1
+                            mlagRole: Primary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos5
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 56.56.56.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@eos6
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos8
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 68.68.68.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@eos6
+                            - inputs:
+                                erneighborDetails:
+                                  description: eos2
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 26.26.26.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet5@eos6
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 10.20.20.16
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet4@eos6
+                            mlagRole: Secondary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos6
+                  peerGroups: []
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: Loopbacks
+                      seqNums:
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 10.10.10.0/24
+                          prefixLength: eq
+                          seqNum: 10
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 10.20.20.0/24
+                          prefixLength: eq
+                          seqNum: 20
+                  rrHostnames:
+                    - rrHostname: eos2
+                    - rrHostname: eos5
+              tags:
+                query: Edge-Router-Domain:Fabric_Edge
+          rrs:
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+              tags:
+                query: device:eos2
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+              tags:
+                query: device:eos5
+          underlayRoutingGroup:
+            authKey: UNF
+            igp: OSPF
+            redistributeConnected: Enabled
+            redistributeStatic: Enabled
+      tags:
+        query: Network:Ex10-Overlay-Network-eos1-eos2-eos3-eos4-eos5-eos6-eos7-eos8
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 11214
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: eos12 LABS
+                              neighborIp: 1.10.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS10-LABS
+                              vrf: LABS
+                            - description: eos12 NET-INT
+                              neighborIp: 1.15.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS15-NET-INT
+                              vrf: NET-INT
+                            - description: eos12 STAFF
+                              neighborIp: 1.20.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS20-STAFF
+                              vrf: STAFF
+                            - description: eos12 HOUSING
+                              neighborIp: 1.25.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS25-HOUSING
+                              vrf: HOUSING
+                            - description: eos12 UTILITY
+                              neighborIp: 1.30.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS30-UTILITY
+                              vrf: UTILITY
+                            - description: eos12 PCI
+                              neighborIp: 1.35.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS35-PCI
+                              vrf: PCI
+                            - description: eos12 GUESTS
+                              neighborIp: 1.40.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS40-GUESTS
+                              vrf: GUESTS
+                            - description: eos12 PHONES
+                              neighborIp: 1.45.1.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS45-PHONES
+                              vrf: PHONES
+                          erneighbors: []
+                          interfaces:
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: LABS
+                              extinterfaceName: ethernet2.10
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: LABS
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: NET-INT
+                              extinterfaceName: ethernet2.15
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: NET-INT
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: STAFF
+                              extinterfaceName: ethernet2.20
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: STAFF
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: HOUSING
+                              extinterfaceName: ethernet2.25
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: HOUSING
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: UTILITY
+                              extinterfaceName: ethernet2.30
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: UTILITY
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: PCI
+                              extinterfaceName: ethernet2.35
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: PCI
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: GUESTS
+                              extinterfaceName: ethernet2.40
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: GUESTS
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: PHONES
+                              extinterfaceName: ethernet2.45
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: PHONES
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: DC
+                              extinterfaceName: ethernet2.50
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: DC
+                          loopback1: {}
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet3@eos11
+                            mlagRole: Primary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos11
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: eos12 LABS
+                              neighborIp: 1.10.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS10-LABS
+                              vrf: LABS
+                            - description: eos12 NET-INT
+                              neighborIp: 1.15.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS15-NET-INT
+                              vrf: NET-INT
+                            - description: eos12 STAFF
+                              neighborIp: 1.20.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS20-STAFF
+                              vrf: STAFF
+                            - description: eos12 HOUSING
+                              neighborIp: 1.25.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS25-HOUSING
+                              vrf: HOUSING
+                            - description: eos12 UTILITY
+                              neighborIp: 1.30.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS30-UTILITY
+                              vrf: UTILITY
+                            - description: eos12 PCI
+                              neighborIp: 1.35.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS35-PCI
+                              vrf: PCI
+                            - description: eos12 GUESTS
+                              neighborIp: 1.40.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS40-GUESTS
+                              vrf: GUESTS
+                            - description: eos12 PHONES
+                              neighborIp: 1.45.2.1
+                              peerAsn: 11214
+                              peerGroup: Local-AS45-PHONES
+                              vrf: PHONES
+                          erneighbors: []
+                          interfaces:
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: LABS
+                              extinterfaceName: ethernet2.10
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: LABS
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: NET--INT
+                              extinterfaceName: ethernet2.15
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: NET-INT
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: STAFF
+                              extinterfaceName: ethernet2.20
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: STAFF
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: HOUSING
+                              extinterfaceName: ethernet2.25
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: HOUSING
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: UTILITY
+                              extinterfaceName: ethernet2.30
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: UTILITY
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: PCI
+                              extinterfaceName: ethernet2.35
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: PCI
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: GUESTS
+                              extinterfaceName: ethernet2.40
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: GUESTS
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: PHONES
+                              extinterfaceName: ethernet2.45
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: PHONES
+                            - extIpv6Address: ''
+                              extIpv6SubnetMask: 64
+                              extdescription: DC
+                              extinterfaceName: ethernet2.50
+                              extipAddress: ''
+                              extospf: Disabled
+                              extspeed: ''
+                              extsubnetMask: 31
+                              extvrf: DC
+                          loopback1: {}
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet3@eos13
+                            mlagRole: Secondary
+                          staticRoutes: []
+                      tags:
+                        query: device:eos13
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 10
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 20 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: LABS
+                      description: Local-AS10-LABS
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS10-LABS
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 15
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 20 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: NET-INT
+                      description: Local-AS15-NET-INT
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS15-NET-INT
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 20
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 20 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: STAFF
+                      description: Local-AS20-STAFF
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS20-STAFF
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 25
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: HOUSING
+                      dciOptions: {}
+                      description: Local-AS25-HOUSING
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS25-HOUSING
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 30
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 20 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: UTILITY
+                      description: Local-AS30-UTILITY
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS30-UTILITY
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 35
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 20 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: PCI
+                      dciOptions: {}
+                      description: Local-AS35-PCI
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS35-PCI
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 40
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 20 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: GUESTS
+                      description: Local-AS40-GUESTS
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS40-GUESTS
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 45
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 20 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: PHONES
+                      description: Local-AS45-PHONES
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS45-PHONES
+                      routeMapIn: []
+                      routeMapOut: []
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 50
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: true
+                        redistributionVrf: DC
+                      dciOptions: {}
+                      description: Local-AS50-DC
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: Local-AS50-DC
+                      routeMapIn: []
+                      routeMapOut: []
+                  prefixLists: []
+                  rrHostnames: []
+              tags:
+                query: Edge-Router-Domain:Core-Routers
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: eos11 LABS
+                              neighborIp: 1.10.1.0
+                              peerAsn: 10
+                              peerGroup: LABS
+                            - description: eos13 LABS
+                              neighborIp: 1.10.2.0
+                              peerAsn: 10
+                              peerGroup: LABS
+                            - description: eos11 NET-INT
+                              neighborIp: 1.15.1.0
+                              peerAsn: 15
+                              peerGroup: NET-INT
+                            - description: eos13 NET-INT
+                              neighborIp: 1.15.2.0
+                              peerAsn: 15
+                              peerGroup: NET-INT
+                            - description: eos11 STAFF
+                              neighborIp: 1.20.1.0
+                              peerAsn: 20
+                              peerGroup: STAFF
+                            - description: eos13 STAFF
+                              neighborIp: 1.20.2.0
+                              peerAsn: 20
+                              peerGroup: STAFF
+                            - description: eos11 UTILITY
+                              neighborIp: 1.30.1.0
+                              peerAsn: 30
+                              peerGroup: UTILITY
+                            - description: eos13 UTILITY
+                              neighborIp: 1.30.2.0
+                              peerAsn: 30
+                              peerGroup: UTILITY
+                            - description: eos11 GUESTS
+                              neighborIp: 1.40.1.0
+                              peerAsn: 40
+                              peerGroup: GUESTS
+                            - description: eos13 GUESTS
+                              neighborIp: 1.40.2.0
+                              peerAsn: 40
+                              peerGroup: GUESTS
+                            - description: eos11 HOUSING
+                              neighborIp: 1.25.1.0
+                              peerAsn: 25
+                              peerGroup: HOUSING
+                            - description: eos13 HOUSING
+                              neighborIp: 1.25.2.0
+                              peerAsn: 25
+                              peerGroup: HOUSING
+                            - description: eos11 PCI
+                              neighborIp: 1.35.1.0
+                              peerAsn: 35
+                              peerGroup: PCI
+                            - description: eos13 PCI
+                              neighborIp: 1.35.2.0
+                              peerAsn: 35
+                              peerGroup: PCI
+                            - description: eos11 PHONES
+                              neighborIp: 1.45.1.0
+                              peerAsn: 45
+                              peerGroup: PHONES
+                            - description: eos13 PHONES
+                              neighborIp: 1.45.2.0
+                              peerAsn: 45
+                              peerGroup: PHONES
+                            - description: eos11 DC
+                              neighborIp: 1.50.1.0
+                              peerAsn: 50
+                              peerGroup: DC
+                            - description: eos13 DC
+                              neighborIp: 1.50.2.0
+                              peerAsn: 50
+                              peerGroup: DC
+                          erneighbors: []
+                          interfaces: []
+                          loopback1: {}
+                          mlagGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:eos12
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      description: LABS
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: LABS
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: Default Only
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      description: NET-INT
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: NET-INT
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      description: STAFF
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: STAFF
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 25
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      dciOptions: {}
+                      description: HOUSING
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: HOUSING
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      description: UTILITY
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: UTILITY
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings:
+                        localAs: 35
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      dciOptions: {}
+                      description: PCI
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: PCI
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      description: GUESTS
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: GUESTS
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      description: PHONES
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: PHONES
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Enabled
+                        bgpDistance: 200 200 200
+                        nextHop: Self
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: true
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                      dciOptions: {}
+                      description: DC
+                      eBgpAuthKey: UNF
+                      erAddressFamily: ipv4
+                      peerGroupName: DC
+                      routeMapIn: []
+                      routeMapOut:
+                        - asPathPrependRepeat: ''
+                          description: ''
+                          matchCommunity: ''
+                          permitDeny: permit
+                          prefixList: Default-Route
+                          seqNum: 10
+                          setCommunity: ''
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: Default-Route
+                      seqNums:
+                        - permitDeny: permit
+                          prefix: 0.0.0.0/0
+                          prefixLength: exact-route
+                          seqNum: 10
+                  rrHostnames: []
+              tags:
+                query: Edge-Router-Domain:FW
+          rrs: []
+          underlayRoutingGroup:
+            igp: None
+            redistributeConnected: Enabled
+            redistributeStatic: Enabled
+      tags:
+        query: Network:Ex10-Core-Routers-FW-eos11-eos12-eos13
