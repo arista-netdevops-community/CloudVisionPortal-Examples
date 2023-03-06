@@ -44,7 +44,8 @@
           if not myCampus:
             # non-campus devices that this studio is assigned to. Just ignore them so the studio can be assigned to a broader category of devices
             return
-
+          if not campusPicker:
+            return
           #get all pods in my campus
           tvs = tspb.TagValueSearchRequest(label=campusPodLabel, workspace_id=ctx.studio.workspaceId, topology_studio_request=True)
           tvsresp = tsclient.GetTagValueSuggestions(tvs)
