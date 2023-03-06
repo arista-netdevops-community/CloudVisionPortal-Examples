@@ -3310,13 +3310,13 @@
                                   interface["ospf"] = ospf
 
                               # multicast
-                              if l3_interface.get("multicast") is not None and l3_interface["multicast"].get("pim", "") == "Yes":
+                              if l3_interface.get("multicast") is not None and l3_interface["multicast"].get("pim"):
                                   interface["multicast"] = True
                               else:
                                   interface["multicast"] = False
 
                               # ptp
-                              if l3_interface.get("ptp") is not None and l3_interface["ptp"].get("enable", "") == "Yes":
+                              if l3_interface.get("ptp") is not None and l3_interface["ptp"].get("enable"):
                                   interface["ptp"] = {"enable": True}
 
                               # add interface
@@ -9355,17 +9355,9 @@
               label: PIM
               description: Enable PIM sparse mode
               required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
                 default_value: null
-                static_options:
-                  values:
-                    - 'Yes'
-                    - 'No'
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
             vrfL3InterfaceMulticast:
               id: vrfL3InterfaceMulticast
               name: multicast
@@ -9383,17 +9375,9 @@
               label: Enable
               description: ''
               required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
                 default_value: null
-                static_options:
-                  values:
-                    - 'Yes'
-                    - 'No'
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
             vrfL3InterfacePtp:
               id: vrfL3InterfacePtp
               name: ptp
