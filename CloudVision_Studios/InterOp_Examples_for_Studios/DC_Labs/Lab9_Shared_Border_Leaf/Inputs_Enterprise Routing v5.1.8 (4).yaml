@@ -1,0 +1,525 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: true
+            globalAS: 914
+            mplsLabelDistributionProtocol: LDP
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+            vxlanSourceInterface: Loopback1
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  coreeBgpNeighbors: []
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 11.21.0.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet4@s2-core1
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 31.31.31.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet2@s2-core1
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 32.31.31.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet3@s2-core1
+                  corenodeSegmentIndexGroup: {}
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces: []
+              tags:
+                query: device:s2-core1
+            - inputs:
+                coreLinkDetails:
+                  coreeBgpNeighbors: []
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 12.22.0.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet4@s2-core2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 31.32.31.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet2@s2-core2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpv6Address: ''
+                          coreIpv6SubnetMask: 64
+                          coreipAddress: 32.32.31.1
+                          corespeed: ''
+                          coresubnetMask: 31
+                          description: ''
+                      tags:
+                        query: interface:Ethernet3@s2-core2
+                  corenodeSegmentIndexGroup: {}
+                  corepeerGroups: []
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  interfaces: []
+              tags:
+                query: device:s2-core2
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c1
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 11.21.0.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s1-core1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 12.23.34.45
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s1-core1
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s1-core1
+                            mlagRole: None
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c2
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.22.0.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s1-core2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 23.34.45.56
+                          mlagGroup:
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet1@s1-core2
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: ''
+                                tags:
+                                  query: interface:Ethernet6@s1-core2
+                            mlagRole: None
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core2
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 31.31.31.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s2-brdr1
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 31.32.31.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet5@s2-brdr1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 34.45.56.67
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 32.31.31.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s2-brdr2
+                            - inputs:
+                                erneighborDetails:
+                                  description: ''
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 32.32.31.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet5@s2-brdr2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 45.56.67.78
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-brdr2
+                  peerGroups: []
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: PL-LOOPBACKS-EVPN-OVERLAY
+                      seqNums:
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 172.16.11.0/24
+                          prefixLength: eq
+                          seqNum: 20
+                        - maskLength: 32
+                          permitDeny: permit
+                          prefix: 172.16.1.0/24
+                          prefixLength: eq
+                          seqNum: 30
+                  rrHostnames:
+                    - rrHostname: s2-core1
+                    - rrHostname: s2-core2
+              tags:
+                query: Edge-Router-Domain:L2-Network
+          rrs:
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+              tags:
+                query: device:s2-core1
+            - inputs:
+                rrInterfaceParams:
+                  rrDownlink: []
+              tags:
+                query: device:s2-core2
+          underlayRoutingGroup:
+            igp: OSPF
+            redistributeConnected: Enabled
+      tags:
+        query: Network:L2-Network
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: s1-spine1
+                              neighborIp: 172.16.0.1
+                              peerAsn: 65000
+                              peerGroup: EVPN-Control-Plane
+                            - description: s2-spine1
+                              neighborIp: 172.16.10.1
+                              peerAsn: 65100
+                              peerGroup: EVPN-Control-Plane
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2-spine1
+                                  erAsn: '65100'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 44.44.1.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s1-brdr1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1-spine1
+                                  erAsn: '65000'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 55.55.1.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@s1-brdr1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 52.52.52.52
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: servleaf1
+                              neighborIp: 172.16.2.7
+                              peerAsn: 65004
+                              peerGroup: EVPN-Control-Plane
+                            - description: s1-spine1
+                              neighborIp: 172.16.0.1
+                              peerAsn: 65000
+                              peerGroup: EVPN-Control-Plane
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: servleaf1
+                                  erAsn: '65004'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 44.44.1.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet7@s2-spine1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 53.53.53.53
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-spine1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: s1-spine2
+                              neighborIp: 172.16.0.2
+                              peerAsn: 65000
+                              peerGroup: EVPN-Control-Plane
+                            - description: s2-spine2
+                              neighborIp: 172.16.10.2
+                              peerAsn: 65100
+                              peerGroup: EVPN-Control-Plane
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2-spinr2
+                                  erAsn: '65100'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 44.44.2.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet5@s1-brdr2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1-spine1
+                                  erAsn: '65000'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 55.55.2.0
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@s1-brdr2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 64.64.64.64
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: servleaf2
+                              neighborIp: 172.16.2.8
+                              peerAsn: 65004
+                              peerGroup: EVPN-Control-Plane
+                            - description: s1-spine2
+                              neighborIp: 172.16.0.2
+                              peerAsn: 65000
+                              peerGroup: EVPN-Control-Plane
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: servleaf2
+                                  erAsn: '65004'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 44.44.2.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet8@s2-spine2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 65.65.65.65
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-spine2
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: ś2-spine1
+                              neighborIp: 172.16.10.1
+                              peerAsn: 65100
+                              peerGroup: EVPN-Control-Plane
+                            - description: servleaf1
+                              neighborIp: 172.16.2.7
+                              peerAsn: 65004
+                              peerGroup: EVPN-Control-Plane
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: servleaf1
+                                  erAsn: '65004'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 55.55.1.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet7@s1-spine1
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-spine1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: s1-spine2
+                              neighborIp: 172.16.10.2
+                              peerAsn: 65100
+                              peerGroup: EVPN-Control-Plane
+                            - description: servleaf2
+                              neighborIp: 172.16.2.8
+                              peerAsn: 65004
+                              peerGroup: EVPN-Control-Plane
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: servleaf2
+                                  erAsn: '65004'
+                                  erIpv6Address: ''
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 55.55.2.1
+                                  erspeed: ''
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet8@s1-spine2
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-spine2
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      aggregateRoutes: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        bgpDistance: 200 200 200
+                        eBgpMultiHopTtl: '10'
+                        nextHop: Unchanged
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                        updateSource: Loopback0
+                      dciOptions: {}
+                      description: EVPN-Control-Plane
+                      eBgpAuthKey: ''
+                      erAddressFamily: evpn
+                      peerGroupName: EVPN-Control-Plane
+                      routeMapIn: []
+                      routeMapOut: []
+                  prefixLists: []
+                  rrHostnames: []
+              tags:
+                query: Edge-Router-Domain:Service-Leafs
+          rrs: []
+          underlayRoutingGroup:
+            igp: BGP
+      tags:
+        query: Network:Service-Leaf
