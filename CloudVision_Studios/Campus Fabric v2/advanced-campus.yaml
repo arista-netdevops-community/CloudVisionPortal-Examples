@@ -1910,7 +1910,8 @@
                   switch_facts["inband_management_parents"] = switch_facts["uplink_switches_ids"]
 
                   # inband_management_ip
-                  if ib_mgmt_ip := get_inband_management_ip(switch_facts):
+                  ib_mgmt_ip = get_inband_management_ip(switch_facts)
+                  if ib_mgmt_ip:
                       ib_mgmt_subnet = ipaddress.ip_network(switch_facts["inband_management_subnet"]).prefixlen
                       ib_mgmt_ip = f"{ib_mgmt_ip}/{ib_mgmt_subnet}"
 
@@ -1931,7 +1932,8 @@
                   switch_facts["boot_vlan"] = switch_facts.get("inband_management_vlan")
 
               # IP locking
-              if ip_locking_details := building_details["advancedFabricConfigurations"].get("ipLocking"):
+              ip_locking_details = building_details["advancedFabricConfigurations"].get("ipLocking")
+              if ip_locking_details:
                   switch_facts["ip_locking"] = {
                       "ipv4": False,
                       "ipv6": False,
@@ -1984,7 +1986,8 @@
               mlag_peer_interfaces = []
 
               for interface in natural_sort(switch_facts["interfaces"], sort_key="interface_name"):
-                  if neighbor := my_switch_facts_neighbors.get(interface["peer_serial_number"]):
+                  neighbor = my_switch_facts_neighbors.get(interface["peer_serial_number"])
+                  if neighbor:
                       # Leaf case
                       if switch_facts['type'] == "leaf" and neighbor['type'] == "leaf":
                           mlag_interfaces.append(interface["interface_name"])
@@ -2078,7 +2081,8 @@
               device_id = switch_facts['serial_number']
 
               for interface in natural_sort(switch_facts["interfaces"], sort_key="interface_name"):
-                  if neighbor := my_switch_facts_neighbors.get(interface["peer_serial_number"]):
+                  neighbor = my_switch_facts_neighbors.get(interface["peer_serial_number"])
+                  if neighbor:
                       # Leaf case
                       if switch_facts['type'] == "leaf":
                           if neighbor['type'] == "spline":
