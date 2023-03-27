@@ -1093,11 +1093,11 @@
                           "level": port_profile["stormControl"]["unknownUnicast"]["level"],
                           "unit":  port_profile["stormControl"]["unknown_unicast"].get("unit", "percent")
                       }
-                  avd_port_profiles.append(tmp_port_profile)
 
                   # port-channel
-                  if port_profile["portChannel"].get("portChannel"):
-                      port_channel = {}
+                  # membership
+                  port_channel["member"] = port_profile["portChannel"]["portChannel"]
+                  if port_channel["member"]:
                       # mode
                       port_channel["mode"] = port_profile["portChannel"].get("portChannelMode")
                       # channel id
@@ -1116,7 +1116,9 @@
                       if len(port_profile["portChannel"].get("eosCli", [])) > 0:
                           port_channel["raw_eos_cli"] = port_profile["portChannel"]["eosCli"]
 
-                      tmp_port_profile["port_channel"] = port_channel
+                  tmp_port_profile["port_channel"] = port_channel
+
+                  avd_port_profiles.append(tmp_port_profile)
 
               return avd_port_profiles
 
@@ -1312,8 +1314,10 @@
                           "unit":  network_port["stormControl"]["unknown_unicast"].get("unit", "percent")
                       }
                   # port-channel
-                  if network_port["portChannel"].get("portChannel"):
-                      port_channel = {}
+                  port_channel = {}
+                  # membership
+                  port_channel["member"] = network_port["portChannel"]["portChannel"]
+                  if port_channel["member"]:
                       # mode
                       port_channel["mode"] = network_port["portChannel"].get("portChannelMode")
                       # channel id
@@ -1332,7 +1336,7 @@
                       if len(network_port["portChannel"].get("eosCli", [])) > 0:
                           port_channel["raw_eos_cli"] = network_port["portChannel"]["eosCli"]
 
-                      tmp_network_port["port_channel"] = port_channel
+                  tmp_network_port["port_channel"] = port_channel
 
                   avd_network_ports.append(tmp_network_port)
 
@@ -1636,7 +1640,7 @@
               port_channel_interfaces =[]
 
               for network_port in network_ports:
-                  if get(network_port, "port_channel.mode") is None:
+                  if not get(network_port, "port_channel.member"):
                       continue
                   connected_endpoint = {
                       "name": network_port.get("description"),
@@ -1728,7 +1732,7 @@
 
           ctx.info(f"Structured Config: {config}")
           %>
-          ## eos - port-channel interfaces ##
+          ## port-channel interfaces
           % for port_channel_interface in natural_sort(config.get("port_channel_interfaces")):
           interface ${ port_channel_interface["name"] }
           %     if port_channel_interface.get("description"):
