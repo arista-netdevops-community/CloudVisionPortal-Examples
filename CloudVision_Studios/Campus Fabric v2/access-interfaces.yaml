@@ -53,7 +53,7 @@
                   "feature_support": {
                       # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
                       "queue_monitor_length_notify": False
-                  }  
+                  }
               },
               {
                   "platforms": ['7280R', '7280R2', '7020R'],
@@ -176,7 +176,6 @@
 
 
           def defined(value, test_value=None, var_type=None, fail_action=None, var_name=None, run_tests=False):
-              ctx.info(f"Value: {value}")
               if value in [None, "", {}, []]:
                   return False
               else:
@@ -424,7 +423,7 @@
               for key in a:
                   if key in ["parent_profile"]:
                       continue
-                      
+
                   if key in b and b[key] not in [None, "", [], {}]:
                       if isinstance(a[key], dict) and isinstance(b[key], dict):
                           merge(a[key], b[key], path + [str(key)])
@@ -1096,6 +1095,29 @@
                       }
                   avd_port_profiles.append(tmp_port_profile)
 
+                  # port-channel
+                  if port_profile["portChannel"].get("portChannel"):
+                      port_channel = {}
+                      # mode
+                      port_channel["mode"] = port_profile["portChannel"].get("portChannelMode")
+                      # channel id
+                      # port_channel["channel_id"] = port_profile["portChannel"]["portChannelId"]
+                      # enabled
+                      port_channel["enabled"] = port_profile["portChannel"]["portChannelEnabled"]
+                      # lacp fallback
+                      if port_profile["portChannel"]["lacpFallback"].get("lacpFallbackMode", ""):
+                          port_channel["lacp_fallback"] = {
+                              "mode": port_profile["portChannel"]["lacpFallback"]["lacpFallbackMode"],
+                              "timeout": port_profile["portChannel"]["lacpFallback"].get("timeout")
+                          }
+                      # mlag
+                      port_channel["mlag"] = port_profile["portChannel"].get("mlag")
+                      # EOS CLI
+                      if len(port_profile["portChannel"].get("eosCli", [])) > 0:
+                          port_channel["raw_eos_cli"] = port_profile["portChannel"]["eosCli"]
+
+                      tmp_port_profile["port_channel"] = port_channel
+
               return avd_port_profiles
 
 
@@ -1250,7 +1272,6 @@
                       # Reauthentication Request Limit
                       if network_port["dot1x"].get("reauthenticationRequestLimit") and tmp_network_port["dot1x"].get("reauthentication"):
                           tmp_network_port["dot1x"]["reauthentication_request_limit"] = network_port["dot1x"]["reauthenticationRequestLimit"]
-
                   # POE
                   tmp_network_port["poe"] = {}
                   if network_port["poe"].get("priority"):
@@ -1261,11 +1282,9 @@
                       tmp_network_port["poe"]["link_down_action"] = network_port["poe"]["linkDownAction"]
                   if network_port["poe"].get("shutdownAction"):
                       tmp_network_port["poe"]["shutdown_action"] = network_port["poe"]["shutdownAction"]
-
                   # EOS CLI
                   if len(network_port.get("eosCli", [])) > 0:
                       tmp_network_port["raw_eos_cli"] = network_port["eosCli"]
-
                   # Storm Control
                   tmp_network_port["storm_control"] = {}
                   # all
@@ -1292,8 +1311,31 @@
                           "level": network_port["stormControl"]["unknownUnicast"]["level"],
                           "unit":  network_port["stormControl"]["unknown_unicast"].get("unit", "percent")
                       }
+                  # port-channel
+                  if network_port["portChannel"].get("portChannel"):
+                      port_channel = {}
+                      # mode
+                      port_channel["mode"] = network_port["portChannel"].get("portChannelMode")
+                      # channel id
+                      port_channel["channel_id"] = network_port["portChannel"].get("portChannelId")
+                      # enabled
+                      port_channel["enabled"] = network_port["portChannel"].get("portChannelEnabled")
+                      # lacp fallback
+                      if network_port["portChannel"]["lacpFallback"].get("lacpFallbackMode", ""):
+                          port_channel["lacp_fallback"] = {
+                              "mode": network_port["portChannel"]["lacpFallback"]["lacpFallbackMode"],
+                              "timeout": network_port["portChannel"]["lacpFallback"].get("timeout")
+                          }
+                      # mlag
+                      port_channel["mlag"] = network_port["portChannel"].get("mlag")
+                      # EOS CLI
+                      if len(network_port["portChannel"].get("eosCli", [])) > 0:
+                          port_channel["raw_eos_cli"] = network_port["portChannel"]["eosCli"]
+
+                      tmp_network_port["port_channel"] = port_channel
+
                   avd_network_ports.append(tmp_network_port)
-              
+
               return avd_network_ports
 
 
@@ -1430,14 +1472,15 @@
                   "eos_cli": adapter.get("raw_eos_cli"),
                   "struct_cfg": adapter.get("structured_config"),
               }
-              # # Port-channel member
-              # if (port_channel_mode := get(adapter, "port_channel.mode")) is not None:
-              #     ethernet_interface["channel_group"] = {
-              #         "id": channel_group_id,
-              #         "mode": port_channel_mode,
-              #     }
-              #     if get(adapter, "port_channel.lacp_fallback.mode") == "static":
-              #         ethernet_interface["lacp_port_priority"] = 8192 if node_index == 0 else 32768
+              # Port-channel member
+              port_channel_mode = get(adapter, "port_channel.mode")
+              if port_channel_mode:
+                  ethernet_interface["channel_group"] = {
+                      "id": channel_group_id,
+                      "mode": port_channel_mode,
+                  }
+                  # if get(adapter, "port_channel.lacp_fallback.mode") == "static":
+                  #     ethernet_interface["lacp_port_priority"] = 8192 if node_index == 0 else 32768
 
               # # NOT a port-channel member
               # else:
@@ -1487,6 +1530,139 @@
 
               return None
 
+
+          def add_if_not_duplicate(candidate_port_channel_config, port_channel_interfaces) -> None:
+              """
+              This function assumes that port_channel_interfaces list DO NOT contain duplicate port-channel names.
+              It CAN modify the input variable port_channel_interfaces by appending candidate_port_channel_config to it.
+              This check function does two things:
+                  1. Check if the candidate_port_channel_config["name"] is already present in port_channel_interfaces computed so far
+                  2. if 1 is True, check if the candidate_port_channel_config object is exactly the same as the existing one in port_channel_interfaces,
+              If 1 is True and 2 is False, then the function raise an AristaAvdError because a duplicate port-channel name would be generating two
+              different structured configurations and so there is a conflict
+              If 1 and 2 are True, it means the candidate_port_channel_config is the same as the existing configuration already generated so no
+              action is needed.
+              If 1 is False for every port-channel in the port_channel_interfaces, it is a new port-channel and it is appended to the list.
+              """
+              matching_port_channel_config = get_item(port_channel_interfaces, "name", candidate_port_channel_config["name"])
+              if matching_port_channel_config is None:
+                  # No port_channel_interface found with the same name in port_channel_interfaces
+                  # append to the list and return
+                  port_channel_interfaces.append(candidate_port_channel_config)
+                  return
+
+              if matching_port_channel_config != candidate_port_channel_config:
+                  # Found duplicate name with different generated configs
+                  raise Exception(
+                      f"Duplicate port-channel name {port_channel_interfaces['name']} with conflicting configurations found while generating port-channels for"
+                      " connected-endpoints or network-ports"
+                  )
+
+              # Duplicate name with same configuration - nothing to do
+              return
+
+
+          def get_port_channel_interface_cfg(adapter: dict, port_channel_interface_name: str, channel_group_id: int, connected_endpoint: dict) -> dict:
+              """
+              Return structured_config for one port_channel_interface
+              """
+
+              peer = connected_endpoint["name"]
+              adapter_port_channel_description = get(adapter, "port_channel.description")
+              port_channel_type = "routed" if get(adapter, "port_channel.subinterfaces") else "switched"
+              port_channel_mode = get(adapter, "port_channel.mode")
+              node_index = my_switch_facts.get("node_id", 0) # adapter["switches"].index(self._hostname)
+
+              # Common port_channel_interface settings
+              port_channel_interface = {
+                  "name": port_channel_interface_name,
+                  "description": adapter.get("description"),  # self.avd_interface_descriptions.connected_endpoints_port_channel_interfaces(peer, adapter_port_channel_description),
+                  "type": port_channel_type,
+                  "shutdown": not get(adapter, "port_channel.enabled", default=True),
+                  "mtu": adapter.get("mtu"),
+                  "service_profile": adapter.get("qos_profile"),
+                  # "link_tracking_groups": get_adapter_link_tracking_groups(adapter),
+                  "eos_cli": get(adapter, "port_channel.raw_eos_cli"),
+                  "struct_cfg": get(adapter, "port_channel.structured_config"),
+              }
+
+              # Only switches interfaces
+              if port_channel_type == "switched":
+                  port_channel_interface.update(
+                      {
+                          "mode": adapter.get("mode"),
+                          "l2_mtu": adapter.get("l2_mtu"),
+                          "vlans": adapter.get("vlans"),
+                          # "trunk_groups": get_adapter_trunk_groups(adapter, connected_endpoint),
+                          "native_vlan_tag": adapter.get("native_vlan_tag"),
+                          "native_vlan": adapter.get("native_vlan"),
+                          "spanning_tree_portfast": adapter.get("spanning_tree_portfast"),
+                          "spanning_tree_bpdufilter": adapter.get("spanning_tree_bpdufilter"),
+                          "spanning_tree_bpduguard": adapter.get("spanning_tree_bpduguard"),
+                          "storm_control": get_adapter_storm_control(adapter),
+                          "phone": get_adapter_phone(adapter),
+                          "dot1x": adapter.get("dot1x"),
+                          "ptp": get_adapter_ptp(adapter)
+                      }
+                  )
+
+              # EVPN A/A
+              # if (short_esi := self._get_short_esi(adapter, channel_group_id)) is not None:
+              #     port_channel_interface["evpn_ethernet_segment"] = get_adapter_evpn_ethernet_segment_cfg(adapter, short_esi, node_index, connected_endpoint)
+              #     if port_channel_mode == "active":
+              #         port_channel_interface["lacp_id"] = generate_lacp_id(short_esi)
+
+              # Set MLAG ID on port-channel if connection is multi-homed and this switch is running MLAG
+              if get(adapter, "port_channel.mlag"):
+                  port_channel_interface["mlag"] = channel_group_id
+
+              # LACP Fallback
+              lacp_fallback_mode = get(adapter, "port_channel.lacp_fallback.mode")
+              if port_channel_mode in ["active", "passive"] and lacp_fallback_mode and lacp_fallback_mode == "static":
+                  port_channel_interface.update(
+                      {
+                          "lacp_fallback_mode": lacp_fallback_mode,
+                          "lacp_fallback_timeout": get(adapter, "port_channel.lacp_fallback.timeout", default=90),
+                      }
+                  )
+
+              return strip_null_from_data(port_channel_interface)
+
+
+          def port_channel_interfaces(network_ports) -> dict | None:
+              """
+              Return structured config for ethernet_interfaces
+              """
+              port_channel_interfaces =[]
+
+              for network_port in network_ports:
+                  if get(network_port, "port_channel.mode") is None:
+                      continue
+                  connected_endpoint = {
+                      "name": network_port.get("description"),
+                      "type": "network_port",
+                  }
+                  for ethernet_interface_name in range_expand(network_port["switch_ports"]):
+                      # Override switches and switch_ports to only render for a single interface
+                      tmp_network_port = ChainMap(
+                          {
+                              "switch_ports": [ethernet_interface_name]
+                              # "switches": [my_switch_facts["hostname"]],
+                          },
+                          network_port,
+                      )
+
+                      default_channel_group_id = int("".join(re.findall(r"\d", ethernet_interface_name)))
+                      channel_group_id = get(tmp_network_port, "port_channel.channel_id", default=default_channel_group_id)
+                      port_channel_interface_name = f"Port-Channel{channel_group_id}"
+                      port_channel_config = get_port_channel_interface_cfg(tmp_network_port, port_channel_interface_name, channel_group_id, connected_endpoint)
+                      ctx.info(f"{port_channel_interface_name} Config: {port_channel_config}")
+                      add_if_not_duplicate(port_channel_config, port_channel_interfaces)
+
+              if port_channel_interfaces:
+                  return port_channel_interfaces
+
+              return None
 
           my_device = ctx.getDevice()
           workspace_id = ctx.studio.workspaceId
@@ -1543,15 +1719,142 @@
           # Get configuration for ethernet_interfaces
           my_switch_ethernet_interfaces = ethernet_interfaces(network_ports)
           # Get configuration for port_channel_interfaces
-          my_switch_port_channel_interfaces = {}
+          my_switch_port_channel_interfaces = port_channel_interfaces(network_ports)
 
           config = {
               "ethernet_interfaces": convert_dicts(my_switch_ethernet_interfaces),
-              "port_channel_interfaces": my_switch_port_channel_interfaces
+              "port_channel_interfaces": convert_dicts(my_switch_port_channel_interfaces)
           }
 
           ctx.info(f"Structured Config: {config}")
           %>
+          ## eos - port-channel interfaces ##
+          % for port_channel_interface in natural_sort(config.get("port_channel_interfaces")):
+          interface ${ port_channel_interface["name"] }
+          %     if port_channel_interface.get("description"):
+             description ${ port_channel_interface["description"] }
+          %     endif
+          %     if port_channel_interface.get("shutdown", False) is True:
+             shutdown
+          %     elif port_channel_interface.get("shutdown", True) is False:
+             no shutdown
+          %     endif
+          %     if port_channel_interface.get("mtu"):
+             mtu ${ port_channel_interface["mtu"] }
+          %     endif
+          %     if port_channel_interface.get("mode", "") in ['access', 'dot1q-tunnel']:
+          %         if port_channel_interface.get("vlans"):
+             switchport access vlan ${ port_channel_interface["vlans"] }
+          %         endif
+          %     endif
+          %     if port_channel_interface.get("mode", "") in ['trunk', 'trunk phone']:
+          %         if port_channel_interface.get("native_vlan_tag", False) is True:
+             switchport trunk native vlan tag
+          %         elif port_channel_interface.get("native_vlan"):
+             switchport trunk native vlan ${ port_channel_interface["native_vlan"] }
+          %         endif
+          %     endif
+          %     if port_channel_interface.get("phone", {}).get("vlan"):
+             switchport phone vlan ${ port_channel_interface["phone"]["vlan"] }
+          %     endif
+          %     if port_channel_interface.get("phone", {}).get("trunk"):
+             switchport phone trunk ${ port_channel_interface["phone"]["trunk"] }
+          %     endif
+          %     if port_channel_interface.get("mode") in ['trunk', 'trunk phone']:
+          %         if port_channel_interface.get("vlans"):
+             switchport trunk allowed vlan ${ port_channel_interface["vlans"] }
+          %         endif
+          %     endif
+          %     if port_channel_interface.get("mode"):
+             switchport mode ${ port_channel_interface["mode"] }
+          %     endif
+          %     if port_channel_interface.get("type") == 'routed':
+             no switchport
+          %     else:
+             switchport
+          %     endif
+          %     if port_channel_interface.get("lacp_id"):
+             lacp system-id ${ port_channel_interface["lacp_id"] }
+          %     endif
+          %     if port_channel_interface.get("mlag"):
+             mlag ${ port_channel_interface["mlag"] }
+          %     endif
+          %     if port_channel_interface.get("lacp_fallback_timeout"):
+             port-channel lacp fallback timeout ${ port_channel_interface["lacp_fallback_timeout"] }
+          %     endif
+          %     if port_channel_interface.get("lacp_fallback_mode"):
+             port-channel lacp fallback ${ port_channel_interface["lacp_fallback_mode"] }
+          %     endif
+          %     for section in natural_sort(port_channel_interface.get("storm_control")):
+          %         if port_channel_interface["storm_control"][section].get("level"):
+          %             if port_channel_interface["storm_control"][section].get("unit", "") == 'pps':
+             storm-control ${ section.replace("_", "-") } level pps ${ port_channel_interface["storm_control"][section]["level"] }
+          %             else:
+             storm-control ${ section.replace("_", "-") } level ${ port_channel_interface["storm_control"][section]["level"] }
+          %             endif
+          %         endif
+          %     endfor
+          %     if port_channel_interface.get("ptp"):
+          %         if port_channel_interface["ptp"].get("enable", False) is True:
+             ptp enable
+          %         endif
+          %         if port_channel_interface["ptp"].get("sync_message", {}).get("interval") is not None:
+             ptp sync-message interval ${ port_channel_interface["ptp"]["sync_message"]["interval"] }
+          %         endif
+          %         if port_channel_interface["ptp"].get("delay_mechanism") is not None:
+             ptp delay-mechanism ${ port_channel_interface["ptp"]["delay_mechanism"] }
+          %         endif
+          %         if port_channel_interface["ptp"].get("announce", {}).get("interval") is not None:
+             ptp announce interval ${ port_channel_interface["ptp"]["announce"]["interval"] }
+          %         endif
+          %         if port_channel_interface["ptp"].get("transport"):
+             ptp transport ${ port_channel_interface["ptp"]["transport"] }
+          %         endif
+          %         if port_channel_interface["ptp"].get("announce", {}).get("timeout") is not None:
+             ptp announce timeout ${ port_channel_interface["ptp"]["announce"]["timeout"] }
+          %         endif
+          %         if port_channel_interface["ptp"].get("delay_req") is not None:
+             ptp delay-req interval ${ port_channel_interface["ptp"]["delay_req"] }
+          %         endif
+          %         if port_channel_interface["ptp"].get("role"):
+             ptp role ${ port_channel_interface["ptp"].get("role") }
+          %         endif
+          %         if port_channel_interface["ptp"].get("vlan"):
+             ptp vlan ${ port_channel_interface["ptp"]["vlan"] }
+          %         endif
+          %     endif
+          %     if port_channel_interface.get("service_profile"):
+             service-profile ${ port_channel_interface["service_profile"] }
+          %     endif
+          %     if port_channel_interface.get("spanning_tree_portfast", "") == 'edge':
+             spanning-tree portfast
+          %     elif port_channel_interface.get("spanning_tree_portfast") == 'network':
+             spanning-tree portfast network
+          %     endif
+          %     if port_channel_interface.get("spanning_tree_bpduguard") in [True, "True", "enabled"]:
+             spanning-tree bpduguard enable
+          %     elif port_channel_interface.get("spanning_tree_bpduguard", "") == "disabled":
+             spanning-tree bpduguard disable
+          %     endif
+          %     if port_channel_interface.get("spanning_tree_bpdufilter") in [True, "True", "enabled"]:
+             spanning-tree bpdufilter enable
+          %     elif port_channel_interface.get("spanning_tree_bpdufilter") == "disabled":
+             spanning-tree bpdufilter disable
+          %     endif
+          %     if port_channel_interface.get("spanning_tree_guard"):
+          %         if port_channel_interface["spanning_tree_guard"] == 'disabled':
+             spanning-tree guard none
+          %         else:
+             spanning-tree guard ${ port_channel_interface["spanning_tree_guard"] }
+          %         endif
+          %     endif
+          %     if port_channel_interface.get("eos_cli"):
+          %         for cli_statement in port_channel_interface["eos_cli"]:
+             ${cli_statement}
+          %         endfor
+          %     endif
+          !
+          % endfor
           ## eos - ethernet interfaces ##
           <% print_ethernet = False %>
           % for ethernet_interface in natural_sort(config.get("ethernet_interfaces")):
@@ -1594,22 +1897,22 @@
           %     if ethernet_interface.get("speed"):
              speed ${ ethernet_interface["speed"] }
           %     endif
-          %     if print_ethernet: 
-          %         if ethernet_interface.get("mode", "") in ['access', 'dot1q-tunnel']: 
+          %     if print_ethernet:
+          %         if ethernet_interface.get("mode", "") in ['access', 'dot1q-tunnel']:
           %             if ethernet_interface.get("vlans"):
              switchport access vlan ${ ethernet_interface["vlans"] }
-          %             endif 
-          %         endif 
-          %         if ethernet_interface.get("mode", "") in ['trunk', 'trunk phone']: 
-          %             if ethernet_interface.get("native_vlan_tag", False) is True: 
+          %             endif
+          %         endif
+          %         if ethernet_interface.get("mode", "") in ['trunk', 'trunk phone']:
+          %             if ethernet_interface.get("native_vlan_tag", False) is True:
              switchport trunk native vlan tag
           %             elif ethernet_interface.get("native_vlan"):
              switchport trunk native vlan ${ ethernet_interface["native_vlan"] }
-          %             endif 
-          %         endif 
+          %             endif
+          %         endif
           %         if ethernet_interface.get("phone", {}).get("vlan"):
              switchport phone vlan ${ ethernet_interface["phone"]["vlan"] }
-          %         endif 
+          %         endif
           %         if ethernet_interface.get("phone", {}).get("trunk"):
              switchport phone trunk ${ ethernet_interface["phone"]["trunk"] }
           %         endif
@@ -1626,99 +1929,113 @@
           %         else:
              switchport
           %         endif
-          %         if ethernet_interface.get("dot1x"):
-          %             if ethernet_interface["dot1x"].get("pae", {}).get("mode"): 
+          %     endif
+          %     if ethernet_interface.get("dot1x"):
+          %         if ethernet_interface["dot1x"].get("pae", {}).get("mode"):
              dot1x pae ${ ethernet_interface["dot1x"]["pae"]["mode"] }
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("authentication_failure"):
-          %                 if ethernet_interface["dot1x"]["authentication_failure"].get("action") == 'allow' and ethernet_interface["dot1x"]["authentication_failure"].get("allow_vlan"):
+          %         endif
+          %         if ethernet_interface["dot1x"].get("authentication_failure"):
+          %             if ethernet_interface["dot1x"]["authentication_failure"].get("action") == 'allow' and ethernet_interface["dot1x"]["authentication_failure"].get("allow_vlan"):
              dot1x authentication failure action traffic allow vlan ${ ethernet_interface["dot1x"]["authentication_failure"]["allow_vlan"] }
-          %                 elif ethernet_interface["dot1x"]["authentication_failure"]["action"] == 'drop':
+          %             elif ethernet_interface["dot1x"]["authentication_failure"]["action"] == 'drop':
              dot1x authentication failure action traffic drop
-          %                 endif 
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("reauthentication", False) is True: 
+          %             endif
+          %         endif
+          %         if ethernet_interface["dot1x"].get("reauthentication", False) is True:
              dot1x reauthentication
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("port_control"):
+          %         endif
+          %         if ethernet_interface["dot1x"].get("port_control"):
              dot1x port-control ${ ethernet_interface["dot1x"]["port_control"] }
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("port_control_force_authorized_phone", False) is True:
+          %         endif
+          %         if ethernet_interface["dot1x"].get("port_control_force_authorized_phone", False) is True:
              dot1x port-control force-authorized phone
-          %             elif ethernet_interface["dot1x"].get("port_control_force_authorized_phone", True) is False:
+          %         elif ethernet_interface["dot1x"].get("port_control_force_authorized_phone", True) is False:
              no dot1x port-control force-authorized phone
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("host_mode"): 
-          %                 if ethernet_interface["dot1x"]["host_mode"].get("mode", "") == 'single-host':
+          %         endif
+          %         if ethernet_interface["dot1x"].get("host_mode"):
+          %             if ethernet_interface["dot1x"]["host_mode"].get("mode", "") == 'single-host':
              dot1x host-mode single-host
-          %                 elif ethernet_interface["dot1x"]["host_mode"].get("mode", "") == 'multi-host':
-          <%                    host_mode_cli = "dot1x host-mode multi-host" %>
-          %                     if ethernet_interface["dot1x"]["host_mode"].get("multi_host_authenticated", False) is True:
-          <%                        host_mode_cli = host_mode_cli + " authenticated" %>
-          %                     endif 
+          %             elif ethernet_interface["dot1x"]["host_mode"].get("mode", "") == 'multi-host':
+          <%            host_mode_cli = "dot1x host-mode multi-host" %>
+          %             if ethernet_interface["dot1x"]["host_mode"].get("multi_host_authenticated", False) is True:
+          <%                host_mode_cli = host_mode_cli + " authenticated" %>
+          %             endif
              ${ host_mode_cli }
-          %                 endif 
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("mac_based_authentication", {}).get("enabled", False) is True:
-          %                 if ethernet_interface["dot1x"]["mac_based_authentication"].get("host_mode_common", False) is True:
+          %             endif
+          %         endif
+          %         if ethernet_interface["dot1x"].get("mac_based_authentication", {}).get("enabled", False) is True:
+          %             if ethernet_interface["dot1x"]["mac_based_authentication"].get("host_mode_common", False) is True:
              dot1x mac based authentication host-mode common
-          %                     if ethernet_interface["dot1x"]["mac_based_authentication"].get("always", False) is True: 
+          %             if ethernet_interface["dot1x"]["mac_based_authentication"].get("always", False) is True:
              dot1x mac based authentication always
-          %                     endif 
-          %                 else:
-          <%                    auth_cli = "dot1x mac based authentication" %>
-          %                     if ethernet_interface["dot1x"]["mac_based_authentication"].get("always", False) is True:
-          <%                        auth_cli = auth_cli + " always" %>
-          %                     endif 
+          %             endif
+          %             else:
+          <%            auth_cli = "dot1x mac based authentication" %>
+          %             if ethernet_interface["dot1x"]["mac_based_authentication"].get("always", False) is True:
+          <%                auth_cli = auth_cli + " always" %>
+          %             endif
              ${ auth_cli }
-          %                 endif 
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("timeout"):
-          %                 if ethernet_interface["dot1x"]["timeout"].get("quiet_period"): 
+          %             endif
+          %         endif
+          %         if ethernet_interface["dot1x"].get("timeout"):
+          %             if ethernet_interface["dot1x"]["timeout"].get("quiet_period"):
              dot1x timeout quiet-period ${ ethernet_interface["dot1x"]["timeout"]["quiet_period"] }
-          %                 endif 
-          %                 if ethernet_interface["dot1x"]["timeout"].get("reauth_timeout_ignore", False) is True: 
+          %             endif
+          %             if ethernet_interface["dot1x"]["timeout"].get("reauth_timeout_ignore", False) is True:
              dot1x timeout reauth-timeout-ignore always
-          %                 endif 
-          %                 if ethernet_interface["dot1x"]["timeout"].get("tx_period"):
+          %             endif
+          %             if ethernet_interface["dot1x"]["timeout"].get("tx_period"):
              dot1x timeout tx-period ${ ethernet_interface["dot1x"]["timeout"]["tx_period"] }
-          %                 endif 
-          %                 if ethernet_interface["dot1x"]["timeout"].get("reauth_period"): 
+          %             endif
+          %             if ethernet_interface["dot1x"]["timeout"].get("reauth_period"):
              dot1x timeout reauth-period ${ ethernet_interface["dot1x"]["timeout"]["reauth_period"] }
-          %                 endif 
-          %                 if ethernet_interface["dot1x"]["timeout"].get("idle_host"): 
+          %             endif
+          %             if ethernet_interface["dot1x"]["timeout"].get("idle_host"):
              dot1x timeout idle-host ${ ethernet_interface["dot1x"]["timeout"]["idle_host"] } seconds
-          %                 endif 
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("reauthorization_request_limit"): 
+          %             endif
+          %         endif
+          %         if ethernet_interface["dot1x"].get("reauthorization_request_limit"):
              dot1x reauthorization request limit ${ ethernet_interface["dot1x"]["reauthorization_request_limit"] }
-          %             endif 
-          %             if ethernet_interface["dot1x"].get("eapol"):
-          %                 if ethernet_interface["dot1x"]["eapol"].get("disabled", False) is True: 
+          %         endif
+          %         if ethernet_interface["dot1x"].get("eapol"):
+          %             if ethernet_interface["dot1x"]["eapol"].get("disabled", False) is True:
              dot1x eapol disabled
-          %                 elif ethernet_interface["dot1x"]["eapol"].get("authentication_failure_fallback_mba", {}).get("enabled", False) is True: 
-          <%                    auth_failure_fallback_mba = "dot1x eapol authentication failure fallback mba" %>
-          %                     if ethernet_interface["dot1x"]["eapol"]["authentication_failure_fallback_mba"].get("timeout"):
-          <%                        auth_failure_fallback_mba = auth_failure_fallback_mba + " timeout " + ethernet_interface["dot1x"]["eapol"]["authentication_failure_fallback_mba"]["timeout"] %>
-          %                     endif 
+          %             elif ethernet_interface["dot1x"]["eapol"].get("authentication_failure_fallback_mba", {}).get("enabled", False) is True:
+          <%            auth_failure_fallback_mba = "dot1x eapol authentication failure fallback mba" %>
+          %             if ethernet_interface["dot1x"]["eapol"]["authentication_failure_fallback_mba"].get("timeout"):
+          <%                auth_failure_fallback_mba = auth_failure_fallback_mba + " timeout " + ethernet_interface["dot1x"]["eapol"]["authentication_failure_fallback_mba"]["timeout"] %>
+          %             endif
              ${ auth_failure_fallback_mba }
-          %                 endif 
-          %             endif 
+          %             endif
           %         endif
-          %         if ethernet_interface.get("poe"):
-          %             if ethernet_interface["poe"].get("priority"):
+          %     endif
+          %     if ethernet_interface.get("channel_group", {}).get("id") and ethernet_interface.get("channel_group", {}).get("mode"):
+             channel-group ${ ethernet_interface["channel_group"]["id"] } mode ${ ethernet_interface["channel_group"]["mode"] }
+          %         if ethernet_interface.get("lacp_timer", {}).get("mode"):
+             lacp timer ${ ethernet_interface["lacp_timer"]["mode"] }
+          %         endif
+          %         if ethernet_interface.get("lacp_timer", {}).get("multiplier"):
+             lacp timer multiplier ${ ethernet_interface["lacp_timer"]["multiplier"] }
+          %         endif
+          %         if ethernet_interface.get("lacp_port_priority"):
+             lacp port-priority ${ ethernet_interface["lacp_port_priority"] }
+          %         endif
+          %     endif
+          %     if ethernet_interface.get("poe"):
+          %         if ethernet_interface["poe"].get("priority"):
              poe priority ${ ethernet_interface["poe"]["priority"] }
-          %             endif
-          %             if ethernet_interface["poe"].get("reboot_action"):
-             poe reboot action ${ ethernet_interface["poe"]["reboot_action"] }
-          %             endif
-          %             if ethernet_interface["poe"].get("link_down_action"):
-             poe link down action ${ ethernet_interface["poe"]["link_down_action"] }
-          %             endif
-          %             if ethernet_interface["poe"].get("shutdown_action"):
-             poe shutdown action ${ ethernet_interface["poe"]["shutdown_action"] }
-          %             endif
           %         endif
+          %         if ethernet_interface["poe"].get("reboot_action"):
+             poe reboot action ${ ethernet_interface["poe"]["reboot_action"] }
+          %         endif
+          %         if ethernet_interface["poe"].get("link_down_action"):
+             poe link down action ${ ethernet_interface["poe"]["link_down_action"] }
+          %         endif
+          %         if ethernet_interface["poe"].get("shutdown_action"):
+             poe shutdown action ${ ethernet_interface["poe"]["shutdown_action"] }
+          %         endif
+          %     endif
+          %     if print_ethernet:
           %         for section in natural_sort(ethernet_interface.get("storm_control")):
           %             if ethernet_interface["storm_control"][section].get("level"):
           %                 if ethernet_interface["storm_control"][section].get("unit", "") == 'pps':
@@ -1782,12 +2099,13 @@
              spanning-tree guard ${ ethernet_interface["spanning_tree_guard"] }
           %             endif
           %         endif
-          %         if ethernet_interface.get("eos_cli"):
-          %             for cli_statement in ethernet_interface["eos_cli"]:
+          %     endif
+          %     if ethernet_interface.get("eos_cli"):
+          %         for cli_statement in ethernet_interface["eos_cli"]:
              ${cli_statement}
-          %             endfor
-          %         endif
-          %    endif
+          %         endfor
+          %     endif
+
           !
           % endfor
       input_schema:
@@ -2787,6 +3105,155 @@
                     - portProfilePoeRebootAction
                     - portProfilePoeLinkDownAction
                     - portProfilePoeShutdownAction
+            portProfilePortChannelMembership:
+              id: portProfilePortChannelMembership
+              name: portChannel
+              label: Port-Channel
+              description: Make this ethernet interface a member of a Port-Channel interface
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelEnabled:
+              id: portProfilePortChannelEnabled
+              name: portChannelEnabled
+              label: Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelMode:
+              id: portProfilePortChannelMode
+              name: portChannelMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - active
+                    - passive
+                    - 'on'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelLacpFallbackMode:
+              id: portProfilePortChannelLacpFallbackMode
+              name: lacpFallbackMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - static
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelLacpFallbackTimeout:
+              id: portProfilePortChannelLacpFallbackTimeout
+              name: timeout
+              label: Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            portProfilePortChannelLacpFallback:
+              id: portProfilePortChannelLacpFallback
+              name: lacpFallback
+              label: LACP Fallback
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfilePortChannelLacpFallbackMode
+                    - portProfilePortChannelLacpFallbackTimeout
+            portProfilePortChannelMlag:
+              id: portProfilePortChannelMlag
+              name: mlag
+              label: MLAG
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelCliStatement:
+              id: portProfilePortChannelCliStatement
+              name: cliStatement
+              label: CLI Statement
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portProfilePortChannelEosCli:
+              id: portProfilePortChannelEosCli
+              name: eosCli
+              label: EOS CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: portProfilePortChannelCliStatement
+                key: ''
+            portProfilePortChannel:
+              id: portProfilePortChannel
+              name: portChannel
+              label: Port-Channel
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portProfilePortChannelMembership
+                    - portProfilePortChannelEnabled
+                    - portProfilePortChannelMode
+                    - portProfilePortChannelLacpFallback
+                    - portProfilePortChannelMlag
+                    - portProfilePortChannelEosCli
             portProfileGroups:
               id: portProfileGroups
               name: portProfileGroups
@@ -2813,6 +3280,7 @@
                     - portProfileDot1X
                     - portProfilePhone
                     - portProfilePoe
+                    - portProfilePortChannel
             portProfiles:
               id: portProfiles
               name: portProfiles
@@ -3805,6 +4273,168 @@
                     - adapterPoeRebootAction
                     - adapterPoeLinkDownAction
                     - adapterPoeShutdownAction
+            adapterPortChannelMembership:
+              id: adapterPortChannelMembership
+              name: portChannel
+              label: Port-Channel
+              description: Make this ethernet interface a member of a Port-Channel interface
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelEnabled:
+              id: adapterPortChannelEnabled
+              name: portChannelEnabled
+              label: Enabled
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelId:
+              id: adapterPortChannelId
+              name: portChannelId
+              label: Port-Channel ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterPortChannelMode:
+              id: adapterPortChannelMode
+              name: portChannelMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - active
+                    - passive
+                    - 'on'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelLacpFallbackMode:
+              id: adapterPortChannelLacpFallbackMode
+              name: lacpFallbackMode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - static
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelLacpFallbackTimeout:
+              id: adapterPortChannelLacpFallbackTimeout
+              name: timeout
+              label: Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            adapterPortChannelLacpFallback:
+              id: adapterPortChannelLacpFallback
+              name: lacpFallback
+              label: LACP Fallback
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterPortChannelLacpFallbackMode
+                    - adapterPortChannelLacpFallbackTimeout
+            adapterPortChannelMlag:
+              id: adapterPortChannelMlag
+              name: mlag
+              label: MLAG
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelCliStatement:
+              id: adapterPortChannelCliStatement
+              name: cliStatement
+              label: CLI Statement
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            adapterPortChannelEosCli:
+              id: adapterPortChannelEosCli
+              name: eosCli
+              label: EOS CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: adapterPortChannelCliStatement
+                key: ''
+            adapterPortChannel:
+              id: adapterPortChannel
+              name: portChannel
+              label: Port-Channel
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - adapterPortChannelMembership
+                    - adapterPortChannelEnabled
+                    - adapterPortChannelId
+                    - adapterPortChannelMode
+                    - adapterPortChannelLacpFallback
+                    - adapterPortChannelMlag
+                    - adapterPortChannelEosCli
             adapterDetails:
               id: adapterDetails
               name: adapterDetails
@@ -3830,6 +4460,7 @@
                     - adapterDot1X
                     - adapterPhone
                     - adapterPoe
+                    - adapterPortChannel
             interfacesResolver:
               id: interfacesResolver
               name: interfaces
@@ -3900,7 +4531,8 @@
                   "portProfileQosProfile",
                   "portProfileFlowControl",
                   "portProfileStormControlDetails",
-                  "portProfileEosCli"
+                  "portProfileEosCli",
+                  "portProfilePortChannel"
                 ]
               },
               "adapterDetails":{
@@ -3921,7 +4553,8 @@
                   "adapterQosProfile",
                   "adapterFlowControl",
                   "adapterStormControlDetails",
-                  "adapterEosCli"
+                  "adapterEosCli",
+                  "adapterPortChannel"
                 ]
               },
               "portProfilePtp":{
@@ -4274,7 +4907,7 @@
                 "type":"INPUT",
                 "dependencyType":"AND",
                 "dependency":{
-                  
+
                 }
               },
               "portProfileDot1X":{
@@ -4667,5 +5300,199 @@
                     "mode":"SHOW"
                   }
                 }
+              },
+              "adapterPortChannel":{
+                "key":"adapterPortChannel",
+                "type":"INPUT",
+                "order":[
+                  "adapterPortChannelMembership",
+                  "adapterPortChannelId",
+                  "adapterPortChannelMode",
+                  "adapterPortChannelEnabled",
+                  "adapterPortChannelMlag",
+                  "adapterPortChannelLacpFallback",
+                  "adapterPortChannelEosCli"
+                ]
+              },
+              "adapterPortChannelId":{
+                "key":"adapterPortChannelId",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "adapterPortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "adapterPortChannelMode":{
+                "key":"adapterPortChannelMode",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "adapterPortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "adapterPortChannelEnabled":{
+                "key":"adapterPortChannelEnabled",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "adapterPortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "adapterPortChannelMlag":{
+                "key":"adapterPortChannelMlag",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "adapterPortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "adapterPortChannelLacpFallbackMode":{
+                "key":"adapterPortChannelLacpFallbackMode",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "adapterPortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "adapterPortChannelLacpFallbackTimeout":{
+                "key":"adapterPortChannelLacpFallbackTimeout",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "adapterPortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "adapterPortChannelCliStatement":{
+                "key":"adapterPortChannelCliStatement",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "adapterPortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfilePortChannelEnabled":{
+                "key":"portProfilePortChannelEnabled",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "portProfilePortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfilePortChannelMode":{
+                "key":"portProfilePortChannelMode",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "portProfilePortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfilePortChannelLacpFallbackMode":{
+                "key":"portProfilePortChannelLacpFallbackMode",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "portProfilePortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfilePortChannelLacpFallbackTimeout":{
+                "key":"portProfilePortChannelLacpFallbackTimeout",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "portProfilePortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfilePortChannelMlag":{
+                "key":"portProfilePortChannelMlag",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "portProfilePortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfilePortChannelCliStatement":{
+                "key":"portProfilePortChannelCliStatement",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "portProfilePortChannelMembership":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "portProfilePortChannel":{
+                "key":"portProfilePortChannel",
+                "type":"INPUT",
+                "order":[
+                  "portProfilePortChannelMembership",
+                  "portProfilePortChannelMode",
+                  "portProfilePortChannelEnabled",
+                  "portProfilePortChannelMlag",
+                  "portProfilePortChannelLacpFallback",
+                  "portProfilePortChannelEosCli"
+                ]
               }
             }
