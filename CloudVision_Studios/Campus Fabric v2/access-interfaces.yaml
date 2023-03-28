@@ -928,6 +928,9 @@
               '''
               Returns list of port profiles in AVD connected endpoints data model format
               '''
+              if not port_profiles:
+                  return []
+
               avd_port_profiles = []
               for port_profile in port_profiles:
                   ctx.info(f"Getting info for {port_profile['name']}")
@@ -1107,8 +1110,9 @@
                       tmp_port_profile["raw_eos_cli"] = port_profile["eosCli"]
                   # port-channel
                   if port_profile.get("portChannel"):
+                      port_channel = {}
                       # membership
-                      port_channel["member"] = port_profile["portChannel"]["portChannel"]
+                      port_channel["member"] = port_profile["portChannel"].get("portChannel")
                       if port_channel["member"]:
                           # mode
                           port_channel["mode"] = port_profile["portChannel"].get("portChannelMode")
@@ -1159,6 +1163,8 @@
               '''
               Returns list of network_ports in AVD connected endpoints data model format
               '''
+              if not network_ports:
+                  return []
               avd_network_ports = []
               for network_port in network_ports:
                   ctx.info(f"Getting info for {network_port['name']}")
@@ -1344,7 +1350,7 @@
                   if network_port.get("portChannel"):
                       port_channel = {}
                       # membership
-                      port_channel["member"] = network_port["portChannel"]["portChannel"]
+                      port_channel["member"] = network_port["portChannel"].get("portChannel")
                       if port_channel["member"]:
                           # mode
                           port_channel["mode"] = network_port["portChannel"].get("portChannelMode")
