@@ -1407,6 +1407,38 @@
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
                   return
               building_details = building_resolved["buildingFacts"]
+              # set building routing protocols if not set
+              if not building_details.get("buildingRoutingProtocols"):
+                  building_details["buildingRoutingProtocols"] = {
+                      "buildingUnderlayRoutingProtocol": None
+                  }
+              # Set defaults for advancedFabricConfigurations
+              if not building_details.get("advancedFabricConfigurations"):
+                  building_details["advancedFabricConfigurations"] = {}
+
+              if not building_details["advancedFabricConfigurations"].get("mstInstances"):
+                  building_details["mstInstances"] = []
+
+              if not building_details["advancedFabricConfigurations"]["ospfDetails"]:
+                  building_details["ospfDetails"] = {
+                          "processId": 100,
+                          "area": "0.0.0.0",
+                          "maxLsa": 12000,
+                          "bfd": False
+                  }
+
+              if not building_details["advancedFabricConfigurations"].get("multicast"):
+                  building_details["multicast"] = {}
+
+              if not building_details["advancedFabricConfigurations"].get("ptp"):
+                  building_details["ptp"] = {}
+
+              if not building_details["advancedFabricConfigurations"].get("inbandManagementDetails"):
+                  building_details["inbandManagementDetails"] = {}
+
+              if not building_details["advancedFabricConfigurations"].get("ipLocking"):
+                  building_details["ipLocking"] = {}
+
               campus_pod_details = building_details["campusPods"].resolve(device=device_id)
               if campus_pod_details:
                   campus_pod_details = campus_pod_details["campusPodFacts"]
@@ -1421,9 +1453,61 @@
 
               # Get node defaults from user inputs
               if switch_facts["type"] == "spline":
-                  node_defaults = building_details["splineDefaults"]
+                  node_defaults = building_details.get("splineDefaults", {})
               else:
-                  node_defaults = building_details["campusPodDefaults"]
+                  node_defaults = building_details.get("campusPodDefaults", {})
+
+              # Set STP defaults
+              if not node_defaults.get("spanningTreeDetails"):
+                  node_defaults["spanningTreeDetails"] = {
+                      "spanningTreeMode": "mstp",
+                      "splineSpanningTreePriority": None,
+                      "leafSpanningTreePriority": None,
+                      "memberLeafSpanningTreePriority": None
+                  }
+              # Set uplink defaults
+              if not node_defaults.get("uplinkInterfaceDetails"):
+                  node_defaults["uplinkInterfaceDetails"] = {
+                      "leafUplinkInterfacesSpeed": None,
+                      "leafUplinksEosCli": [],
+                      "memberLeafUplinkInterfacesSpeed": None,
+                      "memberLeafUplinksEosCli": []
+                  }
+
+              # Set MLAG defaults
+              if not node_defaults.get("mlagDetails"):
+                  node_defaults["mlagDetails"] = {
+                      "mlagPeerVlan": 4094,
+                      "mlagPeerL3Vlan": None,
+                      "mlagPeerIPv4Pool": "169.254.0.0/31",
+                      "mlagPeerL3IPv4Pool": "",
+                      "mlagPeerLinkEosCli": [],
+                      "mlagPeerInterfaces": [],
+                      "mlagPeerInterfacesSpeed": "",
+                      "mlagPeerInterfacesEosCli": [],
+                      "virtualRouterMacAddress": "00:1c:73:00:00:99"
+                  }
+
+              # Set BGP defaults
+              if not node_defaults.get("bgpDetails"):
+                  node_defaults["bgpDefaults"] = {
+                      "bgpAsns": [],
+                      "bgpDefaults": []
+                  }
+
+              # Set OSPF defaults
+              if not node_defaults.get("ospfDetails"):
+                  node_defaults["ospfDetails"] = {
+                      "ospfDefaults": []
+                  }
+
+              # Set PTP defaults
+              if not node_defaults.get("ptpDetails"):
+                  node_defaults["ptpDetails"] = {
+                      "priority1": None,
+                      "leafPriority1": None,
+                      "memberLeafPriority1": None
+                  }
 
               # Logs
               # if switch_facts["hostname"] == my_switch_facts["hostname"]:
@@ -1502,15 +1586,16 @@
                   # Set BGP parameters
                   if switch_facts["underlay_routing_protocol"] == "bgp" or switch_facts["overlay_routing_protocol"] == "bgp":
                       # Set asn
-                      asns = string_to_list(str(node_defaults["bgpDetails"]["bgpAsns"]))
+                      asns = string_to_list(str(node_defaults["bgpDetails"].get("bgpAsns", [])))
                       if len(asns) > 1:
                           if switch_facts.get("mlag_primary_id"):
                               switch_facts["bgp_as"] = asns[switch_facts["mlag_primary_id"] - 1]
                           else:
                               switch_facts["bgp_as"] = asns[switch_facts["id"] - 1]
-                      else:
+                      elif len(asns) == 1:
                           switch_facts["bgp_as"] = asns[0]
-
+                      else:
+                          ctx.warning(f"No ASNs provided for {switch_facts['campus']} -> {switch_facts['building']}")
                       # Set bgp defaults
                       switch_facts["bgp_defaults"] = node_defaults["bgpDetails"]["bgpDefaults"]
 
@@ -1644,7 +1729,7 @@
 
                       # Set from campus pod inputs
                       if switch_facts["type"] == "leaf" and campus_pod_details["hideShowToggles"].get("displayPodFabricInterfaceInputs", False) is True:
-                          campus_pod_mlag_interfaces = campus_pod_details["campusPodMlagPeerInterfaces"]
+                          campus_pod_mlag_interfaces = campus_pod_details.get("campusPodMlagPeerInterfaces", [])
                           if len(campus_pod_mlag_interfaces) > 0:
                               mlag_interfaces = []
                               for iface_entry in campus_pod_mlag_interfaces:
@@ -1663,7 +1748,7 @@
 
               if switch_facts["underlay_router"] == True:
                   if switch_facts["vtep"]:  # and building_details["buildingRoutingProtocols"]["buildingOverlayRoutingProtocol"] != "":
-                      switch_facts["vtep_loopback_ipv4_pool"] = node_defaults["vtepLoopbackIPv4Pool"]
+                      switch_facts["vtep_loopback_ipv4_pool"] = node_defaults.get("vtepLoopbackIPv4Pool")
                       switch_facts["vtep_loopback"] = "Loopback1"
                       if building_details["nodeTypeProperties"]["defaultSplineProperties"].get("splineVtepDefault"):
                           vtep_offset = 1
@@ -1687,7 +1772,6 @@
                           switch_facts["ipv6_rps"].append({"ip_address": rp['ipAddress'], "group_address": rp['groupAddress']})
 
               # Get PTP
-              # Format node defaults
               if switch_facts["type"] == "leaf":
                   node_defaults["ptpDetails"]["priority1"] = node_defaults["ptpDetails"].get("leafPriority1")
               elif switch_facts["type"] == "memberleaf":
@@ -5715,31 +5799,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            leafMlagPeerInterfaceName:
-              id: leafMlagPeerInterfaceName
-              name: mlagPeerInterfaceName
-              label: Interface Name
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            leafMlagPeerInterfaces:
-              id: leafMlagPeerInterfaces
-              name: mlagPeerInterfaces
-              label: MLAG Peer Interfaces
-              description: Define the interfaces that will make up the MLAG peer link for the primary and secondary leaf in this Campus Pod.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: leafMlagPeerInterfaceName
-                key: ''
             leafMlagPeerInterfacesSpeed:
               id: leafMlagPeerInterfacesSpeed
               name: mlagPeerInterfacesSpeed
@@ -5748,7 +5807,7 @@
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
-                default_value: auto
+                default_value: null
                 is_secret: false
                 static_options: null
                 format: null
@@ -6366,7 +6425,7 @@
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
-                default_value: auto
+                default_value: null
                 is_secret: false
                 static_options: null
                 format: null

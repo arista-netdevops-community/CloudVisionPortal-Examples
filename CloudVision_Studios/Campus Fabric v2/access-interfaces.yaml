@@ -950,44 +950,51 @@
                   # MTU
                   if port_profile.get("mtu", ""):
                       tmp_port_profile["mtu"] = port_profile["mtu"]
-                  # Phone trunk
-                  if port_profile["mode"] in ["trunk phone"] and port_profile["phone"].get("trunk"):
-                      tmp_port_profile["phone_trunk"] = port_profile["phone"]["trunk"]
-                  # Native VLAN
-                  if port_profile["mode"] in ["trunk", "trunk phone"] and port_profile["vlans"].get("nativeVlan"):
-                      tmp_port_profile["native_vlan"] = port_profile["vlans"]["nativeVlan"]
-                  # Phone VLAN
-                  if port_profile["mode"] in ["trunk phone"] and port_profile["vlans"].get("portProfilePhoneVlan"):
-                      tmp_port_profile["phone_vlan"] = port_profile["vlans"]["portProfilePhoneVlan"]
-                  # VLANs
-                  if port_profile["vlans"].get("vlans", "").strip():
-                      tmp_port_profile["vlans"] = port_profile["vlans"]["vlans"]
-                  # Spanning-Tree portfast
-                  if port_profile["spanningTree"].get("portfast", "").strip():
-                      tmp_port_profile["spanning_tree_portfast"] = port_profile["spanningTree"]["portfast"]
-                  # Spanning-Tree Bpdu Filter
-                  if port_profile["spanningTree"].get("bpduFilter", "").strip():
-                      tmp_port_profile["spanning_tree_bpdufilter"] = port_profile["spanningTree"]["bpduFilter"]
-                  # Spanning-Tree Bpdu Guard
-                  if port_profile["spanningTree"].get("bpduGuard", "").strip():
-                      tmp_port_profile["spanning_tree_bpduguard"] = port_profile["spanningTree"]["bpduGuard"]
-                  # Flow control received
-                  if port_profile["flowControl"].get("received", "").strip():
-                      tmp_port_profile["flow_control"] = {
-                          "received": port_profile["flowControl"]["received"]
-                      }
+                  # phone trunk
+                  if port_profile.get("phone"):
+                      if port_profile["mode"] in ["trunk phone"] and port_profile["phone"].get("trunk"):
+                          tmp_port_profile["phone_trunk"] = port_profile["phone"]["trunk"]
+                  # vlans
+                  if port_profile.get("vlans"):
+                      # Native VLAN
+                      if port_profile["mode"] in ["trunk", "trunk phone"] and port_profile["vlans"].get("nativeVlan"):
+                          tmp_port_profile["native_vlan"] = port_profile["vlans"]["nativeVlan"]
+                      # Phone VLAN
+                      if port_profile["mode"] in ["trunk phone"] and port_profile["vlans"].get("portProfilePhoneVlan"):
+                          tmp_port_profile["phone_vlan"] = port_profile["vlans"]["portProfilePhoneVlan"]
+                      # VLANs
+                      if port_profile["vlans"].get("vlans", "").strip():
+                          tmp_port_profile["vlans"] = port_profile["vlans"]["vlans"]
+                  # spanning tree
+                  if port_profile.get("spanningTree"):
+                      # Spanning-Tree portfast
+                      if port_profile["spanningTree"].get("portfast", "").strip():
+                          tmp_port_profile["spanning_tree_portfast"] = port_profile["spanningTree"]["portfast"]
+                      # Spanning-Tree Bpdu Filter
+                      if port_profile["spanningTree"].get("bpduFilter", "").strip():
+                          tmp_port_profile["spanning_tree_bpdufilter"] = port_profile["spanningTree"]["bpduFilter"]
+                      # Spanning-Tree Bpdu Guard
+                      if port_profile["spanningTree"].get("bpduGuard", "").strip():
+                          tmp_port_profile["spanning_tree_bpduguard"] = port_profile["spanningTree"]["bpduGuard"]
+                  # flow control
+                  if port_profile.get("flowControl"):
+                      # Flow control received
+                      if port_profile["flowControl"].get("received", "").strip():
+                          tmp_port_profile["flow_control"] = {
+                              "received": port_profile["flowControl"]["received"]
+                          }
                   # QOS profile
                   if port_profile.get("qosProfile", "").strip():
                       tmp_port_profile["qos_profile"] = port_profile["qosProfile"]
                   # PTP
-                  if str_to_bool(port_profile["ptp"].get("enabled", "").strip()):
+                  if port_profile.get("ptp"):
                       tmp_port_profile["ptp"] = {
                           "enabled": str_to_bool(port_profile["ptp"]["enabled"].strip()),
                           "profile": port_profile["ptp"]["profile"],
                           "endpoint_role": port_profile["ptp"]["endpointRole"]
                       }
                   # Dot1x
-                  if str_to_bool(port_profile.get("dot1x", {}).get("enabled", "").strip()):
+                  if port_profile.get("dot1x"):
                       tmp_port_profile["dot1x"] = {
                           "enabled": str_to_bool(port_profile["dot1x"]["enabled"].strip())
                       }
@@ -1006,117 +1013,123 @@
                           tmp_port_profile["dot1x"]["pae"] = {
                               "mode": port_profile["dot1x"]["pae"]["mode"]
                           }
-                      # Authentication Failure action
-                      if port_profile["dot1x"]["authenticationFailure"].get("action", "").strip():
-                          tmp_port_profile["dot1x"]["authentication_failure"] = {
-                              "action": port_profile["dot1x"]["authenticationFailure"]["action"]
-                          }
-                      # Authentication Failure vlan
-                      if port_profile["dot1x"]["authenticationFailure"].get("allowVlan") \
-                              and tmp_port_profile["dot1x"].get("authentication_failure"):
-                          tmp_port_profile["dot1x"]["authentication_failure"]["allow_vlan"] = port_profile["dot1x"]["authenticationFailure"]["allowVlan"]
+                      # authentication failure
+                      if port_profile["dot1x"].get("authenticationFailure"):
+                          # Authentication Failure action
+                          if port_profile["dot1x"]["authenticationFailure"].get("action", "").strip():
+                              tmp_port_profile["dot1x"]["authentication_failure"] = {
+                                  "action": port_profile["dot1x"]["authenticationFailure"]["action"]
+                              }
+                          # Authentication Failure vlan
+                          if port_profile["dot1x"]["authenticationFailure"].get("allowVlan") \
+                                  and tmp_port_profile["dot1x"].get("authentication_failure"):
+                              tmp_port_profile["dot1x"]["authentication_failure"]["allow_vlan"] = port_profile["dot1x"]["authenticationFailure"]["allowVlan"]
                       # Host Mode
-                      if port_profile["dot1x"]["hostMode"].get("mode", "").strip():
-                          tmp_port_profile["dot1x"]["host_mode"] = {
-                              "mode": port_profile["dot1x"]["hostMode"]["mode"]
-                          }
-                      # Authentication Failure vlan
-                      if str_to_bool(port_profile["dot1x"]["hostMode"].get("multiHostAuthenticated", "").strip()) \
-                              and tmp_port_profile["dot1x"].get("mode", "") in ["multi-host"]:
-                          tmp_port_profile["dot1x"]["host_mode"]["multi_host_authenticated"] = str_to_bool(port_profile["dot1x"]["hostMode"]["multiHostAuthenticated"])
+                      if port_profile["dot1x"].get("hostMode"):
+                          if port_profile["dot1x"]["hostMode"].get("mode", "").strip():
+                              tmp_port_profile["dot1x"]["host_mode"] = {
+                                  "mode": port_profile["dot1x"]["hostMode"]["mode"]
+                              }
+                          # multiHostAuthenticated
+                          if str_to_bool(port_profile["dot1x"]["hostMode"].get("multiHostAuthenticated", "").strip()) \
+                                  and tmp_port_profile["dot1x"].get("mode", "") in ["multi-host"]:
+                              tmp_port_profile["dot1x"]["host_mode"]["multi_host_authenticated"] = str_to_bool(port_profile["dot1x"]["hostMode"]["multiHostAuthenticated"])
                       # MBA
-                      if str_to_bool(port_profile["dot1x"]["macBasedAuthentication"].get("enable", "").strip()):
-                          tmp_port_profile["dot1x"]["mac_based_authentication"] = {
-                              "enabled": str_to_bool(port_profile["dot1x"]["macBasedAuthentication"]["enable"].strip()),
-                              "always": str_to_bool(port_profile["dot1x"]["macBasedAuthentication"].get("always", "").strip()),
-                              "host_mode_common": str_to_bool(port_profile["dot1x"]["macBasedAuthentication"].get("hostModeCommon", "").strip())
-                          }
+                      if port_profile["dot1x"].get("macBasedAuthentication"):
+                          if str_to_bool(port_profile["dot1x"]["macBasedAuthentication"].get("enable", "").strip()):
+                              tmp_port_profile["dot1x"]["mac_based_authentication"] = {
+                                  "enabled": str_to_bool(port_profile["dot1x"]["macBasedAuthentication"]["enable"].strip()),
+                                  "always": str_to_bool(port_profile["dot1x"]["macBasedAuthentication"].get("always", "").strip()),
+                                  "host_mode_common": str_to_bool(port_profile["dot1x"]["macBasedAuthentication"].get("hostModeCommon", "").strip())
+                              }
                       # Timeout
-                      tmp_port_profile["dot1x"]["timeout"] = {}
-                      # Idle timeout
-                      if port_profile["dot1x"]["timeouts"].get("idleHost"):
-                          tmp_port_profile["dot1x"]["timeout"]["idle_host"] = port_profile["dot1x"]["timeouts"]["idleHost"]
-                      # Quiet period
-                      if port_profile["dot1x"]["timeouts"].get("quietPeriod"):
-                          tmp_port_profile["dot1x"]["timeout"]["quiet_period"] = port_profile["dot1x"]["timeouts"]["quietPeriod"]
-                      # Reauth period
-                      if port_profile["dot1x"]["timeouts"].get("reauthenticationPeriod", "").strip() and tmp_port_profile["dot1x"].get("reauthentication"):
-                          tmp_port_profile["dot1x"]["timeout"]["reauth_period"] = port_profile["dot1x"]["timeouts"]["reauthenticationPeriod"]
-                      # Reauth Timeout Ignore
-                      if str_to_bool(port_profile["dot1x"]["timeouts"].get("reauthenticationTimeoutIgnore", "").strip()) and tmp_port_profile["dot1x"].get("reauthentication"):
-                          tmp_port_profile["dot1x"]["timeout"]["reauth_timeout_ignore"] = str_to_bool(port_profile["dot1x"]["timeouts"]["reauthenticationTimeoutIgnore"])
-                      # Tx period
-                      if port_profile["dot1x"]["timeouts"].get("txPeriod"):
-                          tmp_port_profile["dot1x"]["timeout"]["tx_period"] = port_profile["dot1x"]["timeouts"]["txPeriod"]
+                      if port_profile["dot1x"].get("timeouts"):
+                          tmp_port_profile["dot1x"]["timeout"] = {}
+                          # Idle timeout
+                          if port_profile["dot1x"]["timeouts"].get("idleHost"):
+                              tmp_port_profile["dot1x"]["timeout"]["idle_host"] = port_profile["dot1x"]["timeouts"]["idleHost"]
+                          # Quiet period
+                          if port_profile["dot1x"]["timeouts"].get("quietPeriod"):
+                              tmp_port_profile["dot1x"]["timeout"]["quiet_period"] = port_profile["dot1x"]["timeouts"]["quietPeriod"]
+                          # Reauth period
+                          if port_profile["dot1x"]["timeouts"].get("reauthenticationPeriod", "").strip() and tmp_port_profile["dot1x"].get("reauthentication"):
+                              tmp_port_profile["dot1x"]["timeout"]["reauth_period"] = port_profile["dot1x"]["timeouts"]["reauthenticationPeriod"]
+                          # Reauth Timeout Ignore
+                          if str_to_bool(port_profile["dot1x"]["timeouts"].get("reauthenticationTimeoutIgnore", "").strip()) and tmp_port_profile["dot1x"].get("reauthentication"):
+                              tmp_port_profile["dot1x"]["timeout"]["reauth_timeout_ignore"] = str_to_bool(port_profile["dot1x"]["timeouts"]["reauthenticationTimeoutIgnore"])
+                          # Tx period
+                          if port_profile["dot1x"]["timeouts"].get("txPeriod"):
+                              tmp_port_profile["dot1x"]["timeout"]["tx_period"] = port_profile["dot1x"]["timeouts"]["txPeriod"]
                       # Reauthentication Request Limit
                       if port_profile["dot1x"].get("reauthenticationRequestLimit") and tmp_port_profile["dot1x"].get("reauthentication"):
                           tmp_port_profile["dot1x"]["reauthentication_request_limit"] = port_profile["dot1x"]["reauthenticationRequestLimit"]
 
                   # POE
-                  tmp_port_profile["poe"] = {}
-                  if port_profile["poe"].get("priority"):
-                      tmp_port_profile["poe"]["priority"] = port_profile["poe"]["priority"]
-                  if port_profile["poe"].get("rebootAction"):
-                      tmp_port_profile["poe"]["reboot_action"] = port_profile["poe"]["rebootAction"]
-                  if port_profile["poe"].get("linkDownAction"):
-                      tmp_port_profile["poe"]["link_down_action"] = port_profile["poe"]["linkDownAction"]
-                  if port_profile["poe"].get("shutdownAction"):
-                      tmp_port_profile["poe"]["shutdown_action"] = port_profile["poe"]["shutdownAction"]
-
+                  if port_profile.get("poe"):
+                      tmp_port_profile["poe"] = {}
+                      if port_profile["poe"].get("priority"):
+                          tmp_port_profile["poe"]["priority"] = port_profile["poe"]["priority"]
+                      if port_profile["poe"].get("rebootAction"):
+                          tmp_port_profile["poe"]["reboot_action"] = port_profile["poe"]["rebootAction"]
+                      if port_profile["poe"].get("linkDownAction"):
+                          tmp_port_profile["poe"]["link_down_action"] = port_profile["poe"]["linkDownAction"]
+                      if port_profile["poe"].get("shutdownAction"):
+                          tmp_port_profile["poe"]["shutdown_action"] = port_profile["poe"]["shutdownAction"]
+                  # Storm Control
+                  if port_profile.get("stormControl"):
+                      tmp_port_profile["storm_control"] = {}
+                      # all
+                      if port_profile["stormControl"]["all"].get("level", "").strip():
+                          tmp_port_profile["storm_control"]["all"] = {
+                              "level": port_profile["stormControl"]["all"]["level"],
+                              "unit":  port_profile["stormControl"]["all"].get("unit", "percent")
+                          }
+                      # broadcast
+                      if port_profile["stormControl"]["broadcast"].get("level", "").strip():
+                          tmp_port_profile["storm_control"]["broadcast"] = {
+                              "level": port_profile["stormControl"]["broadcast"]["level"],
+                              "unit":  port_profile["stormControl"]["broadcast"].get("unit", "percent")
+                          }
+                      # multicast
+                      if port_profile["stormControl"]["multicast"].get("level", "").strip():
+                          tmp_port_profile["storm_control"]["multicast"] = {
+                              "level": port_profile["stormControl"]["multicast"]["level"],
+                              "unit":  port_profile["stormControl"]["multicast"].get("unit", "percent")
+                          }
+                      # unknown_unicast
+                      if port_profile["stormControl"]["unknownUnicast"].get("level", "").strip():
+                          tmp_port_profile["storm_control"]["unknown_unicast"] = {
+                              "level": port_profile["stormControl"]["unknownUnicast"]["level"],
+                              "unit":  port_profile["stormControl"]["unknown_unicast"].get("unit", "percent")
+                          }
                   # EOS CLI
                   if len(port_profile.get("eosCli", [])) > 0:
                       tmp_port_profile["raw_eos_cli"] = port_profile["eosCli"]
-
-                  # Storm Control
-                  tmp_port_profile["storm_control"] = {}
-                  # all
-                  if port_profile["stormControl"]["all"].get("level", "").strip():
-                      tmp_port_profile["storm_control"]["all"] = {
-                          "level": port_profile["stormControl"]["all"]["level"],
-                          "unit":  port_profile["stormControl"]["all"].get("unit", "percent")
-                      }
-                  # broadcast
-                  if port_profile["stormControl"]["broadcast"].get("level", "").strip():
-                      tmp_port_profile["storm_control"]["broadcast"] = {
-                          "level": port_profile["stormControl"]["broadcast"]["level"],
-                          "unit":  port_profile["stormControl"]["broadcast"].get("unit", "percent")
-                      }
-                  # multicast
-                  if port_profile["stormControl"]["multicast"].get("level", "").strip():
-                      tmp_port_profile["storm_control"]["multicast"] = {
-                          "level": port_profile["stormControl"]["multicast"]["level"],
-                          "unit":  port_profile["stormControl"]["multicast"].get("unit", "percent")
-                      }
-                  # unknown_unicast
-                  if port_profile["stormControl"]["unknownUnicast"].get("level", "").strip():
-                      tmp_port_profile["storm_control"]["unknown_unicast"] = {
-                          "level": port_profile["stormControl"]["unknownUnicast"]["level"],
-                          "unit":  port_profile["stormControl"]["unknown_unicast"].get("unit", "percent")
-                      }
-
                   # port-channel
-                  # membership
-                  port_channel["member"] = port_profile["portChannel"]["portChannel"]
-                  if port_channel["member"]:
-                      # mode
-                      port_channel["mode"] = port_profile["portChannel"].get("portChannelMode")
-                      # channel id
-                      # port_channel["channel_id"] = port_profile["portChannel"]["portChannelId"]
-                      # enabled
-                      port_channel["enabled"] = port_profile["portChannel"]["portChannelEnabled"]
-                      # lacp fallback
-                      if port_profile["portChannel"]["lacpFallback"].get("lacpFallbackMode", ""):
-                          port_channel["lacp_fallback"] = {
-                              "mode": port_profile["portChannel"]["lacpFallback"]["lacpFallbackMode"],
-                              "timeout": port_profile["portChannel"]["lacpFallback"].get("timeout")
-                          }
-                      # mlag
-                      port_channel["mlag"] = port_profile["portChannel"].get("mlag")
-                      # EOS CLI
-                      if len(port_profile["portChannel"].get("eosCli", [])) > 0:
-                          port_channel["raw_eos_cli"] = port_profile["portChannel"]["eosCli"]
+                  if port_profile.get("portChannel"):
+                      # membership
+                      port_channel["member"] = port_profile["portChannel"]["portChannel"]
+                      if port_channel["member"]:
+                          # mode
+                          port_channel["mode"] = port_profile["portChannel"].get("portChannelMode")
+                          # channel id
+                          # port_channel["channel_id"] = port_profile["portChannel"]["portChannelId"]
+                          # enabled
+                          port_channel["enabled"] = port_profile["portChannel"]["portChannelEnabled"]
+                          # lacp fallback
+                          if port_profile["portChannel"].get("lacpFallback"):
+                              if port_profile["portChannel"]["lacpFallback"].get("lacpFallbackMode", ""):
+                                  port_channel["lacp_fallback"] = {
+                                      "mode": port_profile["portChannel"]["lacpFallback"]["lacpFallbackMode"],
+                                      "timeout": port_profile["portChannel"]["lacpFallback"].get("timeout")
+                                  }
+                          # mlag
+                          port_channel["mlag"] = port_profile["portChannel"].get("mlag")
+                          # EOS CLI
+                          if len(port_profile["portChannel"].get("eosCli", [])) > 0:
+                              port_channel["raw_eos_cli"] = port_profile["portChannel"]["eosCli"]
 
-                  tmp_port_profile["port_channel"] = port_channel
+                      tmp_port_profile["port_channel"] = port_channel
 
                   avd_port_profiles.append(tmp_port_profile)
 
@@ -1170,36 +1183,43 @@
                   if network_port.get("mtu", ""):
                       tmp_network_port["mtu"] = network_port["mtu"]
                   # Phone trunk
-                  if network_port["mode"] in ["trunk phone"] and network_port["phone"].get("trunk"):
-                      tmp_network_port["phone_trunk"] = network_port["phone"]["trunk"]
-                  # Native VLAN
-                  if network_port["mode"] in ["trunk", "trunk phone"] and network_port["vlans"].get("nativeVlan"):
-                      tmp_network_port["native_vlan"] = network_port["vlans"]["nativeVlan"]
-                  # Phone VLAN
-                  if network_port["mode"] in ["trunk phone"] and network_port["vlans"].get("phoneVlan"):
-                      tmp_network_port["phone_vlan"] = network_port["vlans"]["phoneVlan"]
-                  # VLANs
-                  if network_port["vlans"].get("vlans", "").strip():
-                      tmp_network_port["vlans"] = network_port["vlans"]["vlans"]
-                  # Spanning-Tree portfast
-                  if network_port["spanningTree"].get("portfast", "").strip():
-                      tmp_network_port["spanning_tree_portfast"] = network_port["spanningTree"]["portfast"]
-                  # Spanning-Tree Bpdu Filter
-                  if network_port["spanningTree"].get("bpduFilter", "").strip():
-                      tmp_network_port["spanning_tree_bpdufilter"] = network_port["spanningTree"]["bpduFilter"]
-                  # Spanning-Tree Bpdu Guard
-                  if network_port["spanningTree"].get("bpduGuard", "").strip():
-                      tmp_network_port["spanning_tree_bpduguard"] = network_port["spanningTree"]["bpduGuard"]
+                  if network_port.get("phone"):
+                      if network_port["mode"] in ["trunk phone"] and network_port["phone"].get("trunk"):
+                          tmp_network_port["phone_trunk"] = network_port["phone"]["trunk"]
+                  # vlans
+                  if network_port.get("vlans"):
+                      # Native VLAN
+                      if network_port["mode"] in ["trunk", "trunk phone"] and network_port["vlans"].get("nativeVlan"):
+                          tmp_network_port["native_vlan"] = network_port["vlans"]["nativeVlan"]
+                      # Phone VLAN
+                      if network_port["mode"] in ["trunk phone"] and network_port["vlans"].get("phoneVlan"):
+                          tmp_network_port["phone_vlan"] = network_port["vlans"]["phoneVlan"]
+                      # VLANs
+                      if network_port["vlans"].get("vlans", "").strip():
+                          tmp_network_port["vlans"] = network_port["vlans"]["vlans"]
+                  # spanning tree
+                  if network_port.get("spanningTree"):
+                      # Spanning-Tree portfast
+                      if network_port["spanningTree"].get("portfast", "").strip():
+                          tmp_network_port["spanning_tree_portfast"] = network_port["spanningTree"]["portfast"]
+                      # Spanning-Tree Bpdu Filter
+                      if network_port["spanningTree"].get("bpduFilter", "").strip():
+                          tmp_network_port["spanning_tree_bpdufilter"] = network_port["spanningTree"]["bpduFilter"]
+                      # Spanning-Tree Bpdu Guard
+                      if network_port["spanningTree"].get("bpduGuard", "").strip():
+                          tmp_network_port["spanning_tree_bpduguard"] = network_port["spanningTree"]["bpduGuard"]
+                  # flow control
+                  if network_port.get("flowControl"):
                   # Flow control received
-                  if network_port["flowControl"].get("received", "").strip():
-                      tmp_network_port["flow_control"] = {
-                          "received": network_port["flowControl"]["received"]
-                      }
+                      if network_port["flowControl"].get("received", "").strip():
+                          tmp_network_port["flow_control"] = {
+                              "received": network_port["flowControl"]["received"]
+                          }
                   # QOS profile
                   if network_port.get("qosProfile", "").strip():
                       tmp_network_port["qos_profile"] = network_port["qosProfile"]
                   # PTP
-                  if str_to_bool(network_port["ptp"].get("enabled", "").strip()):
+                  if network_port.get("ptp"):
                       tmp_network_port["ptp"] = {
                           "enabled": str_to_bool(network_port["ptp"]["enabled"].strip()),
                           "profile": network_port["ptp"]["profile"],
@@ -1210,7 +1230,7 @@
                           tmp_network_port["ptp"]["profile"] = None
                           tmp_network_port["ptp"]["endpoint_role"] = None
                   # Dot1x
-                  if str_to_bool(network_port.get("dot1x", {}).get("enabled", "").strip()):
+                  if network_port.get("dot1x"):
                       tmp_network_port["dot1x"] = {
                           "enabled": str_to_bool(network_port["dot1x"]["enabled"].strip())
                       }
@@ -1229,114 +1249,123 @@
                           tmp_network_port["dot1x"]["pae"] = {
                               "mode": network_port["dot1x"]["pae"]["mode"]
                           }
-                      # Authentication Failure action
-                      if network_port["dot1x"]["authenticationFailure"].get("action", "").strip():
-                          tmp_network_port["dot1x"]["authentication_failure"] = {
-                              "action": network_port["dot1x"]["authenticationFailure"]["action"]
-                          }
-                      # Authentication Failure vlan
-                      if network_port["dot1x"]["authenticationFailure"].get("allowVlan") \
-                              and tmp_network_port["dot1x"].get("authentication_failure"):
-                          tmp_network_port["dot1x"]["authentication_failure"]["allow_vlan"] = network_port["dot1x"]["authenticationFailure"]["allowVlan"]
+                      # authentication failure
+                      if network_port["dot1x"].get("authenticationFailure"):
+                          # Authentication Failure action
+                          if network_port["dot1x"]["authenticationFailure"].get("action", "").strip():
+                              tmp_network_port["dot1x"]["authentication_failure"] = {
+                                  "action": network_port["dot1x"]["authenticationFailure"]["action"]
+                              }
+                          # Authentication Failure vlan
+                          if network_port["dot1x"]["authenticationFailure"].get("allowVlan") \
+                                  and tmp_network_port["dot1x"].get("authentication_failure"):
+                              tmp_network_port["dot1x"]["authentication_failure"]["allow_vlan"] = network_port["dot1x"]["authenticationFailure"]["allowVlan"]
                       # Host Mode
-                      if network_port["dot1x"]["hostMode"].get("mode", "").strip():
-                          tmp_network_port["dot1x"]["host_mode"] = {
-                              "mode": network_port["dot1x"]["hostMode"]["mode"]
-                          }
-                      # Authentication Failure vlan
-                      if str_to_bool(network_port["dot1x"]["hostMode"].get("multiHostAuthenticated", "").strip()) \
-                              and tmp_network_port["dot1x"].get("mode", "") in ["multi-host"]:
-                          tmp_network_port["dot1x"]["host_mode"]["multi_host_authenticated"] = str_to_bool(network_port["dot1x"]["hostMode"]["multiHostAuthenticated"])
+                      if network_port["dot1x"].get("hostMode"):
+                          if network_port["dot1x"]["hostMode"].get("mode", "").strip():
+                              tmp_network_port["dot1x"]["host_mode"] = {
+                                  "mode": network_port["dot1x"]["hostMode"]["mode"]
+                              }
+                          # multiHostAuthenticated
+                          if str_to_bool(network_port["dot1x"]["hostMode"].get("multiHostAuthenticated", "").strip()) \
+                                  and tmp_network_port["dot1x"].get("mode", "") in ["multi-host"]:
+                              tmp_network_port["dot1x"]["host_mode"]["multi_host_authenticated"] = str_to_bool(network_port["dot1x"]["hostMode"]["multiHostAuthenticated"])
                       # MBA
-                      if str_to_bool(network_port["dot1x"]["macBasedAuthentication"].get("enable", "").strip()):
-                          tmp_network_port["dot1x"]["mac_based_authentication"] = {
-                              "enabled": str_to_bool(network_port["dot1x"]["macBasedAuthentication"]["enable"].strip()),
-                              "always": str_to_bool(network_port["dot1x"]["macBasedAuthentication"].get("always", "").strip()),
-                              "host_mode_common": str_to_bool(network_port["dot1x"]["macBasedAuthentication"].get("hostModeCommon", "").strip())
-                          }
+                      if network_port["dot1x"].get("macBasedAuthentication"):
+                          if str_to_bool(network_port["dot1x"]["macBasedAuthentication"].get("enable", "").strip()):
+                              tmp_network_port["dot1x"]["mac_based_authentication"] = {
+                                  "enabled": str_to_bool(network_port["dot1x"]["macBasedAuthentication"]["enable"].strip()),
+                                  "always": str_to_bool(network_port["dot1x"]["macBasedAuthentication"].get("always", "").strip()),
+                                  "host_mode_common": str_to_bool(network_port["dot1x"]["macBasedAuthentication"].get("hostModeCommon", "").strip())
+                              }
                       # Timeout
-                      tmp_network_port["dot1x"]["timeout"] = {}
-                      # Idle timeout
-                      if network_port["dot1x"]["timeouts"].get("idleHost"):
-                          tmp_network_port["dot1x"]["timeout"]["idle_host"] = network_port["dot1x"]["timeouts"]["idleHost"]
-                      # Quiet period
-                      if network_port["dot1x"]["timeouts"].get("quietPeriod"):
-                          tmp_network_port["dot1x"]["timeout"]["quiet_period"] = network_port["dot1x"]["timeouts"]["quietPeriod"]
-                      # Reauth period
-                      if network_port["dot1x"]["timeouts"].get("reauthenticationPeriod", "").strip() and tmp_network_port["dot1x"].get("reauthentication"):
-                          tmp_network_port["dot1x"]["timeout"]["reauth_period"] = network_port["dot1x"]["timeouts"]["reauthenticationPeriod"]
-                      # Reauth Timeout Ignore
-                      if str_to_bool(network_port["dot1x"]["timeouts"].get("reauthenticationTimeoutIgnore", "").strip()) and tmp_network_port["dot1x"].get("reauthentication"):
-                          tmp_network_port["dot1x"]["timeout"]["reauth_timeout_ignore"] = str_to_bool(network_port["dot1x"]["timeouts"]["reauthenticationTimeoutIgnore"])
-                      # Tx period
-                      if network_port["dot1x"]["timeouts"].get("txPeriod"):
-                          tmp_network_port["dot1x"]["timeout"]["tx_period"] = network_port["dot1x"]["timeouts"]["txPeriod"]
+                      if network_port["dot1x"].get("timeouts"):
+                          tmp_network_port["dot1x"]["timeout"] = {}
+                          # Idle timeout
+                          if network_port["dot1x"]["timeouts"].get("idleHost"):
+                              tmp_network_port["dot1x"]["timeout"]["idle_host"] = network_port["dot1x"]["timeouts"]["idleHost"]
+                          # Quiet period
+                          if network_port["dot1x"]["timeouts"].get("quietPeriod"):
+                              tmp_network_port["dot1x"]["timeout"]["quiet_period"] = network_port["dot1x"]["timeouts"]["quietPeriod"]
+                          # Reauth period
+                          if network_port["dot1x"]["timeouts"].get("reauthenticationPeriod", "").strip() and tmp_network_port["dot1x"].get("reauthentication"):
+                              tmp_network_port["dot1x"]["timeout"]["reauth_period"] = network_port["dot1x"]["timeouts"]["reauthenticationPeriod"]
+                          # Reauth Timeout Ignore
+                          if str_to_bool(network_port["dot1x"]["timeouts"].get("reauthenticationTimeoutIgnore", "").strip()) and tmp_network_port["dot1x"].get("reauthentication"):
+                              tmp_network_port["dot1x"]["timeout"]["reauth_timeout_ignore"] = str_to_bool(network_port["dot1x"]["timeouts"]["reauthenticationTimeoutIgnore"])
+                          # Tx period
+                          if network_port["dot1x"]["timeouts"].get("txPeriod"):
+                              tmp_network_port["dot1x"]["timeout"]["tx_period"] = network_port["dot1x"]["timeouts"]["txPeriod"]
                       # Reauthentication Request Limit
                       if network_port["dot1x"].get("reauthenticationRequestLimit") and tmp_network_port["dot1x"].get("reauthentication"):
                           tmp_network_port["dot1x"]["reauthentication_request_limit"] = network_port["dot1x"]["reauthenticationRequestLimit"]
                   # POE
-                  tmp_network_port["poe"] = {}
-                  if network_port["poe"].get("priority"):
-                      tmp_network_port["poe"]["priority"] = network_port["poe"]["priority"]
-                  if network_port["poe"].get("rebootAction"):
-                      tmp_network_port["poe"]["reboot_action"] = network_port["poe"]["rebootAction"]
-                  if network_port["poe"].get("linkDownAction"):
-                      tmp_network_port["poe"]["link_down_action"] = network_port["poe"]["linkDownAction"]
-                  if network_port["poe"].get("shutdownAction"):
-                      tmp_network_port["poe"]["shutdown_action"] = network_port["poe"]["shutdownAction"]
+                  if network_port.get("poe"):
+                      tmp_network_port["poe"] = {}
+                      if network_port["poe"].get("priority"):
+                          tmp_network_port["poe"]["priority"] = network_port["poe"]["priority"]
+                      if network_port["poe"].get("rebootAction"):
+                          tmp_network_port["poe"]["reboot_action"] = network_port["poe"]["rebootAction"]
+                      if network_port["poe"].get("linkDownAction"):
+                          tmp_network_port["poe"]["link_down_action"] = network_port["poe"]["linkDownAction"]
+                      if network_port["poe"].get("shutdownAction"):
+                          tmp_network_port["poe"]["shutdown_action"] = network_port["poe"]["shutdownAction"]
+                  # Storm Control
+                  if network_port.get("stormControl"):
+                      tmp_network_port["storm_control"] = {}
+                      # all
+                      if network_port["stormControl"]["all"].get("level", "").strip():
+                          tmp_network_port["storm_control"]["all"] = {
+                              "level": network_port["stormControl"]["all"]["level"],
+                              "unit":  network_port["stormControl"]["all"].get("unit", "percent")
+                          }
+                      # broadcast
+                      if network_port["stormControl"]["broadcast"].get("level", "").strip():
+                          tmp_network_port["storm_control"]["broadcast"] = {
+                              "level": network_port["stormControl"]["broadcast"]["level"],
+                              "unit":  network_port["stormControl"]["broadcast"].get("unit", "percent")
+                          }
+                      # multicast
+                      if network_port["stormControl"]["multicast"].get("level", "").strip():
+                          tmp_network_port["storm_control"]["multicast"] = {
+                              "level": network_port["stormControl"]["multicast"]["level"],
+                              "unit":  network_port["stormControl"]["multicast"].get("unit", "percent")
+                          }
+                      # unknown_unicast
+                      if network_port["stormControl"]["unknownUnicast"].get("level", "").strip():
+                          tmp_network_port["storm_control"]["unknown_unicast"] = {
+                              "level": network_port["stormControl"]["unknownUnicast"]["level"],
+                              "unit":  network_port["stormControl"]["unknown_unicast"].get("unit", "percent")
+                          }
                   # EOS CLI
                   if len(network_port.get("eosCli", [])) > 0:
                       tmp_network_port["raw_eos_cli"] = network_port["eosCli"]
-                  # Storm Control
-                  tmp_network_port["storm_control"] = {}
-                  # all
-                  if network_port["stormControl"]["all"].get("level", "").strip():
-                      tmp_network_port["storm_control"]["all"] = {
-                          "level": network_port["stormControl"]["all"]["level"],
-                          "unit":  network_port["stormControl"]["all"].get("unit", "percent")
-                      }
-                  # broadcast
-                  if network_port["stormControl"]["broadcast"].get("level", "").strip():
-                      tmp_network_port["storm_control"]["broadcast"] = {
-                          "level": network_port["stormControl"]["broadcast"]["level"],
-                          "unit":  network_port["stormControl"]["broadcast"].get("unit", "percent")
-                      }
-                  # multicast
-                  if network_port["stormControl"]["multicast"].get("level", "").strip():
-                      tmp_network_port["storm_control"]["multicast"] = {
-                          "level": network_port["stormControl"]["multicast"]["level"],
-                          "unit":  network_port["stormControl"]["multicast"].get("unit", "percent")
-                      }
-                  # unknown_unicast
-                  if network_port["stormControl"]["unknownUnicast"].get("level", "").strip():
-                      tmp_network_port["storm_control"]["unknown_unicast"] = {
-                          "level": network_port["stormControl"]["unknownUnicast"]["level"],
-                          "unit":  network_port["stormControl"]["unknown_unicast"].get("unit", "percent")
-                      }
                   # port-channel
-                  port_channel = {}
-                  # membership
-                  port_channel["member"] = network_port["portChannel"]["portChannel"]
-                  if port_channel["member"]:
-                      # mode
-                      port_channel["mode"] = network_port["portChannel"].get("portChannelMode")
-                      # channel id
-                      port_channel["channel_id"] = network_port["portChannel"].get("portChannelId")
-                      # enabled
-                      port_channel["enabled"] = network_port["portChannel"].get("portChannelEnabled")
-                      # lacp fallback
-                      if network_port["portChannel"]["lacpFallback"].get("lacpFallbackMode", ""):
-                          port_channel["lacp_fallback"] = {
-                              "mode": network_port["portChannel"]["lacpFallback"]["lacpFallbackMode"],
-                              "timeout": network_port["portChannel"]["lacpFallback"].get("timeout")
-                          }
-                      # mlag
-                      port_channel["mlag"] = network_port["portChannel"].get("mlag")
-                      # EOS CLI
-                      if len(network_port["portChannel"].get("eosCli", [])) > 0:
-                          port_channel["raw_eos_cli"] = network_port["portChannel"]["eosCli"]
+                  if network_port.get("portChannel"):
+                      port_channel = {}
+                      # membership
+                      port_channel["member"] = network_port["portChannel"]["portChannel"]
+                      if port_channel["member"]:
+                          # mode
+                          port_channel["mode"] = network_port["portChannel"].get("portChannelMode")
+                          # channel id
+                          port_channel["channel_id"] = network_port["portChannel"].get("portChannelId")
+                          # enabled
+                          port_channel["enabled"] = network_port["portChannel"].get("portChannelEnabled")
+                          # lacp fallback
+                          if network_port["portChannel"].get("lacpFallback"):
+                              if network_port["portChannel"]["lacpFallback"].get("lacpFallbackMode", ""):
+                                  port_channel["lacp_fallback"] = {
+                                      "mode": network_port["portChannel"]["lacpFallback"]["lacpFallbackMode"],
+                                      "timeout": network_port["portChannel"]["lacpFallback"].get("timeout")
+                                  }
+                          # mlag
+                          port_channel["mlag"] = network_port["portChannel"].get("mlag")
+                          # EOS CLI
+                          if len(network_port["portChannel"].get("eosCli", [])) > 0:
+                              port_channel["raw_eos_cli"] = network_port["portChannel"]["eosCli"]
 
-                  tmp_network_port["port_channel"] = port_channel
+                      tmp_network_port["port_channel"] = port_channel
 
                   avd_network_ports.append(tmp_network_port)
 
@@ -1361,6 +1390,15 @@
 
               return merged_network_ports
 
+
+          def get_adapter_dot1x(adapter: dict) -> dict | None:
+              """
+              Return dot1x for one adapter
+              """
+              if not get(adapter, "dot1x.enabled"):
+                  return None
+
+              return adapter.get("dot1x")
 
           def get_adapter_ptp(adapter: dict) -> dict | None:
               """
@@ -1470,7 +1508,7 @@
                   "spanning_tree_bpduguard": adapter.get("spanning_tree_bpduguard"),
                   "storm_control": get_adapter_storm_control(adapter),
                   "service_profile": adapter.get("qos_profile"),
-                  "dot1x": adapter.get("dot1x"),
+                  "dot1x": get_adapter_dot1x(adapter),
                   "ptp": get_adapter_ptp(adapter),
                   "poe": get_adapter_poe(adapter),
                   "eos_cli": adapter.get("raw_eos_cli"),
@@ -4911,7 +4949,6 @@
                 "type":"INPUT",
                 "dependencyType":"AND",
                 "dependency":{
-
                 }
               },
               "portProfileDot1X":{
