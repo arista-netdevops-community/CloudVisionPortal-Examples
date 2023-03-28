@@ -101,6 +101,27 @@
                   "tcam_profile": None,
                   "info": "Configured in standard settings"
               },
+              #Ahmad adding T3 Fixed and Chassis
+              "trident3-fixed": {
+                  "regexes": [r'DCS-7050[STC]X3',r'CCS-72[02]XP'],
+                  "reload_delay": {
+                      "mlag": 300,
+                      "non_mlag": 330
+                  },
+                  "tcam_profile": None,
+                  "info": "Configured in standard settings",
+                  "trident_forwarding_table_partition": "flexible exact-match 16384 l2-shared 98304 l3-shared 131072"
+              },
+              "trident3-chassis": {
+                  "regexes": [r'DCS-73\d\dX3'],
+                  "reload_delay": {
+                      "mlag": 1200,
+                      "non_mlag": 1320
+                  },
+                  "tcam_profile": None,
+                  "info": "Configured in standard settings",
+                  "trident_forwarding_table_partition": "flexible exact-match 16384 l2-shared 98304 l3-shared 131072"
+              },
               "default": {
                   "regexes": [r'.+'],
                   "reload_delay": {
@@ -791,10 +812,11 @@
                       link['ip_address'] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
                       link['peer_ip_address'] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
                       link['subnet_mask'] = switch_facts['uplink_ipv4_subnet_mask']
+                      #Ahmad PIM enabled on uplink interfaces
                       if switch_facts.get('underlay_multicast'):
-                          link['pim_enabled'] = True
+                          link['underlay_multicast'] = True
                       else:
-                          link['pim_enabled'] = False
+                          link['underlay_multicast'] = False
                       topology_facts['links'][uplink_interface] = link
 
               elif switch_facts['uplink_type'] == "port-channel":
@@ -1134,6 +1156,11 @@
                       switch_facts['vtep'] = False
                       # Clear evpn role
                       switch_facts['evpn_role'] = None
+                  if pod is not None:
+                      switch_facts["underlay_multicast"] = pod['underlayRouting']['underlayMulticast']
+                      switch_facts["evpn_multicast"] = pod['commonBGPConfig']['evpnMulticast']
+                      switch_facts["evpn_rt_membership"] = pod['commonBGPConfig']['evpnRtMembership']
+
 
               if re.match(veos_regex, switch_facts['platform']):
                   switch_facts['p2p_uplinks_mtu'] = 1500
@@ -1187,6 +1214,9 @@
                               "routing": True
                           }
                       }
+                      if switch_facts.get('evpn_multicast'):
+                          config['router_multicast']["ipv4"]["software_forwarding"] = "sfe"
+
               # Set router-bgp
               if switch_facts['underlay_router'] is True \
                       and (switch_facts['underlay_routing_protocol'] == "bgp"
@@ -1202,6 +1232,15 @@
               # Set platform_settings eos_cli
               if switch_facts['platform_settings'].get('eos_cli'):
                   config['eos_cli'] = switch_facts['platform_settings']['eos_cli']
+
+              #Ahmad Trident Forwarding table Partition if configured
+              if switch_facts['platform_settings'].get('trident_forwarding_table_partition') and switch_facts['evpn_multicast']:
+                  config["platform"] = {
+                          "trident": {
+                              "forwarding_table_partition": switch_facts['platform_settings']['trident_forwarding_table_partition']
+                          }
+                      }
+                  
 
               return config
 
@@ -1249,6 +1288,9 @@
                       config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_network_point_to_point'] = True
                       config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_area'] \
                           = switch_facts['underlay_ospf_area']
+                  # SVI mlag multicast config, enable sparse mode and configure local-interface to be ping test loopback if evpn_multiast is set
+                  if switch_facts['mlag_l3'] is True and switch_facts['underlay_multicast']:
+                      config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]["pim"] = {"ipv4": {"sparse_mode": True}}
 
                   # Set port-channel interfaces
                   mlag_peer = switch_facts['mlag_peer']  # Friendlier variable name for creating custom interface description
@@ -1364,7 +1406,7 @@
                           link_facts['channel_group_id'] = neighbor_link_info.get('peer_channel_group_id')
                           link_facts['peer_channel_group_id'] = neighbor_link_info.get('channel_group_id')
                           link_facts['channel_description'] = neighbor_link_info.get('peer_channel_description')
-                          link_facts['pim_enabled'] = neighbor_link_info.get('pim_enabled')
+                          link_facts["underlay_multicast"] = neighbor_link_info.get("underlay_multicast")
                           interface = neighbor_link_info['peer_interface']
                           underlay_data['links'][interface] = link_facts
 
@@ -1385,7 +1427,8 @@
                       if switch_facts['underlay_routing_protocol'] == "ospf":
                           config['ethernet_interfaces'][iface]['ospf_network_point_to_point'] = True
                           config['ethernet_interfaces'][iface]['ospf_area'] = switch_facts['underlay_ospf_area']
-                      if link.get('pim_enabled'):
+                      #PIM config on interface
+                      if link.get('underlay_multicast'):
                           config['ethernet_interfaces'][iface]['pim'] = {
                               "ipv4": {"sparse_mode": True}
                           }
@@ -1641,6 +1684,25 @@
                           "threshold": fabric_variables['evpn_hostflap_detection']['threshold'],
                           "enabled": fabric_variables['evpn_hostflap_detection']['enabled']
                       }
+                  
+                  # rt-membership configurtion
+                  if switch_facts.get('evpn_rt_membership') and switch_facts.get('evpn_role') is not None:
+                      if switch_facts['evpn_role'] == "server":
+                          config['router_bgp']['address_family_rt']['peer_groups'] = {
+                              fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']: {
+                                  "activate": True,
+                                  "default_route_target": {
+                                    "only": True
+                                  }
+                              }
+                          }
+                      elif switch_facts['evpn_role']=="client":
+                          config['router_bgp']['address_family_rt']['peer_groups'] = {
+                              fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']: {
+                                  "activate": True
+                                  }
+                          }
+
                   # Overlay network peering
                   for rs, info in overlay_data['evpn_route_servers'].items():
                       config['router_bgp']['neighbors'][info['ip_address']] = {
@@ -1695,6 +1757,22 @@
                           ['bgp_listen_range_prefixes'][loopback_pool]) = {
                               "peer_filter": "DOWNLINK-EVPN-NEIGHBORS"
                           }
+                      # Activate RT membership if enabled 
+                      #if switch_facts.get('evpn_rt_membership'):
+                      #    if switch_facts['evpn_role'] == "server":
+                      #        config['router_bgp']['address_family_rt']['peer_groups'] = {
+                      #        "name": fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name'],
+                      #        "activate": True,
+                      #        "default_route_target": {
+                      #        "only": True
+                      #            }
+                      #        }
+                      #    else:
+                      #        (config['router_bgp']['address_family_rt']['peer_groups']
+                      #        [fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']]) = {
+                      #        "activate": True
+                      #        }
+          
               return config
 
 
@@ -1709,6 +1787,10 @@
                           }
                       }
                   }
+                  if switch_facts.get('mlag') and switch_facts.get('evpn_multicast'):
+                      config['vxlan_interface']["Vxlan1"]["vxlan"]["source_interface"] = "Loopback0"
+                      config['vxlan_interface']["Vxlan1"]["vxlan"]["mlag_source_interface"] =  switch_facts['vtep_loopback']
+
                   if switch_facts.get('mlag'):
                       config['vxlan_interface']['Vxlan1']['vxlan']['virtual_router_encapsulation_mac_address'] = "mlag-system-id"
               return config
@@ -2240,6 +2322,7 @@
               "route_maps": {},
               # Will look into setting bfd config in later version of studio; for now users should set with static configlet
               # "router_bfd": {},
+              "router_multicast": {},
               "peer_filters": {},
               "router_bgp": {
                   "peer_groups": {},
@@ -2247,6 +2330,9 @@
                       "peer_groups": {}
                   },
                   "address_family_evpn": {
+                      "peer_groups": {}
+                  },
+                  "address_family_rt": {
                       "peer_groups": {}
                   },
                   "neighbor_interfaces": {},
@@ -2391,6 +2477,11 @@
           %                 endfor
           %             endif
           %         endif
+          %         if config["ethernet_interfaces"][ethernet_interface].get("pim"):
+          %           if config["ethernet_interfaces"][ethernet_interface]["pim"]["ipv4"].get("sparse_mode"):
+          pim ipv4 sparse-mode
+          %           endif
+          %         endif
           %         if config["ethernet_interfaces"][ethernet_interface].get("ospf_network_point_to_point"):
           ip ospf network point-to-point
           %         endif
@@ -2486,6 +2577,11 @@
           %      if config.get("vlan_interfaces")[vlan_interface].get("ospf_area"):
           ip ospf area ${ config.get("vlan_interfaces")[vlan_interface]["ospf_area"] }
           %      endif
+          %      if config.get("vlan_interfaces")[vlan_interface].get("pim"):
+          %         if config.get("vlan_interfaces")[vlan_interface]["pim"]["ipv4"].get("sparse_mode"):
+          pim ipv4 sparse-mode
+          %         endif
+          %      endif
           !
           %   endfor
           % endif
@@ -2495,6 +2591,9 @@
           %     if config["vxlan_interface"]["Vxlan1"].get("vxlan"):
           %         if config["vxlan_interface"]["Vxlan1"]["vxlan"].get("source_interface"):
           vxlan source-interface ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["source_interface"] }
+          %         endif
+          %         if config["vxlan_interface"]["Vxlan1"]["vxlan"].get("mlag_source_interface"):
+          vxlan mlag source-interface ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["mlag_source_interface"] }
           %         endif
           %         if config["vxlan_interface"]["Vxlan1"]["vxlan"].get("virtual_router_encapsulation_mac_address"):
           vxlan virtual-router encapsulation mac-address ${ config["vxlan_interface"]["Vxlan1"]["vxlan"]["virtual_router_encapsulation_mac_address"] }
@@ -2552,6 +2651,35 @@
           no ip routing vrf ${ vrf }
           %       endif
           %   endfor
+          !
+          % endif
+          ## eos - Router Multicast
+          % if config.get("router_multicast"):
+          router multicast
+          %     if config["router_multicast"].get("ipv4"):
+              ipv4
+          %         if config["router_multicast"]["ipv4"].get("routing"):
+              routing
+          %         endif
+          %         if config["router_multicast"]["ipv4"].get("multipath"):
+              multipath ${ config["router_multicast"]["ipv4"]["multipath"] }
+          %         endif
+          %         if config["router_multicast"]["ipv4"].get("software_forwarding"):
+              software-forwarding ${ config["router_multicast"]["ipv4"]["software_forwarding"] }
+          %         endif
+          %     endif
+          %     for vrf in natural_sort(config["router_multicast"].get("vrfs",[]), sort_key="name"):
+          %         if vrf["name"] != "default":
+              vrf ${ vrf["name"] }
+          %             if vrf.get("ipv4"):
+              ipv4
+          %             endif
+          %             if vrf["ipv4"].get("routing", False) is True:
+                  routing
+          %             endif
+              !
+          %         endif
+          %     endfor
           !
           % endif
           ## eos - prefix-lists
@@ -2906,29 +3034,29 @@
           %             endif
           %           endfor
           %         endif
-          %     endif
-          ## {# address family rt-membership activation #}
-          ## {%     if router_bgp.address_family_rtc is arista.avd.defined %}
-          ##    !
-          ##    address-family rt-membership
-          ## {%         for peer_group in router_bgp.address_family_rtc.peer_groups | arista.avd.natural_sort %}
-          ## {%             if router_bgp.address_family_rtc.peer_groups[peer_group].activate is arista.avd.defined(true) %}
-          ##       neighbor ${ peer_group } activate
-          ## {%             elif router_bgp.address_family_rtc.peer_groups[peer_group].activate is arista.avd.defined(false) %}
-          ##       no neighbor ${ peer_group } activate
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target is defined %}
-          ## {%                 if router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target.only is arista.avd.defined(true) %}
-          ##       neighbor ${ peer_group } default-route-target only
-          ## {%                 else %}
-          ##       neighbor ${ peer_group } default-route-target
-          ## {%                 endif %}
-          ## {%             endif %}
-          ## {%             if router_bgp.address_family_rtc.peer_groups[peer_group].default_route_target.encoding_origin_as_omit is defined %}
-          ##       neighbor ${ peer_group } default-route-target encoding origin-as omit
-          ## {%             endif %}
-          ## {%         endfor %}
-          ## {%     endif %}
+          %        endif
+          ## address family rt-membership activation 
+          %     if config["router_bgp"]["address_family_rt"].get("peer_groups") is not None:
+          !
+          address-family rt-membership
+          %         for peer_group in natural_sort(config["router_bgp"]["address_family_rt"]["peer_groups"].keys()):
+          %             if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("activate"):
+              neighbor ${ peer_group } activate
+          %             elif not config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("activate"):
+              no neighbor ${ peer_group } activate
+          %             endif 
+          %             if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("default_route_target") is not None:
+          %                 if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group]["default_route_target"].get("only"):
+              neighbor ${ peer_group } default-route-target only
+          %                 else:
+              neighbor ${ peer_group } default-route-target
+          %                 endif 
+          %             endif 
+          %             if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("encoding_origin_as_omit") is not None:
+              neighbor ${ peer_group } default-route-target encoding origin-as omit
+          %             endif 
+          %         endfor 
+          %     endif 
           ## address family ipv4 activation
           %     if config["router_bgp"].get("address_family_ipv4") is not None:
           !
@@ -3296,6 +3424,13 @@
           !
           %endfor
           %endif
+          ## eos - platform 
+          % if config.get("platform_settings") is not None:
+          !
+          %     if config["platform"]["trident"]["forwarding_table_partition"] is not None:
+          platform trident forwarding-table partition ${config["platform"]["trident"]["forwarding_table_partition"]}
+          %     endif
+          % endif
           ## EOS CLI
           % if config.get("eos_cli"):
           %   for line in config["eos_cli"]:
@@ -3431,6 +3566,15 @@
                     - '30'
                     - '31'
                 dynamic_options: null
+            mlagRfc5549:
+              id: mlagRfc5549
+              name: mlagRfc5549
+              label: MLAG IPv6 Unnumbered
+              description: Enable RFC 5549(iBGP) i.e. IPv6 Unnumbered for MLAG iBGP connections. Requires IPv6 Unumbered in Underlay
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
             commonMlagConfig:
               id: commonMlagConfig
               name: commonMlagConfig
@@ -3450,6 +3594,7 @@
                     - mlagPeerL3Vlan
                     - mlagPeerL3Subnet
                     - mlagPeerL3SubnetMask
+                    - mlagRfc5549
             spineAS:
               id: spineAS
               name: spineAsn
@@ -3572,6 +3717,24 @@
               collection_props:
                 base_field_id: leafBgpEosCliStatement
                 key: ''
+            evpnRtMembership:
+              id: evpnRtMembership
+              name: evpnRtMembership
+              label: EVPN RT Membership Enabled
+              description: Enable Route Target Membership Constraint Address Family on EVPN overlay BGP peerings (Min. EOS 4.25.1F).Requires use eBGP as overlay protocol.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            evpnMulticast:
+              id: evpnMulticast
+              name: evpnMulticast
+              label: EVPN Multicast Enabled
+              description: 'Enable Fabric to support EVPN Multicast. Requires "underlay_multicast: true" and IGMP snooping enabled globally (default).'
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
             commonBGPConfig:
               id: commonBGPConfig
               name: commonBGPConfig
@@ -3590,6 +3753,8 @@
                     - evpnEnabled
                     - spineBgpDefaults
                     - leafBgpDefaults
+                    - evpnRtMembership
+                    - evpnMulticast
             asNumber:
               id: asNumber
               name: asn
@@ -3732,6 +3897,24 @@
                     - '30'
                     - '31'
                 dynamic_options: null
+            underlayMulticast:
+              id: underlayMulticast
+              name: underlayMulticast
+              label: Underlay Multicast
+              description: 'Enable Multicast in the underlay on all p2p uplink interfaces and mlag l3 peer interface. # Specifically PIM Sparse-Mode will be configured on all routed underlay interfaces.'
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            underlayRfc5549Enabled:
+              id: underlayRfc5549Enabled
+              name: underlayRfc5549Enabled
+              label: P2P Underlay IPv6 Unnumbered
+              description: Point to Point Underlay with RFC 5549(eBGP), i.e. IPv6 Unnumbered.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
             underlayRouting:
               id: underlayRouting
               name: underlayRouting
@@ -3747,6 +3930,8 @@
                     - fabricLinksSubnet
                     - spineSuperSpineFabricSubnet
                     - spineSuperSpineFabricSubnetMask
+                    - underlayMulticast
+                    - underlayRfc5549Enabled
             vxlanOverlay:
               id: vxlanOverlay
               name: vxlanOverlay
@@ -4586,12 +4771,12 @@
                   "SpineTagger",
                   "leafDomains",
                   "l2LeafDomains",
-                  "commonMlagConfig",
                   "underlayRouting",
                   "overlayDetails",
                   "commonBGPConfig",
-                  "spanningTreeMode",
                   "ospfConfiguration",
+                  "spanningTreeMode",
+                  "commonMlagConfig",
                   "maximums"
                 ]
               },
@@ -4603,6 +4788,7 @@
                   "mlagLinkSubnet",
                   "mlagSubnetMask",
                   "mlagPeerL3Vlan",
+                  "mlagRfc5549",
                   "mlagPeerL3Subnet",
                   "mlagPeerL3SubnetMask",
                   "mlagPortChannelId",
@@ -4615,10 +4801,12 @@
                 "type":"INPUT",
                 "order":[
                   "underlayRoutingProtocol",
+                  "underlayRfc5549Enabled",
                   "fabricLinksSubnet",
                   "fabricSubnetMask",
                   "spineSuperSpineFabricSubnet",
-                  "spineSuperSpineFabricSubnetMask"
+                  "spineSuperSpineFabricSubnetMask",
+                  "underlayMulticast"
                 ]
               },
               "leafLoopback1Subnet":{
@@ -5095,7 +5283,6 @@
               },
               "spineBGPDynamicNeighbors":{
                 "key":"spineBGPDynamicNeighbors",
-                "type":"INPUT",
                 "dependency":{
                   "underlayRoutingProtocol":{
                     "value":[
@@ -5103,13 +5290,15 @@
                     ],
                     "mode":"SHOW"
                   },
-                  "vxlanOverlay":{
+                  "underlayRfc5549Enabled":{
                     "value":[
-                      true
+                      false
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               },
               "evpnEnabled":{
                 "key":"evpnEnabled",
@@ -5171,5 +5360,213 @@
                 "order":[
                   "p2pInterfaceDefaults"
                 ]
+              },
+              "evpnRtMembership":{
+                "key":"evpnRtMembership",
+                "dependency":{
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "evpnEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "commonBGPConfig":{
+                "key":"commonBGPConfig",
+                "type":"INPUT",
+                "order":[
+                  "spineAS",
+                  "leafASbase",
+                  "spineLoopback0Subnet",
+                  "leafLoopback0Subnet",
+                  "spineBGPDynamicNeighbors",
+                  "evpnEnabled",
+                  "evpnRtMembership",
+                  "evpnMulticast",
+                  "spineBgpDefaults",
+                  "leafBgpDefaults"
+                ]
+              },
+              "evpnMulticast":{
+                "key":"evpnMulticast",
+                "dependency":{
+                  "vxlanOverlay":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "evpnEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "underlayMulticast":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "e115dd71-a73c-4402-a8aa-b6a4ebb95e8b":{
+                "key":"e115dd71-a73c-4402-a8aa-b6a4ebb95e8b",
+                "dependency":{
+                  "underlayMulticast":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "underlayRfc5549Enabled":{
+                "key":"underlayRfc5549Enabled",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "underlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "mlagSubnetMask":{
+                "key":"mlagSubnetMask",
+                "type":"INPUT"
+              },
+              "mlagLinkSubnet":{
+                "key":"mlagLinkSubnet",
+                "type":"INPUT"
+              },
+              "mlagPeerL3Subnet":{
+                "key":"mlagPeerL3Subnet",
+                "dependency":{
+                  "mlagRfc5549":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
+              },
+              "mlagPeerL3SubnetMask":{
+                "key":"mlagPeerL3SubnetMask",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "mlagRfc5549":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "fabricLinksSubnet":{
+                "key":"fabricLinksSubnet",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "underlayRfc5549Enabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "fabricSubnetMask":{
+                "key":"fabricSubnetMask",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "underlayRfc5549Enabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "spineSuperSpineFabricSubnet":{
+                "key":"spineSuperSpineFabricSubnet",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRfc5549Enabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "spineSuperSpineFabricSubnetMask":{
+                "key":"spineSuperSpineFabricSubnetMask",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "underlayRfc5549Enabled":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "2ce9df91-e46a-4aae-b9d6-b95b33b4c3b0":{
+                "key":"2ce9df91-e46a-4aae-b9d6-b95b33b4c3b0",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRfc5549Enabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "c9d43f13-26a9-4858-89ce-91581288de83":{
+                "key":"c9d43f13-26a9-4858-89ce-91581288de83",
+                "type":"INPUT",
+                "dependency":{
+                  "underlayRfc5549Enabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "mlagRfc5549":{
+                "key":"mlagRfc5549",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "underlayRfc5549Enabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
