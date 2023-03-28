@@ -1517,7 +1517,7 @@
 
               # Get spanning tree details
               if switch_facts["network_services_l2"]:
-                  switch_facts["spanning_tree_mode"] = node_defaults["spanningTreeDetails"].get("spanningTreeMode").lower()
+                  switch_facts["spanning_tree_mode"] = node_defaults["spanningTreeDetails"].get("spanningTreeMode", "").lower()
                   if switch_facts["type"] == "spline":
                       if switch_facts["campus_type"] == "l2ls":
                           switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("splineSpanningTreePriority") if node_defaults["spanningTreeDetails"].get("splineSpanningTreePriority") is not None else 4096
@@ -1546,20 +1546,20 @@
 
                                   switch_facts["mst_instances"][instance["mstInstanceId"]]["spanning_tree_priority"] = spanning_tree_priority if spanning_tree_priority is not None else switch_facts["spanning_tree_priority"]
 
-              # Get uplink 
+              # Get uplink interfaces
               if switch_facts["type"] == "leaf":
-                  switch_facts["uplink_interface_speed"] = node_defaults.get("uplinkInterfaceDetails", {}).get("leafUplinkInterfacesSpeed")
-                  switch_facts["uplink_interface_cli"] = node_defaults.get("uplinkInterfaceDetails", {}).get("leafUplinksEosCli", [])
+                  switch_facts["uplink_interface_speed"] = node_defaults["uplinkInterfaceDetails"].get("leafUplinkInterfacesSpeed")
+                  switch_facts["uplink_interface_cli"] = node_defaults["uplinkInterfaceDetails"].get("leafUplinksEosCli", [])
               elif switch_facts["type"] == "memberleaf":
-                  switch_facts["uplink_interface_speed"] = node_defaults.get("uplinkInterfaceDetails", {}).get("memberLeafUplinkInterfacesSpeed")
-                  switch_facts["uplink_interface_cli"] = node_defaults.get("uplinkInterfaceDetails", {}).get("memberLeafUplinksEosCli", [])
+                  switch_facts["uplink_interface_speed"] = node_defaults["uplinkInterfaceDetails"].get("memberLeafUplinkInterfacesSpeed")
+                  switch_facts["uplink_interface_cli"] = node_defaults["uplinkInterfaceDetails"].get("memberLeafUplinksEosCli", [])
               else:
                   switch_facts["uplink_interface_speed"] = None
                   switch_facts["uplink_interface_cli"] = []
 
               # virtual router mac
               if switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
-                  switch_facts["virtual_router_mac_address"] = node_defaults.get("mlagDetails", {})["virtualRouterMacAddress"]
+                  switch_facts["virtual_router_mac_address"] = node_defaults["mlagDetails"]["virtualRouterMacAddress"]
 
               # Get router related facts
               if switch_facts["underlay_router"] == True and node_defaults.get("routerIdPool") is not None:
@@ -1586,7 +1586,7 @@
                   # Set BGP parameters
                   if switch_facts["underlay_routing_protocol"] == "bgp" or switch_facts["overlay_routing_protocol"] == "bgp":
                       # Set asn
-                      asns = string_to_list(str(node_defaults["bgpDetails"].get("bgpAsns")))
+                      asns = string_to_list(str(node_defaults["bgpDetails"].get("bgpAsns", [])))
                       if len(asns) > 1:
                           if switch_facts.get("mlag_primary_id"):
                               switch_facts["bgp_as"] = asns[switch_facts["mlag_primary_id"] - 1]
@@ -1623,11 +1623,11 @@
 
                   # Set OSPF parameters
                   if switch_facts["underlay_routing_protocol"] == "ospf":
-                      switch_facts["underlay_ospf_process_id"] = building_details["advancedFabricConfigurations"]["ospfDetails"].get("processId")
-                      switch_facts["underlay_ospf_area"] = building_details["advancedFabricConfigurations"]["ospfDetails"].get("area")
-                      switch_facts["underlay_ospf_max_lsa"] = building_details["advancedFabricConfigurations"]["ospfDetails"].get("maxLsa")
-                      switch_facts["underlay_ospf_bfd_enable"] = building_details["advancedFabricConfigurations"]["ospfDetails"].get("bfd")
-                      switch_facts["ospf_defaults"] = node_defaults["ospfDetails"].get("ospfDefaults", [])
+                      switch_facts["underlay_ospf_process_id"] = building_details["advancedFabricConfigurations"]["ospfDetails"]["processId"]
+                      switch_facts["underlay_ospf_area"] = building_details["advancedFabricConfigurations"]["ospfDetails"]["area"]
+                      switch_facts["underlay_ospf_max_lsa"] = building_details["advancedFabricConfigurations"]["ospfDetails"]["maxLsa"]
+                      switch_facts["underlay_ospf_bfd_enable"] = building_details["advancedFabricConfigurations"]["ospfDetails"]["bfd"]
+                      switch_facts["ospf_defaults"] = node_defaults["ospfDetails"]["ospfDefaults"]
 
               # Get mlag settings
               if switch_facts["mlag_support"] == True:
@@ -1650,8 +1650,8 @@
                       else:
                           switch_facts["mlag_l3"] = False
 
-                      switch_facts["mlag_peer_vlan"] =  node_defaults["mlagDetails"].get("mlagPeerVlan")
-                      switch_facts["mlag_peer_ipv4_pool"] = node_defaults["mlagDetails"].get("mlagPeerIPv4Pool")
+                      switch_facts["mlag_peer_vlan"] =  node_defaults["mlagDetails"]["mlagPeerVlan"]
+                      switch_facts["mlag_peer_ipv4_pool"] = node_defaults["mlagDetails"]["mlagPeerIPv4Pool"]
                       switch_facts["mlag_peer_subnet_mask"] = 31
                       if switch_facts.get("underlay_router"):
                           # Set mlag_peer_l3_vlan if there is value set in studio input

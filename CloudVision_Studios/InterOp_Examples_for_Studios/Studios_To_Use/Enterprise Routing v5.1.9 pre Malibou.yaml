@@ -4,8 +4,8 @@
     value:
       key:
         studio_id: 75740cd7-05ea-4676-8d5c-2f938bd9e3cb
-        workspace_id: 011a2c66-6832-404d-a509-56cc7604ad82
-      display_name: Enterprise Routing v5.1.5
+        workspace_id: eec22bf5-ea81-4069-af95-3cba22d86c00
+      display_name: Enterprise Routing v5.1.9
       description: Deploy and manage routed networks that can support MLAG, OSPF, IS-IS, BGP, and EVPN-VXLAN.
       template:
         type: TEMPLATE_TYPE_MAKO
@@ -32,6 +32,7 @@
               self.Description = ""
               self.Speed = ""
               self.MTU = ""
+              self.Asn = ""
 
           class Mlag:
             def __init__(self):
@@ -53,7 +54,7 @@
               self.PeerAddressHeartBeat = ""
               self.DualPrimaryDetectionDelay = ""
               self.DualPrimaryRecoveryDelay = ""
-
+              self.EnableIgpOnPeerLink = False
           class NeighborIntf:
             def __init__(self):
               self.IPAddress = ""
@@ -536,7 +537,6 @@
               nodeSegmentIndex = erDomains["erDomain"]["erDetails"].resolve()["erLinkDetails"]["nodeSegmentIndexGroup"]["nodeSegmentIndex"]
               mySC.SegmentIndex = nodeSegmentIndex
 
-
             mlagEnabled = False
             mlagSubnetMask = 31
             mlagv6SubnetMask = 64
@@ -567,7 +567,7 @@
               mySC.PeerAddressHeartBeat = mlagGroup["peerAddressHeartBeat"]
               mySC.DualPrimaryDetectionDelay = mlagGroup["dualPrimaryDetectionDelay"]
               mySC.DualPrimaryRecoveryDelay = mlagGroup["dualPrimaryRecoveryDelay"]
-
+              mySC.EnableIgpOnPeerLink = mlagGroup["enableIgpOnPeerLink"]
               for intf in myDevice.getInterfaces():
                 intfName = intf.name
                 val = mlagInt.resolve(intfName, strict=True)
@@ -645,6 +645,7 @@
                 intf.IPv6Address = val["erneighborDetails"]["erIpv6Address"]
                 intf.IPv6Mask = val["erneighborDetails"]["erIpv6SubnetMask"]
                 intf.Speed = val["erneighborDetails"]["erspeed"]
+                intf.Asn = val["erneighborDetails"]["erAsn"]
                 neighborDeviceID = peer_device.id
                 neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
                 assert neighborNodeNum, "neighbor missing: %s" % neighborDeviceID
@@ -834,6 +835,7 @@
                   intf.IPv6Address = val["coreneighborDetails"]["coreIpv6Address"]
                   intf.IPv6Mask = val["coreneighborDetails"]["coreIpv6SubnetMask"]
                   intf.Speed = val["coreneighborDetails"]["corespeed"]
+                  intf.Asn = val["coreneighborDetails"]["coreAsn"]
                   neighborDeviceID = peer_device.id
                   neighborNodeNum = deviceIDNodeNumDict.get(neighborDeviceID)
                   assert neighborNodeNum, "core neighbor missing: %s" % neighborDeviceID
@@ -986,7 +988,7 @@
           if not networksInputs or not networksInputs.get('pod'):
             return
           igp = networksInputs["pod"]["underlayRoutingGroup"]["igp"]
-          if igp not in ("None", "OSPF", "ISIS", "OSPFv3"):
+          if igp not in ("None", "OSPF", "ISIS", "OSPFv3", "BGP"):
             assert False, "IGP '{}' is not supported".format(igp)
           redisConnected = False
           redCon = networksInputs["pod"]["underlayRoutingGroup"]["redistributeConnected"]
@@ -1133,10 +1135,47 @@
             isis authentication mode md5
             isis authentication key 0 ${authKey}
           %      endif
+            exit
+          !
+          %    elif igp == 'BGP':
+          %      if mySC.ASN:
+          router bgp ${mySC.ASN}
+          <% octetList = intf.IPAddress.split(".")
+          lastOctet = int(octetList[3])
+          if (lastOctet % 2) == 0:
+            octetList[3] = str(lastOctet + 1)
+          else:
+            octetList[3] = str(lastOctet - 1)
+          neighbor = ".".join(octetList)
+          %>
+            neighbor ${neighbor} peer group Enterprise-Routing-Underlay-BGP
+            neighbor ${neighbor} remote-as ${intf.Asn}
+          %      endif
+            exit
+          !
+          %    endif
+          %endfor
+          %    if igp == 'BGP':
+          %      if mySC.ASN:
+          router bgp ${mySC.ASN}
+            neighbor Enterprise-Routing-Underlay-BGP peer group 
+            redistribute connected route-map Loopbacks-to-Underlay
+          %        if mySC.Loopback0IP:
+            router-id ${mySC.Loopback0IP}
+          %        endif
+            address-family ipv4
+              neighbor Enterprise-Routing-Underlay-BGP activate
+          %      endif
+            exit
+          !
+          ip prefix-list Loopbacks-to-Underlay
+            seq 10 permit ${mySC.Loopback0IP}/32
+          %      if mySC.LogicalVTEP:      
+            seq 20 permit ${mySC.LogicalVTEP}/32
+          %      endif
           %    endif
             exit
           !
-          %endfor
           %if mySC.Loopback0IP:
           interface Loopback0
             ip address ${mySC.Loopback0IP}/32
@@ -1237,17 +1276,14 @@
           %    if mySC.MlagIPv6Addr:
             ipv6 address ${mySC.MlagIPv6Addr}/${mySC.Mlagv6Netmask} link-local
           %    endif
-          %if mySC.Model != "vEOS" and mySC.Model != "vEOS-lab" and mySC.Model != "cEOSLab":
-            mtu 9214
-          %endif
-          %if igp == 'OSPF':
+          %if igp == 'OSPF' and mySC.EnableIgpOnPeerLink:
             ip ospf network point-to-point
             ip ospf area 0
-          %elif igp == 'OSPFv3':
+          %elif igp == 'OSPFv3' and mySC.EnableIgpOnPeerLink:
             ospfv3 network point-to-point
             ospfv3 ipv4 area 0
             ospfv3 ipv6 area 0
-          %elif igp == 'ISIS':
+          %elif igp == 'ISIS' and mySC.EnableIgpOnPeerLink:
             isis enable 1
             isis network point-to-point
             !
@@ -1428,7 +1464,7 @@
           %    endfor
           %    if evpnEnabled:
             address-family evpn
-          %      if sr or srTe or ldp or rsvp:
+          %      if mpls and (sr or srTe or ldp or rsvp):
               neighbor default encapsulation mpls next-hop-self source-interface Loopback0
             %endif
           %      for peerGroup in mySC.BGPPeerGroups:
@@ -2091,6 +2127,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 169.254.0.0/31
+                is_secret: false
                 static_options: null
                 format: cidr
                 length: null
@@ -2129,6 +2166,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1c:73:00:00:99
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2143,6 +2181,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Active
+                is_secret: false
                 static_options:
                   values:
                     - Active
@@ -2160,6 +2199,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: fe80::/64
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2174,6 +2214,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Loopback0
@@ -2240,6 +2281,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: ipv4
+                is_secret: false
                 static_options:
                   values:
                     - ipv4
@@ -2258,6 +2300,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - VXLAN
@@ -2275,6 +2318,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - LDP
@@ -2294,6 +2338,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Enabled
@@ -2310,6 +2355,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Loopback0
@@ -2329,6 +2375,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2362,6 +2409,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ip
                 length: null
@@ -2376,6 +2424,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2390,6 +2439,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2428,6 +2478,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ipv6
                 length: null
@@ -2508,6 +2559,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ip
                 length: null
@@ -2522,6 +2574,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2536,6 +2589,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2562,6 +2616,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ipv6
                 length: null
@@ -2579,6 +2634,21 @@
                 range: 1..128
                 static_options: null
                 dynamic_options: null
+            324e1505-c0e8-4f0e-8b61-fd376ffae9b3:
+              id: 324e1505-c0e8-4f0e-8b61-fd376ffae9b3
+              name: erAsn
+              label: ASN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             erNeighborDetails:
               id: erNeighborDetails
               name: erneighborDetails
@@ -2595,6 +2665,7 @@
                     - erSubnetMask
                     - erIpv6Address
                     - erIpv6SubnetMask
+                    - 324e1505-c0e8-4f0e-8b61-fd376ffae9b3
             erNeighbors:
               id: erNeighbors
               name: erneighbors
@@ -2617,6 +2688,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2631,6 +2703,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2645,6 +2718,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2659,6 +2733,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2697,6 +2772,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2711,6 +2787,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2725,6 +2802,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ip
                 length: null
@@ -2751,6 +2829,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2765,6 +2844,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2791,6 +2871,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ipv6
                 length: null
@@ -2817,6 +2898,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Disabled
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -2865,6 +2947,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - auto
@@ -2893,6 +2976,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2932,6 +3016,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ip
                 length: null
@@ -2946,6 +3031,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -2985,6 +3071,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: None
+                is_secret: false
                 static_options:
                   values:
                     - None
@@ -3003,6 +3090,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3017,6 +3105,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3043,6 +3132,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3072,6 +3162,15 @@
                 range: null
                 static_options: null
                 dynamic_options: null
+            3635f69a-1796-4997-9bbe-c7931a430f48:
+              id: 3635f69a-1796-4997-9bbe-c7931a430f48
+              name: enableIgpOnPeerLink
+              label: Enable IGP on Peer Link
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
             mlagInterfacesGroup:
               id: mlagInterfacesGroup
               name: mlagGroup
@@ -3091,6 +3190,7 @@
                     - dc46a109-c282-44ef-a02c-a96c01eae5fc
                     - e3048f41-e43d-4e44-aeed-022c17abc9a2
                     - 9d3a1ae5-a7cc-4be2-94f6-96496123b9d1
+                    - 3635f69a-1796-4997-9bbe-c7931a430f48
             loopback1Ipv4Address:
               id: loopback1Ipv4Address
               name: loopback1Ipv4Address
@@ -3100,6 +3200,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ip
                 length: null
@@ -3114,6 +3215,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ipv6
                 length: null
@@ -3128,6 +3230,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3155,6 +3258,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3169,6 +3273,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3197,6 +3302,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3213,6 +3319,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3315,6 +3422,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3329,6 +3437,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3343,6 +3452,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3357,6 +3467,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -3374,6 +3485,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3390,6 +3502,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3404,6 +3517,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3418,6 +3532,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3432,6 +3547,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3458,6 +3574,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - external
@@ -3477,6 +3594,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - peer-address
@@ -3524,6 +3642,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -3541,6 +3660,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3557,6 +3677,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3571,6 +3692,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3585,6 +3707,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3599,6 +3722,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3625,6 +3749,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - external
@@ -3644,6 +3769,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - peer-address
@@ -3690,6 +3816,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3748,6 +3875,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3762,6 +3890,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3776,6 +3905,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Disabled
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -3812,6 +3942,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3828,6 +3959,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Disabled
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -3863,6 +3995,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Loopback0
@@ -3879,6 +4012,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 200 200 200
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3893,6 +4027,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Self
@@ -3946,6 +4081,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3960,6 +4096,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -3977,6 +4114,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -3993,6 +4131,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4007,6 +4146,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4059,6 +4199,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: ipv4
+                is_secret: false
                 static_options:
                   values:
                     - ipv4
@@ -4077,6 +4218,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Enabled
@@ -4094,6 +4236,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - VXLAN
@@ -4111,6 +4254,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Loopback0
@@ -4129,6 +4273,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - remote
@@ -4145,6 +4290,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - VXLAN
@@ -4177,6 +4323,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4222,6 +4369,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4236,6 +4384,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: ipv4
+                is_secret: false
                 static_options:
                   values:
                     - ipv4
@@ -4253,6 +4402,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4267,6 +4417,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: exact-route
+                is_secret: false
                 static_options:
                   values:
                     - eq
@@ -4286,6 +4437,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -4375,6 +4527,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4437,6 +4590,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ip
                 length: null
@@ -4451,6 +4605,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4465,6 +4620,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4491,6 +4647,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ipv6
                 length: null
@@ -4508,6 +4665,21 @@
                 range: 1..128
                 static_options: null
                 dynamic_options: null
+            81a7cc89-0f98-4b79-81e9-fe7dbb6668bc:
+              id: 81a7cc89-0f98-4b79-81e9-fe7dbb6668bc
+              name: coreAsn
+              label: ASN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             coreNeighborDetails:
               id: coreNeighborDetails
               name: coreneighborDetails
@@ -4524,6 +4696,7 @@
                     - coreSubnetMask
                     - coreIpv6Address
                     - coreIpv6SubnetMask
+                    - 81a7cc89-0f98-4b79-81e9-fe7dbb6668bc
             coreNeighbor:
               id: coreNeighbor
               name: coreneighbor
@@ -4546,6 +4719,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4560,6 +4734,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4574,6 +4749,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4611,6 +4787,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4625,6 +4802,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: ipv4
+                is_secret: false
                 static_options:
                   values:
                     - ipv4
@@ -4642,6 +4820,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -4659,6 +4838,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4673,6 +4853,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: exact-route
+                is_secret: false
                 static_options:
                   values:
                     - eq
@@ -4764,6 +4945,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4778,6 +4960,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4815,6 +4998,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4850,6 +5034,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4864,6 +5049,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -4881,6 +5067,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4897,6 +5084,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4911,6 +5099,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4925,6 +5114,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4939,6 +5129,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -4965,6 +5156,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - external
@@ -4984,6 +5176,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5028,6 +5221,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5042,6 +5236,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -5059,6 +5254,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5075,6 +5271,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5089,6 +5286,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5103,6 +5301,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5129,6 +5328,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - external
@@ -5148,6 +5348,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - peer-address
@@ -5194,6 +5395,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5208,6 +5410,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5222,6 +5425,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Disabled
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -5258,6 +5462,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Disabled
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -5293,6 +5498,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 200 200 200
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5307,6 +5513,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Loopback0
@@ -5323,6 +5530,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Self
@@ -5375,6 +5583,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5389,6 +5598,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: permit
+                is_secret: false
                 static_options:
                   values:
                     - permit
@@ -5406,6 +5616,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5422,6 +5633,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5436,6 +5648,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5488,6 +5701,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: ipv4
+                is_secret: false
                 static_options:
                   values:
                     - ipv4
@@ -5506,6 +5720,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Enabled
@@ -5523,6 +5738,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - VXLAN
@@ -5540,6 +5756,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Loopback0
@@ -5558,6 +5775,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5572,6 +5790,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5601,6 +5820,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5658,6 +5878,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5684,6 +5905,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ip
                 length: null
@@ -5698,6 +5920,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5712,6 +5935,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5726,6 +5950,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5740,6 +5965,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: ipv6
                 length: null
@@ -5766,6 +5992,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: Disabled
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -5814,6 +6041,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5828,6 +6056,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5856,6 +6085,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5872,6 +6102,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5964,6 +6195,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -5981,6 +6213,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Disabled
@@ -5998,12 +6231,14 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: OSPF
+                is_secret: false
                 static_options:
                   values:
                     - OSPF
                     - OSPFv3
                     - ISIS
                     - None
+                    - BGP
                 format: null
                 length: null
                 pattern: null
@@ -6029,6 +6264,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6090,4 +6326,4 @@
                   values:
                     - pods
         layout:
-          value: '{"pod":{"key":"pod","type":"INPUT","order":["commonBGPConfig","fbb6300c-0d27-4122-9f82-605126884e13","erDomains","RoleTagger","coreRouters","rrs","commonMlagConfig"]},"pods":{"key":"pods","isPageLayout":true,"type":"INPUT","showDefaultRow":false},"rrInterfaceParams":{"key":"rrInterfaceParams","type":"INPUT","order":["ReflectorTagger","rrDownlink"]},"erLinkDetails":{"key":"erLinkDetails","type":"INPUT","order":["c48e339d-d250-48cb-8226-c9382e455333","mlagInterfacesGroup","erNeighbors","EdgeTagger","loopback1Group","2efd1895-1a03-4507-a408-c0a1727f0d2e","eBgpNeighbors","interfacesCollection","staticRoutes"]},"asNumber":{"key":"asNumber","type":"INPUT","dependency":{"asNumber":{"value":["65100"],"mode":"HIDE"}}},"erDetails":{"key":"erDetails","isPageLayout":true,"type":"INPUT","showDefaultRow":false},"erMLAGInterface1":{"key":"erMLAGInterface1","type":"INPUT","dependency":{"erMLAGInterface2":{"value":["dummy"],"mode":"HIDE"}}},"erMLAGInterface2":{"key":"erMLAGInterface2","type":"INPUT","dependency":{}},"mlagLinkSubnet":{"key":"mlagLinkSubnet","type":"INPUT","dependency":{}},"internalVlan":{"key":"internalVlan","type":"INPUT","dependency":{}},"mlagPortChannelId":{"key":"mlagPortChannelId","type":"INPUT","dependency":{}},"virtualRouterMac":{"key":"virtualRouterMac","type":"INPUT","dependency":{}},"peASbase":{"key":"peASbase","type":"INPUT","dependency":{}},"coreLinkDetails":{"key":"coreLinkDetails","type":"INPUT","order":["coreNeighbor","CoreTagger","84f10518-20e1-4ec8-a5e5-c834fb1d95a4","coreeBgpNeighbors","corePrefixLists","corePeerGroups","coreInterfacesCollection","coreStaticRoutes"]},"fabricLinksSubnet":{"key":"fabricLinksSubnet","type":"INPUT","dependency":{}},"fabricSubnetMask":{"key":"fabricSubnetMask","type":"INPUT","dependency":{}},"peLoopback1Subnet":{"key":"peLoopback1Subnet","type":"INPUT","dependency":{"vxlanevpn":{"value":["SR","LDP","None","SR-TE","RSVP"],"mode":"HIDE"}}},"rrs":{"key":"rrs","isPageLayout":true,"type":"INPUT","showDefaultRow":false},"peLoopback0Subnet":{"key":"peLoopback0Subnet","type":"INPUT","dependency":{}},"rrLoopback0Subnet":{"key":"rrLoopback0Subnet","type":"INPUT","dependency":{}},"loopback1Ipv4Address":{"key":"loopback1Ipv4Address","dependency":{"evpnAndVxlan":{"value":["Disabled"],"mode":"HIDE"}},"type":"INPUT"},"fpenodeSegmentIndex":{"key":"fpenodeSegmentIndex","type":"INPUT","dependency":{"vxlanevpn":{"value":["LDP","RSVP","None","VXLAN"],"mode":"HIDE"}}},"pnodeSegmentIndex":{"key":"pnodeSegmentIndex","type":"INPUT","dependency":{"vxlanevpn":{"value":["LDP","RSVP","None","VXLAN"],"mode":"HIDE"}}},"srTiFla":{"key":"srTiFla","valueToLabelMap":{"YES":"OK","NO":"NO","Enabled":"Enabled","Disabled":"Disabled"},"dependency":{"vxlanevpn":{"value":["None","VXLAN","RSVP","LDP"],"mode":"HIDE"}},"type":"INPUT"},"endPoint":{"key":"endPoint","type":"INPUT","order":["tepolname","tepol"]},"tepol":{"key":"tepol","type":"INPUT","isPageLayout":true},"tepolname":{"key":"tepolname","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"tename":{"key":"tename","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"tedescription":{"key":"tedescription","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"color":{"key":"color","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"matchAllRTs":{"key":"matchAllRTs","type":"INPUT","dependency":{"vxlanevpn":{"value":["VXLAN","None","RSVP","LDP","SR"],"mode":"HIDE"}}},"rtValue":{"key":"rtValue","type":"INPUT","dependency":{"vxlanevpn":{"value":["VXLAN","None","RSVP","LDP","SR"],"mode":"HIDE"}}},"bindingId":{"key":"bindingId","type":"INPUT","dependency":{"vxlanevpn":{"value":["VXLAN","None","RSVP","LDP","SR"],"mode":"HIDE"}}},"teEndPoints":{"key":"teEndPoints","type":"INPUT","isPageLayout":true},"polvalue":{"key":"polvalue","type":"INPUT","order":["tename","tedescription","color","pathPreference","matchAllRTs","rTs","bindingId"]},"preference":{"key":"preference","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"segmentList":{"key":"segmentList","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"erDomains":{"key":"erDomains","type":"INPUT","showDefaultRow":false},"coreRouters":{"key":"coreRouters","showDefaultRow":false,"type":"INPUT","isPageLayout":true},"isisAuthKey":{"key":"isisAuthKey","type":"INPUT","dependency":{"igp":{"value":["OSPF"],"mode":"HIDE"}}},"ospfAuthKey":{"key":"ospfAuthKey","type":"INPUT","dependency":{"igp":{"value":["ISIS"],"mode":"HIDE"}}},"erNeighbors":{"key":"erNeighbors","type":"INPUT","showDefaultRow":false},"coreNeighbor":{"key":"coreNeighbor","type":"INPUT","showDefaultRow":false},"rrBGPDynamicNeighbors":{"key":"rrBGPDynamicNeighbors","dependency":{"evpnAndVxlan":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"evpnEnabled":{"key":"evpnEnabled","dependency":{"rrAS":{"value":[],"mode":"HIDE"}},"type":"INPUT"},"l3vpnEnabled":{"key":"l3vpnEnabled","dependency":{"rrAS":{"value":[],"mode":"HIDE"}},"type":"INPUT"},"bgpAuthKey":{"key":"bgpAuthKey","dependency":{"rrAS":{"value":[],"mode":"HIDE"}},"type":"INPUT"},"staticRoutes":{"key":"staticRoutes","type":"INPUT","isPageLayout":false},"prefixLists":{"key":"prefixLists","type":"INPUT","isPageLayout":true},"prefixListsSeqNums":{"key":"prefixListsSeqNums","type":"INPUT","isPageLayout":false},"prefixListsSeqNumsValue":{"key":"prefixListsSeqNumsValue","type":"INPUT","order":["prefixListsSeqNumber","prefixListsSeqPermitDeny","prefixListsSeqPrefix","prefixListsSeqPrefixLength","prefixListsMaskLength"]},"peerGroupRouteMapOutGroup":{"key":"peerGroupRouteMapOutGroup","type":"INPUT","order":["peerGroupRouteMapOutSeqNum","peerGroupRouteMapOutDescription","peerGroupRouteMapOutPermitDeny","peerGroupRouteMapOutPrefixList","peerGroupRouteMapOutMatchCommunity","c75f5d08-c59a-4ea0-8cd9-0d94864efc32","peerGroupRouteMapOutSetCommunity","29ed17df-f2d5-4820-925a-c64335f62962","peerGroupRouteMapOutasPathPrependRepeat"]},"ebgpCoreNeighborsPeerGroups":{"key":"ebgpCoreNeighborsPeerGroups","type":"INPUT","isPageLayout":true},"eBgpNeighborsGroup":{"key":"eBgpNeighborsGroup","type":"INPUT","order":["ebgpCoreNeighborsNeighborIp","0663aac1-edee-41f6-bd7a-6c026df2ffd1","eBgpNeighborsPeerAsn","erPeerGroup","pgVrf"]},"eBgpNeighbors":{"key":"eBgpNeighbors","isPageLayout":false,"type":"INPUT"},"externalInterfaces":{"key":"externalInterfaces","type":"INPUT","showDefaultRow":false,"isPageLayout":false},"redistributeConnected":{"key":"redistributeConnected","type":"INPUT","dependency":{"igp":{"value":["None"],"mode":"HIDE"}}},"redistributeStatic":{"key":"redistributeStatic","type":"INPUT","dependency":{"igp":{"value":["None"],"mode":"HIDE"}}},"rrHostname":{"key":"rrHostname","dependency":{},"type":"INPUT"},"peerGroup":{"key":"peerGroup","type":"INPUT","order":["peerGroupName","peerGroupdescription","pgErAddressFamily","469c9b54-a2a2-4441-bd1e-802be290fe8f","f48ec10c-0017-4b61-bbda-3494fc0c8378","asnSettings","pgAggregateRoutes","peerGroupRouteMapIn","peerGroupRouteMapOut","bgpOptions","redistributionRouteMap"]},"loopback0Address":{"key":"loopback0Address","dependency":{},"type":"INPUT"},"rrLinkPeer":{"key":"rrLinkPeer","type":"INPUT","dependency":{"evpnAndVxlan":{"value":["Disabled"],"mode":"HIDE"}}},"rrLinkPeerInterface":{"key":"rrLinkPeerInterface","type":"INPUT","dependency":{"evpnAndVxlan":{"value":["Disabled"],"mode":"HIDE"}}},"rripAddress":{"key":"rripAddress","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrSubnetMask":{"key":"rrSubnetMask","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrDownlink":{"key":"rrDownlink","isPageLayout":false,"showDefaultRow":false,"type":"INPUT"},"erNeighborDetails":{"key":"erNeighborDetails","type":"INPUT","order":["erDescription","eripAddress","erSubnetMask","erIpv6Address","erIpv6SubnetMask","erSpeed"]},"coreNeighborDetails":{"key":"coreNeighborDetails","type":"INPUT","order":["coreNeighborDescription","ipAddress","coreSubnetMask","coreIpv6Address","coreIpv6SubnetMask","coreNeighborSpeed"]},"rrNeighborParams":{"key":"rrNeighborParams","type":"INPUT","order":["rrDescripption","rripAddress","rrSubnetMask","rrIpv6Address","rrIpv6SubnetMask","rrSpeed","rrMtu"]},"rrHostnameGroup":{"key":"rrHostnameGroup","type":"INPUT","order":["rrHostname"]},"externalInterfaceGroup":{"key":"externalInterfaceGroup","type":"INPUT","order":["extInterfaceName","extvlandescription","extipAddress","extSubnetMask","extIpv6Address","extIpv6SubnetMask","extSpeed","extMtu","extVrf","extospf"]},"mlagInterfaces":{"key":"mlagInterfaces","showDefaultRow":false,"order":["mlagInterfacesInterfacesGroup"],"type":"INPUT","isPageLayout":false},"rrDescripption":{"key":"rrDescripption","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrSpeed":{"key":"rrSpeed","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrIntSpeed":{"key":"rrIntSpeed","dependency":{},"type":"INPUT"},"localSubnetMask":{"key":"localSubnetMask","dependency":{},"type":"INPUT"},"rrLocalIpAddress":{"key":"rrLocalIpAddress","dependency":{},"type":"INPUT"},"rrIntDescription":{"key":"rrIntDescription","dependency":{},"type":"INPUT"},"coreStaticRoutes":{"key":"coreStaticRoutes","type":"INPUT","isPageLayout":false},"corePrefixLists":{"key":"corePrefixLists","type":"INPUT","isPageLayout":true},"coreSeqNums":{"key":"coreSeqNums","type":"INPUT","isPageLayout":false},"corePeerGroups":{"key":"corePeerGroups","type":"INPUT","isPageLayout":true},"coreRouteMapOut":{"key":"coreRouteMapOut","type":"INPUT","isPageLayout":false},"coreRouteMapIn":{"key":"coreRouteMapIn","type":"INPUT","isPageLayout":false},"coreAggregateRoutes":{"key":"coreAggregateRoutes","type":"INPUT","isPageLayout":false},"coreeBgpNeighbors":{"key":"coreeBgpNeighbors","type":"INPUT","isPageLayout":false},"coreExternalInterfaces":{"key":"coreExternalInterfaces","type":"INPUT","isPageLayout":false,"showDefaultRow":false},"mlagOverrideGlobalSubnet":{"key":"mlagOverrideGlobalSubnet","type":"INPUT","order":["mlagIpAddress","mlagSubnetMask","mlagPeerAddress"]},"mlagInterfacesGroup":{"key":"mlagInterfacesGroup","type":"INPUT","order":["mlagRole","mlagInterfaces","mlagOverrideGlobalSubnet","reloadDelayMlag","reloadDelayNonMlag","285dc0a5-bdeb-469b-a2d2-42c0248351e6","dc46a109-c282-44ef-a02c-a96c01eae5fc","e3048f41-e43d-4e44-aeed-022c17abc9a2","9d3a1ae5-a7cc-4be2-94f6-96496123b9d1"]},"mlagInterfacesInterfacesGroup":{"key":"mlagInterfacesInterfacesGroup","type":"INPUT","order":["mlagDescription","mlagSpeed"]},"EdgeTagger":{"type":"TAGGER","parentKey":"erLinkDetails","key":"EdgeTagger","name":"Loopback 0","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"Assign Router ID tag to assign Loopback 0 address","columns":[{"tagLabel":"router_bgp.router_id","suggestedValues":[]}]},"CoreTagger":{"type":"TAGGER","parentKey":"coreLinkDetails","key":"CoreTagger","name":"Loopback0","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"","columns":[{"tagLabel":"router_bgp.router_id","suggestedValues":[]}]},"ReflectorTagger":{"type":"TAGGER","parentKey":"rrInterfaceParams","key":"ReflectorTagger","name":"Loopback0","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"","columns":[{"tagLabel":"router_bgp.router_id","suggestedValues":[]}],"dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"DeviceASNTagger":{"type":"TAGGER","parentKey":"asnSettings","key":"DeviceASNTagger","name":"Device ASN","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"Shows previously set ASN tag for a device, create ASN tag if no global ASN is set, or override Studio Global ASN.","columns":[{"tagLabel":"router_bgp.as","suggestedValues":[]}]},"CoreDeviceASNTagger":{"type":"TAGGER","parentKey":"coreAsnSettings","key":"CoreDeviceASNTagger","name":"Device ASN","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"","columns":[{"tagLabel":"router_bgp.as","suggestedValues":[]}]},"commonBGPConfig":{"key":"commonBGPConfig","type":"INPUT","order":["rrBGPDynamicNeighbors","globalAS","evpnAndVxlan","overlayType","vxlanEncapType","d8720caa-7acf-4ca0-96dc-43757416404a","bb50ef06-46e5-4a88-aacd-7f38589b2432","9e272fcc-2d02-48ec-80bc-32ccd37f0ce4","d72fa1f3-e2e8-4de9-bade-8620df20f04d"]},"RoleTagger":{"type":"TAGGER","parentKey":"pod","key":"RoleTagger","name":"Role Tags","assignmentType":"MULTIPLE","prepopulate":true,"tagType":"DEVICE","description":"Assign Core, Edge-Router or RR tags to devices","columns":[{"tagLabel":"Role","suggestedValues":["Core","Edge-Router","RR"]}]},"redistributionRouteMap":{"key":"redistributionRouteMap","type":"INPUT","isPageLayout":false},"asnSettings":{"key":"asnSettings","type":"INPUT","order":["DeviceASNTagger","pgLocalAs"]},"peerGroupRouteMapInrouteMapInGroup":{"key":"peerGroupRouteMapInrouteMapInGroup","type":"INPUT","order":["peerGroupRouteMapInseqNum","peerGroupRouteMapIndescription","peerGroupRouteMapInpermitDenyg","peerGroupRouteMapInprefixList","peerGroupRouteMapInMatchCommunity","859a97b3-6f65-4475-9fc7-d59b2f350f56","peerGroupRouteMapInSetCommunity","e27afcb3-e163-4c71-899a-12ce7a902b4c","peerGroupRouteMapInLocalPref","peerGroupRouteMapInAsPathPrependRepeat"]},"redistRmGroup":{"key":"redistRmGroup","type":"INPUT","order":["redistSeqnum","redistDescription","redistPermitDeny","redistPrefixList","redistMatchCommunity","redistSetTag"]},"coreSeqNumGroup":{"key":"coreSeqNumGroup","type":"INPUT","order":["plcoreseqNum","coreplpermitDeny","coreplprefix","coreplmatch","coreMaskLength"]},"coreAsnSettings":{"key":"coreAsnSettings","type":"INPUT","order":["coreLocalAs","CoreDeviceASNTagger"]},"coreeBgpNeighborsGroup":{"key":"coreeBgpNeighborsGroup","type":"INPUT","order":["coreNeighborIp","b90d29aa-2fc4-465d-bb9c-d0d7398d82f7","corePeerAsn","corePerGroup","coreVrf"]},"coreRedistRmGroup":{"key":"coreRedistRmGroup","type":"INPUT","order":["coreRedistSeqNum","coreRedistDescription","coreRedistPermitDeny","coreRedistPrefixListPolicy","coreRedistMatchCommunity","coreRedistSetTag"]},"coreRouteMapOutGroup":{"key":"coreRouteMapOutGroup","type":"INPUT","order":["corermoSeqNum","corermoDescription","corermoPermitDeny","corermoPrefixList","corermoMatchCommunity","629bb038-e805-4be8-84cf-3acbf529f29c","corermoSetCommunity","e607a6a6-06cd-4c11-8ba1-f1ed59e1aa0d","corermoasPathPrependRepeat"]},"coreRouteMapInGroup":{"key":"coreRouteMapInGroup","type":"INPUT","order":["corermiSeqNum","corermiDescription","corermiPermitDeny","corermiPrefixList","corermiMatchCommunity","0258df1d-88cf-4648-b3de-3e1f1887ecca","corermiSetCommunity","f8ba36d8-888f-4db1-bfe7-4e59c1e445e1","corermiLocalPref","corermiasPathPrependRepeat"]},"evpnAndVxlan":{"key":"evpnAndVxlan","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"extOspf":{"key":"extOspf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"bfd":{"key":"bfd","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"eextHopSelf":{"key":"nextHopSelf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"redistributeRoutes":{"key":"redistributeRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreNextHopSelf":{"key":"coreNextHopSelf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreRedistributeRoutes":{"key":"coreRedistributeRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreBfd":{"key":"coreBfd","valueToLabelMap":{"True":"Enabled","False":"Disabled"},"type":"INPUT"},"coreextOspf":{"key":"coreextOspf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"bgpOptions":{"key":"bgpOptions","type":"INPUT","order":["bgpNextHopType","peerGroupeBgpMultiHopTtl","updateSource","121c34c6-22cf-4614-946d-a760620eea6e","peerGroupMaximumAcceptedRoutes","bgpDistance","bfd","erOspfDefaultInformationOriginate","bgpDefaultInformationOriginate","redistributeRoutes","redistributeStaticRoutes","redistributeConnectedRoutes","redistributionVrf"]},"coreExternalInterfacesGroup":{"key":"coreExternalInterfacesGroup","type":"INPUT","order":["coreExtInterfaceName","coreExtDescription","coreextipAddress","coreextSubnetMask","coreextIpv6Address","coreextIpv6SubnetMask","coreextSpeed","coreextMtu","coreextVrf","coreextospf"]},"maxLsa":{"key":"maxLsa","dependency":{"igp":{"value":["OSPF","OSPFv3"],"mode":"SHOW"}},"type":"INPUT"},"vxlanEncapType":{"key":"vxlanEncapType","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"coreBgpOptions":{"key":"coreBgpOptions","type":"INPUT","order":["coreBgpNextHopType","coreeBgpMultiHopTtl","coreupdateSource","2e61d9fa-4b23-4cc9-a695-86e1f77ca59a","coreMaximumAcceptedRoutes","coreBgpDistance","coreBfd","coreOspfDefaultInformationOriginate","coreBgpDefaultInformationOriginate","coreRedistributeRoutes","coreRedistributeStaticRoutes","coreRedistributeConnectedRoutes"]},"redistributeStaticRoutes":{"key":"redistributeStaticRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"redistributeConnectedRoutes":{"key":"redistributeConnectedRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreRedistributeStaticRoutes":{"key":"coreRedistributeStaticRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreRedistributeConnectedRoutes":{"key":"coreRedistributeConnectedRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"corePeerGroup":{"key":"corePeerGroup","type":"INPUT","order":["corePeerGroupName","corepgDescription","corePeerGroupAddressFamily","1230af7d-81b5-47c7-8328-2979b4be6686","ed053e4e-2fce-48c1-b8f8-2e793103ad8c","coreAsnSettings","coreAggregateRoutes","coreRouteMapIn","coreRouteMapOut","coreBgpOptions","coreRedistributionRouteMap"]},"rrIpv6Address":{"key":"rrIpv6Address","type":"INPUT","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"rrIpv6SubnetMask":{"key":"rrIpv6SubnetMask","type":"INPUT","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"rrMtu":{"key":"rrMtu","type":"INPUT","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"d8720caa-7acf-4ca0-96dc-43757416404a":{"key":"d8720caa-7acf-4ca0-96dc-43757416404a","type":"INPUT","dependency":{"overlayType":{"value":["MPLS"],"mode":"SHOW"}}},"bb50ef06-46e5-4a88-aacd-7f38589b2432":{"key":"bb50ef06-46e5-4a88-aacd-7f38589b2432","type":"INPUT","dependency":{"d8720caa-7acf-4ca0-96dc-43757416404a":{"value":["SR","SR-TE"],"mode":"SHOW"}}},"c0156665-da6c-4995-b888-503403cd7b88":{"key":"c0156665-da6c-4995-b888-503403cd7b88","type":"INPUT","dependency":{"d8720caa-7acf-4ca0-96dc-43757416404a":{"value":["SR","SR-TE"],"mode":"SHOW"}}},"a502a50e-0309-47a4-be1c-8a7e6ea9b816":{"key":"a502a50e-0309-47a4-be1c-8a7e6ea9b816","type":"INPUT","dependency":{"d8720caa-7acf-4ca0-96dc-43757416404a":{"value":["SR","SR-TE"],"mode":"SHOW"}}},"fbb6300c-0d27-4122-9f82-605126884e13":{"key":"fbb6300c-0d27-4122-9f82-605126884e13","type":"INPUT","order":["igp","maxLsa","redistributeConnected","redistributeStatic","cf279f78-5af9-4aad-b8ef-9dfba21ec135"]},"554d9f27-ca29-4e48-b794-ff2d96b13e7e":{"key":"554d9f27-ca29-4e48-b794-ff2d96b13e7e","type":"INPUT","dependency":{"pgErAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"d46ee701-029d-4790-ac8b-3a625675ff03":{"key":"d46ee701-029d-4790-ac8b-3a625675ff03","dependency":{"corePeerGroupAddressFamily":{"value":["evpn"],"mode":"SHOW"}},"type":"INPUT"},"5acb7d5f-acbb-4190-80ef-a45a76e1aa7c":{"key":"5acb7d5f-acbb-4190-80ef-a45a76e1aa7c","type":"INPUT","dependency":{"e3ea55c2-a61f-4c45-8800-9689f9035819":{"value":["MPLS"],"mode":"SHOW"}}},"00bb1945-685c-4ca9-9466-5c0d427a4fc8":{"key":"00bb1945-685c-4ca9-9466-5c0d427a4fc8","type":"INPUT","dependency":{"a1989426-7397-4ca9-bc80-83ab312bfa38":{"value":["MPLS"],"mode":"SHOW"}}},"a1989426-7397-4ca9-bc80-83ab312bfa38":{"key":"a1989426-7397-4ca9-bc80-83ab312bfa38","type":"INPUT","dependency":{"corePeerGroupAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"e3ea55c2-a61f-4c45-8800-9689f9035819":{"key":"e3ea55c2-a61f-4c45-8800-9689f9035819","type":"INPUT","dependency":{"pgErAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"eee5537c-97fe-436c-b42a-a97f9cbefdeb":{"key":"eee5537c-97fe-436c-b42a-a97f9cbefdeb","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"5357a7d3-fbf5-431e-be28-a617317b6928":{"key":"5357a7d3-fbf5-431e-be28-a617317b6928","type":"INPUT","dependency":{"pgErAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"2e029c65-f809-4cd4-9471-f725b02b1b20":{"key":"2e029c65-f809-4cd4-9471-f725b02b1b20","type":"INPUT","dependency":{"corePeerGroupAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"9e272fcc-2d02-48ec-80bc-32ccd37f0ce4":{"key":"9e272fcc-2d02-48ec-80bc-32ccd37f0ce4","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"0562f86b-76ef-4472-ae62-353e60d3f791":{"key":"0562f86b-76ef-4472-ae62-353e60d3f791","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"f48ec10c-0017-4b61-bbda-3494fc0c8378":{"key":"f48ec10c-0017-4b61-bbda-3494fc0c8378","type":"INPUT","order":["554d9f27-ca29-4e48-b794-ff2d96b13e7e","5357a7d3-fbf5-431e-be28-a617317b6928","5acb7d5f-acbb-4190-80ef-a45a76e1aa7c","e3ea55c2-a61f-4c45-8800-9689f9035819","58593301-c4e0-4198-9ff6-48be1757132d"]},"cf279f78-5af9-4aad-b8ef-9dfba21ec135":{"key":"cf279f78-5af9-4aad-b8ef-9dfba21ec135","type":"INPUT","dependency":{"igp":{"value":["None"],"mode":"HIDE"}}},"ed053e4e-2fce-48c1-b8f8-2e793103ad8c":{"key":"ed053e4e-2fce-48c1-b8f8-2e793103ad8c","type":"INPUT","order":["d46ee701-029d-4790-ac8b-3a625675ff03","a1989426-7397-4ca9-bc80-83ab312bfa38","80cc8cdd-e64a-47e7-ae43-f9a74b06e675","00bb1945-685c-4ca9-9466-5c0d427a4fc8","2e029c65-f809-4cd4-9471-f725b02b1b20"]},"mlagRole":{"key":"mlagRole","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagDescription":{"key":"mlagDescription","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagSpeed":{"key":"mlagSpeed","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagIpAddress":{"key":"mlagIpAddress","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagSubnetMask":{"key":"mlagSubnetMask","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagPeerAddress":{"key":"mlagPeerAddress","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"reloadDelayMlag":{"key":"reloadDelayMlag","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"reloadDelayNonMlag":{"key":"reloadDelayNonMlag","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"285dc0a5-bdeb-469b-a2d2-42c0248351e6":{"key":"285dc0a5-bdeb-469b-a2d2-42c0248351e6","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"dc46a109-c282-44ef-a02c-a96c01eae5fc":{"key":"dc46a109-c282-44ef-a02c-a96c01eae5fc","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"e3048f41-e43d-4e44-aeed-022c17abc9a2":{"key":"e3048f41-e43d-4e44-aeed-022c17abc9a2","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"9d3a1ae5-a7cc-4be2-94f6-96496123b9d1":{"key":"9d3a1ae5-a7cc-4be2-94f6-96496123b9d1","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}}}'
+          value: '{"pod":{"key":"pod","type":"INPUT","order":["commonBGPConfig","fbb6300c-0d27-4122-9f82-605126884e13","erDomains","RoleTagger","coreRouters","rrs","commonMlagConfig"]},"pods":{"key":"pods","isPageLayout":true,"type":"INPUT","showDefaultRow":false},"rrInterfaceParams":{"key":"rrInterfaceParams","type":"INPUT","order":["ReflectorTagger","rrDownlink"]},"erLinkDetails":{"key":"erLinkDetails","type":"INPUT","order":["c48e339d-d250-48cb-8226-c9382e455333","mlagInterfacesGroup","erNeighbors","EdgeTagger","loopback1Group","2efd1895-1a03-4507-a408-c0a1727f0d2e","eBgpNeighbors","interfacesCollection","staticRoutes"]},"asNumber":{"key":"asNumber","type":"INPUT","dependency":{"asNumber":{"value":["65100"],"mode":"HIDE"}}},"erDetails":{"key":"erDetails","isPageLayout":true,"type":"INPUT","showDefaultRow":false},"erMLAGInterface1":{"key":"erMLAGInterface1","type":"INPUT","dependency":{"erMLAGInterface2":{"value":["dummy"],"mode":"HIDE"}}},"erMLAGInterface2":{"key":"erMLAGInterface2","type":"INPUT","dependency":{}},"mlagLinkSubnet":{"key":"mlagLinkSubnet","type":"INPUT","dependency":{}},"internalVlan":{"key":"internalVlan","type":"INPUT","dependency":{}},"mlagPortChannelId":{"key":"mlagPortChannelId","type":"INPUT","dependency":{}},"virtualRouterMac":{"key":"virtualRouterMac","type":"INPUT","dependency":{}},"peASbase":{"key":"peASbase","type":"INPUT","dependency":{}},"coreLinkDetails":{"key":"coreLinkDetails","type":"INPUT","order":["coreNeighbor","CoreTagger","84f10518-20e1-4ec8-a5e5-c834fb1d95a4","coreeBgpNeighbors","corePrefixLists","corePeerGroups","coreInterfacesCollection","coreStaticRoutes"]},"fabricLinksSubnet":{"key":"fabricLinksSubnet","type":"INPUT","dependency":{}},"fabricSubnetMask":{"key":"fabricSubnetMask","type":"INPUT","dependency":{}},"peLoopback1Subnet":{"key":"peLoopback1Subnet","type":"INPUT","dependency":{"vxlanevpn":{"value":["SR","LDP","None","SR-TE","RSVP"],"mode":"HIDE"}}},"rrs":{"key":"rrs","isPageLayout":true,"type":"INPUT","showDefaultRow":false},"peLoopback0Subnet":{"key":"peLoopback0Subnet","type":"INPUT","dependency":{}},"rrLoopback0Subnet":{"key":"rrLoopback0Subnet","type":"INPUT","dependency":{}},"loopback1Ipv4Address":{"key":"loopback1Ipv4Address","dependency":{"evpnAndVxlan":{"value":["Disabled"],"mode":"HIDE"}},"type":"INPUT"},"fpenodeSegmentIndex":{"key":"fpenodeSegmentIndex","type":"INPUT","dependency":{"vxlanevpn":{"value":["LDP","RSVP","None","VXLAN"],"mode":"HIDE"}}},"pnodeSegmentIndex":{"key":"pnodeSegmentIndex","type":"INPUT","dependency":{"vxlanevpn":{"value":["LDP","RSVP","None","VXLAN"],"mode":"HIDE"}}},"srTiFla":{"key":"srTiFla","valueToLabelMap":{"YES":"OK","NO":"NO","Enabled":"Enabled","Disabled":"Disabled"},"dependency":{"vxlanevpn":{"value":["None","VXLAN","RSVP","LDP"],"mode":"HIDE"}},"type":"INPUT"},"endPoint":{"key":"endPoint","type":"INPUT","order":["tepolname","tepol"]},"tepol":{"key":"tepol","type":"INPUT","isPageLayout":true},"tepolname":{"key":"tepolname","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"tename":{"key":"tename","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"tedescription":{"key":"tedescription","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"color":{"key":"color","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"matchAllRTs":{"key":"matchAllRTs","type":"INPUT","dependency":{"vxlanevpn":{"value":["VXLAN","None","RSVP","LDP","SR"],"mode":"HIDE"}}},"rtValue":{"key":"rtValue","type":"INPUT","dependency":{"vxlanevpn":{"value":["VXLAN","None","RSVP","LDP","SR"],"mode":"HIDE"}}},"bindingId":{"key":"bindingId","type":"INPUT","dependency":{"vxlanevpn":{"value":["VXLAN","None","RSVP","LDP","SR"],"mode":"HIDE"}}},"teEndPoints":{"key":"teEndPoints","type":"INPUT","isPageLayout":true},"polvalue":{"key":"polvalue","type":"INPUT","order":["tename","tedescription","color","pathPreference","matchAllRTs","rTs","bindingId"]},"preference":{"key":"preference","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"segmentList":{"key":"segmentList","dependency":{"vxlanevpn":{"value":["SR-TE"],"mode":"SHOW"}},"type":"INPUT"},"erDomains":{"key":"erDomains","type":"INPUT","showDefaultRow":false},"coreRouters":{"key":"coreRouters","showDefaultRow":false,"type":"INPUT","isPageLayout":true},"isisAuthKey":{"key":"isisAuthKey","type":"INPUT","dependency":{"igp":{"value":["OSPF"],"mode":"HIDE"}}},"ospfAuthKey":{"key":"ospfAuthKey","type":"INPUT","dependency":{"igp":{"value":["ISIS"],"mode":"HIDE"}}},"erNeighbors":{"key":"erNeighbors","type":"INPUT","showDefaultRow":false},"coreNeighbor":{"key":"coreNeighbor","type":"INPUT","showDefaultRow":false},"rrBGPDynamicNeighbors":{"key":"rrBGPDynamicNeighbors","dependency":{"evpnAndVxlan":{"value":[false],"mode":"HIDE"}},"type":"INPUT"},"evpnEnabled":{"key":"evpnEnabled","dependency":{"rrAS":{"value":[],"mode":"HIDE"}},"type":"INPUT"},"l3vpnEnabled":{"key":"l3vpnEnabled","dependency":{"rrAS":{"value":[],"mode":"HIDE"}},"type":"INPUT"},"bgpAuthKey":{"key":"bgpAuthKey","dependency":{"rrAS":{"value":[],"mode":"HIDE"}},"type":"INPUT"},"staticRoutes":{"key":"staticRoutes","type":"INPUT","isPageLayout":false},"prefixLists":{"key":"prefixLists","type":"INPUT","isPageLayout":true},"prefixListsSeqNums":{"key":"prefixListsSeqNums","type":"INPUT","isPageLayout":false},"prefixListsSeqNumsValue":{"key":"prefixListsSeqNumsValue","type":"INPUT","order":["prefixListsSeqNumber","prefixListsSeqPermitDeny","prefixListsSeqPrefix","prefixListsSeqPrefixLength","prefixListsMaskLength"]},"peerGroupRouteMapOutGroup":{"key":"peerGroupRouteMapOutGroup","type":"INPUT","order":["peerGroupRouteMapOutSeqNum","peerGroupRouteMapOutDescription","peerGroupRouteMapOutPermitDeny","peerGroupRouteMapOutPrefixList","peerGroupRouteMapOutMatchCommunity","c75f5d08-c59a-4ea0-8cd9-0d94864efc32","peerGroupRouteMapOutSetCommunity","29ed17df-f2d5-4820-925a-c64335f62962","peerGroupRouteMapOutasPathPrependRepeat"]},"ebgpCoreNeighborsPeerGroups":{"key":"ebgpCoreNeighborsPeerGroups","type":"INPUT","isPageLayout":true},"eBgpNeighborsGroup":{"key":"eBgpNeighborsGroup","type":"INPUT","order":["ebgpCoreNeighborsNeighborIp","0663aac1-edee-41f6-bd7a-6c026df2ffd1","eBgpNeighborsPeerAsn","erPeerGroup","pgVrf"]},"eBgpNeighbors":{"key":"eBgpNeighbors","isPageLayout":false,"type":"INPUT"},"externalInterfaces":{"key":"externalInterfaces","type":"INPUT","showDefaultRow":false,"isPageLayout":false},"redistributeConnected":{"key":"redistributeConnected","type":"INPUT","dependency":{"igp":{"value":["None"],"mode":"HIDE"}}},"redistributeStatic":{"key":"redistributeStatic","type":"INPUT","dependency":{"igp":{"value":["None"],"mode":"HIDE"}}},"rrHostname":{"key":"rrHostname","dependency":{},"type":"INPUT"},"peerGroup":{"key":"peerGroup","type":"INPUT","order":["peerGroupName","peerGroupdescription","pgErAddressFamily","469c9b54-a2a2-4441-bd1e-802be290fe8f","f48ec10c-0017-4b61-bbda-3494fc0c8378","asnSettings","pgAggregateRoutes","peerGroupRouteMapIn","peerGroupRouteMapOut","bgpOptions","redistributionRouteMap"]},"loopback0Address":{"key":"loopback0Address","dependency":{},"type":"INPUT"},"rrLinkPeer":{"key":"rrLinkPeer","type":"INPUT","dependency":{"evpnAndVxlan":{"value":["Disabled"],"mode":"HIDE"}}},"rrLinkPeerInterface":{"key":"rrLinkPeerInterface","type":"INPUT","dependency":{"evpnAndVxlan":{"value":["Disabled"],"mode":"HIDE"}}},"rripAddress":{"key":"rripAddress","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrSubnetMask":{"key":"rrSubnetMask","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrDownlink":{"key":"rrDownlink","isPageLayout":false,"showDefaultRow":false,"type":"INPUT"},"erNeighborDetails":{"key":"erNeighborDetails","type":"INPUT","order":["erDescription","eripAddress","erSubnetMask","erIpv6Address","erIpv6SubnetMask","erSpeed","324e1505-c0e8-4f0e-8b61-fd376ffae9b3"]},"coreNeighborDetails":{"key":"coreNeighborDetails","type":"INPUT","order":["coreNeighborDescription","ipAddress","coreSubnetMask","coreIpv6Address","coreIpv6SubnetMask","coreNeighborSpeed","81a7cc89-0f98-4b79-81e9-fe7dbb6668bc"]},"rrNeighborParams":{"key":"rrNeighborParams","type":"INPUT","order":["rrDescripption","rripAddress","rrSubnetMask","rrIpv6Address","rrIpv6SubnetMask","rrSpeed","rrMtu"]},"rrHostnameGroup":{"key":"rrHostnameGroup","type":"INPUT","order":["rrHostname"]},"externalInterfaceGroup":{"key":"externalInterfaceGroup","type":"INPUT","order":["extInterfaceName","extvlandescription","extipAddress","extSubnetMask","extIpv6Address","extIpv6SubnetMask","extSpeed","extMtu","extVrf","extospf"]},"mlagInterfaces":{"key":"mlagInterfaces","showDefaultRow":false,"order":["mlagInterfacesInterfacesGroup"],"type":"INPUT","isPageLayout":false},"rrDescripption":{"key":"rrDescripption","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrSpeed":{"key":"rrSpeed","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}},"type":"INPUT"},"rrIntSpeed":{"key":"rrIntSpeed","dependency":{},"type":"INPUT"},"localSubnetMask":{"key":"localSubnetMask","dependency":{},"type":"INPUT"},"rrLocalIpAddress":{"key":"rrLocalIpAddress","dependency":{},"type":"INPUT"},"rrIntDescription":{"key":"rrIntDescription","dependency":{},"type":"INPUT"},"coreStaticRoutes":{"key":"coreStaticRoutes","type":"INPUT","isPageLayout":false},"corePrefixLists":{"key":"corePrefixLists","type":"INPUT","isPageLayout":true},"coreSeqNums":{"key":"coreSeqNums","type":"INPUT","isPageLayout":false},"corePeerGroups":{"key":"corePeerGroups","type":"INPUT","isPageLayout":true},"coreRouteMapOut":{"key":"coreRouteMapOut","type":"INPUT","isPageLayout":false},"coreRouteMapIn":{"key":"coreRouteMapIn","type":"INPUT","isPageLayout":false},"coreAggregateRoutes":{"key":"coreAggregateRoutes","type":"INPUT","isPageLayout":false},"coreeBgpNeighbors":{"key":"coreeBgpNeighbors","type":"INPUT","isPageLayout":false},"coreExternalInterfaces":{"key":"coreExternalInterfaces","type":"INPUT","isPageLayout":false,"showDefaultRow":false},"mlagOverrideGlobalSubnet":{"key":"mlagOverrideGlobalSubnet","type":"INPUT","order":["mlagIpAddress","mlagSubnetMask","mlagPeerAddress"]},"mlagInterfacesGroup":{"key":"mlagInterfacesGroup","type":"INPUT","order":["mlagRole","mlagInterfaces","mlagOverrideGlobalSubnet","reloadDelayMlag","reloadDelayNonMlag","285dc0a5-bdeb-469b-a2d2-42c0248351e6","dc46a109-c282-44ef-a02c-a96c01eae5fc","e3048f41-e43d-4e44-aeed-022c17abc9a2","9d3a1ae5-a7cc-4be2-94f6-96496123b9d1","3635f69a-1796-4997-9bbe-c7931a430f48"]},"mlagInterfacesInterfacesGroup":{"key":"mlagInterfacesInterfacesGroup","type":"INPUT","order":["mlagDescription","mlagSpeed"]},"EdgeTagger":{"type":"TAGGER","parentKey":"erLinkDetails","key":"EdgeTagger","name":"Loopback 0","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"Assign Router ID tag to assign Loopback 0 address","columns":[{"tagLabel":"router_bgp.router_id","suggestedValues":[]}]},"CoreTagger":{"type":"TAGGER","parentKey":"coreLinkDetails","key":"CoreTagger","name":"Loopback0","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"","columns":[{"tagLabel":"router_bgp.router_id","suggestedValues":[]}]},"ReflectorTagger":{"type":"TAGGER","parentKey":"rrInterfaceParams","key":"ReflectorTagger","name":"Loopback0","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"","columns":[{"tagLabel":"router_bgp.router_id","suggestedValues":[]}],"dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"DeviceASNTagger":{"type":"TAGGER","parentKey":"asnSettings","key":"DeviceASNTagger","name":"Device ASN","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"Shows previously set ASN tag for a device, create ASN tag if no global ASN is set, or override Studio Global ASN.","columns":[{"tagLabel":"router_bgp.as","suggestedValues":[]}]},"CoreDeviceASNTagger":{"type":"TAGGER","parentKey":"coreAsnSettings","key":"CoreDeviceASNTagger","name":"Device ASN","assignmentType":"SINGLE","prepopulate":true,"tagType":"DEVICE","description":"","columns":[{"tagLabel":"router_bgp.as","suggestedValues":[]}]},"commonBGPConfig":{"key":"commonBGPConfig","type":"INPUT","order":["rrBGPDynamicNeighbors","globalAS","evpnAndVxlan","overlayType","vxlanEncapType","d8720caa-7acf-4ca0-96dc-43757416404a","bb50ef06-46e5-4a88-aacd-7f38589b2432","9e272fcc-2d02-48ec-80bc-32ccd37f0ce4","d72fa1f3-e2e8-4de9-bade-8620df20f04d"]},"RoleTagger":{"type":"TAGGER","parentKey":"pod","key":"RoleTagger","name":"Role Tags","assignmentType":"MULTIPLE","prepopulate":true,"tagType":"DEVICE","description":"Assign Core, Edge-Router or RR tags to devices","columns":[{"tagLabel":"Role","suggestedValues":["Core","Edge-Router","RR"]}]},"redistributionRouteMap":{"key":"redistributionRouteMap","type":"INPUT","isPageLayout":false},"asnSettings":{"key":"asnSettings","type":"INPUT","order":["DeviceASNTagger","pgLocalAs"]},"peerGroupRouteMapInrouteMapInGroup":{"key":"peerGroupRouteMapInrouteMapInGroup","type":"INPUT","order":["peerGroupRouteMapInseqNum","peerGroupRouteMapIndescription","peerGroupRouteMapInpermitDenyg","peerGroupRouteMapInprefixList","peerGroupRouteMapInMatchCommunity","859a97b3-6f65-4475-9fc7-d59b2f350f56","peerGroupRouteMapInSetCommunity","e27afcb3-e163-4c71-899a-12ce7a902b4c","peerGroupRouteMapInLocalPref","peerGroupRouteMapInAsPathPrependRepeat"]},"redistRmGroup":{"key":"redistRmGroup","type":"INPUT","order":["redistSeqnum","redistDescription","redistPermitDeny","redistPrefixList","redistMatchCommunity","redistSetTag"]},"coreSeqNumGroup":{"key":"coreSeqNumGroup","type":"INPUT","order":["plcoreseqNum","coreplpermitDeny","coreplprefix","coreplmatch","coreMaskLength"]},"coreAsnSettings":{"key":"coreAsnSettings","type":"INPUT","order":["coreLocalAs","CoreDeviceASNTagger"]},"coreeBgpNeighborsGroup":{"key":"coreeBgpNeighborsGroup","type":"INPUT","order":["coreNeighborIp","b90d29aa-2fc4-465d-bb9c-d0d7398d82f7","corePeerAsn","corePerGroup","coreVrf"]},"coreRedistRmGroup":{"key":"coreRedistRmGroup","type":"INPUT","order":["coreRedistSeqNum","coreRedistDescription","coreRedistPermitDeny","coreRedistPrefixListPolicy","coreRedistMatchCommunity","coreRedistSetTag"]},"coreRouteMapOutGroup":{"key":"coreRouteMapOutGroup","type":"INPUT","order":["corermoSeqNum","corermoDescription","corermoPermitDeny","corermoPrefixList","corermoMatchCommunity","629bb038-e805-4be8-84cf-3acbf529f29c","corermoSetCommunity","e607a6a6-06cd-4c11-8ba1-f1ed59e1aa0d","corermoasPathPrependRepeat"]},"coreRouteMapInGroup":{"key":"coreRouteMapInGroup","type":"INPUT","order":["corermiSeqNum","corermiDescription","corermiPermitDeny","corermiPrefixList","corermiMatchCommunity","0258df1d-88cf-4648-b3de-3e1f1887ecca","corermiSetCommunity","f8ba36d8-888f-4db1-bfe7-4e59c1e445e1","corermiLocalPref","corermiasPathPrependRepeat"]},"evpnAndVxlan":{"key":"evpnAndVxlan","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"extOspf":{"key":"extOspf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"bfd":{"key":"bfd","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"eextHopSelf":{"key":"nextHopSelf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"redistributeRoutes":{"key":"redistributeRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreNextHopSelf":{"key":"coreNextHopSelf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreRedistributeRoutes":{"key":"coreRedistributeRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreBfd":{"key":"coreBfd","valueToLabelMap":{"True":"Enabled","False":"Disabled"},"type":"INPUT"},"coreextOspf":{"key":"coreextOspf","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"bgpOptions":{"key":"bgpOptions","type":"INPUT","order":["bgpNextHopType","peerGroupeBgpMultiHopTtl","updateSource","121c34c6-22cf-4614-946d-a760620eea6e","peerGroupMaximumAcceptedRoutes","bgpDistance","bfd","erOspfDefaultInformationOriginate","bgpDefaultInformationOriginate","redistributeRoutes","redistributeStaticRoutes","redistributeConnectedRoutes","redistributionVrf"]},"coreExternalInterfacesGroup":{"key":"coreExternalInterfacesGroup","type":"INPUT","order":["coreExtInterfaceName","coreExtDescription","coreextipAddress","coreextSubnetMask","coreextIpv6Address","coreextIpv6SubnetMask","coreextSpeed","coreextMtu","coreextVrf","coreextospf"]},"maxLsa":{"key":"maxLsa","dependency":{"igp":{"value":["OSPF","OSPFv3"],"mode":"SHOW"}},"type":"INPUT"},"vxlanEncapType":{"key":"vxlanEncapType","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"coreBgpOptions":{"key":"coreBgpOptions","type":"INPUT","order":["coreBgpNextHopType","coreeBgpMultiHopTtl","coreupdateSource","2e61d9fa-4b23-4cc9-a695-86e1f77ca59a","coreMaximumAcceptedRoutes","coreBgpDistance","coreBfd","coreOspfDefaultInformationOriginate","coreBgpDefaultInformationOriginate","coreRedistributeRoutes","coreRedistributeStaticRoutes","coreRedistributeConnectedRoutes"]},"redistributeStaticRoutes":{"key":"redistributeStaticRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"redistributeConnectedRoutes":{"key":"redistributeConnectedRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreRedistributeStaticRoutes":{"key":"coreRedistributeStaticRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"coreRedistributeConnectedRoutes":{"key":"coreRedistributeConnectedRoutes","type":"INPUT","valueToLabelMap":{"True":"Enabled","False":"Disabled"}},"corePeerGroup":{"key":"corePeerGroup","type":"INPUT","order":["corePeerGroupName","corepgDescription","corePeerGroupAddressFamily","1230af7d-81b5-47c7-8328-2979b4be6686","ed053e4e-2fce-48c1-b8f8-2e793103ad8c","coreAsnSettings","coreAggregateRoutes","coreRouteMapIn","coreRouteMapOut","coreBgpOptions","coreRedistributionRouteMap"]},"rrIpv6Address":{"key":"rrIpv6Address","type":"INPUT","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"rrIpv6SubnetMask":{"key":"rrIpv6SubnetMask","type":"INPUT","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"rrMtu":{"key":"rrMtu","type":"INPUT","dependency":{"evpnAndVxlan":{"value":[true],"mode":"SHOW"}}},"d8720caa-7acf-4ca0-96dc-43757416404a":{"key":"d8720caa-7acf-4ca0-96dc-43757416404a","type":"INPUT","dependency":{"overlayType":{"value":["MPLS"],"mode":"SHOW"}}},"bb50ef06-46e5-4a88-aacd-7f38589b2432":{"key":"bb50ef06-46e5-4a88-aacd-7f38589b2432","type":"INPUT","dependency":{"d8720caa-7acf-4ca0-96dc-43757416404a":{"value":["SR","SR-TE"],"mode":"SHOW"}}},"c0156665-da6c-4995-b888-503403cd7b88":{"key":"c0156665-da6c-4995-b888-503403cd7b88","type":"INPUT","dependency":{"d8720caa-7acf-4ca0-96dc-43757416404a":{"value":["SR","SR-TE"],"mode":"SHOW"}}},"a502a50e-0309-47a4-be1c-8a7e6ea9b816":{"key":"a502a50e-0309-47a4-be1c-8a7e6ea9b816","type":"INPUT","dependency":{"d8720caa-7acf-4ca0-96dc-43757416404a":{"value":["SR","SR-TE"],"mode":"SHOW"}}},"fbb6300c-0d27-4122-9f82-605126884e13":{"key":"fbb6300c-0d27-4122-9f82-605126884e13","type":"INPUT","order":["igp","maxLsa","redistributeConnected","redistributeStatic","cf279f78-5af9-4aad-b8ef-9dfba21ec135"]},"554d9f27-ca29-4e48-b794-ff2d96b13e7e":{"key":"554d9f27-ca29-4e48-b794-ff2d96b13e7e","type":"INPUT","dependency":{"pgErAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"d46ee701-029d-4790-ac8b-3a625675ff03":{"key":"d46ee701-029d-4790-ac8b-3a625675ff03","dependency":{"corePeerGroupAddressFamily":{"value":["evpn"],"mode":"SHOW"}},"type":"INPUT"},"5acb7d5f-acbb-4190-80ef-a45a76e1aa7c":{"key":"5acb7d5f-acbb-4190-80ef-a45a76e1aa7c","type":"INPUT","dependency":{"e3ea55c2-a61f-4c45-8800-9689f9035819":{"value":["MPLS"],"mode":"SHOW"}}},"00bb1945-685c-4ca9-9466-5c0d427a4fc8":{"key":"00bb1945-685c-4ca9-9466-5c0d427a4fc8","type":"INPUT","dependency":{"a1989426-7397-4ca9-bc80-83ab312bfa38":{"value":["MPLS"],"mode":"SHOW"}}},"a1989426-7397-4ca9-bc80-83ab312bfa38":{"key":"a1989426-7397-4ca9-bc80-83ab312bfa38","type":"INPUT","dependency":{"corePeerGroupAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"e3ea55c2-a61f-4c45-8800-9689f9035819":{"key":"e3ea55c2-a61f-4c45-8800-9689f9035819","type":"INPUT","dependency":{"pgErAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"eee5537c-97fe-436c-b42a-a97f9cbefdeb":{"key":"eee5537c-97fe-436c-b42a-a97f9cbefdeb","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"5357a7d3-fbf5-431e-be28-a617317b6928":{"key":"5357a7d3-fbf5-431e-be28-a617317b6928","type":"INPUT","dependency":{"pgErAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"2e029c65-f809-4cd4-9471-f725b02b1b20":{"key":"2e029c65-f809-4cd4-9471-f725b02b1b20","type":"INPUT","dependency":{"corePeerGroupAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"9e272fcc-2d02-48ec-80bc-32ccd37f0ce4":{"key":"9e272fcc-2d02-48ec-80bc-32ccd37f0ce4","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"0562f86b-76ef-4472-ae62-353e60d3f791":{"key":"0562f86b-76ef-4472-ae62-353e60d3f791","type":"INPUT","dependency":{"overlayType":{"value":["VXLAN"],"mode":"SHOW"}}},"f48ec10c-0017-4b61-bbda-3494fc0c8378":{"key":"f48ec10c-0017-4b61-bbda-3494fc0c8378","type":"INPUT","order":["554d9f27-ca29-4e48-b794-ff2d96b13e7e","5357a7d3-fbf5-431e-be28-a617317b6928","5acb7d5f-acbb-4190-80ef-a45a76e1aa7c","e3ea55c2-a61f-4c45-8800-9689f9035819","58593301-c4e0-4198-9ff6-48be1757132d"]},"cf279f78-5af9-4aad-b8ef-9dfba21ec135":{"key":"cf279f78-5af9-4aad-b8ef-9dfba21ec135","type":"INPUT","dependency":{"igp":{"value":["None"],"mode":"HIDE"}}},"ed053e4e-2fce-48c1-b8f8-2e793103ad8c":{"key":"ed053e4e-2fce-48c1-b8f8-2e793103ad8c","type":"INPUT","order":["d46ee701-029d-4790-ac8b-3a625675ff03","a1989426-7397-4ca9-bc80-83ab312bfa38","80cc8cdd-e64a-47e7-ae43-f9a74b06e675","00bb1945-685c-4ca9-9466-5c0d427a4fc8","2e029c65-f809-4cd4-9471-f725b02b1b20"]},"mlagRole":{"key":"mlagRole","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagDescription":{"key":"mlagDescription","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagSpeed":{"key":"mlagSpeed","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagIpAddress":{"key":"mlagIpAddress","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagSubnetMask":{"key":"mlagSubnetMask","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"mlagPeerAddress":{"key":"mlagPeerAddress","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"reloadDelayMlag":{"key":"reloadDelayMlag","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"reloadDelayNonMlag":{"key":"reloadDelayNonMlag","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"285dc0a5-bdeb-469b-a2d2-42c0248351e6":{"key":"285dc0a5-bdeb-469b-a2d2-42c0248351e6","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"dc46a109-c282-44ef-a02c-a96c01eae5fc":{"key":"dc46a109-c282-44ef-a02c-a96c01eae5fc","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"e3048f41-e43d-4e44-aeed-022c17abc9a2":{"key":"e3048f41-e43d-4e44-aeed-022c17abc9a2","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"9d3a1ae5-a7cc-4be2-94f6-96496123b9d1":{"key":"9d3a1ae5-a7cc-4be2-94f6-96496123b9d1","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}},"58593301-c4e0-4198-9ff6-48be1757132d":{"key":"58593301-c4e0-4198-9ff6-48be1757132d","type":"INPUT","dependency":{"pgErAddressFamily":{"value":["evpn"],"mode":"SHOW"}}},"3635f69a-1796-4997-9bbe-c7931a430f48":{"key":"3635f69a-1796-4997-9bbe-c7931a430f48","type":"INPUT","dependency":{"c48e339d-d250-48cb-8226-c9382e455333":{"value":[true],"mode":"SHOW"}}}}'
