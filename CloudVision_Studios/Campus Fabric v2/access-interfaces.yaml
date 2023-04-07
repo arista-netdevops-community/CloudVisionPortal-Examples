@@ -1073,11 +1073,17 @@
                       if port_profile["poe"].get("priority"):
                           tmp_port_profile["poe"]["priority"] = port_profile["poe"]["priority"]
                       if port_profile["poe"].get("rebootAction"):
-                          tmp_port_profile["poe"]["reboot_action"] = port_profile["poe"]["rebootAction"]
+                          tmp_port_profile["poe"]["reboot"] = {
+                            "action": port_profile["poe"]["rebootAction"]
+                          }
                       if port_profile["poe"].get("linkDownAction"):
-                          tmp_port_profile["poe"]["link_down_action"] = port_profile["poe"]["linkDownAction"]
+                          tmp_port_profile["poe"]["link_down"] = {
+                            "action": port_profile["poe"]["linkDownAction"]
+                          }
                       if port_profile["poe"].get("shutdownAction"):
-                          tmp_port_profile["poe"]["shutdown_action"] = port_profile["poe"]["shutdownAction"]
+                          tmp_port_profile["poe"]["shutdown"] = {
+                            "action": port_profile["poe"]["shutdownAction"]
+                          }
                   # Storm Control
                   if port_profile.get("stormControl"):
                       tmp_port_profile["storm_control"] = {}
@@ -1311,11 +1317,17 @@
                       if network_port["poe"].get("priority"):
                           tmp_network_port["poe"]["priority"] = network_port["poe"]["priority"]
                       if network_port["poe"].get("rebootAction"):
-                          tmp_network_port["poe"]["reboot_action"] = network_port["poe"]["rebootAction"]
+                          tmp_network_port["poe"]["reboot"] = {
+                            "action": network_port["poe"]["rebootAction"]
+                          }
                       if network_port["poe"].get("linkDownAction"):
-                          tmp_network_port["poe"]["link_down_action"] = network_port["poe"]["linkDownAction"]
+                          tmp_network_port["poe"]["link_down"] = {
+                            "action": network_port["poe"]["linkDownAction"]
+                          }
                       if network_port["poe"].get("shutdownAction"):
-                          tmp_network_port["poe"]["shutdown_action"] = network_port["poe"]["shutdownAction"]
+                          tmp_network_port["poe"]["shutdown"] = {
+                            "action": network_port["poe"]["shutdownAction"]
+                          }
                   # Storm Control
                   if network_port.get("stormControl"):
                       tmp_network_port["storm_control"] = {}
@@ -2077,14 +2089,14 @@
           %         if ethernet_interface["poe"].get("priority"):
              poe priority ${ ethernet_interface["poe"]["priority"] }
           %         endif
-          %         if ethernet_interface["poe"].get("reboot_action"):
-             poe reboot action ${ ethernet_interface["poe"]["reboot_action"] }
+          %         if ethernet_interface["poe"].get("reboot", {}).get("action"):
+             poe reboot action ${ ethernet_interface["poe"]["reboot"]["action"] }
           %         endif
-          %         if ethernet_interface["poe"].get("link_down_action"):
-             poe link down action ${ ethernet_interface["poe"]["link_down_action"] }
+          %         if ethernet_interface["poe"].get("link_down", {}).get("action"):
+             poe link down action ${ ethernet_interface["poe"]["link_down"]["action"] }
           %         endif
-          %         if ethernet_interface["poe"].get("shutdown_action"):
-             poe shutdown action ${ ethernet_interface["poe"]["shutdown_action"] }
+          %         if ethernet_interface["poe"].get("shutdown", {}).get("action"):
+             poe shutdown action ${ ethernet_interface["poe"]["shutdown"]["action"] }
           %         endif
           %     endif
           %     if print_ethernet:
