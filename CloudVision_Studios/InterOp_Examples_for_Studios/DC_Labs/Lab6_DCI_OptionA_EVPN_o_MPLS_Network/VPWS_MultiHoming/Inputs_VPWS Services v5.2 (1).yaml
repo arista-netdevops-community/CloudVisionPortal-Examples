@@ -1,0 +1,87 @@
+path: []
+inputs:
+  customers:
+    - name: DCI_VPWS
+      vpws:
+        - switches:
+            - inputs:
+                switch:
+                  interfaceA:
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet2@s1-core1
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet3@s1-core1
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet2@s1-core2
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet3@s1-core2
+                  interfaceB:
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet2@s2-core1
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet3@s2-core1
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet3@s2-core2
+                    - inputs:
+                        interfaceGroup:
+                          channelId: 12
+                          createPortChannel: 'Yes'
+                          subInterfaceNumber: 9
+                      tags:
+                        query: interface:Ethernet2@s2-core2
+                  multiHomingA:
+                    esi: '0033:3333:3333:3333:3331'
+                    lacpSysId: 1234.5678.0123
+                    multihomingYesOrNo: true
+                    rt: '00:03:00:03:00:03'
+                  multiHomingB:
+                    esi: '0033:3333:3333:3333:3332'
+                    lacpSysId: 1234.5678.0123
+                    multihomingYesOrNo: true
+                    rt: '00:03:00:03:00:03'
+                  overrideVariables:
+                    routeDistinguisher: Router-ID:432
+                  settings:
+                    circuit: Enabled
+              tags:
+                query: Network:MPLS-Network
+          vpwsName: red
+  vpwsVrfAttributeFormats:
+    remoteFailureErrdisable: Disabled
+    vrfRouteDistinguisherFormat: Router-ID:SEQ
+    vrfRouteTargetFormat: SEQ:SEQ
