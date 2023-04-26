@@ -836,79 +836,6 @@
                               switch_facts[tags_to_facts[label]] = dev.modelName
                       continue
 
-              # # Set role if one exists
-              # roles_applied_to_switch = role_dict.get(device_id)
-              # if roles_applied_to_switch and len(roles_applied_to_switch) > 0:
-              #     switch_facts['type'] = roles_applied_to_switch[0]
-              # else:
-              #     switch_facts['type'] = None
-
-              # # Set node_id from NodeId tag
-              # switch_facts['id'] = node_id_dict.get(device_id)
-
-              # # Set network_services
-              # if network_services_dict.get(device_id):
-              #     # Set l2 network_services
-              #     if 'L2' in network_services_dict.get(device_id):
-              #         switch_facts['network_services']['l2'] = True
-              #     else:
-              #         switch_facts['network_services']['l2'] = False
-              #     # Set l3 network_services
-              #     if 'L3' in network_services_dict.get(device_id):
-              #         switch_facts['network_services']['l3'] = True
-              #     else:
-              #         switch_facts['network_services']['l3'] = False
-
-              # # Set l3 network services if not already set
-              # if not switch_facts['network_services'].get('l3') and switch_facts.get('type'):
-              #     if switch_facts['type'] in ["Leaf", "Spine", "Super-Spine"]:
-              #         switch_facts['network_services']['l3'] = True
-              #     else:
-              #         switch_facts['network_services']['l3'] = False
-              # # Set l2 network services if not already set
-              # if not switch_facts['network_services'].get('l2') and switch_facts.get('type'):
-              #     if switch_facts['type'] in ["Leaf", "L2-Leaf"]:
-              #         switch_facts['network_services']['l2'] = True
-              #     else:
-              #         switch_facts['network_services']['l2'] = False
-
-              # # normalize vtep
-              # if vtep_dict.get(device_id):
-              #     if re.match(r'true', vtep_dict[device_id], flags=re.IGNORECASE):
-              #         switch_facts['vtep'] = True
-              #     else:
-              #         switch_facts['vtep'] = False
-              # else:
-              #     switch_facts['vtep'] = False
-
-              # # Set vtep if not already set
-              # if not switch_facts.get('vtep') and switch_facts.get('type'):
-              #     if switch_facts['type'] in ['Leaf']:
-              #         switch_facts['vtep'] = True
-              #     else:
-              #         switch_facts['vtep'] = False
-
-              # # Set BGP ASN
-              # switch_facts['bgp_as'] = bgp_as_dict[device_id] if bgp_as_dict.get(
-              #     device_id) else None
-
-              # # Set Router ID
-              # switch_facts['router_id'] = router_id_dict[device_id] if router_id_dict.get(
-              #     device_id) else None
-
-              # # normalize mlag_port_channel_id and turn mlag on/off
-              # if mlag_peer_link_dict.get(device_id) and mlag_peer_link_dict[device_id].strip() != "":
-              #     switch_facts['mlag_port_channel_id'] = "".join(
-              #         re.findall(r'\d', mlag_peer_link_dict[device_id]))
-              #     switch_facts['mlag'] = True
-              # else:
-              #     switch_facts['mlag'] = False
-
-              # # Set other keys
-              # if switch_facts['network_services'].get('l3'):
-              #     switch_facts['uplink_type'] = "p2p"
-              # else:
-              #     switch_facts['uplink_type'] = "port-channel"
 
               # Set platform settings
               if not switch_facts.get('platform_settings'):
@@ -1725,21 +1652,29 @@
               return None
 
           # Check devices input is not None
-          if not devices:
+          if not campus:
               return
 
           my_device = ctx.getDevice()
           workspace_id = ctx.studio.workspaceId
-          node_id_dict = populate_single_value_dict(workspace_id, 'NodeId')
-          network_services_dict = populate_multi_value_dict(
-              workspace_id, 'NetworkServices')
-          vtep_dict = populate_single_value_dict(workspace_id, 'Vtep')
-          bgp_as_dict = populate_single_value_dict(workspace_id, 'router_bgp.as')
-          router_id_dict = populate_single_value_dict(
-              workspace_id, 'router_bgp.router_id')
-          mlag_peer_link_dict = populate_single_value_dict(
-              workspace_id, 'mlag_configuration.peer_link')
-          role_dict = populate_multi_value_dict(workspace_id, 'Role')
+
+          # Attempt to resolve for switch interfaces
+          my_campus_resolver = campus.resolve(device=my_device.id)
+          ctx.info(f"{my_campus_resolver}")
+          if not my_campus_resolver or not my_campus_resolver.get("building"):
+              return
+          my_building_resolver = my_campus_resolver["building"].resolve(device=my_device.id)
+          ctx.info(f"{my_building_resolver}")
+          if not my_building_resolver or not my_building_resolver.get("idf"):
+              return
+          my_idf_resolver = my_building_resolver["idf"].resolve(device=my_device.id)
+          ctx.info(f"{my_idf_resolver}")
+          if not my_idf_resolver or not my_idf_resolver.get("devices"):
+              return
+          my_switch_interfaces_resolver = my_idf_resolver["devices"].resolve(device=my_device.id)
+          if not my_switch_interfaces_resolver:
+              return
+          ctx.info(f"{my_switch_interfaces_resolver}")
 
           # get my_switch_facts from tags
           my_switch_facts = get_switch_basics_from_tags(my_device.id)
@@ -1753,10 +1688,6 @@
           # Merge port profiles
           port_profiles = merge_port_profiles(port_profiles)
           ctx.info(f"Port Profiles Post-Parent Profile Applied: {port_profiles}")
-
-          my_switch_interfaces_resolver = devices.resolve(device=my_device.id)
-          if not my_switch_interfaces_resolver:
-              return
 
           # get my_switch_facts network_ports
           network_ports = []
@@ -4529,7 +4460,7 @@
               id: interfacesResolver
               name: interfaces
               label: Interfaces
-              description: ''
+              description: Select an interface to configure
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -4542,7 +4473,7 @@
               id: devicesResolver
               name: devices
               label: Devices
-              description: ''
+              description: Select a device to configure
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -4550,6 +4481,45 @@
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: device
+                tag_filter_query: null
+            idfResolver:
+              id: idfResolver
+              name: idf
+              label: IDF
+              description: Select the IDF of the device to configure
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: devicesResolver
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Campus-Pod
+                tag_filter_query: null
+            buildingResolver:
+              id: buildingResolver
+              name: building
+              label: Building
+              description: Select the Building of the device to configure
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: idfResolver
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Building
+                tag_filter_query: null
+            campusResolver:
+              id: campusResolver
+              name: campus
+              label: Campus
+              description: Select the Campus of the device to configure
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: buildingResolver
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: Campus
                 tag_filter_query: null
             root:
               id: root
@@ -4562,7 +4532,7 @@
                 members:
                   values:
                     - portProfiles
-                    - devicesResolver
+                    - campusResolver
         layout:
           value: |
             {
