@@ -1669,12 +1669,12 @@
               return
           my_idf_resolver = my_building_resolver["idf"].resolve(device=my_device.id)
           ctx.info(f"{my_idf_resolver}")
-          if not my_idf_resolver or not my_idf_resolver.get("devices"):
+          if not my_idf_resolver or not my_idf_resolver.get("interfaces"):
               return
-          my_switch_interfaces_resolver = my_idf_resolver["devices"].resolve(device=my_device.id)
-          if not my_switch_interfaces_resolver:
+          studios_interface_inputs = my_idf_resolver["interfaces"]
+          if not studios_interface_inputs:
               return
-          ctx.info(f"{my_switch_interfaces_resolver}")
+          ctx.info(f"{studios_interface_inputs}")
 
           # get my_switch_facts from tags
           my_switch_facts = get_switch_basics_from_tags(my_device.id)
@@ -1691,8 +1691,6 @@
 
           # get my_switch_facts network_ports
           network_ports = []
-
-          studios_interface_inputs = my_switch_interfaces_resolver["interfaces"]
 
           for interface_name in my_device._interfaces.keys():
               resolved_interface = studios_interface_inputs.resolve(interface_name)
@@ -4469,19 +4467,6 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
                 input_tag_label: interface
                 tag_filter_query: null
-            devicesResolver:
-              id: devicesResolver
-              name: devices
-              label: Devices
-              description: Select a device to configure
-              required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: interfacesResolver
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
-                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: device
-                tag_filter_query: null
             idfResolver:
               id: idfResolver
               name: idf
@@ -4490,7 +4475,7 @@
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
-                base_field_id: devicesResolver
+                base_field_id: interfacesResolver
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: IDF
