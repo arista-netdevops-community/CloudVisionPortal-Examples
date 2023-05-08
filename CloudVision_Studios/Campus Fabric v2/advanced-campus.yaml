@@ -2244,8 +2244,12 @@
               uplink_switches = []
               uplink_switches_ids = []
               uplink_switch_interfaces = []
+              uplink_info_tuples = []
 
               device_id = switch_facts['serial_number']
+
+              leafs_upstream = None  #  Used to account for topologies where a member leaf uplinks to another memberleaf
+              memberleafs_downstream = None  #  Used to account for topologies where a member leaf uplinks to another memberleaf
 
               for interface in natural_sort(switch_facts["interfaces"], sort_key="interface_name"):
                   neighbor = my_switch_facts_neighbors.get(interface["peer_serial_number"])
@@ -2253,21 +2257,33 @@
                       # Leaf case
                       if switch_facts['type'] == "leaf":
                           if neighbor['type'] == "spline":
-                              uplink_interfaces.append(interface['interface_name'])
-                              uplink_switches_switch_facts.append(neighbor)
-                              uplink_switches.append(neighbor['hostname'])
-                              uplink_switches_ids.append(neighbor['serial_number'])
-                              uplink_switch_interfaces.append(interface["peer_interface_name"])
+                              uplink_info_tuples.append((interface['interface_name'], neighbor['hostname'], neighbor['serial_number'], interface["peer_interface_name"]))
 
                       # Member Leaf case
                       elif switch_facts['type'] == "memberleaf":
-                          if neighbor['type'] == "leaf" or neighbor['type'] == "memberleaf":
-                              uplink_interfaces.append(interface['interface_name'])
-                              uplink_switches_switch_facts.append(neighbor)
-                              uplink_switches.append(neighbor['hostname'])
-                              uplink_switches_ids.append(neighbor['serial_number'])
-                              uplink_switch_interfaces.append(interface["peer_interface_name"])
+                          if neighbor['type'] in ["leaf", "memberleaf"]:
+                              uplink_info_tuples.append((interface['interface_name'], neighbor['hostname'], neighbor['serial_number'], interface["peer_interface_name"]))
+                              if neighbor["type"] == "leaf":
+                                  leafs_upstream = True
+                              if neighbor["type"] == "memberleaf":
+                                  memberleafs_downstream = True
 
+
+              # to account for topologies where a memberleaf uplinks to another memberleaf,
+              # cycle through memberleafs' uplinks to remove false memberleaf to memberleaf uplinks
+              neighbors_to_remove = []
+              if switch_facts['type'] == "memberleaf" and leafs_upstream and memberleafs_downstream:
+                  for uplink_info_tuple in uplink_info_tuples:
+                      uplink_switch_facts = my_switch_facts_neighbors.get(uplink_info_tuple[2])
+                      if uplink_switch_facts and uplink_switch_facts["type"] == "memberleaf":
+                          neighbors_to_remove.append(uplink_info_tuple)
+              for neighbor_tuple in neighbors_to_remove:
+                  uplink_info_tuples.remove(neighbor_tuple)
+
+              uplink_interfaces = [uplink_info_tuple[0] for uplink_info_tuple in uplink_info_tuples]
+              uplink_switches = [uplink_info_tuple[1] for uplink_info_tuple in uplink_info_tuples]
+              uplink_switches_ids = [uplink_info_tuple[2] for uplink_info_tuple in uplink_info_tuples]
+              uplink_switch_interfaces = [uplink_info_tuple[3] for uplink_info_tuple in uplink_info_tuples]
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
@@ -2298,7 +2314,7 @@
                       if tmp_switch_facts["type"] == "leaf" and switch_facts["serial_number"] in tmp_switch_facts["uplink_switches_ids"] \
                               and tmp_switch_sn not in switch_facts["downlink_switches_ids"]:
                           switch_facts["downlink_switches_ids"].append(tmp_switch_sn)
-              elif switch_facts["type"] == "leaf":
+              elif switch_facts["type"] in ["leaf", "memberleaf"]:
                   for tmp_switch_sn, tmp_switch_facts in my_switch_facts_neighbors.items():
                       if tmp_switch_facts["type"] == "memberleaf" and tmp_switch_facts["group"] == switch_facts["group"] \
                               and switch_facts["serial_number"] in tmp_switch_facts["uplink_switches_ids"] and tmp_switch_sn not in switch_facts["downlink_switches_ids"]:
@@ -2342,6 +2358,7 @@
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
                       uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
+                      ctx.info(f"{uplink_interface}: {uplink_switch_facts['hostname']}")
                       link_facts["peer_id"] = uplink_switch_facts["serial_number"]
                       link_facts["peer"] = uplink_switch_facts["hostname"]
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
@@ -2365,9 +2382,12 @@
                           mlag_peer_switch_facts =  my_switch_facts_neighbors[switch_facts["mlag_peer_serial_number"]]
                           link_facts["channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_interfaces"][0]))
                           link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_switch_interfaces"][0]))
-                      else:
+                      elif uplink_switch_facts.get("mlag"):
                           link_facts["channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_interfaces"][0]))
                           link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_switch_interfaces"][0]))
+                      else:
+                          link_facts["channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_interfaces"][i]))
+                          link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_switch_interfaces"][i]))
 
                       if switch_facts.get("ptp") is not None and switch_facts["ptp"].get("enabled") is True:
                           link_facts["ptp"] = {"enable": True}
@@ -2984,9 +3004,10 @@
                           "description": "{}_Po{}".format(link["peer"].upper(), link.get("peer_channel_group_id")),
                           "type": "switched",
                           "shutdown": False,
-                          "mode": "trunk",
-                          "mlag": link["channel_group_id"]
+                          "mode": "trunk"
                       }
+                      if switch_facts.get("mlag"):
+                          port_channel["mlag"] = link["channel_group_id"]
                       if link.get('vlans'):
                           port_channel['vlans'] = list_compress(link['vlans'])
 
@@ -5907,7 +5928,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5922,7 +5942,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5949,7 +5968,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 169.254.0.0/31
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5976,7 +5994,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5991,7 +6008,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1c:73:00:00:99
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6006,7 +6022,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6021,7 +6036,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6046,7 +6060,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6077,7 +6090,6 @@
                     - leafMlagPeerL3Vlan
                     - leafMlagPeerL3IPv4Pool
                     - leafVirtualRouterMacAddress
-                    - leafMlagPeerInterfaces
                     - leafMlagPeerInterfacesSpeed
                     - leafMlagPeerInterfacesEosCli
                     - leafMlagPeerLinkEosCli
@@ -6090,7 +6102,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: MSTP
-                is_secret: false
                 static_options:
                   values:
                     - MSTP
@@ -6178,7 +6189,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6193,7 +6203,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6208,7 +6217,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6245,7 +6253,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6281,7 +6288,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: auto
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6296,7 +6302,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: auto
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6311,7 +6316,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6336,7 +6340,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6399,7 +6402,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1C:73
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6456,7 +6458,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6471,7 +6472,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: MSTP
-                is_secret: false
                 static_options:
                   values:
                     - RSTP
@@ -6542,7 +6542,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 169.254.0.0/31
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6569,7 +6568,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6584,7 +6582,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1c:73:00:00:99
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6599,7 +6596,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6624,7 +6620,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6639,7 +6634,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6664,7 +6658,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6708,7 +6701,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6723,7 +6715,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6738,7 +6729,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6841,7 +6831,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6898,7 +6887,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1C:73
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6955,7 +6943,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6970,7 +6957,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6985,7 +6971,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7000,7 +6985,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7039,7 +7023,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7054,7 +7037,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7069,7 +7051,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7084,7 +7065,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7123,7 +7103,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7168,7 +7147,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7232,7 +7210,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7247,7 +7224,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7271,7 +7247,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7286,7 +7261,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7301,7 +7275,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7329,7 +7302,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7344,7 +7316,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7359,7 +7330,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7390,7 +7360,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7405,7 +7374,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7442,7 +7410,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7457,7 +7424,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: cidr
                 length: null
@@ -7472,7 +7438,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7487,7 +7452,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7502,7 +7466,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7544,7 +7507,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7652,7 +7614,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 0.0.0.0
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7679,7 +7640,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Simple
@@ -7697,7 +7657,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7712,7 +7671,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: sha512
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7727,7 +7685,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7865,7 +7822,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Server
@@ -7883,7 +7839,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7901,7 +7856,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7919,7 +7873,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7937,7 +7890,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7955,7 +7907,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7989,7 +7940,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Server
@@ -8007,7 +7957,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8025,7 +7974,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8043,7 +7991,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8061,7 +8008,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8079,7 +8025,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8125,7 +8070,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: BGP
-                is_secret: false
                 static_options:
                   values:
                     - BGP
@@ -8143,7 +8087,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - BGP
@@ -8184,7 +8127,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 0.0.0.0
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8330,7 +8272,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8382,7 +8323,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8397,7 +8337,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8433,7 +8372,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: default
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8471,7 +8409,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8486,7 +8423,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8544,7 +8480,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: aes67-r16-2016
-                is_secret: false
                 static_options:
                   values:
                     - aes67-r16-2016
@@ -8640,7 +8575,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8774,7 +8708,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8801,7 +8734,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8828,7 +8760,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8889,7 +8820,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8904,7 +8834,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8919,7 +8848,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9018,7 +8946,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9091,7 +9018,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9106,7 +9032,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9121,7 +9046,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - standard
@@ -9141,7 +9065,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -9195,7 +9118,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9234,7 +9156,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9249,7 +9170,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9276,7 +9196,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9291,7 +9210,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9318,7 +9236,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -9347,7 +9264,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9421,7 +9337,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9459,7 +9374,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9474,7 +9388,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9489,7 +9402,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9525,7 +9437,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9559,7 +9470,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9595,7 +9505,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Simple
@@ -9613,7 +9522,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9640,7 +9548,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9655,7 +9562,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9811,7 +9717,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9826,7 +9731,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
