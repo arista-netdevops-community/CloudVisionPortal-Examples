@@ -43,7 +43,7 @@
                   }
               },
               {
-                  "platforms": ['7050X3', '720XP', '722XP'],
+                  "platforms": ['7050X3'],
                   # Only applied when enabling EVPN multicast
                   "trident_forwarding_table_partition": "flexible exact-match 16384 l2-shared 98304 l3-shared 131072",
                   "reload_delay": {
@@ -53,6 +53,35 @@
                   "feature_support": {
                       # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
                       "queue_monitor_length_notify": False
+                  }
+              },
+              {
+                  "platforms": ['720XP', '722XP'],
+                  # Only applied when enabling EVPN multicast
+                  "trident_forwarding_table_partition": "flexible exact-match 16384 l2-shared 98304 l3-shared 131072",
+                  "reload_delay": {
+                      "mlag": 300,
+                      "non_mlag": 330
+                  },
+                  "feature_support": {
+                      # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
+                      "queue_monitor_length_notify": False,
+                      "phone": True,
+                      "poe": True
+                  }
+              },
+              {
+                  "platforms": ['755', 758],
+                  # Only applied when enabling EVPN multicast
+                  "trident_forwarding_table_partition": "flexible exact-match 16384 l2-shared 98304 l3-shared 131072",
+                  "reload_delay": {
+                      "mlag": 300,
+                      "non_mlag": 330
+                  },
+                  "feature_support": {
+                      # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
+                      "queue_monitor_length_notify": False,
+                      "poe": True
                   }
               },
               {
@@ -116,8 +145,7 @@
                   "feature_support": {
                       # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
                       "queue_monitor_length_notify": False,
-                      "interface_storm_control": False,
-                      "phone": False
+                      "interface_storm_control": False
                   }
               },
               {
@@ -130,8 +158,7 @@
                   "feature_support": {
                       # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
                       "queue_monitor_length_notify": False,
-                      "interface_storm_control": False,
-                      "phone": False
+                      "interface_storm_control": False
                   }
               }
           ]
@@ -862,7 +889,7 @@
 
               avd_port_profiles = []
               for port_profile in port_profiles:
-                  ctx.info(f"Getting info for {port_profile['name']}")
+                  # ctx.info(f"Getting info for {port_profile['name']}")
                   tmp_port_profile = {"profile": port_profile["name"]}
                   # Parent profile
                   if port_profile.get("parentProfile", "").strip():
@@ -1102,7 +1129,7 @@
                   return []
               avd_network_ports = []
               for network_port in network_ports:
-                  ctx.info(f"Getting info for {network_port['name']}")
+                  # ctx.info(f"Getting info for {network_port['name']}")
                   tmp_network_port = {"name": network_port["name"]}
                   tmp_network_port["switch_ports"] = [network_port["name"]]
                   # port profile
@@ -1386,7 +1413,7 @@
 
 
           def platform_settings_feature_support_poe() -> bool:
-              return get(my_switch_facts, "platform_settings.feature_support.poe", default=True) is True
+              return get(my_switch_facts, "platform_settings.feature_support.poe", default=False) is True
 
 
           def get_adapter_poe(adapter: dict) -> dict | None:
@@ -1401,7 +1428,7 @@
 
 
           def platform_settings_feature_support_phone() -> bool:
-              return get(my_switch_facts, "platform_settings.feature_support.phone", default=True) is True
+              return get(my_switch_facts, "platform_settings.feature_support.phone", default=False) is True
 
 
           def get_adapter_phone(adapter: dict) -> dict | None:
@@ -1510,7 +1537,7 @@
               if (flowcontrol_received := get(adapter, "flowcontrol.received")) is not None:
                   ethernet_interface["flowcontrol"] = {"received": flowcontrol_received}
 
-              return strip_null_from_data(ethernet_interface)
+              return strip_null_from_data(ethernet_interface, strip_values_tuple=(None, "", {}, []))
 
 
           def ethernet_interfaces(network_ports) -> dict | None:
@@ -1669,7 +1696,7 @@
                       channel_group_id = get(tmp_network_port, "port_channel.channel_id", default=default_channel_group_id)
                       port_channel_interface_name = f"Port-Channel{channel_group_id}"
                       port_channel_config = get_port_channel_interface_cfg(tmp_network_port, port_channel_interface_name, channel_group_id, connected_endpoint)
-                      ctx.info(f"{port_channel_interface_name} Config: {port_channel_config}")
+                      # ctx.info(f"{port_channel_interface_name} Config: {port_channel_config}")
                       add_if_not_duplicate(port_channel_config, port_channel_interfaces)
 
               if port_channel_interfaces:
@@ -1686,21 +1713,21 @@
 
           # Attempt to resolve for switch interfaces
           my_campus_resolver = campus.resolve(device=my_device.id)
-          ctx.info(f"{my_campus_resolver}")
+          # ctx.info(f"{my_campus_resolver}")
           if not my_campus_resolver or not my_campus_resolver.get("building"):
               return
           my_building_resolver = my_campus_resolver["building"].resolve(device=my_device.id)
-          ctx.info(f"{my_building_resolver}")
+          # ctx.info(f"{my_building_resolver}")
           if not my_building_resolver or not my_building_resolver.get("idf"):
               return
           my_idf_resolver = my_building_resolver["idf"].resolve(device=my_device.id)
-          ctx.info(f"{my_idf_resolver}")
+          # ctx.info(f"{my_idf_resolver}")
           if not my_idf_resolver or not my_idf_resolver.get("interfaces"):
               return
           studios_interface_inputs = my_idf_resolver["interfaces"]
           if not studios_interface_inputs:
               return
-          ctx.info(f"{studios_interface_inputs}")
+          # ctx.info(f"{studios_interface_inputs}")
 
           # get my_switch_facts from tags
           my_switch_facts = get_switch_basics_from_tags(my_device.id)
