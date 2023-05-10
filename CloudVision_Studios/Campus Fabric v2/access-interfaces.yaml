@@ -116,7 +116,8 @@
                   "feature_support": {
                       # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
                       "queue_monitor_length_notify": False,
-                      "interface_storm_control": False
+                      "interface_storm_control": False,
+                      "phone": False
                   }
               },
               {
@@ -129,7 +130,8 @@
                   "feature_support": {
                       # "queue-monitor length notify" is only valid for R-Series so should be disabled on default platform.
                       "queue_monitor_length_notify": False,
-                      "interface_storm_control": False
+                      "interface_storm_control": False,
+                      "phone": False
                   }
               }
           ]
@@ -1397,10 +1399,23 @@
 
               return None
 
+
+          def platform_settings_feature_support_phone() -> bool:
+              return get(my_switch_facts, "platform_settings.feature_support.phone", default=True) is True
+
+
           def get_adapter_phone(adapter: dict) -> dict | None:
               """
               Return phone for one adapter
               """
+              # Check to see if feature is supported
+              if platform_settings_feature_support_phone() is False:
+                  if adapter.get("phone_vlan"):
+                      ctx.warning(f"{adapter['switch_ports'][0]} is configured with `phone vlan {adapter['phone_vlan']}` but this device model does not support this feature.")
+                  if adapter.get("phone_trunk"):
+                      ctx.warning(f"{adapter['switch_ports'][0]} is configured with `phone trunk {adapter['phone_trunk']}` but this device model does not support this feature.")
+                  return
+
               phone_config = {}
               if adapter.get("phone_vlan"):
                   phone_config["vlan"] = adapter["phone_vlan"]
@@ -1412,6 +1427,17 @@
                   return phone_config
 
               return None
+
+
+          def get_adapter_mode(adapter: dict) -> dict | None:
+              """
+              Return interface mode for one adapter
+              """
+              if adapter.get("mode") == "trunk phone" and platform_settings_feature_support_phone() is False:
+                  ctx.warning(f"{adapter['switch_ports'][0]} is configured with mode {adapter['mode']} but this device model does not support this feature.")
+                  return None
+
+              return adapter.get("mode")
 
 
           def get_ethernet_interface_cfg(adapter, node_index=None, connected_endpoint=None):
@@ -1442,7 +1468,7 @@
                   "l2_mtu": adapter.get("l2_mtu"),
                   "type": "switched",
                   "shutdown": not adapter.get("enabled", True),
-                  "mode": adapter.get("mode"),
+                  "mode": get_adapter_mode(adapter),
                   "vlans": adapter.get("vlans"),
                   # "trunk_groups": self._get_adapter_trunk_groups(adapter, connected_endpoint),
                   "native_vlan_tag": adapter.get("native_vlan_tag"),
