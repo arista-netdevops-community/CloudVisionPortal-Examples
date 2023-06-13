@@ -1,15 +1,7 @@
-# Arista CloudVision&reg; Analytic Engine RESTful API Examples
-This directory contains scripts that use the CloudVision Analytics
-Engine (CVAE).
+# Accessing data from CloudVision's NetDB
 
-## Rest_API
+To access data from NetDB the CloudVision Connector python library can be used.
+For more details please visit:
 
-The advantage of CVAE is that it streams the telemetry data to the consumer of
-that data so that polling is not required.  Even so, there are still legacy
-applications that require polling to get specific telemetry data.  Instead of
-polling all the switches you can poll CVAE to get the data you need. This
-directory contains examples of using the CVAE RESTfulAPI.
-
-## hbase
-
-This directory contains scripts for working with hbase.
+- [cloudvision-python github repo](https://github.com/aristanetworks/cloudvision-python)
+- [Understanding CloudVision APIs and accessing NetDB data](https://arista.my.site.com/AristaCommunity/s/article/Understanding-CloudVIsion-APIs-and-accessing-NetDB-data)
