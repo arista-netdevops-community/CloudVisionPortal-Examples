@@ -1853,11 +1853,6 @@
                       switch_facts["mlag_lacp_mode"] = "active"
                       switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
                       switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
-                      # Check to see if this is proper design
-                      if switch_facts["campus_type"] == "l2ls":
-                          if switch_facts["type"] in ["leaf", "memberleaf"]:  # switch_facts['platform_settings'].get("asu", False) == True:
-                              switch_facts["reload_delay_mlag"] = 0
-                              switch_facts["reload_delay_non_mlag"] = 0
 
                       # switch_facts["mlag_ibgp_origin_incomplete"] = True
 
