@@ -1,0 +1,252 @@
+{
+  "dashboards": [
+    {
+      "key": "724f3be8-6a65-41cc-8b32-8f3b310902e2",
+      "createdAt": [
+        669056111,
+        1572
+      ],
+      "createdBy": "mecore",
+      "metaData": {
+        "schemaVersion": "3",
+        "legacyKey": "",
+        "legacyVersion": "",
+        "fromPackage": ""
+      },
+      "name": "PTP Health AQL Dashboards",
+      "description": "PTP Config and Status Health",
+      "widgets": [
+        {
+          "id": "2bc9f426-4d22-4a14-a371-490363eea475",
+          "name": "PTP Health Status",
+          "position": {
+            "x": 0,
+            "y": 2
+          },
+          "dimensions": {
+            "width": 9,
+            "height": 10
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "% experimentalFeatures = true\nlet DomainID=str(_DomainID)\n\n#device PTP path\nlet ptpStatus = `*:/Sysdb/ptp/status/parentDS`\n#device PTP path 2\nlet ptpConfig = `*:/Sysdb/ptp/config`\n\n# instantiate error counter\nlet error = 0\nlet ok = 0\n\n\nfor dataSet, dDetails in ptpStatus {\n\tif (dictHasKey(_DeviceFilter, dataSet)){\n\t\tlet gmId = merge(dDetails)[\"grandmasterIdentity\"]    \n\t\tlet gc = gmId[\"value\"]    \n\t\tlet gmIdStr = formatInt(gc[\"v0\"],16) + \":\" + formatInt(gc[\"v1\"],16) + \":\" + formatInt(gc[\"v2\"],16) + \":\" + formatInt(gc[\"v3\"],16) + \":\" + formatInt(gc[\"v4\"],16) + \":\" + formatInt(gc[\"v5\"],16) + \":\" + formatInt(gc[\"v6\"],16) + \":\" + formatInt(gc[\"v7\"],16)    \n\t\tlet dId = merge(ptpConfig[dataSet])[\"domainNumber\"]\n\t\tlet ptpModeStr = merge(ptpConfig[dataSet])[\"ptpMode\"][\"Name\"]\n\t\t\n\t\t#assume GMID is not listed\n\t\tlet GMID_mismatch = true\n\t\t#check if the real GMID is in the dashboard list\n    \tif (dictHasKey(_GMID_List, gmIdStr)){\n\t        let GMID_mismatch = false\t\t\n\t\t}\n\t\t#check for GMID mismatch, boundary clock, or domain mismatch. Incremenet error counter if any true.\n\t\tif (GMID_mismatch || ptpModeStr!= \"ptpBoundaryClock\" || str(dId) != DomainID) {\n\t\t\tlet error = error + 1\n\t\t} else {\n\t\t\tlet ok = ok + 1\n\t\t}\n\t}\n}\nif error == 0{    \n\tlet retString = \"OK\"\n\t}\nif error > 0{   \n\tlet retString = \"ERROR\"\n\t}\nretString",
+            "graphConfig": {
+              "showDotIndicator": false,
+              "description": "PTP Health Status will show \"ERROR\" unless all PTP tagged devices in the network are locked to the same, legal GMID, with the same Domain ID and running in \"PTP Mode Boundary\".\n             ",
+              "colorMappings": [
+                {
+                  "type": "value",
+                  "options": {
+                    "OK": {
+                      "color": "green",
+                      "index": 0
+                    },
+                    "ERROR": {
+                      "color": "red",
+                      "index": 1
+                    }
+                  }
+                }
+              ]
+            },
+            "visualization": "singleValue"
+          },
+          "location": "main",
+          "styles": {
+            "hideTitle": false,
+            "backgroundColor": "",
+            "hideHorizontalBar": false,
+            "titleSize": 14
+          },
+          "parent": ""
+        },
+        {
+          "id": "53d9f66d-7b90-45e9-82c5-77082b8bafab",
+          "name": "PTP Health Status Error Details",
+          "position": {
+            "x": 9,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 15,
+            "height": 24
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "% experimentalFeatures = true\nlet DomainID=str(_DomainID)\n\nlet ptpStatus = `*:/Sysdb/ptp/status/parentDS`\nlet ptpConfig = `*:/Sysdb/ptp/config`\n\nlet result = newDict()\nlet gmIdStatus = true\nlet ptpConfigStatus = true\n\nfor dataSet, dDetails in ptpStatus { \n\tif (dictHasKey(_DeviceFilter, dataSet)){\n    \tlet gmId = merge(dDetails)[\"grandmasterIdentity\"]\n\t\tlet gc = gmId[\"value\"]\n    \tlet gmIdStr = formatInt(gc[\"v0\"],16) + \":\" + formatInt(gc[\"v1\"],16) + \":\" + formatInt(gc[\"v2\"],16) + \":\" + formatInt(gc[\"v3\"],16) + \":\" + formatInt(gc[\"v4\"],16) + \":\" + formatInt(gc[\"v5\"],16) + \":\" + formatInt(gc[\"v6\"],16) + \":\" + formatInt(gc[\"v7\"],16)    \n\t\tlet dId = merge(ptpConfig[dataSet])[\"domainNumber\"]\n    \tlet ptpModeStr = merge(ptpConfig[dataSet])[\"ptpMode\"][\"Name\"]\n    \tlet GMID_mismatch = true\n\t\tif (dictHasKey(_GMID_List, gmIdStr)){\n\t        let GMID_mismatch = false\t\t\n\t\t}\n\t\t\n    \tif (GMID_mismatch || ptpModeStr!= \"ptpBoundaryClock\" || str(dId) != DomainID) {\n    \t    result[dataSet] = newDict()   \n    \t    result[dataSet][\"gmId\"] = GMID_mismatch ? \"Invalid: \" + gmIdStr : gmIdStr\n    \t    result[dataSet][\"ptpMode\"] = ptpModeStr\n    \t    result[dataSet][\"domain number\"] =  str(dId) != DomainID ? \"Invalid: \" + str(dId) : dId\n\t\t}\n\t}       \n}\nresult",
+            "graphConfig": {
+              "columns": {
+                "key": {
+                  "mapToHostname": true
+                },
+                "domain number": {
+                  "showDotIndicator": true,
+                  "colorMappings": [
+                    {
+                      "type": "regex",
+                      "options": {
+                        "/Mismatch/": {
+                          "color": "red",
+                          "index": 0
+                        }
+                      }
+                    }
+                  ]
+                },
+                "ptpMode": {
+                  "colorMappings": [
+                    {
+                      "type": "regex",
+                      "options": {
+                        "^(?!ptpBoundaryClock).*$": {
+                          "color": "red",
+                          "index": 0
+                        }
+                      }
+                    }
+                  ],
+                  "showDotIndicator": true
+                },
+                "gmId": {
+                  "showDotIndicator": true,
+                  "colorMappings": [
+                    {
+                      "type": "regex",
+                      "options": {
+                        "/Invalid/": {
+                          "color": "red",
+                          "index": 0
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "defaultSort": {
+                "key": "key"
+              }
+            },
+            "visualization": "table"
+          },
+          "location": "main",
+          "parent": ""
+        },
+        {
+          "id": "09498f9c-c3de-4dde-8562-561ccb210593",
+          "name": "",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 14,
+            "height": 2
+          },
+          "type": "variable-widget",
+          "inputs": {
+            "defaultValue": [
+              "ec:46:70:ff:fe:0:bf:ac",
+              "ec:46:70:ff:fe:0:ff:a8"
+            ],
+            "inputName": "GMID_List",
+            "inputType": "MultiSelect",
+            "selectData": {
+              "createOptionsUsingAql": false,
+              "manualOptions": [
+                "ec:46:70:ff:fe:0:bf:ac",
+                "ec:46:70:ff:fe:0:ff:a8",
+                "0:2:c5:ff:fe:35:1c:87"
+              ]
+            },
+            "variableType": "String"
+          },
+          "location": "inputs",
+          "parent": ""
+        },
+        {
+          "id": "57da168f-320a-4fa9-be09-390f99c2bac9",
+          "name": "",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 9,
+            "height": 2
+          },
+          "type": "variable-widget",
+          "inputs": {
+            "defaultValue": 127,
+            "inputName": "DomainID",
+            "inputType": "FreeForm",
+            "variableType": "Number"
+          },
+          "location": "main",
+          "parent": ""
+        },
+        {
+          "id": "c8805998-5a6b-4447-a0d8-7475470b0486",
+          "name": "",
+          "position": {
+            "x": 14,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 10,
+            "height": 2
+          },
+          "type": "tag-query-widget",
+          "inputs": {
+            "inputName": "DeviceFilter",
+            "inputSource": "devices",
+            "inputWidgetId": "c8805998-5a6b-4447-a0d8-7475470b0486",
+            "defaultValue": "device:* "
+          },
+          "location": "inputs",
+          "parent": ""
+        },
+        {
+          "id": "426431b9-3ea9-4e63-82f3-28d5190e7725",
+          "name": "",
+          "position": {
+            "x": 15,
+            "y": 4
+          },
+          "dimensions": {
+            "width": 4,
+            "height": 2
+          },
+          "type": "input-widget",
+          "inputs": {
+            "inputName": "Input1",
+            "inputSource": "devices",
+            "inputWidgetId": ""
+          },
+          "location": "inputs",
+          "parent": ""
+        },
+        {
+          "id": "48cae553-15d7-4be8-a043-e1216a7c7a14",
+          "name": "",
+          "position": {
+            "x": 13,
+            "y": 2
+          },
+          "dimensions": {
+            "width": 6,
+            "height": 2
+          },
+          "type": "variable-widget",
+          "inputs": {
+            "inputName": "Input2",
+            "inputWidgetId": ""
+          },
+          "location": "inputs",
+          "parent": ""
+        }
+      ],
+      "lastUpdated": 1689092093568,
+      "lastUpdatedBy": "sakti"
+    }
+  ]
+}
