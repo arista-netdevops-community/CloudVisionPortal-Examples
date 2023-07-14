@@ -1,0 +1,670 @@
+path: []
+inputs:
+  evpnGatewayVteps: []
+  tenants:
+    - macVrfVniBase: 10000
+      name: dc1-red
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v6
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf2
+              tags:
+                query: device:s1-leaf1,s1-leaf2,s1-brdr1,s1-brdr2
+          vlanId: 6
+          vrf: red
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: s1c1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-brdr1
+                  tags:
+                    query: device:s1-brdr1
+              maxRoutes: {}
+              neighborIpAddress: 1.1.7.3
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s1c2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-brdr2
+                  tags:
+                    query: device:s1-brdr2
+              maxRoutes: {}
+              neighborIpAddress: 1.1.7.4
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: red
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 515
+    - macVrfVniBase: 10000
+      name: dc2-red
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf2
+              tags:
+                query: device:s2-brdr1,s2-brdr2,s2-leaf1,s2-leaf2
+          vlanId: 16
+          vrf: red
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: s2c1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-brdr1
+                  tags:
+                    query: device:s2-brdr1
+              maxRoutes: {}
+              neighborIpAddress: 1.2.17.3
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s2c2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-brdr2
+                  tags:
+                    query: device:s2-brdr2
+              maxRoutes: {}
+              neighborIpAddress: 1.2.17.4
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: red
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 215
+    - macVrfVniBase: 10000
+      name: dc1-blue
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v8
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf4
+              tags:
+                query: device:s1-brdr1,s1-brdr2,s1-leaf3,s1-leaf4
+          vlanId: 8
+          vrf: blue
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: s1c1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-brdr1
+                  tags:
+                    query: device:s1-brdr1
+              maxRoutes: {}
+              neighborIpAddress: 1.1.9.3
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s1c2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-brdr2
+                  tags:
+                    query: device:s1-brdr2
+              maxRoutes: {}
+              neighborIpAddress: 1.1.9.4
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: blue
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 266
+    - macVrfVniBase: 10000
+      name: dc2-blue
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v18
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf4
+              tags:
+                query: device:s2-brdr1,s2-brdr2,s2-leaf3,s2-leaf4
+          vlanId: 18
+          vrf: blue
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: s2c1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-brdr1
+                  tags:
+                    query: device:s2-brdr1
+              maxRoutes: {}
+              neighborIpAddress: 1.2.19.3
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s2c2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-brdr2
+                  tags:
+                    query: device:s2-brdr2
+              maxRoutes: {}
+              neighborIpAddress: 1.2.19.4
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: blue
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 72
+    - macVrfVniBase: 10000
+      name: ip-network
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v7
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-core1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-core2
+              tags:
+                query: device:s1-core1,s1-core2
+          vlanId: 7
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v9
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-core1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-core2
+              tags:
+                query: device:s1-core1,s1-core2
+          vlanId: 9
+          vrf: blue
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v17
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-core1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-core2
+              tags:
+                query: device:s2-core1,s2-core2
+          vlanId: 17
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v19
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-core1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-core2
+              tags:
+                query: device:s2-core1,s2-core2
+          vlanId: 19
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: s1b1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-core1
+                  tags:
+                    query: device:s1-core1
+              maxRoutes: {}
+              neighborIpAddress: 1.1.7.1
+              nextHop: {}
+              password: null
+              remoteAs: 65004
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s1b2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-core2
+                  tags:
+                    query: device:s1-core2
+              maxRoutes: {}
+              neighborIpAddress: 1.1.7.2
+              nextHop: {}
+              password: null
+              remoteAs: 65005
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s2b1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-core1
+                  tags:
+                    query: device:s2-core1
+              maxRoutes: {}
+              neighborIpAddress: 1.2.17.1
+              nextHop: {}
+              password: null
+              remoteAs: 65104
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s2b2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-core2
+                  tags:
+                    query: device:s2-core2
+              maxRoutes: {}
+              neighborIpAddress: 1.2.17.2
+              nextHop: {}
+              password: null
+              remoteAs: 65105
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: red
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 63
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: s1b1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-core1
+                  tags:
+                    query: device:s1-core1
+              maxRoutes: {}
+              neighborIpAddress: 1.1.9.1
+              nextHop: {}
+              password: null
+              remoteAs: 65004
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s1b2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-core2
+                  tags:
+                    query: device:s1-core2
+              maxRoutes: {}
+              neighborIpAddress: 1.1.9.2
+              nextHop: {}
+              password: null
+              remoteAs: 65005
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s2b1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-core1
+                  tags:
+                    query: device:s2-core1
+              maxRoutes: {}
+              neighborIpAddress: 1.2.19.1
+              nextHop: {}
+              password: null
+              remoteAs: 65104
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: s2b2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-core2
+                  tags:
+                    query: device:s2-core2
+              maxRoutes: {}
+              neighborIpAddress: 1.2.19.2
+              nextHop: {}
+              password: null
+              remoteAs: 65105
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: blue
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 83
