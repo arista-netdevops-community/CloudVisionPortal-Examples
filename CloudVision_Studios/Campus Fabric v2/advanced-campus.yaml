@@ -1213,7 +1213,7 @@
                   return
               query = f'NOT device:{device_id} AND Role:{role} AND NOT Role:Member-Leaf AND Campus:"{campus}" AND Building:"{building}"'
               if switch_facts["type"] == "leaf":
-                  query += f' Campus-Pod:"{switch_facts["group"]}"'
+                  query += f' IDF:"{switch_facts["group"]}"'
 
               potential_mlag_peer_sns = __get_devices_matching_tag_query(query)
               if type(potential_mlag_peer_sns) == list:
@@ -1515,11 +1515,11 @@
               if switch_facts["type"] == "spline":
                   switch_facts["group"] = "{}_{}_Splines".format(switch_facts["campus"], switch_facts["building"])
               else:
-                  switch_facts['group'] = device_tags.get("Campus-Pod", [None])[0]
+                  switch_facts['group'] = device_tags.get("IDF", [None])[0]
                   if switch_facts['group'] is None:
-                      ctx.warning(f"{switch_facts['hostname']} does not have a Campus-Pod tag applied.")
+                      ctx.warning(f"{switch_facts['hostname']} does not have a IDF tag applied.")
                       return
-                  if building_details["campusPods"].resolve(device=device_id).get('campusPodFacts', None) is None:
+                  if building_details["idfs"].resolve(device=device_id).get('idfFacts', None) is None:
                       ctx.warning(f"No input resolver found for {switch_facts['group']}.")
                       return
 
@@ -1611,9 +1611,9 @@
               if not building_details["advancedFabricConfigurations"].get("ipLocking"):
                   building_details["ipLocking"] = {}
 
-              campus_pod_details = building_details["campusPods"].resolve(device=device_id)
-              if campus_pod_details:
-                  campus_pod_details = campus_pod_details["campusPodFacts"]
+              idf_details = building_details["idfs"].resolve(device=device_id)
+              if idf_details:
+                  idf_details = idf_details["idfFacts"]
 
               # Get fabric details
               if switch_facts["underlay_router"] == True:
@@ -1627,7 +1627,7 @@
               if switch_facts["type"] == "spline":
                   node_defaults = building_details.get("splineDefaults", {})
               else:
-                  node_defaults = building_details.get("campusPodDefaults", {})
+                  node_defaults = building_details.get("idfDefaults", {})
 
               # Set STP defaults
               if not node_defaults.get("spanningTreeDetails"):
@@ -1740,7 +1740,7 @@
                   if switch_facts["type"] == "spline":
                       switch_facts["loopback_ipv4_offset"] = 0
                   elif switch_facts["type"] == "leaf":
-                      if building_details["splineDefaults"]["routerIdPool"] == building_details["campusPodDefaults"]["routerIdPool"]:
+                      if building_details["splineDefaults"]["routerIdPool"] == building_details["idfDefaults"]["routerIdPool"]:
                           # Offset is 2
                           switch_facts["loopback_ipv4_offset"] = 2
                       else:
@@ -1853,11 +1853,6 @@
                       switch_facts["mlag_lacp_mode"] = "active"
                       switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
                       switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
-                      # Check to see if this is proper design
-                      if switch_facts["campus_type"] == "l2ls":
-                          if switch_facts["type"] in ["leaf", "memberleaf"]:  # switch_facts['platform_settings'].get("asu", False) == True:
-                              switch_facts["reload_delay_mlag"] = 0
-                              switch_facts["reload_delay_non_mlag"] = 0
 
                       # switch_facts["mlag_ibgp_origin_incomplete"] = True
 
@@ -1912,12 +1907,12 @@
                           switch_facts["mlag_interfaces"] = natural_sort(mlag_interfaces)
                           switch_facts["mlag_peer_switch_interfaces"] = switch_facts["mlag_interfaces"]
 
-                      # Set from campus pod inputs
-                      if switch_facts["type"] == "leaf" and campus_pod_details["hideShowToggles"].get("displayPodFabricInterfaceInputs", False) is True:
-                          campus_pod_mlag_interfaces = campus_pod_details.get("campusPodMlagPeerInterfaces", [])
-                          if len(campus_pod_mlag_interfaces) > 0:
+                      # Set from idf inputs
+                      if switch_facts["type"] == "leaf" and idf_details["hideShowToggles"].get("displayPodFabricInterfaceInputs", False) is True:
+                          idf_mlag_interfaces = idf_details.get("idfMlagPeerInterfaces", [])
+                          if len(idf_mlag_interfaces) > 0:
                               mlag_interfaces = []
-                              for iface_entry in campus_pod_mlag_interfaces:
+                              for iface_entry in idf_mlag_interfaces:
                                   mlag_interfaces += range_expand(iface_entry)
                               switch_facts["mlag_interfaces"] = natural_sort(mlag_interfaces)
                               switch_facts["mlag_peer_switch_interfaces"] = switch_facts["mlag_interfaces"]
@@ -1980,9 +1975,9 @@
               default_priority2 = switch_facts["id"] % 256
 
               # get ptp values at idf level
-              if campus_pod_details and campus_pod_details.get("ptp"):
-                  default_priority1 = campus_pod_details["ptp"]["priority1"]
-                  default_priority2 = campus_pod_details["ptp"]["priority2"]
+              if idf_details and idf_details.get("ptp"):
+                  default_priority1 = idf_details["ptp"]["priority1"]
+                  default_priority2 = idf_details["ptp"]["priority2"]
 
               # Get node-type ptp settings, node-group ptp settings, and node-level ptp settings
               ptp = {"enabled": ptp_enabled}
@@ -2060,8 +2055,8 @@
                   switch_facts["inband_management_subnet"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
 
                   # get pod inband management pool
-                  if campus_pod_details:
-                      switch_facts["inband_management_ip_range"] = campus_pod_details["inbandManagementDetails"]["podInbandManagementIpv4Range"]
+                  if idf_details:
+                      switch_facts["inband_management_ip_range"] = idf_details["inbandManagementDetails"]["podInbandManagementIpv4Range"]
                   else:
                       switch_facts["inband_management_ip_range"] = None
 
@@ -2183,9 +2178,9 @@
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
                   return
               building_details = building_resolved["buildingFacts"]
-              campus_pod_details = building_details["campusPods"].resolve(device=device_id)
-              if campus_pod_details:
-                  campus_pod_details = campus_pod_details["campusPodFacts"]
+              idf_details = building_details["idfs"].resolve(device=device_id)
+              if idf_details:
+                  idf_details = idf_details["idfFacts"]
 
               # Initialize return variables
               uplink_interfaces = []
@@ -2195,12 +2190,12 @@
               uplink_switch_interfaces = []
 
               # Get input values
-              if campus_pod_details and campus_pod_details["hideShowToggles"]["displayPodFabricInterfaceInputs"] is True:
+              if idf_details and idf_details["hideShowToggles"]["displayPodFabricInterfaceInputs"] is True:
                   uplink_interface_dicts = []
-                  if switch_facts["type"] == "leaf" and len(campus_pod_details.get("leafUplinkInterfaces", [])) > 0:
-                      uplink_interface_dicts = campus_pod_details["leafUplinkInterfaces"]
-                  elif switch_facts["type"] == "memberleaf" and len(campus_pod_details.get("memberLeafUplinkInterfaces", [])) > 0:
-                      uplink_interface_dicts = campus_pod_details["memberLeafUplinkInterfaces"]
+                  if switch_facts["type"] == "leaf" and len(idf_details.get("leafUplinkInterfaces", [])) > 0:
+                      uplink_interface_dicts = idf_details["leafUplinkInterfaces"]
+                  elif switch_facts["type"] == "memberleaf" and len(idf_details.get("memberLeafUplinkInterfaces", [])) > 0:
+                      uplink_interface_dicts = idf_details["memberLeafUplinkInterfaces"]
 
                   # Check if there are user inputs for switch uplinks
                   user_input_uplink_info = False
@@ -2244,8 +2239,12 @@
               uplink_switches = []
               uplink_switches_ids = []
               uplink_switch_interfaces = []
+              uplink_info_tuples = []
 
               device_id = switch_facts['serial_number']
+
+              leafs_upstream = None  #  Used to account for topologies where a member leaf uplinks to another memberleaf
+              memberleafs_downstream = None  #  Used to account for topologies where a member leaf uplinks to another memberleaf
 
               for interface in natural_sort(switch_facts["interfaces"], sort_key="interface_name"):
                   neighbor = my_switch_facts_neighbors.get(interface["peer_serial_number"])
@@ -2253,21 +2252,33 @@
                       # Leaf case
                       if switch_facts['type'] == "leaf":
                           if neighbor['type'] == "spline":
-                              uplink_interfaces.append(interface['interface_name'])
-                              uplink_switches_switch_facts.append(neighbor)
-                              uplink_switches.append(neighbor['hostname'])
-                              uplink_switches_ids.append(neighbor['serial_number'])
-                              uplink_switch_interfaces.append(interface["peer_interface_name"])
+                              uplink_info_tuples.append((interface['interface_name'], neighbor['hostname'], neighbor['serial_number'], interface["peer_interface_name"]))
 
                       # Member Leaf case
                       elif switch_facts['type'] == "memberleaf":
-                          if neighbor['type'] == "leaf" or neighbor['type'] == "memberleaf":
-                              uplink_interfaces.append(interface['interface_name'])
-                              uplink_switches_switch_facts.append(neighbor)
-                              uplink_switches.append(neighbor['hostname'])
-                              uplink_switches_ids.append(neighbor['serial_number'])
-                              uplink_switch_interfaces.append(interface["peer_interface_name"])
+                          if neighbor['type'] in ["leaf", "memberleaf"]:
+                              uplink_info_tuples.append((interface['interface_name'], neighbor['hostname'], neighbor['serial_number'], interface["peer_interface_name"]))
+                              if neighbor["type"] == "leaf":
+                                  leafs_upstream = True
+                              if neighbor["type"] == "memberleaf":
+                                  memberleafs_downstream = True
 
+
+              # to account for topologies where a memberleaf uplinks to another memberleaf,
+              # cycle through memberleafs' uplinks to remove false memberleaf to memberleaf uplinks
+              neighbors_to_remove = []
+              if switch_facts['type'] == "memberleaf" and leafs_upstream and memberleafs_downstream:
+                  for uplink_info_tuple in uplink_info_tuples:
+                      uplink_switch_facts = my_switch_facts_neighbors.get(uplink_info_tuple[2])
+                      if uplink_switch_facts and uplink_switch_facts["type"] == "memberleaf":
+                          neighbors_to_remove.append(uplink_info_tuple)
+              for neighbor_tuple in neighbors_to_remove:
+                  uplink_info_tuples.remove(neighbor_tuple)
+
+              uplink_interfaces = [uplink_info_tuple[0] for uplink_info_tuple in uplink_info_tuples]
+              uplink_switches = [uplink_info_tuple[1] for uplink_info_tuple in uplink_info_tuples]
+              uplink_switches_ids = [uplink_info_tuple[2] for uplink_info_tuple in uplink_info_tuples]
+              uplink_switch_interfaces = [uplink_info_tuple[3] for uplink_info_tuple in uplink_info_tuples]
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
@@ -2298,7 +2309,7 @@
                       if tmp_switch_facts["type"] == "leaf" and switch_facts["serial_number"] in tmp_switch_facts["uplink_switches_ids"] \
                               and tmp_switch_sn not in switch_facts["downlink_switches_ids"]:
                           switch_facts["downlink_switches_ids"].append(tmp_switch_sn)
-              elif switch_facts["type"] == "leaf":
+              elif switch_facts["type"] in ["leaf", "memberleaf"]:
                   for tmp_switch_sn, tmp_switch_facts in my_switch_facts_neighbors.items():
                       if tmp_switch_facts["type"] == "memberleaf" and tmp_switch_facts["group"] == switch_facts["group"] \
                               and switch_facts["serial_number"] in tmp_switch_facts["uplink_switches_ids"] and tmp_switch_sn not in switch_facts["downlink_switches_ids"]:
@@ -2342,6 +2353,7 @@
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
                       uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
+                      ctx.info(f"{uplink_interface}: {uplink_switch_facts['hostname']}")
                       link_facts["peer_id"] = uplink_switch_facts["serial_number"]
                       link_facts["peer"] = uplink_switch_facts["hostname"]
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
@@ -2365,9 +2377,12 @@
                           mlag_peer_switch_facts =  my_switch_facts_neighbors[switch_facts["mlag_peer_serial_number"]]
                           link_facts["channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_interfaces"][0]))
                           link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_switch_interfaces"][0]))
-                      else:
+                      elif uplink_switch_facts.get("mlag"):
                           link_facts["channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_interfaces"][0]))
                           link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_switch_interfaces"][0]))
+                      else:
+                          link_facts["channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_interfaces"][i]))
+                          link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_switch_interfaces"][i]))
 
                       if switch_facts.get("ptp") is not None and switch_facts["ptp"].get("enabled") is True:
                           link_facts["ptp"] = {"enable": True}
@@ -2450,7 +2465,7 @@
                   # Add VLAN if assigned to switch; Add VRF the VLAN is in if not already added;
                   for vlan in building_details["services"]["vlans"]:
                       # Check if vlan is applied to switch
-                      if device_matches_resolver_query(vlan['campusPod'], device_id):
+                      if device_matches_resolver_query(vlan['idf'], device_id):
                           add_svis.append(vlan['vlanId'])
                           leaf['vlans'].append(int(vlan['vlanId']))
                           if vlan['sviDetails'].get('vrf', '') == '':
@@ -2554,10 +2569,10 @@
                   spline['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": []} })
 
               if switch_facts["campus_type"] == "l2ls":
-                  campus_pods_checked = []
+                  idfs_checked = []
                   for switch_id in switch_facts.get("downlink_switches_ids", []):
                       tmp_switch_facts = my_switch_facts_neighbors.get(switch_id)
-                      if tmp_switch_facts is None or tmp_switch_facts["group"] in campus_pods_checked:
+                      if tmp_switch_facts is None or tmp_switch_facts["group"] in idfs_checked:
                           continue
                       for vlan in tmp_switch_facts.get('vlans', []):
                           if vlan not in spline['vlans']:
@@ -2579,7 +2594,7 @@
                                           if svi not in  spline['tenants'][tenant]["vrfs"][vrf]["svis"]:
                                               spline['tenants'][tenant]["vrfs"][vrf]["svis"].append(svi)
 
-                      campus_pods_checked.append(tmp_switch_facts["group"])
+                      idfs_checked.append(tmp_switch_facts["group"])
 
               switch_facts["tenants"]= spline.get("tenants")
               switch_facts["vlans"] = spline.get("vlans")
@@ -2984,9 +2999,10 @@
                           "description": "{}_Po{}".format(link["peer"].upper(), link.get("peer_channel_group_id")),
                           "type": "switched",
                           "shutdown": False,
-                          "mode": "trunk",
-                          "mlag": link["channel_group_id"]
+                          "mode": "trunk"
                       }
+                      if switch_facts.get("mlag"):
+                          port_channel["mlag"] = link["channel_group_id"]
                       if link.get('vlans'):
                           port_channel['vlans'] = list_compress(link['vlans'])
 
@@ -3630,7 +3646,7 @@
 
                       else:
                           # virtual ip
-                          virtual_ip = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress', "").strip()
+                          virtual_ip = vlan['idf'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress', "").strip()
                           if virtual_ip != "":
                               svi["ip_virtual_router_addresses"].append(virtual_ip)
 
@@ -3639,13 +3655,13 @@
                               try:
                                   if switch_facts.get("mlag_role", "") == "secondary":
                                       # Get/Set secondary ip
-                                      ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
+                                      ip_address = vlan['idf'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
                                       if ip_address == "" and virtual_ip != "":
                                           ip_network = ipaddress.ip_interface(virtual_ip).network
                                           ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
                                   else:
                                       # Get/Set primary ip
-                                      ip_address = vlan['campusPod'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
+                                      ip_address = vlan['idf'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
                                       if ip_address == "" and virtual_ip != "":
                                           ip_network = ipaddress.ip_interface(virtual_ip).network
                                           ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
@@ -4258,7 +4274,7 @@
           my_config = {}
 
           # Pre-populate dictionaries used for getting switch facts
-          interestingTagLabels = ['Role', 'Campus', 'Building', 'Campus-Pod', 'NodeId']
+          interestingTagLabels = ['Role', 'Campus', 'Building', 'IDF', 'NodeId']
           allDeviceTags = get_all_tags(workspace_id, interestingTagLabels)
 
           if log_all_checkpoint_times:
@@ -4282,7 +4298,7 @@
           if my_switch_facts["type"] == "spline":
               query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR Role:Leaf)".format(my_switch_facts['campus'], my_switch_facts['building'])
           else:  #if my_switch_facts["type"] in ["leaf", "memberleaf"]
-              query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR Campus-Pod:\"{}\")".format(my_switch_facts['campus'], my_switch_facts['building'], my_switch_facts['group'])
+              query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR IDF:\"{}\")".format(my_switch_facts['campus'], my_switch_facts['building'], my_switch_facts['group'])
 
           my_switch_facts_neighbors = set_switch_facts_properties_for_query(query, campus)
 
@@ -4314,19 +4330,19 @@
               ctx.info(f"Time taken to set switch_facts for all of my_switch_facts neighbors and my_switch_facts: {time.time() - task_time} seconds")
               task_time = time.time()
 
-          # Get network services applied to each campus_pod switch (part 1a)
+          # Get network services applied to each idf switch (part 1a)
           for switch_facts in my_switch_facts_neighbors.values():
               if switch_facts["type"] in ["leaf", "memberleaf"]:
                   switch_facts = get_network_services_leaf_switch(switch_facts, campus)
 
           if log_all_checkpoint_times:
-              ctx.info(f"Time taken to get network services applied to each campus_pod switch (part 1a): {time.time() - task_time} seconds")
+              ctx.info(f"Time taken to get network services applied to each idf switch (part 1a): {time.time() - task_time} seconds")
               task_time = time.time()
 
           # Get network services applied to each spline switch (part 1b)
-          #  Need to get network services for spline switches after campus pod leaf switches because
+          #  Need to get network services for spline switches after idf leaf switches because
           #  the studio does not allow users to assign VLANs to spline switches so VLANs are assigned to splines
-          #  based on downstream campus pod VLANs
+          #  based on downstream idf VLANs
           for switch_facts in my_switch_facts_neighbors.values():
               if switch_facts["type"] == "spline":
                   switch_facts = get_network_services_spline_switch(switch_facts, campus)
@@ -5898,8 +5914,8 @@
       input_schema:
         fields:
           values:
-            campusPodRouterIdPool:
-              id: campusPodRouterIdPool
+            idfRouterIdPool:
+              id: idfRouterIdPool
               name: routerIdPool
               label: Router ID Pool
               description: Define the IPv4 pool from which IP addresses are allocated to each leaf's Loopback0 interface.
@@ -5907,14 +5923,13 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            campusPodUplinkIpv4Pool:
-              id: campusPodUplinkIpv4Pool
+            idfUplinkIpv4Pool:
+              id: idfUplinkIpv4Pool
               name: uplinkIpv4Pool
               label: Uplink Ipv4 Pool
               description: IPv4 subnet to use to connect to uplink switches
@@ -5922,7 +5937,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5949,7 +5963,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 169.254.0.0/31
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5976,7 +5989,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -5991,7 +6003,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1c:73:00:00:99
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6006,7 +6017,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6021,7 +6031,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6046,7 +6055,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6077,12 +6085,11 @@
                     - leafMlagPeerL3Vlan
                     - leafMlagPeerL3IPv4Pool
                     - leafVirtualRouterMacAddress
-                    - leafMlagPeerInterfaces
                     - leafMlagPeerInterfacesSpeed
                     - leafMlagPeerInterfacesEosCli
                     - leafMlagPeerLinkEosCli
-            campusPodSpanningTreeMode:
-              id: campusPodSpanningTreeMode
+            idfSpanningTreeMode:
+              id: idfSpanningTreeMode
               name: spanningTreeMode
               label: Spanning Tree Mode
               description: ''
@@ -6090,7 +6097,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: MSTP
-                is_secret: false
                 static_options:
                   values:
                     - MSTP
@@ -6156,17 +6162,17 @@
                     - '57344'
                     - '61440'
                 dynamic_options: null
-            campusPodSpanningTreeDetails:
-              id: campusPodSpanningTreeDetails
+            idfSpanningTreeDetails:
+              id: idfSpanningTreeDetails
               name: spanningTreeDetails
               label: Spanning Tree Details
-              description: Spanning tree settings to be applied on Campus Pod switches
+              description: Spanning tree settings to be applied on IDF switches
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
                 members:
                   values:
-                    - campusPodSpanningTreeMode
+                    - idfSpanningTreeMode
                     - leafSpanningTreePriority
                     - memberLeafSpanningTreePriority
             leafVtepLoopbackIPv4Pool:
@@ -6178,29 +6184,27 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            campusPodBgpAsRange:
-              id: campusPodBgpAsRange
+            idfBgpAsRange:
+              id: idfBgpAsRange
               name: bgpAsns
               label: BGP AS Range
-              description: Define the ASN range from which BGP ASNs are allocated to each Campus Pod's primary and secondary leaf switch.
+              description: Define the ASN range from which BGP ASNs are allocated to each IDF's primary and secondary leaf switch.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            campusPodBgpDefaultsConfigStatement:
-              id: campusPodBgpDefaultsConfigStatement
+            idfBgpDefaultsConfigStatement:
+              id: idfBgpDefaultsConfigStatement
               name: bgpDefaultsConfigStatement
               label: Config Statement
               description: Input raw EOS CLI
@@ -6208,21 +6212,20 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            campusPodBgpDefaults:
-              id: campusPodBgpDefaults
+            idfBgpDefaults:
+              id: idfBgpDefaults
               name: bgpDefaults
               label: BGP Defaults
               description: Configure additional commands under the 'router bgp' context.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
-                base_field_id: campusPodBgpDefaultsConfigStatement
+                base_field_id: idfBgpDefaultsConfigStatement
                 key: ''
             leafBgpDetails:
               id: leafBgpDetails
@@ -6234,8 +6237,8 @@
               group_props:
                 members:
                   values:
-                    - campusPodBgpAsRange
-                    - campusPodBgpDefaults
+                    - idfBgpAsRange
+                    - idfBgpDefaults
             leafOspfDefaultsConfigStatement:
               id: leafOspfDefaultsConfigStatement
               name: ospfDefaultsConfigStatement
@@ -6245,7 +6248,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6272,8 +6274,8 @@
                 members:
                   values:
                     - leafOspfDefaults
-            campusPodDefaultsLeafUplinkInterfacesSpeed:
-              id: campusPodDefaultsLeafUplinkInterfacesSpeed
+            idfDefaultsLeafUplinkInterfacesSpeed:
+              id: idfDefaultsLeafUplinkInterfacesSpeed
               name: leafUplinkInterfacesSpeed
               label: Leaf Uplink Interfaces Speed
               description: Speed will apply to switch interfaces on both ends of uplinks.
@@ -6281,14 +6283,13 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: auto
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            campusPodDefaultsMemberLeafUplinkInterfacesSpeed:
-              id: campusPodDefaultsMemberLeafUplinkInterfacesSpeed
+            idfDefaultsMemberLeafUplinkInterfacesSpeed:
+              id: idfDefaultsMemberLeafUplinkInterfacesSpeed
               name: memberLeafUplinkInterfacesSpeed
               label: Member-Leaf Uplink Interfaces Speed
               description: Speed will apply to switch interfaces on both ends of uplinks.
@@ -6296,7 +6297,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: auto
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6311,7 +6311,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6336,7 +6335,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6352,8 +6350,8 @@
               collection_props:
                 base_field_id: memberLeafUplinksCliStatement
                 key: ''
-            campusPodUplinkInterfaceDetails:
-              id: campusPodUplinkInterfaceDetails
+            idfUplinkInterfaceDetails:
+              id: idfUplinkInterfaceDetails
               name: uplinkInterfaceDetails
               label: Uplink Interface Details
               description: ''
@@ -6362,8 +6360,8 @@
               group_props:
                 members:
                   values:
-                    - campusPodDefaultsLeafUplinkInterfacesSpeed
-                    - campusPodDefaultsMemberLeafUplinkInterfacesSpeed
+                    - idfDefaultsLeafUplinkInterfacesSpeed
+                    - idfDefaultsMemberLeafUplinkInterfacesSpeed
                     - leafUplinksEosCli
                     - memberLeafUplinksEosCli
             leafPtpPriority1:
@@ -6390,8 +6388,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            campusPodPtpClockIdentityPrefix:
-              id: campusPodPtpClockIdentityPrefix
+            idfPtpClockIdentityPrefix:
+              id: idfPtpClockIdentityPrefix
               name: ptpClockIdentityPrefix
               label: PTP Clock Identity Prefix
               description: The PTP clock identity is generated and set automatically using the formula < (clock_identity_prefix = 00:1C:73 (default)) + (PTP priority 1 as HEX) + ":00:" + (PTP priority 2 as HEX) >.  Customize the PTP clock identity by modifying Clock Identity Prefix.
@@ -6399,14 +6397,13 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1C:73
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            campusPodPtpAutoClockIdentity:
-              id: campusPodPtpAutoClockIdentity
+            idfPtpAutoClockIdentity:
+              id: idfPtpAutoClockIdentity
               name: autoClockIdentity
               label: Auto Clock Identity
               description: Enable to set a custom PTP clock identity.  If you prefer to have PTP clock identity be the system MAC-address of the switch, which is the default EOS behavior, disable the automatic PTP clock identity.
@@ -6414,8 +6411,8 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: true
-            campusPodPtpDetails:
-              id: campusPodPtpDetails
+            idfPtpDetails:
+              id: idfPtpDetails
               name: ptpDetails
               label: PTP Details
               description: ''
@@ -6426,27 +6423,27 @@
                   values:
                     - leafPtpPriority1
                     - memberLeafPtpPriority1
-                    - campusPodPtpClockIdentityPrefix
-                    - campusPodPtpAutoClockIdentity
-            campusPodDefaults:
-              id: campusPodDefaults
-              name: campusPodDefaults
-              label: Campus Pod Defaults
+                    - idfPtpClockIdentityPrefix
+                    - idfPtpAutoClockIdentity
+            idfDefaults:
+              id: idfDefaults
+              name: idfDefaults
+              label: IDF Defaults
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
                 members:
                   values:
-                    - campusPodRouterIdPool
-                    - campusPodUplinkIpv4Pool
+                    - idfRouterIdPool
+                    - idfUplinkIpv4Pool
                     - leafMlagDetails
-                    - campusPodSpanningTreeDetails
+                    - idfSpanningTreeDetails
                     - leafVtepLoopbackIPv4Pool
                     - leafBgpDetails
                     - leafOspfDetails
-                    - campusPodUplinkInterfaceDetails
-                    - campusPodPtpDetails
+                    - idfUplinkInterfaceDetails
+                    - idfPtpDetails
             splineRouterIdPool:
               id: splineRouterIdPool
               name: routerIdPool
@@ -6456,7 +6453,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6471,7 +6467,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: MSTP
-                is_secret: false
                 static_options:
                   values:
                     - RSTP
@@ -6542,7 +6537,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 169.254.0.0/31
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6569,7 +6563,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6584,7 +6577,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1c:73:00:00:99
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6599,7 +6591,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6624,7 +6615,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6639,7 +6629,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6664,7 +6653,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6708,7 +6696,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6723,7 +6710,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6738,7 +6724,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6841,7 +6826,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6898,7 +6882,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1C:73
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6938,7 +6921,7 @@
               id: podId
               name: podId
               label: Pod ID
-              description: Used as an index for certain inputs defined under the Campus Pod Defaults section.
+              description: Used as an index for certain inputs defined under the IDF Defaults section.
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -6955,7 +6938,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6970,7 +6952,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6985,7 +6966,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7000,7 +6980,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7039,7 +7018,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7054,7 +7032,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7069,7 +7046,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7084,7 +7060,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7108,48 +7083,47 @@
               id: memberLeafUplinkInterfaces
               name: memberLeafUplinkInterfaces
               label: Member Leaf Uplink Interfaces
-              description: Define the links the Member-Leaf switches will use to connect to the upstream Leaf switches in the Campus Pod.
+              description: Define the links the Member-Leaf switches will use to connect to the upstream Leaf switches in the IDF.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
                 base_field_id: memberLeafUplinkInterfaceDetails
                 key: ''
-            campusPodMlagPeerInterfaceName:
-              id: campusPodMlagPeerInterfaceName
-              name: campusPodMlagPeerInterfaceName
+            idfMlagPeerInterfaceName:
+              id: idfMlagPeerInterfaceName
+              name: idfMlagPeerInterfaceName
               label: Interface Name
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            campusPodMlagPeerInterfaces:
-              id: campusPodMlagPeerInterfaces
-              name: campusPodMlagPeerInterfaces
+            idfMlagPeerInterfaces:
+              id: idfMlagPeerInterfaces
+              name: idfMlagPeerInterfaces
               label: Leaf MLAG Peer Interfaces
-              description: Define the interfaces that will make up the MLAG peer link for the primary and secondary leaf in this Campus Pod. Note that this will override any MLAG peer interfaces defined under the Campus Pod Defaults MLAG Details section.
+              description: Define the interfaces that will make up the MLAG peer link for the primary and secondary leaf in this IDF. Note that this will override any MLAG peer interfaces defined under the IDF Defaults MLAG Details section.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
-                base_field_id: campusPodMlagPeerInterfaceName
+                base_field_id: idfMlagPeerInterfaceName
                 key: ''
             displayPodFabricInterfaceInputsToggle:
               id: displayPodFabricInterfaceInputsToggle
               name: displayPodFabricInterfaceInputs
-              label: Define Campus Pod topology
-              description: Toggle on to display fields which allow users to define interface connections at the Campus Pod level, overriding the topology's interface connections defined in the Inventory & Topology studio.
+              label: Define IDF topology
+              description: Toggle on to display fields which allow users to define interface connections at the IDF level, overriding the topology's interface connections defined in the Inventory & Topology studio.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: false
-            campusPodHideShowTogglesGroup:
-              id: campusPodHideShowTogglesGroup
+            idfHideShowTogglesGroup:
+              id: idfHideShowTogglesGroup
               name: hideShowToggles
               label: Hide/Show Toggles
               description: ''
@@ -7163,12 +7137,11 @@
               id: podInbandManagementIpv4Range
               name: podInbandManagementIpv4Range
               label: Inband Management IP Allocation Range
-              description: Enter the IP range from which to allocate inband management IP addresses from.  This range should fall within the larger Inband Management Subnet Pool defined in the Inband Management Details section of Campus Pod Defaults.  For example, if the Inband Management subnet is 192.168.0.0/24, a valid range of IP addresses would be 192.168.0.4-192.168.12.
+              description: Enter the IP range from which to allocate inband management IP addresses from.  This range should fall within the larger Inband Management Subnet Pool defined in the Inband Management Details section of IDF Defaults.  For example, if the Inband Management subnet is 192.168.0.0/24, a valid range of IP addresses would be 192.168.0.4-192.168.12.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7185,10 +7158,10 @@
                 members:
                   values:
                     - podInbandManagementIpv4Range
-            campusPodFacts:
-              id: campusPodFacts
-              name: campusPodFacts
-              label: Campus Pod Facts
+            idfFacts:
+              id: idfFacts
+              name: idfFacts
+              label: IDF Facts
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_GROUP
@@ -7198,21 +7171,21 @@
                     - podId
                     - leafUplinkInterfaces
                     - memberLeafUplinkInterfaces
-                    - campusPodMlagPeerInterfaces
-                    - campusPodHideShowTogglesGroup
+                    - idfMlagPeerInterfaces
+                    - idfHideShowTogglesGroup
                     - podInbandManagementGroup
-            campusPods:
-              id: campusPods
-              name: campusPods
-              label: Campus Pods
-              description: A Campus Pod is a group of switches that acts as an IDF. Create Campus-Pods and define how the switches in the Campus Pod should be connected.
+            idfs:
+              id: idfs
+              name: idfs
+              label: IDFs
+              description: An IDF is a group of switches that acts as an IDF. Create IDFs and define how the switches in the IDF should be connected.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
-                base_field_id: campusPodFacts
+                base_field_id: idfFacts
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: Campus-Pod
+                input_tag_label: IDF
                 tag_filter_query: null
             allowAllVlansOnTrunkToggle:
               id: allowAllVlansOnTrunkToggle
@@ -7232,7 +7205,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7247,7 +7219,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7271,7 +7242,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7286,7 +7256,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7301,7 +7270,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7329,7 +7297,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7344,7 +7311,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7359,7 +7325,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7390,7 +7355,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7405,7 +7369,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7442,7 +7405,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7457,7 +7419,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: cidr
                 length: null
@@ -7472,7 +7433,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7487,7 +7447,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7502,14 +7461,13 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
-            vlansCampusPodGroup:
-              id: vlansCampusPodGroup
+            vlansIdfGroup:
+              id: vlansIdfGroup
               name: podDetails
               label: Pod Details
               description: ''
@@ -7522,18 +7480,18 @@
                     - l3CampusPrimaryLeafSviIpAddress
                     - l3CampusSecondaryLeafSviIpAddress
                     - l3CampusVlanName
-            vlansCampusPodResolver:
-              id: vlansCampusPodResolver
-              name: campusPod
-              label: Campus Pods
+            vlansIdfResolver:
+              id: vlansIdfResolver
+              name: idf
+              label: IDFs
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
-                base_field_id: vlansCampusPodGroup
+                base_field_id: vlansIdfGroup
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: Campus-Pod
+                input_tag_label: IDF
                 tag_filter_query: null
             vlanSviEosCliStatement:
               id: vlanSviEosCliStatement
@@ -7544,7 +7502,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7652,7 +7609,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 0.0.0.0
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7679,7 +7635,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Simple
@@ -7697,7 +7652,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7712,7 +7666,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: sha512
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7727,7 +7680,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7829,7 +7781,7 @@
                     - vlanCampusSviGroup
                     - vlanDhcpHelpers
                     - vlanName
-                    - vlansCampusPodResolver
+                    - vlansIdfResolver
                     - vlanSviEosCli
                     - vlanSpanningTreeDetails
                     - sviOspfConfiguration
@@ -7865,7 +7817,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Server
@@ -7883,7 +7834,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7901,7 +7851,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7919,7 +7868,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7937,7 +7885,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7955,7 +7902,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -7989,7 +7935,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Server
@@ -8007,7 +7952,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8025,7 +7969,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8043,7 +7986,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8061,7 +8003,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8079,7 +8020,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8125,7 +8065,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: BGP
-                is_secret: false
                 static_options:
                   values:
                     - BGP
@@ -8143,7 +8082,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - BGP
@@ -8184,7 +8122,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 0.0.0.0
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8330,7 +8267,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8382,7 +8318,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8397,7 +8332,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8433,7 +8367,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: default
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8443,7 +8376,7 @@
               id: l2CampusInbandManagementDetails
               name: inbandManagementDetails
               label: Inband Management
-              description: Inband Management settings used for Campus Pod switches.
+              description: Inband Management settings used for IDF switches.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -8471,7 +8404,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8486,7 +8418,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8544,7 +8475,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: aes67-r16-2016
-                is_secret: false
                 static_options:
                   values:
                     - aes67-r16-2016
@@ -8597,7 +8527,7 @@
                 base_field_id: buildingPtpIdfsGroup
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: Campus-Pod
+                input_tag_label: IDF
                 tag_filter_query: null
             buildingPtp:
               id: buildingPtp
@@ -8640,7 +8570,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8744,9 +8673,9 @@
               group_props:
                 members:
                   values:
-                    - campusPodDefaults
+                    - idfDefaults
                     - splineDefaults
-                    - campusPods
+                    - idfs
                     - buildingServices
                     - nodeTypeProperties
                     - buildingRoutingProtocols
@@ -8774,7 +8703,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8801,7 +8729,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8828,7 +8755,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8889,7 +8815,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8904,7 +8829,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8919,7 +8843,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9018,7 +8941,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9091,7 +9013,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9106,7 +9027,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9121,7 +9041,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - standard
@@ -9141,7 +9060,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -9195,7 +9113,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9234,7 +9151,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9249,7 +9165,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9276,7 +9191,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9291,7 +9205,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9318,7 +9231,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -9347,7 +9259,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9421,7 +9332,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9459,7 +9369,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9474,7 +9383,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9489,7 +9397,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9525,7 +9432,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9559,7 +9465,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9595,7 +9500,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options:
                   values:
                     - Simple
@@ -9613,7 +9517,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9640,7 +9543,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9655,7 +9557,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9811,7 +9712,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9826,7 +9726,6 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9952,8 +9851,8 @@
                   "buildingRoutingProtocols",
                   "splineTagger",
                   "splineDefaults",
-                  "campusPods",
-                  "campusPodDefaults",
+                  "idfs",
+                  "idfDefaults",
                   "advancedFabricConfigurations",
                   "buildingServices",
                   "nodeTypeProperties"
@@ -10011,7 +9910,7 @@
               "leafBgpAS":{
                 "key":"leafBgpAS",
                 "dependency":{
-                  "campusPodUnderlayRoutingProtocol":{
+                  "idfUnderlayRoutingProtocol":{
                     "value":[
                       "bgp"
                     ],
@@ -10020,22 +9919,22 @@
                 },
                 "type":"INPUT"
               },
-              "campusPodFacts":{
-                "key":"campusPodFacts",
+              "idfFacts":{
+                "key":"idfFacts",
                 "type":"INPUT",
                 "order":[
                   "podId",
                   "podInbandManagementGroup",
                   "leafTagger",
                   "memberLeafTagger",
-                  "campusPodHideShowTogglesGroup",
+                  "idfHideShowTogglesGroup",
                   "leafUplinkInterfaces",
-                  "campusPodMlagPeerInterfaces",
+                  "idfMlagPeerInterfaces",
                   "memberLeafUplinkInterfaces"
                 ]
               },
-              "campusPodBgpDefaultsConfigStatement":{
-                "key":"campusPodBgpDefaultsConfigStatement",
+              "idfBgpDefaultsConfigStatement":{
+                "key":"idfBgpDefaultsConfigStatement",
                 "dependency":{
                   "buildingUnderlayRoutingProtocol":{
                     "value":[
@@ -10053,19 +9952,19 @@
                 "dependencyType":"AND",
                 "type":"INPUT"
               },
-              "campusPodDefaults":{
-                "key":"campusPodDefaults",
+              "idfDefaults":{
+                "key":"idfDefaults",
                 "type":"INPUT",
                 "order":[
-                  "campusPodSpanningTreeDetails",
+                  "idfSpanningTreeDetails",
                   "leafMlagDetails",
-                  "campusPodUplinkIpv4Pool",
-                  "campusPodRouterIdPool",
+                  "idfUplinkIpv4Pool",
+                  "idfRouterIdPool",
                   "leafVtepLoopbackIPv4Pool",
                   "leafOspfDetails",
                   "leafBgpDetails",
-                  "campusPodUplinkInterfaceDetails",
-                  "campusPodPtpDetails"
+                  "idfUplinkInterfaceDetails",
+                  "idfPtpDetails"
                 ]
               },
               "splineDefaults":{
@@ -10081,8 +9980,8 @@
                   "splinesPtpDetails"
                 ]
               },
-              "campusPodUnderlayRoutingProtocol":{
-                "key":"campusPodUnderlayRoutingProtocol",
+              "idfUnderlayRoutingProtocol":{
+                "key":"idfUnderlayRoutingProtocol",
                 "type":"INPUT",
                 "dependency":{
                   "campusType":{
@@ -10093,8 +9992,8 @@
                   }
                 }
               },
-              "campusPodRouterIdPool":{
-                "key":"campusPodRouterIdPool",
+              "idfRouterIdPool":{
+                "key":"idfRouterIdPool",
                 "type":"INPUT",
                 "dependency":{
                   "campusType":{
@@ -10105,8 +10004,8 @@
                   }
                 }
               },
-              "campusPodBgpAsRange":{
-                "key":"campusPodBgpAsRange",
+              "idfBgpAsRange":{
+                "key":"idfBgpAsRange",
                 "dependency":{
                   "buildingUnderlayRoutingProtocol":{
                     "value":[
@@ -10207,8 +10106,8 @@
                 "type":"INPUT",
                 "dependencyType":"AND"
               },
-              "campusPodUplinkIpv4Pool":{
-                "key":"campusPodUplinkIpv4Pool",
+              "idfUplinkIpv4Pool":{
+                "key":"idfUplinkIpv4Pool",
                 "type":"INPUT",
                 "dependency":{
                   "campusType":{
@@ -10308,7 +10207,7 @@
               },
               "leafTagger":{
                 "type":"TAGGER",
-                "parentKey":"campusPodFacts",
+                "parentKey":"idfFacts",
                 "key":"leafTagger",
                 "name":"Leafs",
                 "assignmentType":"SINGLE",
@@ -10327,7 +10226,7 @@
               },
               "memberLeafTagger":{
                 "type":"TAGGER",
-                "parentKey":"campusPodFacts",
+                "parentKey":"idfFacts",
                 "key":"memberLeafTagger",
                 "name":"Member Leafs",
                 "assignmentType":"SINGLE",
@@ -10344,8 +10243,8 @@
                   }
                 ]
               },
-              "campusPodResolver":{
-                "key":"campusPodResolver",
+              "idfResolver":{
+                "key":"idfResolver",
                 "type":"INPUT",
                 "isPageLayout":true,
                 "showDefaultRow":false
@@ -10358,8 +10257,8 @@
                   "vtepAddressRange"
                 ]
               },
-              "campusPods":{
-                "key":"campusPods",
+              "idfs":{
+                "key":"idfs",
                 "isPageLayout":true,
                 "type":"INPUT",
                 "showDefaultRow":false
@@ -10379,8 +10278,8 @@
                 "type":"INPUT",
                 "isPageLayout":true
               },
-              "vlansCampusPodResolver":{
-                "key":"vlansCampusPodResolver",
+              "vlansIdfResolver":{
+                "key":"vlansIdfResolver",
                 "type":"INPUT"
               },
               "vlans":{
@@ -10406,7 +10305,7 @@
                 "type":"INPUT",
                 "order":[
                   "vlanId",
-                  "vlansCampusPodResolver",
+                  "vlansIdfResolver",
                   "vlanName",
                   "vlanCampusSviGroup",
                   "vlanDhcpHelpers",
@@ -10472,7 +10371,7 @@
                     ],
                     "mode":"SHOW"
                   },
-                  "campusPodSpanningTreeMode":{
+                  "idfSpanningTreeMode":{
                     "value":[
                       "MSTP"
                     ],
@@ -10818,7 +10717,7 @@
               "mstInstanceMemberLeafStpPriority":{
                 "key":"mstInstanceMemberLeafStpPriority",
                 "dependency":{
-                  "campusPodSpanningTreeMode":{
+                  "idfSpanningTreeMode":{
                     "value":[
                       "MSTP"
                     ],
@@ -10832,7 +10731,7 @@
                 "key":"mstInstanceLeafStpPriority",
                 "type":"INPUT",
                 "dependency":{
-                  "campusPodSpanningTreeMode":{
+                  "idfSpanningTreeMode":{
                     "value":[
                       "MSTP"
                     ],
@@ -10869,7 +10768,7 @@
               "vlanStpPriorityLeaf":{
                 "key":"vlanStpPriorityLeaf",
                 "dependency":{
-                  "campusPodSpanningTreeMode":{
+                  "idfSpanningTreeMode":{
                     "value":[
                       "Rapid-PVST"
                     ],
@@ -10883,7 +10782,7 @@
                 "key":"vlanStpPriorityMemberLeaf",
                 "type":"INPUT",
                 "dependency":{
-                  "campusPodSpanningTreeMode":{
+                  "idfSpanningTreeMode":{
                     "value":[
                       "Rapid-PVST"
                     ],
@@ -10894,7 +10793,7 @@
               },
               "vlanAssignmentSwitchTagger":{
                 "type":"TAGGER",
-                "parentKey":"vlansCampusPodGroup",
+                "parentKey":"vlansIdfGroup",
                 "key":"vlanAssignmentSwitchTagger",
                 "name":"Switches",
                 "assignmentType":"SINGLE",
@@ -10903,7 +10802,7 @@
                 "description":"View the switches where the VLAN will be configured.",
                 "columns":[
                   {
-                    "tagLabel":"Campus-Pod",
+                    "tagLabel":"IDF",
                     "suggestedValues":[
 
                     ]
@@ -11956,8 +11855,8 @@
                   }
                 }
               },
-              "campusPodMlagPeerInterfaceName":{
-                "key":"campusPodMlagPeerInterfaceName",
+              "idfMlagPeerInterfaceName":{
+                "key":"idfMlagPeerInterfaceName",
                 "type":"INPUT",
                 "dependencyType":"AND",
                 "dependency":{
@@ -12031,7 +11930,7 @@
                     ],
                     "mode":"SHOW"
                   },
-                  "campusPodSpanningTreeMode":{
+                  "idfSpanningTreeMode":{
                     "value":[
                       "MSTP"
                     ],
@@ -12099,13 +11998,13 @@
                   "vrfL3InterfaceOspfMessageDigestKeys"
                 ]
               },
-              "campusPodUplinkInterfaceDetails":{
-                "key":"campusPodUplinkInterfaceDetails",
+              "idfUplinkInterfaceDetails":{
+                "key":"idfUplinkInterfaceDetails",
                 "type":"INPUT",
                 "order":[
-                  "campusPodDefaultsLeafUplinkInterfacesSpeed",
+                  "idfDefaultsLeafUplinkInterfacesSpeed",
                   "leafUplinksEosCli",
-                  "campusPodDefaultsMemberLeafUplinkInterfacesSpeed",
+                  "idfDefaultsMemberLeafUplinkInterfacesSpeed",
                   "memberLeafUplinksEosCli"
                 ]
               },
@@ -12170,20 +12069,20 @@
                   }
                 }
               },
-              "campusPodPtpDetails":{
-                "key":"campusPodPtpDetails",
+              "idfPtpDetails":{
+                "key":"idfPtpDetails",
                 "type":"INPUT",
                 "order":[
                   "leafPtpPriority1",
                   "memberLeafPtpPriority1",
-                  "campusPodPtpAutoClockIdentity",
-                  "campusPodPtpClockIdentityPrefix"
+                  "idfPtpAutoClockIdentity",
+                  "idfPtpClockIdentityPrefix"
                 ]
               },
-              "campusPodPtpClockIdentityPrefix":{
-                "key":"campusPodPtpClockIdentityPrefix",
+              "idfPtpClockIdentityPrefix":{
+                "key":"idfPtpClockIdentityPrefix",
                 "dependency":{
-                  "campusPodPtpAutoClockIdentity":{
+                  "idfPtpAutoClockIdentity":{
                     "value":[
                       true
                     ],
@@ -12281,7 +12180,7 @@
                 "description":"View the switches where the VLAN will be configured.",
                 "columns":[
                   {
-                    "tagLabel":"Campus-Pod",
+                    "tagLabel":"IDF",
                     "suggestedValues":[
 
                     ]
@@ -12339,8 +12238,8 @@
                 "dependencyType":"AND",
                 "type":"INPUT"
               },
-              "campusPodPtpAutoClockIdentity":{
-                "key":"campusPodPtpAutoClockIdentity",
+              "idfPtpAutoClockIdentity":{
+                "key":"idfPtpAutoClockIdentity",
                 "dependency":{
                   "buildingPtpEnabled":{
                     "value":[

@@ -1,0 +1,832 @@
+path: []
+inputs:
+  profileOfProfiles:
+    - profileOfProfilesName: TRUNK
+      vlanProfile: TRUNK
+    - profileOfProfilesName: ROUTED
+      vlanProfile: ROUTED
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: '15'
+                      description: dc1-border1
+                      enabled: true
+                      interfaceName: E4
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '15'
+                      description: dc1-border2
+                      enabled: true
+                      interfaceName: E4
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '15'
+                      description: dc1-border2
+                      enabled: true
+                      interfaceName: e5
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '15'
+                      description: dc1-border1
+                      enabled: true
+                      interfaceName: e5
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:s1-brdr2
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan
+                      enabled: true
+                      ipPrefix: 5.1.1.1/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '5'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan
+                      enabled: true
+                      ipPrefix: 5.1.1.2/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '5'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: null
+                      description: UNDERLAY
+                      enabled: true
+                      ipPrefix: 1.0.0.1/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '1000'
+                      vrf: null
+                    - defaultGatewayNextHop: null
+                      description: UNDERLAY
+                      enabled: true
+                      ipPrefix: 1.0.0.2/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '1000'
+                      vrf: null
+                    - defaultGatewayNextHop: null
+                      description: vrf-red
+                      enabled: true
+                      ipPrefix: 9.1.1.1/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '9'
+                      vrf: dc1-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red
+                      enabled: true
+                      ipPrefix: 9.1.1.2/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '9'
+                      vrf: dc1-red
+              tags:
+                query: Switch-Group:DC1-Border-Leafs
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: '11'
+                      description: Servers
+                      enabled: true
+                      interfaceName: e4
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - all-switches
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:s1-leaf1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:s1-leaf2
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:s1-leaf3
+                    - inputs:
+                        stackMember: '4'
+                      tags:
+                        query: device:s1-leaf4
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server1
+                      enabled: true
+                      ipPrefix: 1.1.2.2/24
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: null
+                      secIp: []
+                      virtualRouterAddress: 1.1.2.1/24
+                      vlanId: '2'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server1
+                      enabled: true
+                      ipPrefix: 1.1.2.3/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: 1.1.2.1/24
+                      vlanId: '2'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server2
+                      enabled: true
+                      ipPrefix: 1.1.4.2/24
+                      memberNumberCollection:
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: 1.1.4.1/24
+                      vlanId: '4'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server2
+                      enabled: true
+                      ipPrefix: 1.1.4.3/24
+                      memberNumberCollection:
+                        - '4'
+                      secIp: []
+                      virtualRouterAddress: 1.1.4.1/24
+                      vlanId: '4'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server1
+                      enabled: true
+                      ipPrefix: 1.1.6.2/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: 1.1.6.1/24
+                      vlanId: '6'
+                      vrf: dc1-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server1
+                      enabled: true
+                      ipPrefix: 1.1.6.3/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: 1.1.6.1/24
+                      vlanId: '6'
+                      vrf: dc1-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server2
+                      enabled: true
+                      ipPrefix: 1.1.8.2/24
+                      memberNumberCollection:
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: 1.1.8.1/24
+                      vlanId: '8'
+                      vrf: dc1-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server2
+                      enabled: true
+                      ipPrefix: 1.1.8.3/24
+                      memberNumberCollection:
+                        - '4'
+                      secIp: []
+                      virtualRouterAddress: 1.1.8.1/24
+                      vlanId: '8'
+                      vrf: dc1-red
+              tags:
+                query: Switch-Group:DC1-Leaf-Switches
+      tags:
+        query: DC:DC1
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: '16'
+                      description: dc2-border1
+                      enabled: true
+                      interfaceName: e4
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '16'
+                      description: dc2-border2
+                      enabled: true
+                      interfaceName: e4
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '16'
+                      description: dc2-border2
+                      enabled: true
+                      interfaceName: e5
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '16'
+                      description: dc2-border1
+                      enabled: true
+                      interfaceName: e5
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:s2-brdr2
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-fw
+                      enabled: true
+                      ipPrefix: 15.1.1.1/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '15'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-fw
+                      enabled: true
+                      ipPrefix: 15.1.1.2/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '15'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: null
+                      description: fw-underlay
+                      enabled: true
+                      ipPrefix: 6.0.0.1/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '1000'
+                      vrf: null
+                    - defaultGatewayNextHop: null
+                      description: fw-underlay
+                      enabled: true
+                      ipPrefix: 6.0.0.2/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '1000'
+                      vrf: null
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-fw
+                      enabled: true
+                      ipPrefix: 19.1.1.1/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '19'
+                      vrf: dc2-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-fw
+                      enabled: true
+                      ipPrefix: 19.1.1.2/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '19'
+                      vrf: dc2-red
+              tags:
+                query: Switch-Group:DC2-Border-Leafs
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: '11'
+                      description: WAN for server10
+                      enabled: true
+                      interfaceName: e4
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - all-switches
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:s2-leaf1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:s2-leaf2
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:s2-leaf3
+                    - inputs:
+                        stackMember: '4'
+                      tags:
+                        query: device:s2-leaf4
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server1
+                      enabled: true
+                      ipPrefix: 1.2.12.2/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: 1.2.12.1/24
+                      vlanId: '12'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server1
+                      enabled: true
+                      ipPrefix: 1.2.12.3/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: 1.2.12.1/24
+                      vlanId: '12'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server2
+                      enabled: true
+                      ipPrefix: 1.2.14.2/24
+                      memberNumberCollection:
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: 1.2.14.1/24
+                      vlanId: '14'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-wan-server2
+                      enabled: true
+                      ipPrefix: 1.2.14.3/24
+                      memberNumberCollection:
+                        - '4'
+                      secIp: []
+                      virtualRouterAddress: 1.2.14.1/24
+                      vlanId: '14'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server1
+                      enabled: true
+                      ipPrefix: 1.2.16.2/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: 1.2.16.1/24
+                      vlanId: '16'
+                      vrf: dc2-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server1
+                      enabled: true
+                      ipPrefix: 1.2.16.3/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: 1.2.18.1/24
+                      vlanId: '16'
+                      vrf: dc2-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server2
+                      enabled: true
+                      ipPrefix: 1.2.18.2/24
+                      memberNumberCollection:
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: 1.2.18.1/24
+                      vlanId: '18'
+                      vrf: dc2-red
+                    - defaultGatewayNextHop: null
+                      description: vrf-red-server2
+                      enabled: true
+                      ipPrefix: 1.2.18.3/24
+                      memberNumberCollection:
+                        - '4'
+                      secIp: []
+                      virtualRouterAddress: 1.2.18.1/24
+                      vlanId: '18'
+                      vrf: dc2-red
+              tags:
+                query: Switch-Group:DC2-Leaf-Switches
+      tags:
+        query: DC:DC2
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: '12'
+                      description: Port channel leafs 1 and 2
+                      enabled: true
+                      interfaceName: e1,e2
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '13'
+                      description: Port channel leaf3 and 4
+                      enabled: true
+                      interfaceName: e1,e2
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '2'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:s1-host1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:s1-host2
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: 1.1.2.1
+                      description: vrf-dc1-wan-s1
+                      enabled: true
+                      ipPrefix: 1.1.2.10/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '2'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: 1.1.4.1
+                      description: vrf-dc1-wan-s2
+                      enabled: true
+                      ipPrefix: 1.1.4.10/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '4'
+                      vrf: dc1-wan
+                    - defaultGatewayNextHop: 1.1.6.1
+                      description: vrf-dc1-red-s1
+                      enabled: true
+                      ipPrefix: 1.1.6.10/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '6'
+                      vrf: dc1-red
+                    - defaultGatewayNextHop: 1.1.8.1
+                      description: vrf-dc1-red-s2
+                      enabled: true
+                      ipPrefix: 1.1.8.10/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '8'
+                      vrf: dc1-red
+              tags:
+                query: Switch-Group:DC1-Hosts
+      tags:
+        query: DC:DC1-Hosts
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: '13'
+                      description: Port Channel Leaf 1  and 2
+                      enabled: true
+                      interfaceName: e1, e2
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                    - channelGroup: '14'
+                      description: Port Channel Leaf 3 and 4
+                      enabled: true
+                      interfaceName: e1,e2
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '2'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:s2-host1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:s2-host2
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: 1.2.12.1
+                      description: dc2-wan-s1
+                      enabled: true
+                      ipPrefix: 1.2.12.10/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '12'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: 1.2.14.1
+                      description: dc2-wan-s2
+                      enabled: true
+                      ipPrefix: 1.2.14.10/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '14'
+                      vrf: dc2-wan
+                    - defaultGatewayNextHop: 1.2.16.1
+                      description: dc2-red-s1
+                      enabled: true
+                      ipPrefix: 1.2.16.10/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '16'
+                      vrf: dc2-red
+                    - defaultGatewayNextHop: 1.2.18.1
+                      description: dc2-red-s2
+                      enabled: true
+                      ipPrefix: 1.2.18.10/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '18'
+                      vrf: dc2-red
+              tags:
+                query: Switch-Group:DC2-Hosts
+      tags:
+        query: DC:DC2-Hosts
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  interfaceRanges:
+                    - channelGroup: '24'
+                      description: dc1-border-pc
+                      enabled: true
+                      interfaceName: e2,e3
+                      ipPrefix: null
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - all-switches
+                      mlagEnabled: enabled
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:s1-core1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:s1-core2
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:s2-core1
+                    - inputs:
+                        stackMember: '4'
+                      tags:
+                        query: device:s2-core2
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: null
+                      description: red-dc1
+                      enabled: true
+                      ipPrefix: 9.1.1.3/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '9'
+                      vrf: red
+                    - defaultGatewayNextHop: null
+                      description: red-dc1
+                      enabled: true
+                      ipPrefix: 9.1.1.4/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '9'
+                      vrf: red
+                    - defaultGatewayNextHop: null
+                      description: red-dc2
+                      enabled: true
+                      ipPrefix: 19.1.1.3/24
+                      memberNumberCollection:
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '19'
+                      vrf: red
+                    - defaultGatewayNextHop: null
+                      description: red-dc2
+                      enabled: true
+                      ipPrefix: 19.1.1.4/24
+                      memberNumberCollection:
+                        - '4'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '19'
+                      vrf: red
+                    - defaultGatewayNextHop: null
+                      description: wan-dc1
+                      enabled: true
+                      ipPrefix: 5.1.1.3/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '5'
+                      vrf: null
+                    - defaultGatewayNextHop: null
+                      description: wan-dc1
+                      enabled: true
+                      ipPrefix: 5.1.1.4/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '5'
+                      vrf: null
+                    - defaultGatewayNextHop: null
+                      description: wan-dc2
+                      enabled: true
+                      ipPrefix: 15.1.1.3/24
+                      memberNumberCollection:
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '15'
+                      vrf: null
+                    - defaultGatewayNextHop: null
+                      description: wan-dc2
+                      enabled: true
+                      ipPrefix: 15.1.1.4/24
+                      memberNumberCollection:
+                        - '4'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '15'
+                      vrf: null
+              tags:
+                query: Network:IP-Network
+      tags:
+        query: Network:IP-Network
+  vlanProfiles:
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 2
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: TRUNK PROFILE $1
+      profileIpAddressVirtual: null
+      vlanName: null
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED PROFILE $1
+      profileIpAddressVirtual: null
+      vlanName: null

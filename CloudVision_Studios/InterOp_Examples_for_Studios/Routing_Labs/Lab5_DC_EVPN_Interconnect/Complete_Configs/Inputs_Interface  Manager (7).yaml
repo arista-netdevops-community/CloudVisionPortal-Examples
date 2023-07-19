@@ -1,0 +1,188 @@
+path: []
+inputs:
+  profileOfProfiles:
+    - profileOfProfilesName: TRUNK
+      vlanProfile: TRUNK
+    - profileOfProfilesName: ROUTED
+      vlanProfile: ROUTED
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - accessVlan: '13'
+                      channelGroup: null
+                      description: to eos8 orange
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 13.13.13.2/24
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: ROUTED
+                      vlanName: vlan13
+                      vrf: orange
+                  loopbackInterfaces: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:56662BB4E41EA4D05C944267176CB07A
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: 13.13.13.1
+                      description: orange_default_route
+                      enabled: true
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '13'
+                      vrf: orange
+                  vlans:
+                    - memberNumberCollection:
+                        - '1'
+                      privateVlanType: null
+                      state: null
+                      trunkGroup: null
+                      vlanId: '13'
+                      vlanName: v13
+              tags:
+                query: Switch-Group:DC1_End_Devices
+      tags:
+        query: device:eos18
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: null
+                      description: to eos3
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:40A76B46E1548E6F6DE466A87EB201D2
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: 14.14.14.1
+                      description: eos3_red
+                      enabled: true
+                      ipPrefix: 14.14.14.2/24
+                      memberNumberCollection:
+                        - '1'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '14'
+                      vrf: red
+                  vlans:
+                    - memberNumberCollection:
+                        - '1'
+                      privateVlanType: null
+                      state: null
+                      trunkGroup: null
+                      vlanId: '14'
+                      vlanName: v14
+              tags:
+                query: Switch-Group:DC2_Edge_Devices
+      tags:
+        query: device:eos20
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: null
+                      description: to eos 20
+                      enabled: true
+                      interfaceName: e6
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:8FE1382863E1AAF2D934916FF57D0F45
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:Switch3_Edge_Ports
+      tags:
+        query: device:eos3
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: null
+                      description: to eos18
+                      enabled: true
+                      interfaceName: ethernet5
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:1A6143470C853F744391CFB57F811930
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:Switch8_Edge_Ports
+      tags:
+        query: device:eos8
+  vlanProfiles:
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      vlanName: null
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED $1
+      profileIpAddressVirtual: null
+      vlanName: null
