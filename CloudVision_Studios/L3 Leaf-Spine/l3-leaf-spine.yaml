@@ -101,7 +101,6 @@
                   "tcam_profile": None,
                   "info": "Configured in standard settings"
               },
-              #Ahmad adding T3 Fixed and Chassis
               "trident3-fixed": {
                   "regexes": [r'DCS-7050[STC]X3',r'CCS-72[02]XP'],
                   "reload_delay": {
@@ -151,18 +150,28 @@
               "on (static)": "on"
           }
 
+          pool_name_mapper = {
+            "l3leaf_loopback_ipv4_pool": "Leaf Router ID Subnet",
+            "spine_loopback_ipv4_pool": "Spine Router ID Subnet",
+            "l3leaf_vtep_loopback_ipv4_pool": "VTEP Address Range"
+          }
+
 
           def convert(text):
               return int(text) if text.isdigit() else text.lower()
 
 
           def alphanum_key(key):
-              return [convert(c) for c in re.split('([0-9]+)', str(key))]
+              if sort_key is not None and isinstance(key, dict):
+                  return [convert(c) for c in re.split("([0-9]+)", str(key.get(sort_key, key)))]
+              else:
+                  return [convert(c) for c in re.split("([0-9]+)", str(key))]
 
 
-          def natural_sort(iterable):
+          def natural_sort(iterable, sort_key=None):
               if iterable is None:
-                  return list()
+                  return []
+
               return sorted(iterable, key=alphanum_key)
 
 
@@ -179,6 +188,24 @@
                           numbers.append(int(segment))
               return numbers
 
+
+          def get_host_from_network(switch_facts, pool, index):
+            subnets = switch_facts[pool]
+            network = ipaddress.ip_network(subnets)
+            pool = switch_facts['type']+'_'+pool
+            try:
+                assert index < network.num_addresses,\
+                    f"Device {switch_facts['hostname']} is exceeding IP address pool, {pool_name_mapper[pool]}, with subnet {subnets} " \
+                    f"using index {index}. The size of the subnet must be increased in the studio inputs."
+            except AssertionError as msg:
+                raise
+            return list(network.hosts())[index]
+
+          def get_pods_from_superspine(neighbors):
+              pods = set()
+              for device in neighbors:
+                  pods.add(switches_in_my_data_center[device].get('pod'))
+              return pods
 
           def get_tag_values_applied_to_device(tag_assignment_key):
               '''
@@ -424,16 +451,19 @@
                       if value is None:
                           remove_all_tag_values(str(label), device_id, workspace_id)
               # Update Vtep tag
+              vtep_tags = {"Vtep": "True", "VtepIp": switch_facts.get('vtep_ip', '')}
               if switch_facts.get('vtep'):
-                  tag_assignment_key = TagAssignmentKey()
-                  tag_assignment_key.workspace_id.value = workspace_id
-                  tag_assignment_key.element_type = 1
-                  tag_assignment_key.device_id.value = device_id
-                  tag_assignment_key.label.value = "Vtep"
-                  tag_assignment_key.value.value = "True"
-                  update_device_tag(tag_assignment_key)
+                  for label, value in vtep_tags.items():
+                      tag_assignment_key = TagAssignmentKey()
+                      tag_assignment_key.workspace_id.value = workspace_id
+                      tag_assignment_key.element_type = 1
+                      tag_assignment_key.device_id.value = device_id
+                      tag_assignment_key.label.value = str(label)
+                      tag_assignment_key.value.value = str(value)
+                      update_device_tag(tag_assignment_key)
               else:
-                  remove_all_tag_values("Vtep", device_id, workspace_id)
+                  for label, value in vtep_tags.items():
+                      remove_all_tag_values(label, device_id, workspace_id)
               return
 
 
@@ -686,10 +716,9 @@
 
 
           def get_router_id(switch_facts):
-              router_id_subnet = switch_facts['loopback_ipv4_pool']
               switch_id = switch_facts['id']
               offset = switch_facts['loopback_ipv4_offset']
-              return list(ipaddress.ip_network(router_id_subnet).hosts())[(switch_id - 1) + offset]
+              return get_host_from_network(switch_facts, 'loopback_ipv4_pool', (switch_id - 1) + offset)
 
 
           def get_mlag_ip(switch_facts, mlag_peer_ipv4_pool, mlag_subnet_mask, mlag_role):
@@ -709,17 +738,16 @@
 
 
           def get_vtep_loopback(switch_facts):
-              vtep_loopback_subnet = switch_facts['vtep_loopback_ipv4_pool']
               if switch_facts.get('mlag_primary_id'):
                   switch_id = switch_facts['mlag_primary_id'] - 1
               else:
                   switch_id = switch_facts['id'] - 1
               # AVD uses the method above to set vtep loopback but we're just using group index for now
               switch_id = switch_facts['group_index']
-              return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[switch_id]
+              return get_host_from_network(switch_facts, 'vtep_loopback_ipv4_pool', switch_id)
 
 
-          def get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
+          def get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, uplink_switch_index, index=0):
               if switch_facts.get('type') not in ["l3leaf", "spine"] or \
                       switch_facts['uplink_ipv4_pool'] is None or \
                       switch_facts['uplink_ipv4_subnet_mask'] is None:
@@ -729,67 +757,41 @@
               uplink_offset = switch_facts['uplink_offset'] if switch_facts.get('uplink_offset') else 0
               switch_id = switch_facts['id']
               uplink_switch_id = uplink_switch_facts['id']
+
+              # Used to set the index for the link in the case of multiple parallel links between devices
+              previous_switches_seen = switch_facts['uplink_switches_ids'][:uplink_switch_index]
+              number_of_times_uplink_switch_has_been_seen = previous_switches_seen.count(uplink_switch_facts['serial_number'])
+
               max_uplink_switches = switch_facts['max_uplink_switches']
               max_parallel_uplinks = switch_facts['max_parallel_uplinks']
+
               if len(uplink_ipv4_pool) > 1:
                   uplink_ipv4_pool = uplink_ipv4_pool[uplink_switch_id - 1]
                   uplink_switch_id = 1
                   max_uplink_switches = 1
-                  uplink_switches_seen_previously = switch_facts['uplink_switches_ids'][:uplink_switch_index]
-                  uplink_switch_index = uplink_switches_seen_previously.count(uplink_switch_facts['serial_number'])
               else:
                   uplink_ipv4_pool = uplink_ipv4_pool[0]
+
               # Valid subnet checks
               assert uplink_subnet_mask >= ipaddress.ip_network(uplink_ipv4_pool).prefixlen, \
                   f"Uplink subnet {uplink_ipv4_pool} has prefix length " \
                   f"{ipaddress.ip_network(uplink_ipv4_pool).prefixlen} greater than " \
                   f"Underlay Fabric Subnet Mask {uplink_subnet_mask}."
               child_subnets = list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))
-              max_leafs_possible = (len(child_subnets) - (uplink_switch_index) + uplink_offset) / \
-                  (max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset) + 1
-              assert len(child_subnets) > \
-                  (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset, \
-                  f"Not enough subnets in uplink pool {uplink_ipv4_pool} to allocate addresses for more than " \
-                  f"{int(max_leafs_possible)} leafs with {max_parallel_uplinks} parallel uplinks"
-              child_subnet = child_subnets[(switch_id - 1) * max_uplink_switches * max_parallel_uplinks
-                                          + (uplink_switch_index) + uplink_offset]
-              return list(child_subnet.hosts())[1]
+              max_leafs_possible = int((len(child_subnets) - uplink_offset) / \
+                  (max_uplink_switches * max_parallel_uplinks))
 
+              leaf_node_base_index = (switch_id - 1) * max_uplink_switches * max_parallel_uplinks  # This should provide starting index for potential uplink /31s for this switch
+              spine_link_offset = (uplink_switch_id - 1) * max_parallel_uplinks + number_of_times_uplink_switch_has_been_seen  # This should provide uplink switch index within above /31s
+              child_subnet_index = leaf_node_base_index + spine_link_offset + uplink_offset  # Add in uplink offset which accounts for any offset from other uplink switch layers
 
-          def get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
-              if switch_facts.get('type') not in ["l3leaf", "spine"] or \
-                      switch_facts['uplink_ipv4_pool'] is None or \
-                      switch_facts['uplink_ipv4_subnet_mask'] is None:
-                  return
-              uplink_ipv4_pool = switch_facts['uplink_ipv4_pool']
-              uplink_subnet_mask = switch_facts['uplink_ipv4_subnet_mask']
-              uplink_offset = switch_facts['uplink_offset'] if switch_facts.get('uplink_offset') else 0
-              switch_id = switch_facts['id']
-              uplink_switch_id = uplink_switch_facts['id']
-              max_uplink_switches = switch_facts['max_uplink_switches']
-              max_parallel_uplinks = switch_facts['max_parallel_uplinks']
-              if len(uplink_ipv4_pool) > 1:
-                  uplink_ipv4_pool = uplink_ipv4_pool[uplink_switch_id - 1]
-                  uplink_switch_id = 1
-                  max_uplink_switches = 1
-                  uplink_switches_seen_previously = switch_facts['uplink_switches_ids'][:uplink_switch_index]
-                  uplink_switch_index = uplink_switches_seen_previously.count(uplink_switch_facts['serial_number'])
-              else:
-                  uplink_ipv4_pool = uplink_ipv4_pool[0]
-              # Valid subnet checks
-              assert uplink_subnet_mask >= ipaddress.ip_network(uplink_ipv4_pool).prefixlen, \
-                  f"Uplink subnet {uplink_ipv4_pool} has prefix len {ipaddress.ip_network(uplink_ipv4_pool).prefixlen}" \
-                  f" greater than Underlay Fabric Subnet Mask {uplink_subnet_mask}"
-              child_subnets = list(ipaddress.ip_network(uplink_ipv4_pool).subnets(new_prefix=uplink_subnet_mask))
-              max_leafs_possible = (len(child_subnets) - (uplink_switch_index) + uplink_offset) / \
-                  (max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset) + 1
-              assert len(child_subnets) > \
-                  (switch_id - 1) * max_uplink_switches * max_parallel_uplinks + (uplink_switch_index) + uplink_offset, \
-                  f"Not enough subnets in uplink pool {uplink_ipv4_pool} to allocate addresses for more than " \
-                  f"{int(max_leafs_possible)} leafs with {max_parallel_uplinks} parallel uplinks"
-              child_subnet = child_subnets[(switch_id - 1) * max_uplink_switches * max_parallel_uplinks
-                                          + (uplink_switch_index) + uplink_offset]
-              return list(child_subnet.hosts())[0]
+              assert len(child_subnets) - 1 >= child_subnet_index, \
+                  f"Not enough subnets in uplink pool {uplink_ipv4_pool} ({len(child_subnets)}) to allocate addresses for more than " \
+                  f"{int(max_leafs_possible)} leafs with {max_parallel_uplinks} parallel uplinks to {max_uplink_switches} uplink switches"
+
+              child_subnet = child_subnets[child_subnet_index]
+
+              return list(child_subnet.hosts())[index]
 
 
           def set_topology_facts(switch_facts):
@@ -809,10 +811,9 @@
                       link['peer_type'] = uplink_switch_facts['type']
                       link['peer_bgp_as'] = uplink_switch_facts.get('bgp_as')
                       link['type'] = "underlay_p2p"
-                      link['ip_address'] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
-                      link['peer_ip_address'] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
+                      link['ip_address'] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i, index=1))
+                      link['peer_ip_address'] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i, index=0))
                       link['subnet_mask'] = switch_facts['uplink_ipv4_subnet_mask']
-                      #Ahmad PIM enabled on uplink interfaces
                       if switch_facts.get('underlay_multicast'):
                           link['underlay_multicast'] = True
                       else:
@@ -907,12 +908,15 @@
               if switch_facts['underlay_router'] is True:
                   if pod is not None:
                       switch_facts['underlay_routing_protocol'] = pod['underlayRouting']['underlayRoutingProtocol'].lower()
-                      if pod['overlayDetails'].get('vxlanOverlay'):
+                      if pod['overlayDetails'].get('vxlanOverlay') and pod['commonBGPConfig']['evpnEnabled']:
                           switch_facts['overlay_routing_protocol'] = "bgp"
+                      else:
+                          switch_facts['overlay_routing_protocol'] = ""
                   # Accounts for super-spines; super-spine routing protocols are set later
                   # based on first downstream spine's routing protocols
                   else:
                       switch_facts['underlay_routing_protocol'] = ""
+                      switch_facts['overlay_routing_protocol'] = ""
 
               # Get spanning tree details
               if switch_facts['network_services']['l2'] is True:
@@ -985,7 +989,7 @@
                               switch_facts['mlag_l3_subnet_mask'] = pod['commonMlagConfig']['mlagPeerL3SubnetMask']
                           else:
                               switch_facts['mlag_l3_subnet_mask'] = switch_facts['mlag_subnet_mask']
-                          switch_facts['mlag_lacp_mode'] = pod['commonMlagConfig']['lacpMode']
+                          switch_facts['mlag_lacp_mode'] = lacp_mode_mapper[pod['commonMlagConfig']['lacpMode']]
                           switch_facts['reload_delay_mlag'] = switch_facts['platform_settings']['reload_delay']['mlag']
                           switch_facts['reload_delay_non_mlag'] = switch_facts['platform_settings']['reload_delay']['non_mlag']
                           switch_facts['mlag_ibgp_origin_incomplete'] = True
@@ -1074,6 +1078,10 @@
                           switch_facts['loopback_ipv4_offset'] = 0
                   # Super-spine loopback pool must be different from pod loopback pools
                   elif switch_facts['type'] == "super_spine":
+                      assert super_spine_plane['bgpConfiguration']['superSpineRouterIdSubnet'] != '',\
+                        f"The superSpineRouterIdSubnet under Super-Spine Planes {switch_facts['super_spine_plane']} in data center {switch_facts['data_center']} "\
+                        f"is set to {super_spine_plane['bgpConfiguration']['superSpineRouterIdSubnet']},"\
+                        f"please enter an appropriate value."
                       switch_facts['loopback_ipv4_pool'] = super_spine_plane['bgpConfiguration']['superSpineRouterIdSubnet']
                       switch_facts['loopback_ipv4_offset'] = 0
 
@@ -1083,7 +1091,7 @@
                   # Set BGP parameters for spines, leafs, and super_spines
                   # Checking for "" in the event of a super_spine
                   if switch_facts['underlay_routing_protocol'].strip() in ["bgp", ""] or \
-                          switch_facts['overlay_routing_protocol'].strip() in ["bgp", ""]:
+                          switch_facts['overlay_routing_protocol'].strip() in ["bgp"]:
                       if switch_facts['type'] == "spine":
                           asns = string_to_list(str(pod['commonBGPConfig']['spineAsn']))
                           if len(asns) > 1:
@@ -1117,6 +1125,7 @@
                                   switch_facts['bgp_as'] = range_asns[int(switch_facts['group_index']) - leaf_domain_shift]
                               else:
                                   switch_facts['bgp_as'] = range_asns[0]
+                                  switch_facts["allowas_in"] = True
                           switch_facts['bgp_defaults'] = pod['commonBGPConfig']['leafBgpDefaults']
                           switch_facts['bgp_maximum_paths'] = switch_facts['max_spines'] * switch_facts['max_parallel_uplinks']
                           switch_facts['bgp_ecmp'] = switch_facts['max_spines'] * switch_facts['max_parallel_uplinks']
@@ -1156,11 +1165,16 @@
                       switch_facts['vtep'] = False
                       # Clear evpn role
                       switch_facts['evpn_role'] = None
-                  if pod is not None:
-                      switch_facts["underlay_multicast"] = pod['underlayRouting']['underlayMulticast']
-                      switch_facts["evpn_multicast"] = pod['commonBGPConfig']['evpnMulticast']
-                      switch_facts["evpn_rt_membership"] = pod['commonBGPConfig']['evpnRtMembership']
 
+                  if pod:
+                      # Underlay Multicast
+                      switch_facts["underlay_multicast"] = pod['underlayRouting']['underlayMulticast']
+
+                      # Overlay Multicast
+                      switch_facts["evpn_multicast"] = pod['commonBGPConfig']['evpnMulticast']
+
+                      # RT Membership
+                      switch_facts["evpn_rt_membership"] = pod['commonBGPConfig']['evpnRtMembership']
 
               if re.match(veos_regex, switch_facts['platform']):
                   switch_facts['p2p_uplinks_mtu'] = 1500
@@ -1214,8 +1228,9 @@
                               "routing": True
                           }
                       }
-                      if switch_facts.get('evpn_multicast'):
-                          config['router_multicast']["ipv4"]["software_forwarding"] = "sfe"
+                  # EVPN Multicast Logic
+                  if switch_facts.get('evpn_multicast'):
+                      config['router_multicast']["ipv4"]["software_forwarding"] = "sfe"
 
               # Set router-bgp
               if switch_facts['underlay_router'] is True \
@@ -1233,14 +1248,13 @@
               if switch_facts['platform_settings'].get('eos_cli'):
                   config['eos_cli'] = switch_facts['platform_settings']['eos_cli']
 
-              #Ahmad Trident Forwarding table Partition if configured
-              if switch_facts['platform_settings'].get('trident_forwarding_table_partition') and switch_facts['evpn_multicast']:
+              # Trident Forwarding table Partition if configured
+              if switch_facts['platform_settings'].get('trident_forwarding_table_partition') is not None and switch_facts['evpn_multicast']:
                   config["platform"] = {
                           "trident": {
                               "forwarding_table_partition": switch_facts['platform_settings']['trident_forwarding_table_partition']
                           }
                       }
-                  
 
               return config
 
@@ -1288,6 +1302,7 @@
                       config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_network_point_to_point'] = True
                       config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_area'] \
                           = switch_facts['underlay_ospf_area']
+
                   # SVI mlag multicast config, enable sparse mode and configure local-interface to be ping test loopback if evpn_multiast is set
                   if switch_facts['mlag_l3'] is True and switch_facts['underlay_multicast']:
                       config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]["pim"] = {"ipv4": {"sparse_mode": True}}
@@ -1360,6 +1375,10 @@
                           "maximum_routes": 12000,
                           "send_community": "all"
                       }
+                      if switch_facts.get('allowas_in'):
+                          config['router_bgp']['peer_groups'][fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]['allowas_in'] = {
+                              "enabled": True
+                          }
                       if fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['password'] is not None:
                           (config['router_bgp']['peer_groups']
                           [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]['password']) = \
@@ -1406,9 +1425,10 @@
                           link_facts['channel_group_id'] = neighbor_link_info.get('peer_channel_group_id')
                           link_facts['peer_channel_group_id'] = neighbor_link_info.get('channel_group_id')
                           link_facts['channel_description'] = neighbor_link_info.get('peer_channel_description')
-                          link_facts["underlay_multicast"] = neighbor_link_info.get("underlay_multicast")
                           interface = neighbor_link_info['peer_interface']
                           underlay_data['links'][interface] = link_facts
+                          # multicast/pim
+                          link_facts["underlay_multicast"] = neighbor_link_info.get("underlay_multicast")
 
               # Set Ethernet interfaces
               for iface in underlay_data['links']:
@@ -1427,7 +1447,7 @@
                       if switch_facts['underlay_routing_protocol'] == "ospf":
                           config['ethernet_interfaces'][iface]['ospf_network_point_to_point'] = True
                           config['ethernet_interfaces'][iface]['ospf_area'] = switch_facts['underlay_ospf_area']
-                      #PIM config on interface
+                      # PIM Config on Interface
                       if link.get('underlay_multicast'):
                           config['ethernet_interfaces'][iface]['pim'] = {
                               "ipv4": {"sparse_mode": True}
@@ -1502,6 +1522,10 @@
                           "maximum_routes": 12000,
                           "send_community": "all"
                       }
+                      if switch_facts.get('allowas_in'):
+                          config['router_bgp']['peer_groups'][fabric_variables['bgp_peer_groups']['IPv4_UNDERLAY_PEERS']['name']]['allowas_in'] = {
+                              "enabled": True
+                          }
                       if fabric_variables['bgp_peer_groups']['IPv4_UNDERLAY_PEERS']['password'] is not None:
                           (config['router_bgp']['peer_groups']
                           [fabric_variables['bgp_peer_groups']['IPv4_UNDERLAY_PEERS']['name']]['password']) \
@@ -1559,8 +1583,11 @@
                               if switches_in_my_data_center[link['peer_id']].get('uplink_ipv4_pool'):
                                   for pool in switches_in_my_data_center[link['peer_id']]['uplink_ipv4_pool']:
                                       neighbor_uplink_pools.append(pool)
-                                  # remove remove remote_as statement for neighbor
-                                  del(config['router_bgp']['neighbors'][link['peer_ip_address']])
+                                  # remove remote_as statement for neighbor
+                                  if config['router_bgp']['neighbors']:
+                                      del(config['router_bgp']['neighbors'][link['peer_ip_address']])
+                                  else:
+                                      ctx.info(f"No spine uplink IPv4 Pool supplied for DC-Pod {get_pods_from_superspine(switch_facts['neighbors'])}. Connectivity from DC-Pod {get_pods_from_superspine(switch_facts['neighbors'])} to Super-Spines will not be configured.")
                           # initialize bgp_listen_range_prefixes
                           (config['router_bgp']['peer_groups']
                           [fabric_variables['bgp_peer_groups']['IPv4_UNDERLAY_PEERS']['name']]
@@ -1678,29 +1705,25 @@
                   [fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']]) = {
                       "activate": True
                   }
+
                   if switch_facts.get('vtep_ip') and fabric_variables['evpn_hostflap_detection']['enabled'] is True:
                       config['router_bgp']['address_family_evpn']['evpn_hostflap_detection'] = {
                           "window": fabric_variables['evpn_hostflap_detection']['window'],
                           "threshold": fabric_variables['evpn_hostflap_detection']['threshold'],
                           "enabled": fabric_variables['evpn_hostflap_detection']['enabled']
                       }
-                  
+
                   # rt-membership configurtion
-                  if switch_facts.get('evpn_rt_membership') and switch_facts.get('evpn_role') is not None:
-                      if switch_facts['evpn_role'] == "server":
-                          config['router_bgp']['address_family_rt']['peer_groups'] = {
-                              fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']: {
-                                  "activate": True,
-                                  "default_route_target": {
-                                    "only": True
-                                  }
-                              }
+                  if switch_facts.get('evpn_rt_membership'):
+                      config['router_bgp']['address_family_rt'] = {"peer_groups": {}}
+                      config['router_bgp']['address_family_rt']['peer_groups'] = {
+                          fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']: {
+                              "activate": True
                           }
-                      elif switch_facts['evpn_role']=="client":
-                          config['router_bgp']['address_family_rt']['peer_groups'] = {
-                              fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']: {
-                                  "activate": True
-                                  }
+                      }
+                      if switch_facts['evpn_role'] == "server":
+                          config['router_bgp']['address_family_rt']['peer_groups'][fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']]["default_route_target"] = {
+                              "only": True
                           }
 
                   # Overlay network peering
@@ -1710,12 +1733,14 @@
                           "description": rs,
                           "remote_as": info['bgp_as']
                       }
+
                   for cs, info in overlay_data['evpn_route_clients'].items():
                       config['router_bgp']['neighbors'][info['ip_address']] = {
                           "peer_group": fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name'],
                           "description": cs,
                           "remote_as": info['bgp_as']
                       }
+
                   # Create peer filter and listen range statements if necessary
                   if switch_facts.get('dynamic_bgp_evpn_peering'):
                       # Divide remote_asns into as few continuous asn ranges as possible
@@ -1746,8 +1771,11 @@
                       for info in overlay_data['evpn_route_clients'].values():
                           if switches_in_my_data_center[info['serial_number']].get('loopback_ipv4_pool'):
                               neighbor_loopback_pools.append(switches_in_my_data_center[info['serial_number']]['loopback_ipv4_pool'])
-                              # remove remove remote_as statement for neighbor
-                              del(config['router_bgp']['neighbors'][info['ip_address']])
+                              # remove remote_as statement for neighbor
+                              if config['router_bgp']['neighbors']:
+                                  del(config['router_bgp']['neighbors'][info['ip_address']])
+                              else:
+                                  ctx.info(f"No spine uplink IPv4 Pool supplied for DC-Pod {get_pods_from_superspine(switch_facts['neighbors'])}. Connectivity from DC-Pod {get_pods_from_superspine(switch_facts['neighbors'])} to Super-Spines will not be configured.")
                       # initialize bgp_listen_range_prefixes
                       (config['router_bgp']['peer_groups'][fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']]
                       ['bgp_listen_range_prefixes']) = {}
@@ -1757,22 +1785,7 @@
                           ['bgp_listen_range_prefixes'][loopback_pool]) = {
                               "peer_filter": "DOWNLINK-EVPN-NEIGHBORS"
                           }
-                      # Activate RT membership if enabled 
-                      #if switch_facts.get('evpn_rt_membership'):
-                      #    if switch_facts['evpn_role'] == "server":
-                      #        config['router_bgp']['address_family_rt']['peer_groups'] = {
-                      #        "name": fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name'],
-                      #        "activate": True,
-                      #        "default_route_target": {
-                      #        "only": True
-                      #            }
-                      #        }
-                      #    else:
-                      #        (config['router_bgp']['address_family_rt']['peer_groups']
-                      #        [fabric_variables['bgp_peer_groups']['EVPN_OVERLAY_PEERS']['name']]) = {
-                      #        "activate": True
-                      #        }
-          
+
               return config
 
 
@@ -1787,9 +1800,10 @@
                           }
                       }
                   }
+                  # changes to vxlan definition to accomodate evpn_multicast
                   if switch_facts.get('mlag') and switch_facts.get('evpn_multicast'):
                       config['vxlan_interface']["Vxlan1"]["vxlan"]["source_interface"] = "Loopback0"
-                      config['vxlan_interface']["Vxlan1"]["vxlan"]["mlag_source_interface"] =  switch_facts['vtep_loopback']
+                      config['vxlan_interface']["Vxlan1"]["vxlan"]["mlag_source_interface"] = switch_facts['vtep_loopback']
 
                   if switch_facts.get('mlag'):
                       config['vxlan_interface']['Vxlan1']['vxlan']['virtual_router_encapsulation_mac_address'] = "mlag-system-id"
@@ -1829,33 +1843,33 @@
 
               # Update interface_descriptions
               # Router ID Interface
-              if custom_fabric_variables['interfaceDescriptions']['routerIdInterface']:
+              if desc := custom_fabric_variables['interfaceDescriptions']['routerIdInterface']:
                   fabric_variables['interface_descriptions']['router_id_interface'] = \
-                      custom_fabric_variables['interfaceDescriptions']['routerIdInterface']
+                      desc if desc != "None" else ""
               # VTEP Source Interface
-              if custom_fabric_variables['interfaceDescriptions']['vtepSourceInterface']:
+              if desc := custom_fabric_variables['interfaceDescriptions']['vtepSourceInterface']:
                   fabric_variables['interface_descriptions']['vtep_source_interface'] = \
-                      custom_fabric_variables['interfaceDescriptions']['vtepSourceInterface']
+                      desc if desc != "None" else ""
               # Transit L3 Ethernet Interfaces
-              if custom_fabric_variables['interfaceDescriptions']['transitL3EthernetInterfaces']:
+              if desc := custom_fabric_variables['interfaceDescriptions']['transitL3EthernetInterfaces']:
                   fabric_variables['interface_descriptions']['underlay_l3_ethernet_interfaces'] = \
-                      custom_fabric_variables['interfaceDescriptions']['transitL3EthernetInterfaces']
+                      desc if desc != "None" else ""
               # Transit L2 Ethernet Interfaces
-              if custom_fabric_variables['interfaceDescriptions']['transitL2EthernetInterfaces']:
+              if desc := custom_fabric_variables['interfaceDescriptions']['transitL2EthernetInterfaces']:
                   fabric_variables['interface_descriptions']['underlay_l2_ethernet_interfaces'] = \
-                      custom_fabric_variables['interfaceDescriptions']['transitL2EthernetInterfaces']
+                      desc if desc != "None" else ""
               # Transit Port-Channels
-              if custom_fabric_variables['interfaceDescriptions']['transitPortChannelInterfaces']:
+              if desc := custom_fabric_variables['interfaceDescriptions']['transitPortChannelInterfaces']:
                   fabric_variables['interface_descriptions']['underlay_port_channel_interfaces'] = \
-                      custom_fabric_variables['interfaceDescriptions']['transitPortChannelInterfaces']
+                      desc if desc != "None" else ""
               # MLAG Peer Link
-              if custom_fabric_variables['interfaceDescriptions']['mlagPeerLink']:
+              if desc := custom_fabric_variables['interfaceDescriptions']['mlagPeerLink']:
                   fabric_variables['interface_descriptions']['mlag_port_channel_interface'] = \
-                      custom_fabric_variables['interfaceDescriptions']['mlagPeerLink']
+                      desc if desc != "None" else ""
               # MLAG Peer Link Member Interfaces
-              if custom_fabric_variables['interfaceDescriptions']['mlagPeerLinkMemberInterfaces']:
+              if desc := custom_fabric_variables['interfaceDescriptions']['mlagPeerLinkMemberInterfaces']:
                   fabric_variables['interface_descriptions']['mlag_ethernet_interfaces'] = \
-                      custom_fabric_variables['interfaceDescriptions']['mlagPeerLinkMemberInterfaces']
+                      desc if desc != "None" else ""
 
               # Update point to point settings
               if custom_fabric_variables['p2pInterfaceSettings'] and custom_fabric_variables['p2pInterfaceSettings']['interfaceDefaults']:
@@ -1934,7 +1948,10 @@
                       switch_facts['l3_leaf_domain'] = l3_leaf_domain_id
                       switch_facts['group_index'] = int(switch_facts['l3_leaf_domain']) - 1
                       # Set evpn role to client
-                      switch_facts['evpn_role'] = "client"
+                      if pod['commonBGPConfig']['evpnEnabled']:
+                        switch_facts['evpn_role'] = "client"
+                      else:
+                        switch_facts['evpn_role'] = None
 
                   # Check to see if l2 leaf domain resolves
                   elif switch_facts['type'] == "l2leaf":
@@ -2302,7 +2319,7 @@
               my_switch_facts['underlay_routing_protocol'] = switches_in_my_data_center[my_switch_facts['downlink_switches_ids']
                                                                                       [0]]['underlay_routing_protocol']
               my_switch_facts['overlay_routing_protocol'] = switches_in_my_data_center[my_switch_facts['downlink_switches_ids']
-                                                                                      [0]].get('overlay_routing_protocol')
+                                                                                      [0]].get('overlay_routing_protocol', '')
               # Set ospf relevant config if necessary
               if my_switch_facts['underlay_routing_protocol'] == "ospf":
                   my_switch_facts['underlay_ospf_process_id'] = downlink_switch['underlay_ospf_process_id']
@@ -2330,9 +2347,6 @@
                       "peer_groups": {}
                   },
                   "address_family_evpn": {
-                      "peer_groups": {}
-                  },
-                  "address_family_rt": {
                       "peer_groups": {}
                   },
                   "neighbor_interfaces": {},
@@ -2397,7 +2411,7 @@
           % if config.get("port_channel_interfaces") is not None:
           %   for port_channel_interface in natural_sort(config["port_channel_interfaces"].keys()):
           interface ${ port_channel_interface }
-          %     if config["port_channel_interfaces"][port_channel_interface].get("description") is not None:
+          %     if config["port_channel_interfaces"][port_channel_interface].get("description"):
           description ${ config["port_channel_interfaces"][port_channel_interface]["description"] }
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("shutdown") == True:
@@ -2431,7 +2445,7 @@
           %if config.get("ethernet_interfaces") is not None:
           %for ethernet_interface in natural_sort(config["ethernet_interfaces"].keys()):
           interface ${ethernet_interface }
-          %     if config["ethernet_interfaces"][ethernet_interface]["description"] is not None:
+          %     if config["ethernet_interfaces"][ethernet_interface]["description"]:
           description ${config["ethernet_interfaces"][ethernet_interface]["description"]}
           %     endif
           %     if config["ethernet_interfaces"][ethernet_interface].get("channel_group") is not None:
@@ -2499,7 +2513,7 @@
           %if config.get("loopback_interfaces") is not None:
           %   for loopback_interface in natural_sort(config.get("loopback_interfaces").keys()):
           interface ${ loopback_interface }
-          %       if config["loopback_interfaces"][loopback_interface].get("description") is not None:
+          %       if config["loopback_interfaces"][loopback_interface].get("description"):
           description ${ config["loopback_interfaces"][loopback_interface].get("description") }
           %       endif
           %       if config["loopback_interfaces"][loopback_interface].get("shutdown") is not None and config["loopback_interfaces"][loopback_interface].get("shutdown") == True:
@@ -2528,7 +2542,7 @@
           % if config.get("vlan_interfaces") is not None:
           %   for vlan_interface in natural_sort(config.get("vlan_interfaces").keys()):
           interface ${ vlan_interface }
-          %     if config.get("vlan_interfaces")[vlan_interface].get("description") is not None:
+          %     if config.get("vlan_interfaces")[vlan_interface].get("description"):
           description ${ config.get("vlan_interfaces")[vlan_interface].get("description") }
           %     endif
           %     if config.get("vlan_interfaces")[vlan_interface].get("shutdown") == True:
@@ -2653,7 +2667,7 @@
           %   endfor
           !
           % endif
-          ## eos - Router Multicast
+          ## Router Multicast
           % if config.get("router_multicast"):
           router multicast
           %     if config["router_multicast"].get("ipv4"):
@@ -2736,7 +2750,7 @@
           %       for sequence in config["route_maps"][route_map]["sequence_numbers"].keys():
           %           if config["route_maps"][route_map]["sequence_numbers"][sequence].get("type") is not None:
           route-map ${ route_map } ${ config["route_maps"][route_map]["sequence_numbers"][sequence]["type"] } ${ sequence }
-          %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("description") is not None:
+          %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("description"):
           description ${ config["route_maps"][route_map]["sequence_numbers"][sequence]["description"] }
           %               endif
           %               if config["route_maps"][route_map]["sequence_numbers"][sequence].get("match") is not None:
@@ -2793,13 +2807,13 @@
           %     if config["router_bgp"].get("peer_groups") is not None:
           %       for peer_group in config["router_bgp"]["peer_groups"].keys():
           %         if config["router_bgp"]["peer_groups"][peer_group].get("bgp_listen_range_prefixes") is not None:
-          %           for bgp_listen_range_prefix in config["router_bgp"]["peer_groups"][peer_group]["bgp_listen_range_prefixes"].keys():
+          %           for bgp_listen_range_prefix in sorted(config["router_bgp"]["peer_groups"][peer_group]["bgp_listen_range_prefixes"].keys()):
           bgp listen range ${ bgp_listen_range_prefix } peer-group ${ peer_group } peer-filter ${ config["router_bgp"]["peer_groups"][peer_group]["bgp_listen_range_prefixes"][bgp_listen_range_prefix]["peer_filter"] }
           %           endfor
           %         endif
           %       endfor
           %     for peer_group in natural_sort(config["router_bgp"]["peer_groups"].keys()):
-          %         if config["router_bgp"]["peer_groups"][peer_group].get("description") is not None:
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("description"):
           neighbor ${ peer_group } description ${ config["router_bgp"]["peer_groups"][peer_group]["description"] }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("shutdown") == True:
@@ -2826,6 +2840,13 @@
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("bfd") == True:
           neighbor ${ peer_group } bfd
+          %         endif
+          %         if config["router_bgp"]["peer_groups"][peer_group].get("allowas_in") and config["router_bgp"]["peer_groups"][peer_group]["allowas_in"].get("enabled"):
+          <%            allowas_in_cli = f"neighbor {peer_group} allowas-in" %>
+          %             if config["router_bgp"]["peer_groups"][peer_group]["allowas_in"].get("times"):
+          <%                allowas_in_cli += f" {config['router_bgp']['peer_groups'][peer_group]['allowas_in']['times']}" %>
+          %             endif
+          ${ allowas_in_cli }
           %         endif
           %         if config["router_bgp"]["peer_groups"][peer_group].get("ebgp_multihop") is not None:
           neighbor ${ peer_group } ebgp-multihop ${ config["router_bgp"]["peer_groups"][peer_group]["ebgp_multihop"] }
@@ -2884,7 +2905,7 @@
           %         if config["router_bgp"]["neighbors"][neighbor].get("local_as") is not None:
           neighbor ${ neighbor } local-as ${ config["router_bgp"]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
           %         endif
-          %         if config["router_bgp"]["neighbors"][neighbor].get("description") is not None:
+          %         if config["router_bgp"]["neighbors"][neighbor].get("description"):
           neighbor ${ neighbor } description ${ config["router_bgp"]["neighbors"][neighbor]["description"] }
           %         endif
           %         if config["router_bgp"]["neighbors"][neighbor].get("update_source") is not None:
@@ -3035,28 +3056,28 @@
           %           endfor
           %         endif
           %        endif
-          ## address family rt-membership activation 
-          %     if config["router_bgp"]["address_family_rt"].get("peer_groups") is not None:
+          ## address family rt-membership activation
+          %     if config["router_bgp"].get("address_family_rt"):
           !
           address-family rt-membership
-          %         for peer_group in natural_sort(config["router_bgp"]["address_family_rt"]["peer_groups"].keys()):
+          %         for peer_group in natural_sort(config["router_bgp"]["address_family_rt"].get("peer_groups", {}).keys()):
           %             if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("activate"):
               neighbor ${ peer_group } activate
           %             elif not config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("activate"):
               no neighbor ${ peer_group } activate
-          %             endif 
+          %             endif
           %             if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("default_route_target") is not None:
           %                 if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group]["default_route_target"].get("only"):
               neighbor ${ peer_group } default-route-target only
           %                 else:
               neighbor ${ peer_group } default-route-target
-          %                 endif 
-          %             endif 
+          %                 endif
+          %             endif
           %             if config["router_bgp"]["address_family_rt"]["peer_groups"][peer_group].get("encoding_origin_as_omit") is not None:
               neighbor ${ peer_group } default-route-target encoding origin-as omit
-          %             endif 
-          %         endfor 
-          %     endif 
+          %             endif
+          %         endfor
+          %     endif
           ## address family ipv4 activation
           %     if config["router_bgp"].get("address_family_ipv4") is not None:
           !
@@ -3282,7 +3303,7 @@
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("local_as") is not None:
               neighbor ${ neighbor } local-as ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["local_as"] } no-prepend replace-as
           %             endif
-          %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("description") is not None:
+          %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("description"):
               neighbor ${ neighbor } description ${ config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor]["description"] }
           %             endif
           %             if config["router_bgp"]["vrfs"][vrf]["neighbors"][neighbor].get("ebgp_multihop") is not None:
@@ -3404,7 +3425,7 @@
           passive-interface default
           %     endif
           %     if config["router_ospf"]["process_ids"][process_id].get("no_passive_interfaces"):
-          %         for interface in config["router_ospf"]["process_ids"][process_id]["no_passive_interfaces"]:
+          %         for interface in natural_sort(config["router_ospf"]["process_ids"][process_id]["no_passive_interfaces"]):
           no passive-interface ${ interface }
           %         endfor
           %     endif
@@ -3424,12 +3445,12 @@
           !
           %endfor
           %endif
-          ## eos - platform 
-          % if config.get("platform_settings") is not None:
-          !
+          ## eos - platform
+          % if config.get("platform") is not None:
           %     if config["platform"]["trident"]["forwarding_table_partition"] is not None:
           platform trident forwarding-table partition ${config["platform"]["trident"]["forwarding_table_partition"]}
           %     endif
+          !
           % endif
           ## EOS CLI
           % if config.get("eos_cli"):
@@ -3488,7 +3509,7 @@
               string_props:
                 default_value: 00:1c:73:00:00:99
                 static_options: null
-                format: null
+                format: mac
                 length: null
                 pattern: null
                 dynamic_options: null
@@ -3504,8 +3525,8 @@
                 range: null
                 static_options:
                   values:
-                    - '31'
                     - '30'
+                    - '31'
                 dynamic_options: null
             lacpMode:
               id: lacpMode
@@ -3547,7 +3568,7 @@
               string_props:
                 default_value: null
                 static_options: null
-                format: null
+                format: cidr
                 length: null
                 pattern: null
                 dynamic_options: null
@@ -3566,20 +3587,11 @@
                     - '30'
                     - '31'
                 dynamic_options: null
-            mlagRfc5549:
-              id: mlagRfc5549
-              name: mlagRfc5549
-              label: MLAG IPv6 Unnumbered
-              description: Enable RFC 5549(iBGP) i.e. IPv6 Unnumbered for MLAG iBGP connections. Requires IPv6 Unumbered in Underlay
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
             commonMlagConfig:
               id: commonMlagConfig
               name: commonMlagConfig
               label: MLAG Configuration
-              description: Configure the parameters for the MLAG pairs in this Pod.
+              description: Configure the parameters for the MLAG pairs in this pod.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3594,7 +3606,6 @@
                     - mlagPeerL3Vlan
                     - mlagPeerL3Subnet
                     - mlagPeerL3SubnetMask
-                    - mlagRfc5549
             spineAS:
               id: spineAS
               name: spineAsn
@@ -3721,7 +3732,7 @@
               id: evpnRtMembership
               name: evpnRtMembership
               label: EVPN RT Membership Enabled
-              description: Enable Route Target Membership Constraint Address Family on EVPN overlay BGP peerings (Min. EOS 4.25.1F).Requires use eBGP as overlay protocol.
+              description: Enable Route Target Membership Constraint Address Family on EVPN overlay BGP peerings (Min. EOS 4.25.1F).Requires use of BGP EVPN as overlay protocol.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3730,7 +3741,7 @@
               id: evpnMulticast
               name: evpnMulticast
               label: EVPN Multicast Enabled
-              description: 'Enable Fabric to support EVPN Multicast. Requires "underlay_multicast: true" and IGMP snooping enabled globally (default).'
+              description: Enable Fabric to support EVPN Multicast. Requires Underlay Multicast to be enabled
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3739,7 +3750,7 @@
               id: commonBGPConfig
               name: commonBGPConfig
               label: BGP Configuration
-              description: Configure the BGP settings for this Pod.
+              description: Configure the BGP settings for this pod.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3771,7 +3782,7 @@
               id: l3LeafMlag
               name: l3LeafMlag
               label: MLAG
-              description: Enables MLAG if there are 2 leafs within this leaf domain
+              description: Enable or disable MLAG if there are two devices in the domain.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3791,8 +3802,8 @@
             leafDomains:
               id: leafDomains
               name: LeafDomains
-              label: Leaf Domains
-              description: Specify the MLAG pairs or standalone leaf switches in this Pod. Value should be an integer.
+              label: L3 Leaf Domains
+              description: Create a leaf domain, which can contain one or two devices. If it contains two devices, these can form an MLAG pair. Each domain name must be an integer.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -3805,7 +3816,7 @@
               id: spanningTreeMode
               name: spanningTreeMode
               label: Spanning Tree Mode
-              description: Select the spanning tree mode for devices in this Pod.
+              description: Select the spanning tree mode for devices in this pod.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -3878,7 +3889,7 @@
               string_props:
                 default_value: null
                 static_options: null
-                format: null
+                format: cidr
                 length: null
                 pattern: null
                 dynamic_options: null
@@ -3901,16 +3912,7 @@
               id: underlayMulticast
               name: underlayMulticast
               label: Underlay Multicast
-              description: 'Enable Multicast in the underlay on all p2p uplink interfaces and mlag l3 peer interface. # Specifically PIM Sparse-Mode will be configured on all routed underlay interfaces.'
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            underlayRfc5549Enabled:
-              id: underlayRfc5549Enabled
-              name: underlayRfc5549Enabled
-              label: P2P Underlay IPv6 Unnumbered
-              description: Point to Point Underlay with RFC 5549(eBGP), i.e. IPv6 Unnumbered.
+              description: 'Enable Multicast in the underlay on all p2p uplink interfaces and mlag l3 peer interface. Specifically PIM Sparse-Mode will be configured on all routed underlay interfaces. Required to enable EVPN Multicast'
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -3919,7 +3921,7 @@
               id: underlayRouting
               name: underlayRouting
               label: Underlay Routing
-              description: Specify the underlay routing details for this Pod.
+              description: Specify the underlay routing details for this pod.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3931,7 +3933,6 @@
                     - spineSuperSpineFabricSubnet
                     - spineSuperSpineFabricSubnetMask
                     - underlayMulticast
-                    - underlayRfc5549Enabled
             vxlanOverlay:
               id: vxlanOverlay
               name: vxlanOverlay
@@ -3973,7 +3974,7 @@
               id: overlayDetails
               name: overlayDetails
               label: Overlay Details
-              description: Configure the VXLAN overlay settings for this Pod.
+              description: Configure the VXLAN overlay settings for this pod.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -3986,7 +3987,7 @@
               id: maxSpines
               name: maxSpines
               label: Maximum Number of Spines
-              description: If no number is entered, the spine limit will be set to the greatest Spine 'NodeId' tag value in this Pod
+              description: If no number is entered, the spine limit will be set to the greatest Spine 'NodeId' tag value in this pod
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -3998,7 +3999,7 @@
               id: maximumNumberOfParallelConnections
               name: maximumNumberOfParallelConnections
               label: Maximum Parallel Leaf Uplinks
-              description: If no number is entered, the parallel transit link limit will be set to the greatest number of paralell links detected between a single leaf and spine switch in this Pod
+              description: If no number is entered, the parallel transit link limit will be set to the greatest number of parallel links detected between a single leaf and spine switch in this pod
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -4010,7 +4011,7 @@
               id: maxSuperSpines
               name: maxSuperSpines
               label: Max Super-Spines
-              description: If no number is entered, the spine limit will be set to the greatest Super-Spine 'NodeId' tag value in this Pod
+              description: If no number is entered, the spine limit will be set to the greatest super-spine 'NodeId' tag value in this pod
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
               integer_props:
@@ -4048,7 +4049,7 @@
               id: l2LeafMlag
               name: l2LeafMlag
               label: MLAG
-              description: Enables MLAG if there are 2 leafs within this leaf domain
+              description: Enable or disable MLAG if there are two devices in the domain.
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -4068,7 +4069,7 @@
               id: l2LeafDomains
               name: l2LeafDomains
               label: L2 Leaf Domains
-              description: Specify the MLAG pairs or standalone L2 leaf switches in this Pod.  Value should be an integer.
+              description: Create a leaf domain, which can contain one or two devices. If it contains two devices, these can form an MLAG pair. Each domain name must be an integer.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -4211,7 +4212,7 @@
               id: pods
               name: pods
               label: Pods
-              description: Define a leaf-spine pod for the fabric.
+              description: Each pod is a leaf-spine module in your fabric that shares common MLAG, routing, and overlay configuration.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -4242,7 +4243,7 @@
               string_props:
                 default_value: null
                 static_options: null
-                format: null
+                format: cidr
                 length: null
                 pattern: null
                 dynamic_options: null
@@ -4318,7 +4319,7 @@
               id: superSpinePlanes
               name: superSpinePlanes
               label: Super-Spine Planes
-              description: Define a super-spine plane for the fabric if desired.
+              description: Create a super-spine plane to connect different data centers together.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -4395,7 +4396,7 @@
               id: platformSettingsEosCli
               name: eosCli
               label: EOS CLI
-              description: General EOS CLI configuration statements to be included in the running-configuration.
+              description: Configure reload delays, TCAM profiles, and write EOS CLI configuration statements that will be included in the running-configuration.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -4569,11 +4570,14 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - None
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: true
             routerIdInterface:
               id: routerIdInterface
               name: routerIdInterface
@@ -4583,25 +4587,31 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - None
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: true
             vtepSourceInterface:
               id: vtepSourceInterface
               name: vtepSourceInterface
               label: VTEP Source Interface
-              description: Set a custom description for the Router ID interface. For example, "VTEP_Source".
+              description: Set a custom description for the VTEP Source interface. For example, "VTEP_Source".
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - None
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: true
             transitPortChannelInterfaces:
               id: transitPortChannelInterfaces
               name: transitPortChannelInterfaces
@@ -4611,11 +4621,14 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - None
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: true
             mlagPeerLink:
               id: mlagPeerLink
               name: mlagPeerLink
@@ -4625,11 +4638,14 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - None
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: true
             mlagPeerLinkMemberInterfaces:
               id: mlagPeerLinkMemberInterfaces
               name: mlagPeerLinkMemberInterfaces
@@ -4639,11 +4655,14 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - None
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: true
             transitL2EthernetInterfaces:
               id: transitL2EthernetInterfaces
               name: transitL2EthernetInterfaces
@@ -4653,11 +4672,14 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
-                static_options: null
+                static_options:
+                  values:
+                    - None
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+                extra_values_allowed: true
             interfaceDescriptions:
               id: interfaceDescriptions
               name: interfaceDescriptions
@@ -4703,7 +4725,7 @@
               id: p2pInterfaceSettings
               name: p2pInterfaceSettings
               label: P2P Interface Settings
-              description: Settings to be applied to the transit ethernet interfaces connecting leaf switches and spine switches.
+              description: Settings to be applied to the transit ethernet interfaces connecting leaf switches and spine switches
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -4740,8 +4762,8 @@
             dataCenters:
               id: dataCenters
               name: dataCenters
-              label: Data Centers (DCs)
-              description: ''
+              label: Data Centers
+              description: Each data center is an independent network. Add a new data center to configure a new network.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -4771,12 +4793,12 @@
                   "SpineTagger",
                   "leafDomains",
                   "l2LeafDomains",
+                  "commonMlagConfig",
                   "underlayRouting",
                   "overlayDetails",
                   "commonBGPConfig",
-                  "ospfConfiguration",
                   "spanningTreeMode",
-                  "commonMlagConfig",
+                  "ospfConfiguration",
                   "maximums"
                 ]
               },
@@ -4788,7 +4810,6 @@
                   "mlagLinkSubnet",
                   "mlagSubnetMask",
                   "mlagPeerL3Vlan",
-                  "mlagRfc5549",
                   "mlagPeerL3Subnet",
                   "mlagPeerL3SubnetMask",
                   "mlagPortChannelId",
@@ -4801,7 +4822,6 @@
                 "type":"INPUT",
                 "order":[
                   "underlayRoutingProtocol",
-                  "underlayRfc5549Enabled",
                   "fabricLinksSubnet",
                   "fabricSubnetMask",
                   "spineSuperSpineFabricSubnet",
@@ -4866,7 +4886,7 @@
                 "prepopulate":true,
                 "tagFilterQuery":"Role:Spine ",
                 "tagType":"DEVICE",
-                "description":"The spines in this Pod. Each spine in this Pod should have a unique NodeId value starting from 1.",
+                "description":"Any devices assigned the role Spine will appear here. Assign a unique NodeID to each spine.",
                 "columns":[
                   {
                     "tagLabel":"NodeId",
@@ -4884,7 +4904,7 @@
                 "prepopulate":true,
                 "tagFilterQuery":"Role:Leaf ",
                 "tagType":"DEVICE",
-                "description":"The L3 leafs in this Leaf-Domain. Each L3 leaf in this Pod should have a unique NodeId value starting from 1.",
+                "description":"Devices assigned to this domain and which have the role of L3 Leaf will appear here. Assign a unique NodeId to each device. You should have a maximum of two devices in each domain.",
                 "columns":[
                   {
                     "tagLabel":"NodeId",
@@ -4899,7 +4919,7 @@
                 "showDefaultRow":false,
                 "type":"INPUT",
                 "fieldOverrides":{
-                  "description":"Leaf-Domain value should be an integer."
+                  "description":"Leaf-Domain value must be an integer."
                 }
               },
               "SuperSpineTagger":{
@@ -4929,7 +4949,7 @@
                 "prepopulate":true,
                 "tagFilterQuery":"Role:L2-Leaf ",
                 "tagType":"DEVICE",
-                "description":"The L2 leafs in this L2 Leaf-Domain. Each L2 leaf in this Pod should have a unique NodeId value starting from 1.",
+                "description":"Devices assigned to this domain and which have the role L2 Leaf will appear here. Assign a unique NodeId to each device. There should be a maximum of two devices in the domain.",
                 "columns":[
                   {
                     "tagLabel":"NodeId",
@@ -4947,7 +4967,7 @@
                 ],
                 "type":"INPUT",
                 "fieldOverrides":{
-                  "description":"L2-Leaf-Domain value should be an integer."
+                  "description":"L2-Leaf-Domain value must be an integer."
                 }
               },
               "l2LeafDomain":{
@@ -5051,7 +5071,7 @@
                 "assignmentType":"MULTIPLE",
                 "prepopulate":true,
                 "tagType":"DEVICE",
-                "description":"Define a switch's role and node ID. Valid Role values are 'Leaf', 'Spine', 'Super-Spine', and 'L2-Leaf'. NodeId values should be integers.",
+                "description":"Assign roles to devices in the network.",
                 "columns":[
                   {
                     "tagLabel":"Role",
@@ -5289,12 +5309,6 @@
                       "BGP"
                     ],
                     "mode":"SHOW"
-                  },
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"SHOW"
                   }
                 },
                 "type":"INPUT",
@@ -5420,153 +5434,5 @@
                 },
                 "dependencyType":"AND",
                 "type":"INPUT"
-              },
-              "e115dd71-a73c-4402-a8aa-b6a4ebb95e8b":{
-                "key":"e115dd71-a73c-4402-a8aa-b6a4ebb95e8b",
-                "dependency":{
-                  "underlayMulticast":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "underlayRfc5549Enabled":{
-                "key":"underlayRfc5549Enabled",
-                "type":"INPUT",
-                "dependencyType":"AND",
-                "dependency":{
-                  "underlayRoutingProtocol":{
-                    "value":[
-                      "BGP"
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "mlagSubnetMask":{
-                "key":"mlagSubnetMask",
-                "type":"INPUT"
-              },
-              "mlagLinkSubnet":{
-                "key":"mlagLinkSubnet",
-                "type":"INPUT"
-              },
-              "mlagPeerL3Subnet":{
-                "key":"mlagPeerL3Subnet",
-                "dependency":{
-                  "mlagRfc5549":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "type":"INPUT",
-                "dependencyType":"AND"
-              },
-              "mlagPeerL3SubnetMask":{
-                "key":"mlagPeerL3SubnetMask",
-                "type":"INPUT",
-                "dependencyType":"AND",
-                "dependency":{
-                  "mlagRfc5549":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "fabricLinksSubnet":{
-                "key":"fabricLinksSubnet",
-                "type":"INPUT",
-                "dependencyType":"AND",
-                "dependency":{
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "fabricSubnetMask":{
-                "key":"fabricSubnetMask",
-                "type":"INPUT",
-                "dependencyType":"AND",
-                "dependency":{
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "spineSuperSpineFabricSubnet":{
-                "key":"spineSuperSpineFabricSubnet",
-                "type":"INPUT",
-                "dependency":{
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "spineSuperSpineFabricSubnetMask":{
-                "key":"spineSuperSpineFabricSubnetMask",
-                "type":"INPUT",
-                "dependencyType":"AND",
-                "dependency":{
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      false
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "2ce9df91-e46a-4aae-b9d6-b95b33b4c3b0":{
-                "key":"2ce9df91-e46a-4aae-b9d6-b95b33b4c3b0",
-                "type":"INPUT",
-                "dependency":{
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "c9d43f13-26a9-4858-89ce-91581288de83":{
-                "key":"c9d43f13-26a9-4858-89ce-91581288de83",
-                "type":"INPUT",
-                "dependency":{
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "mlagRfc5549":{
-                "key":"mlagRfc5549",
-                "type":"INPUT",
-                "dependencyType":"AND",
-                "dependency":{
-                  "underlayRfc5549Enabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
               }
             }
