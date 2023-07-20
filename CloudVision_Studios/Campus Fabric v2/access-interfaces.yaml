@@ -977,7 +977,7 @@
                           # Authentication Failure action
                           if port_profile["dot1x"]["authenticationFailure"].get("action", "").strip():
                               tmp_port_profile["dot1x"]["authentication_failure"] = {
-                                  "action": port_profile["dot1x"]["authenticationFailure"]["action"]
+                                  "action": port_profile["dot1x"]["authenticationFailure"]["action"].lower()
                               }
                           # Authentication Failure vlan
                           if port_profile["dot1x"]["authenticationFailure"].get("allowVlan") \
@@ -1019,9 +1019,9 @@
                           # Tx period
                           if port_profile["dot1x"]["timeouts"].get("txPeriod"):
                               tmp_port_profile["dot1x"]["timeout"]["tx_period"] = port_profile["dot1x"]["timeouts"]["txPeriod"]
-                      # Reauthentication Request Limit
-                      if port_profile["dot1x"].get("reauthenticationRequestLimit") and tmp_port_profile["dot1x"].get("reauthentication"):
-                          tmp_port_profile["dot1x"]["reauthentication_request_limit"] = port_profile["dot1x"]["reauthenticationRequestLimit"]
+                      # Reauthorization Request Limit
+                      if port_profile["dot1x"].get("reauthorizationRequestLimit"):
+                          tmp_port_profile["dot1x"]["reauthorization_request_limit"] = port_profile["dot1x"]["reauthorizationRequestLimit"]
 
                   # POE
                   if port_profile.get("poe"):
@@ -1065,11 +1065,11 @@
                       if port_profile["stormControl"]["unknownUnicast"].get("level", "").strip():
                           tmp_port_profile["storm_control"]["unknown_unicast"] = {
                               "level": port_profile["stormControl"]["unknownUnicast"]["level"],
-                              "unit":  port_profile["stormControl"]["unknown_unicast"].get("unit", "percent")
+                              "unit":  port_profile["stormControl"]["unknownUnicast"].get("unit", "percent")
                           }
                   # EOS CLI
                   if len(port_profile.get("eosCli", [])) > 0:
-                      tmp_port_profile["raw_eos_cli"] = port_profile["eosCli"]
+                      tmp_port_profile["raw_eos_cli"] = "\n".join(port_profile["eosCli"])
                   # port-channel
                   if port_profile.get("portChannel"):
                       port_channel = {}
@@ -1093,7 +1093,7 @@
                           port_channel["mlag"] = port_profile["portChannel"].get("mlag")
                           # EOS CLI
                           if len(port_profile["portChannel"].get("eosCli", [])) > 0:
-                              port_channel["raw_eos_cli"] = port_profile["portChannel"]["eosCli"]
+                              port_channel["raw_eos_cli"] = "\n".join(port_profile["portChannel"]["eosCli"])
 
                       tmp_port_profile["port_channel"] = port_channel
 
@@ -1222,7 +1222,7 @@
                           # Authentication Failure action
                           if network_port["dot1x"]["authenticationFailure"].get("action", "").strip():
                               tmp_network_port["dot1x"]["authentication_failure"] = {
-                                  "action": network_port["dot1x"]["authenticationFailure"]["action"]
+                                  "action": network_port["dot1x"]["authenticationFailure"]["action"].lower()
                               }
                           # Authentication Failure vlan
                           if network_port["dot1x"]["authenticationFailure"].get("allowVlan") \
@@ -1264,9 +1264,9 @@
                           # Tx period
                           if network_port["dot1x"]["timeouts"].get("txPeriod"):
                               tmp_network_port["dot1x"]["timeout"]["tx_period"] = network_port["dot1x"]["timeouts"]["txPeriod"]
-                      # Reauthentication Request Limit
-                      if network_port["dot1x"].get("reauthenticationRequestLimit") and tmp_network_port["dot1x"].get("reauthentication"):
-                          tmp_network_port["dot1x"]["reauthentication_request_limit"] = network_port["dot1x"]["reauthenticationRequestLimit"]
+                      # Reauthorization Request Limit
+                      if network_port["dot1x"].get("reauthorizationRequestLimit"):
+                          tmp_network_port["dot1x"]["reauthorization_request_limit"] = network_port["dot1x"]["reauthorizationRequestLimit"]
                   # POE
                   if network_port.get("poe"):
                       tmp_network_port["poe"] = {}
@@ -1309,11 +1309,11 @@
                       if network_port["stormControl"]["unknownUnicast"].get("level", "").strip():
                           tmp_network_port["storm_control"]["unknown_unicast"] = {
                               "level": network_port["stormControl"]["unknownUnicast"]["level"],
-                              "unit":  network_port["stormControl"]["unknown_unicast"].get("unit", "percent")
+                              "unit":  network_port["stormControl"]["unknownUnicast"].get("unit", "percent")
                           }
                   # EOS CLI
                   if len(network_port.get("eosCli", [])) > 0:
-                      tmp_network_port["raw_eos_cli"] = network_port["eosCli"]
+                      tmp_network_port["raw_eos_cli"] = "\n".join(network_port["eosCli"])
                   # port-channel
                   if network_port.get("portChannel"):
                       port_channel = {}
@@ -1337,7 +1337,7 @@
                           port_channel["mlag"] = network_port["portChannel"].get("mlag")
                           # EOS CLI
                           if len(network_port["portChannel"].get("eosCli", [])) > 0:
-                              port_channel["raw_eos_cli"] = network_port["portChannel"]["eosCli"]
+                              port_channel["raw_eos_cli"] = "\n".join(network_port["portChannel"]["eosCli"])
 
                       tmp_network_port["port_channel"] = port_channel
 
@@ -1371,6 +1371,7 @@
               """
               if not get(adapter, "dot1x.enabled"):
                   return None
+              adapter.get("dot1x").pop("enabled")
 
               return adapter.get("dot1x")
 
@@ -1568,7 +1569,7 @@
               if ethernet_interfaces:
                   return ethernet_interfaces
 
-              return None
+              return []
 
 
           def add_if_not_duplicate(candidate_port_channel_config, port_channel_interfaces) -> None:
@@ -1641,7 +1642,7 @@
                           "spanning_tree_bpduguard": adapter.get("spanning_tree_bpduguard"),
                           "storm_control": get_adapter_storm_control(adapter),
                           "phone": get_adapter_phone(adapter),
-                          "dot1x": adapter.get("dot1x"),
+                          # "dot1x": get_adapter_dot1x(adapter),
                           "ptp": get_adapter_ptp(adapter)
                       }
                   )
@@ -1673,7 +1674,7 @@
               """
               Return structured config for ethernet_interfaces
               """
-              port_channel_interfaces =[]
+              port_channel_interfaces = []
 
               for network_port in network_ports:
                   if not get(network_port, "port_channel.member"):
@@ -1702,7 +1703,7 @@
               if port_channel_interfaces:
                   return port_channel_interfaces
 
-              return None
+              return []
 
           # Check devices input is not None
           if not campus:
@@ -1734,7 +1735,7 @@
 
           ctx.info(f"My Switch Facts: {my_switch_facts}")
 
-          # Convert port profiles to AVD data model
+          # Convert port profiles to eos_designs AVD data model
           port_profiles = get_port_profiles(portProfiles)
           ctx.info(f"Port Profiles Pre-Parent Profile Applied: {port_profiles}")
 
@@ -1754,7 +1755,7 @@
                   network_ports.append(tmp_adapter)
 
 
-          # Convert network ports to AVD data model
+          # Convert network ports to eos_designs AVD data model
           network_ports = get_network_ports(network_ports)
           ctx.info(f"Network Ports Pre-Profile Applied: {network_ports}")
 
@@ -1762,9 +1763,9 @@
           network_ports = merge_network_ports(network_ports, port_profiles)
           ctx.info(f"Network Ports Post-Profile Applied: {network_ports}")
 
-          # Get configuration for ethernet_interfaces
+          # Get structured config for ethernet_interfaces
           my_switch_ethernet_interfaces = ethernet_interfaces(network_ports)
-          # Get configuration for port_channel_interfaces
+          # Get structured config for port_channel_interfaces
           my_switch_port_channel_interfaces = port_channel_interfaces(network_ports)
 
           config = {
@@ -1894,11 +1895,9 @@
              spanning-tree guard ${ port_channel_interface["spanning_tree_guard"] }
           %         endif
           %     endif
-          %     if port_channel_interface.get("eos_cli"):
-          %         for cli_statement in port_channel_interface["eos_cli"]:
+          %     for cli_statement in port_channel_interface.get("eos_cli", "").split("\n"):
              ${cli_statement}
-          %         endfor
-          %     endif
+          %     endfor
           !
           % endfor
           ## eos - ethernet interfaces ##
@@ -2146,12 +2145,9 @@
           %             endif
           %         endif
           %     endif
-          %     if ethernet_interface.get("eos_cli"):
-          %         for cli_statement in ethernet_interface["eos_cli"]:
+          %     for cli_statement in ethernet_interface.get("eos_cli", "").split("\n"):
              ${cli_statement}
-          %         endfor
-          %     endif
-
+          %     endfor
           !
           % endfor
       input_schema:
@@ -2754,7 +2750,6 @@
                   values:
                     - Allow
                     - Drop
-                    - Disable
                 format: null
                 length: null
                 pattern: null
@@ -2974,8 +2969,8 @@
                     - portProfileDot1XTxPeriod
             portProfileDot1XReauthRequestLimit:
               id: portProfileDot1XReauthRequestLimit
-              name: reauthenticationRequestLimit
-              label: Reauthentication Request Limit
+              name: reauthorizationRequestLimit
+              label: Reauthorization Request Limit
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
@@ -4157,8 +4152,8 @@
                     - adapterDot1XTxPeriod
             adapterDot1XReauthRequestLimit:
               id: adapterDot1XReauthRequestLimit
-              name: reauthenticationRequestLimit
-              label: Reauthentication Request Limit
+              name: reauthorizationRequestLimit
+              label: Reauthorization Request Limit
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_INTEGER
