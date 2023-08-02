@@ -1409,10 +1409,7 @@
 
               # Set node id
               # Set node id based on NodeId mini-tagger values
-              node_id =  device_tags.get("NodeId", [None])[0]
-              if node_id == 0:
-                  ctx.error(f"Could not find a NodeId for {switch_facts['hostname']}: {e}")
-                  return
+              node_id =  device_tags.get("NodeId", [0])[0]
 
               if node_id == 0:
                   ctx.warning(f"No NodeId tag set for {switch_facts['hostname']}")
