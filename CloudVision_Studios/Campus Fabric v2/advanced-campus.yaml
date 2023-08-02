@@ -3902,17 +3902,19 @@
                                           vlan["ip_helpers"][helper_ip]["source_interface"] = svi_ip_helpers[helper_ip]["source_interface"]
 
                               # IPv6 helper configuration
-                              if svi_ip_helpers is not None and len(svi_ip_helpers) > 0:
+                              if svi_ipv6_helpers is not None and len(svi_ipv6_helpers) > 0:
                                   # Turn on global dhcp smart relay option
                                   # config["ipv6"]["dhcp"] = {"relay": {"always_on": True}}
                                   # Set helper addresses
-                                  vlan["ipv6_helpers"] = {}
+                                  vlan["ipv6_dhcp_relay_destinations"] = []
                                   for helper_ip in svi_ipv6_helpers:
-                                      vlan["ipv6_helpers"][helper_ip] = {
+                                      ipv6_helper = {
+                                          "address": helper_ip,
                                           "vrf": svi_ipv6_helpers[helper_ip].get("source_vrf")
                                       }
                                       if svi_ipv6_helpers[helper_ip].get("local_interface", "").strip() != "":
-                                          vlan["ipv6_helpers"][helper_ip]["local_interface"] = svi_ipv6_helpers[helper_ip]["local_interface"]
+                                          ipv6_helper["local_interface"] = svi_ipv6_helpers[helper_ip]["local_interface"]
+                                      vlan["ipv6_dhcp_relay_destinations"].append(ipv6_helper)
 
                               # ospf
                               if svi.get("ospf", {}).get("enabled", False) is True and vrf.get("ospf", {}).get("enabled", True) is True:
@@ -4422,6 +4424,7 @@
               task_time = time.time()
 
           # ctx.info(f"{my_switch_facts}")
+          # ctx.info(f"{config}")
           %>
           % if config.get("address_locking"):
           address locking
@@ -4939,18 +4942,16 @@
              ${ ip_helper_cli }
           %       endfor
           %     endif
-          %     if config.get("vlan_interfaces")[vlan_interface].get("ipv6_helpers") is not None:
-          %       for ip_helper in config.get("vlan_interfaces")[vlan_interface].get("ipv6_helpers").keys():
-          <%        ip_helper_cli = "ipv6 dhcp relay destination " + ip_helper %>
-          %         if config.get("vlan_interfaces")[vlan_interface]["ipv6_helpers"][ip_helper].get("vrf") is not None:
-          <%            ip_helper_cli = ip_helper_cli + " vrf " + config.get("vlan_interfaces")[vlan_interface]["ipv6_helpers"][ip_helper].get("vrf") %>
+          %     for ipv6_helper in config.get("vlan_interfaces")[vlan_interface].get("ipv6_dhcp_relay_destinations", []):
+          <%        ip_helper_cli = "ipv6 dhcp relay destination " + ipv6_helper["address"] %>
+          %         if ipv6_helper.get("vrf") is not None:
+          <%            ip_helper_cli = ip_helper_cli + " vrf " + ipv6_helper["vrf"] %>
           %         endif
-          %         if config.get("vlan_interfaces")[vlan_interface]["ipv6_helpers"][ip_helper].get("local_interface") is not None:
-          <%            ip_helper_cli = ip_helper_cli + " local-interface " + config.get("vlan_interfaces")[vlan_interface]["ipv6_helpers"][ip_helper]["local_interface"] %>
+          %         if ipv6_helper.get("local_interface") is not None:
+          <%            ip_helper_cli = ip_helper_cli + " local-interface " + ipv6_helper["local_interface"] %>
           %         endif %}
              ${ ip_helper_cli }
-          %       endfor
-          %     endif
+          %     endfor
           %     if config.get("vlan_interfaces")[vlan_interface].get("ospf_network_point_to_point"):
              ip ospf network point-to-point
           %     endif
