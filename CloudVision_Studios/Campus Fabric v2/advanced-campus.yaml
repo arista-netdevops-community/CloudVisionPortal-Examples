@@ -2415,8 +2415,8 @@
                       "tenants": {}
                   }
                   add_vrfs = {}  # Used to determine which services are applied to this switch
-                  add_svis = []  # For logging
-                  add_l2vlans = []  # Not necessary
+                  add_svis = []
+                  add_l2vlans = []
                   # Add VRF if node is found in any of vrf fields
                   for vrf in campus_details["services"]["vrfs"]:
                       # Add all vrfs if add_all_vrfs flag is set to True
@@ -2463,32 +2463,38 @@
                   for vlan in building_details["services"]["vlans"]:
                       # Check if vlan is applied to switch
                       if device_matches_resolver_query(vlan['idf'], device_id):
-                          add_svis.append(vlan['vlanId'])
-                          leaf['vlans'].append(int(vlan['vlanId']))
-                          if vlan['sviDetails'].get('vrf', '') == '':
-                              vrf_name = 'default'
-                          else:
-                              vrf_name = vlan['sviDetails']['vrf']
+                          if vlan["l2OrL3"] is True:
+                              add_svis.append(vlan['vlanId'])
+                              leaf['vlans'].append(int(vlan['vlanId']))
+                              if vlan['sviDetails'].get('vrf', '') == '':
+                                  vrf_name = 'default'
+                              else:
+                                  vrf_name = vlan['sviDetails']['vrf']
 
-                          # Add vrf to add_vrfs
-                          if not add_vrfs.get(vrf_name):
-                              add_vrfs[vrf_name] = {
-                                  "svis": []
-                              }
-
-                          # Add vlan to vrf's add_svis
-                          add_vrfs[vrf_name]["svis"].append(int(vlan['vlanId']))
+                              # Add vrf to add_vrfs
+                              if not add_vrfs.get(vrf_name):
+                                  add_vrfs[vrf_name] = {
+                                      "svis": []
+                                  }
+                          
+                              # Add vlan to vrf's add_svis
+                              add_vrfs[vrf_name]["svis"].append(int(vlan['vlanId']))
+                          
+                          elif vlan["l2OrL3"] is False:
+                              add_l2vlans.append(int(vlan['vlanId']))
+                              leaf['vlans'].append(int(vlan['vlanId']))
 
                   # Filter only services applied to this switch
                   if len(add_vrfs) > 0 or len(add_l2vlans) > 0:
                       leaf['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": add_l2vlans} })
 
-                  switch_facts["tenants"]= leaf.get('tenants', {})
+                  switch_facts["tenants"] = leaf.get('tenants', {})
                   switch_facts["vlans"] = leaf.get('vlans', [])
 
                   # if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
                   #     ctx.info(f"VRFs to be configured on switch: {list(add_vrfs.keys())}")
-                  #     ctx.info(f"VLANs to be configured on switch: {add_svis}")
+                  #     ctx.info(f"SVIs to be configured on switch: {add_svis}")
+                  #     ctx.info(f"L2 VLANs to be configured on switch: {add_l2vlans}")
 
               return switch_facts
 
@@ -2562,8 +2568,8 @@
                       #     continue
 
               # Filter only services applied to this switch
-              if len(add_vrfs) > 0:
-                  spline['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": []} })
+              spline['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": []} })
+
 
               if switch_facts["campus_type"] == "l2ls":
                   idfs_checked = []
@@ -2588,13 +2594,22 @@
                                   else:
                                       # check if svis exist
                                       for svi in tmp_switch_facts["tenants"][tenant]["vrfs"][vrf].get("svis", {}):
-                                          if svi not in  spline['tenants'][tenant]["vrfs"][vrf]["svis"]:
+                                          if svi not in spline['tenants'][tenant]["vrfs"][vrf]["svis"]:
                                               spline['tenants'][tenant]["vrfs"][vrf]["svis"].append(svi)
+                              
+                              for l2vlan in tmp_switch_facts["tenants"][tenant].get("l2vlans", {}):
+                                  if l2vlan not in spline['tenants'][tenant]["l2vlans"]:
+                                      spline['tenants'][tenant]["l2vlans"].append(l2vlan)
 
                       idfs_checked.append(tmp_switch_facts["group"])
 
               switch_facts["tenants"]= spline.get("tenants")
               switch_facts["vlans"] = spline.get("vlans")
+
+              # if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
+              #     ctx.info(f"VRFs to be configured on switch: {list(add_vrfs.keys())}")
+              #     ctx.info(f"VLANs to be configured on switch: {spline['vlans']}")
+
               return switch_facts
 
 
@@ -3357,7 +3372,8 @@
                           "default": {
                               "svis": {}
                           }
-                      }
+                      },
+                      "l2vlans": {}
                   }
               }
               if "default" not in [vrf["vrfName"] for vrf in all_vrfs]:
@@ -3582,154 +3598,161 @@
 
               for vlan in all_vlans:
                   vlan_id = int(vlan["vlanId"])
-                  svi = {}
-                  if vlan["sviDetails"].get("vrf", "") == "":
-                      vrf_name =  "default"
-                  else:
-                      vrf_name = vlan["sviDetails"]["vrf"]
-                  if switch_facts["network_services_l2"] is True:
-                      svi = {
-                          "name": vlan.get("name", None),
-                          "description": None,
-                          "enabled": vlan['sviDetails'].get("sviEnabled"),
-                          "ip_virtual_router_addresses": [],
-                          "ipv6_virtual_router_addresses": [],
-                          "ip_helpers": {},
-                          "ipv6_helpers": {},
-                          "nodes": {},
-                          "mtu": vlan.get("mtu"),
-                      }
-                      if switch_facts["campus_type"] == "l2ls":
-                          # virtual ipv4
-                          virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress", "").strip()
-                          if virtual_ip != "":
-                              svi["ip_virtual_router_addresses"].append(virtual_ip)
-                          # virtual ipv6
-                          virtual_ipv6 = vlan["sviDetails"]["ipv6Addressing"].get("ipv6VirtualRouterAddress", "").strip()
-                          if virtual_ipv6 != "":
-                              svi["ipv6_virtual_router_addresses"].append(virtual_ipv6)
-                          # Set primary/secondary node ip address
-                          if switch_facts["type"] == "spline":
-                              try:
-                                  ip_address = None
-                                  ipv6_address = None
-                                  if switch_facts["mlag_role"] == "secondary":
-                                      # Get/Set secondary ip
-                                      if vlan["sviDetails"].get("secondarySwitchSviIpAddress", "").strip() != "":
-                                          ip_address = vlan["sviDetails"]["secondarySwitchSviIpAddress"]
-
-                                      # Get/Set secondary ipv6
-                                      if vlan["sviDetails"]["ipv6Addressing"].get("secondarySwitchSviIpv6Address", "").strip() != "":
-                                          ipv6_address = vlan["sviDetails"]["ipv6Addressing"]["secondarySwitchSviIpv6Address"]
-                                  else:
-                                      # Get/Set primary ip
-                                      if vlan["sviDetails"].get("primarySwitchSviIpAddress", "").strip() != "":
-                                          ip_address = vlan["sviDetails"]["primarySwitchSviIpAddress"]
-
-                                      # Get/Set primary ipv6
-                                      if vlan["sviDetails"]["ipv6Addressing"].get("primarySwitchSviIpv6Address", "").strip() != "":
-                                          ipv6_address = vlan["sviDetails"]["ipv6Addressing"]["primarySwitchSviIpv6Address"]
-
-                                  if ip_address or ipv6_address:
-                                      node_ips = {}
-                                      if ip_address:
-                                          node_ips["ip_address"] = ip_address
-                                      if ipv6_address:
-                                          node_ips["ipv6_address"] = ipv6_address
-                                      # Add ips to SVI
-                                      svi["nodes"][switch_facts["serial_number"]] = node_ips
-                              except IndexError as e:
-                                  assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
-
+                  if vlan["l2OrL3"] is True:
+                      if vlan["sviDetails"].get("vrf", "") == "":
+                          vrf_name =  "default"
                       else:
-                          # virtual ip
-                          virtual_ip = vlan['idf'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress', "").strip()
-                          if virtual_ip != "":
-                              svi["ip_virtual_router_addresses"].append(virtual_ip)
-
-                          # Set primary/secondary node ip address
-                          if switch_facts["type"] == "leaf":
-                              try:
-                                  if switch_facts.get("mlag_role", "") == "secondary":
-                                      # Get/Set secondary ip
-                                      ip_address = vlan['idf'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
-                                      if ip_address == "" and virtual_ip != "":
-                                          ip_network = ipaddress.ip_interface(virtual_ip).network
-                                          ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
-                                  else:
-                                      # Get/Set primary ip
-                                      ip_address = vlan['idf'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
-                                      if ip_address == "" and virtual_ip != "":
-                                          ip_network = ipaddress.ip_interface(virtual_ip).network
-                                          ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
-                                  svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
-                              except IndexError as e:
-                                  assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
-
-                      # ip helper configuration
-                      for ip_helper in vlan.get("dhcpHelpers", []):
-                          # Check ip_address for ipv4 or ipv6
-                          if ip_helper.get("dhcpServer") is not None and validateIPNetwork(ip_helper["dhcpServer"]):
-                              svi['ip_helpers'][ip_helper.get("dhcpServer")] = {
-                                  "source_interface": ip_helper["dhcpSourceInterface"]
-                              }
-                          elif ip_helper.get("dhcpServer") is not None and validateIPNetwork(ip_helper["dhcpServer"]) is False:
-                              svi['ipv6_helpers'][ip_helper.get("dhcpServer")] = {
-                                  "local_interface": ip_helper["dhcpSourceInterface"]
-                              }
-                      # ospf configuration
-                      if switch_facts.get("underlay_routing_protocol", "") == "ospf" and vlan.get("sviOspfConfiguration"):
-                          svi["ospf"] = {
-                              "enabled": vlan["sviOspfConfiguration"]["enabled"],
-                              "point_to_point": vlan["sviOspfConfiguration"]["pointToPoint"],
-                              "passive": vlan["sviOspfConfiguration"]["passive"],
-                              "area": vlan["sviOspfConfiguration"].get("area", "0"),
-                              "cost": vlan["sviOspfConfiguration"].get("cost"),
+                          vrf_name = vlan["sviDetails"]["vrf"]
+                      if switch_facts["network_services_l2"] is True:
+                          svi = {
+                              "name": vlan.get("name", None),
+                              "description": None,
+                              "enabled": vlan['sviDetails'].get("sviEnabled"),
+                              "ip_virtual_router_addresses": [],
+                              "ipv6_virtual_router_addresses": [],
+                              "ip_helpers": {},
+                              "ipv6_helpers": {},
+                              "nodes": {},
+                              "mtu": vlan.get("mtu"),
                           }
-                          # ospf authentication
-                          if vlan["sviOspfConfiguration"].get("authentication", "") != "":
-                              svi["ospf"]["authentication"] = vlan["sviOspfConfiguration"]["authentication"]
-                          # ospf simple auth key
-                          if vlan["sviOspfConfiguration"].get("simpleAuthKey", "") != "":
-                              svi["ospf"]["simpleAuthKey"] = vlan["sviOspfConfiguration"]["simpleAuthKey"]
-                          # ospf message digest keys
-                          if len(vlan["sviOspfConfiguration"].get("messageDigestKeys", [])) > 0:
-                              svi["ospf"]["message_digest_keys"] = []
-                              for mdk in vlan["sviOspfConfiguration"]["messageDigestKeys"]:
-                                  svi["ospf"]["message_digest_keys"].append({
-                                      "id": mdk.get("id"),
-                                      "hash_algorithm": mdk.get("hashAlgorithm"),
-                                      "key": mdk.get("key"),
+                          if switch_facts["campus_type"] == "l2ls":
+                              # virtual ipv4
+                              virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress", "").strip()
+                              if virtual_ip != "":
+                                  svi["ip_virtual_router_addresses"].append(virtual_ip)
+                              # virtual ipv6
+                              virtual_ipv6 = vlan["sviDetails"]["ipv6Addressing"].get("ipv6VirtualRouterAddress", "").strip()
+                              if virtual_ipv6 != "":
+                                  svi["ipv6_virtual_router_addresses"].append(virtual_ipv6)
+                              # Set primary/secondary node ip address
+                              if switch_facts["type"] == "spline":
+                                  try:
+                                      ip_address = None
+                                      ipv6_address = None
+                                      if switch_facts["mlag_role"] == "secondary":
+                                          # Get/Set secondary ip
+                                          if vlan["sviDetails"].get("secondarySwitchSviIpAddress", "").strip() != "":
+                                              ip_address = vlan["sviDetails"]["secondarySwitchSviIpAddress"]
+
+                                          # Get/Set secondary ipv6
+                                          if vlan["sviDetails"]["ipv6Addressing"].get("secondarySwitchSviIpv6Address", "").strip() != "":
+                                              ipv6_address = vlan["sviDetails"]["ipv6Addressing"]["secondarySwitchSviIpv6Address"]
+                                      else:
+                                          # Get/Set primary ip
+                                          if vlan["sviDetails"].get("primarySwitchSviIpAddress", "").strip() != "":
+                                              ip_address = vlan["sviDetails"]["primarySwitchSviIpAddress"]
+
+                                          # Get/Set primary ipv6
+                                          if vlan["sviDetails"]["ipv6Addressing"].get("primarySwitchSviIpv6Address", "").strip() != "":
+                                              ipv6_address = vlan["sviDetails"]["ipv6Addressing"]["primarySwitchSviIpv6Address"]
+
+                                      if ip_address or ipv6_address:
+                                          node_ips = {}
+                                          if ip_address:
+                                              node_ips["ip_address"] = ip_address
+                                          if ipv6_address:
+                                              node_ips["ipv6_address"] = ipv6_address
+                                          # Add ips to SVI
+                                          svi["nodes"][switch_facts["serial_number"]] = node_ips
+                                  except IndexError as e:
+                                      assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
+
+                          else:
+                              # virtual ip
+                              virtual_ip = vlan['idf'].resolve(device=device_id)['podDetails'].get('sviIpVirtualRouterAddress', "").strip()
+                              if virtual_ip != "":
+                                  svi["ip_virtual_router_addresses"].append(virtual_ip)
+
+                              # Set primary/secondary node ip address
+                              if switch_facts["type"] == "leaf":
+                                  try:
+                                      if switch_facts.get("mlag_role", "") == "secondary":
+                                          # Get/Set secondary ip
+                                          ip_address = vlan['idf'].resolve(device=device_id)['podDetails'].get('secondarySwitchSviIpAddress', "")
+                                          if ip_address == "" and virtual_ip != "":
+                                              ip_network = ipaddress.ip_interface(virtual_ip).network
+                                              ip_address = f"{list(ip_network.hosts())[2]}/{ip_network.prefixlen}"
+                                      else:
+                                          # Get/Set primary ip
+                                          ip_address = vlan['idf'].resolve(device=device_id)['podDetails'].get('primarySwitchSviIpAddress', "")
+                                          if ip_address == "" and virtual_ip != "":
+                                              ip_network = ipaddress.ip_interface(virtual_ip).network
+                                              ip_address = f"{list(ip_network.hosts())[1]}/{ip_network.prefixlen}"
+                                      svi["nodes"][switch_facts["serial_number"]] = {"ip_address": ip_address}
+                                  except IndexError as e:
+                                      assert False, f"VLAN {vlan_id}'s virtual IP address does not have a subnet mask.  If the virtual IP address is not entered in CIDR notation, there must be input values for the primary and secondary switch IP addresses."
+
+                          # ip helper configuration
+                          for ip_helper in vlan.get("dhcpHelpers", []):
+                              # Check ip_address for ipv4 or ipv6
+                              if ip_helper.get("dhcpServer") is not None and validateIPNetwork(ip_helper["dhcpServer"]):
+                                  svi['ip_helpers'][ip_helper.get("dhcpServer")] = {
+                                      "source_interface": ip_helper["dhcpSourceInterface"]
                                   }
-                                  )
+                              elif ip_helper.get("dhcpServer") is not None and validateIPNetwork(ip_helper["dhcpServer"]) is False:
+                                  svi['ipv6_helpers'][ip_helper.get("dhcpServer")] = {
+                                      "local_interface": ip_helper["dhcpSourceInterface"]
+                                  }
+                          # ospf configuration
+                          if switch_facts.get("underlay_routing_protocol", "") == "ospf" and vlan.get("sviOspfConfiguration"):
+                              svi["ospf"] = {
+                                  "enabled": vlan["sviOspfConfiguration"]["enabled"],
+                                  "point_to_point": vlan["sviOspfConfiguration"]["pointToPoint"],
+                                  "passive": vlan["sviOspfConfiguration"]["passive"],
+                                  "area": vlan["sviOspfConfiguration"].get("area", "0"),
+                                  "cost": vlan["sviOspfConfiguration"].get("cost"),
+                              }
+                              # ospf authentication
+                              if vlan["sviOspfConfiguration"].get("authentication", "") != "":
+                                  svi["ospf"]["authentication"] = vlan["sviOspfConfiguration"]["authentication"]
+                              # ospf simple auth key
+                              if vlan["sviOspfConfiguration"].get("simpleAuthKey", "") != "":
+                                  svi["ospf"]["simpleAuthKey"] = vlan["sviOspfConfiguration"]["simpleAuthKey"]
+                              # ospf message digest keys
+                              if len(vlan["sviOspfConfiguration"].get("messageDigestKeys", [])) > 0:
+                                  svi["ospf"]["message_digest_keys"] = []
+                                  for mdk in vlan["sviOspfConfiguration"]["messageDigestKeys"]:
+                                      svi["ospf"]["message_digest_keys"].append({
+                                          "id": mdk.get("id"),
+                                          "hash_algorithm": mdk.get("hashAlgorithm"),
+                                          "key": mdk.get("key"),
+                                      }
+                                      )
 
-                      # multicast
-                      if switch_facts["underlay_multicast"] and vlan["multicast"].get("pim"):
-                          svi["underlay_multicast"] = True
-                      else:
-                          svi["underlay_multicast"] = False
+                          # multicast
+                          if switch_facts["underlay_multicast"] and vlan["multicast"].get("pim"):
+                              svi["underlay_multicast"] = True
+                          else:
+                              svi["underlay_multicast"] = False
 
-                      # eos cli
-                      if len(vlan.get("eosCli", [])) > 0:
-                          svi["raw_eos_cli"] = vlan["eosCli"]
-                          # svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])  # will use this method when extended text input type is available
+                          # eos cli
+                          if len(vlan.get("eosCli", [])) > 0:
+                              svi["raw_eos_cli"] = vlan["eosCli"]
+                              # svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])  # will use this method when extended text input type is available
 
-                      # vlan mst instance
-                      if switch_facts.get("spanning_tree_mode") == "mstp":
-                          svi["mst_instance_id"] = vlan["vlanSpanningTreeDetails"].get("vlanMstInstance")
+                          # vlan mst instance
+                          if switch_facts.get("spanning_tree_mode") == "mstp":
+                              svi["mst_instance_id"] = vlan["vlanSpanningTreeDetails"].get("vlanMstInstance")
 
-                      # vlan stp priority
-                      elif switch_facts.get("spanning_tree_mode") == "rapid-pvst":
-                          if switch_facts["type"] == "spline":
-                              spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPrioritySpline")
-                          elif switch_facts["type"] == "leaf":
-                              spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPriorityLeaf")
-                          else:  # switch_facts["type"] == "memberleaf":
-                              spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPriorityMemberLeaf")
+                          # vlan stp priority
+                          elif switch_facts.get("spanning_tree_mode") == "rapid-pvst":
+                              if switch_facts["type"] == "spline":
+                                  spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPrioritySpline")
+                              elif switch_facts["type"] == "leaf":
+                                  spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPriorityLeaf")
+                              else:  # switch_facts["type"] == "memberleaf":
+                                  spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPriorityMemberLeaf")
 
-                          svi["spanning_tree_priority"] = spanning_tree_priority if spanning_tree_priority is not None else switch_facts["spanning_tree_priority"]
-
-                  tenant[tenant_name]["vrfs"][vrf_name]["svis"][vlan_id] = svi
+                              svi["spanning_tree_priority"] = spanning_tree_priority if spanning_tree_priority is not None else switch_facts["spanning_tree_priority"]
+                      
+                          tenant[tenant_name]["vrfs"][vrf_name]["svis"][vlan_id] = svi
+                  
+                  elif vlan["l2OrL3"] is False:
+                      if switch_facts["network_services_l2"]:
+                          l2_vlan = {
+                              "name": vlan.get("name", None)
+                          }
+                          tenant[tenant_name]["l2vlans"][vlan_id] = l2_vlan
 
               switch_facts["all_tenants"] = tenant
               return switch_facts
@@ -3758,16 +3781,17 @@
                                   tmp_vrfs.append(vrf)
                           # l2vlans
                           tmp_l2vlans = []
-                          # for l2vlan in tenant.l2vlans | arista.avd.convert_dicts('id') | arista.avd.natural_sort('id')
-                          #     if l2vlan.id in switch_tenant.l2vlans | arista.avd.default([])
-                          #         tmp_l2vlans.append(l2vlan)
+                          for l2vlan in convert_dicts(tenant["l2vlans"], primary_key='id'):
+                              if l2vlan["id"] in switch_facts["tenants"][tenant["name"]].get("l2vlans", []):
+                                  tmp_l2vlans.append(l2vlan)
 
                           tenant.update({'vrfs': tmp_vrfs, 'l2vlans': tmp_l2vlans})
                           tmp_tenants.append(tenant)
+
                   network_services_data["tenants"] = tmp_tenants
 
                   # Log network services data
-                  # ctx.info(f"Network Services Data: {network_services_data}")
+                  ctx.info(f"Network Services Data: {network_services_data}")
 
               # l2
               if switch_facts["network_services_l2"]:
@@ -7753,7 +7777,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: null
+                default_value: false
             sviMulticast:
               id: sviMulticast
               name: multicast
@@ -7765,6 +7789,15 @@
                 members:
                   values:
                     - sviPimEnabled
+            buildingL2OrL3:
+              id: buildingL2OrL3
+              name: l2OrL3
+              label: Routed or Bridged
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
             vlansDetails:
               id: vlansDetails
               name: vlanDetails
@@ -7784,6 +7817,7 @@
                     - vlanSpanningTreeDetails
                     - sviOspfConfiguration
                     - sviMulticast
+                    - buildingL2OrL3
             vlans:
               id: vlans
               name: vlans
@@ -9618,7 +9652,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: null
+                default_value: false
             vrfL3InterfaceMulticast:
               id: vrfL3InterfaceMulticast
               name: multicast
@@ -9638,7 +9672,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: null
+                default_value: false
             vrfL3InterfacePtp:
               id: vrfL3InterfacePtp
               name: ptp
@@ -10157,7 +10191,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ]
@@ -10175,7 +10209,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-
+                      
                     ]
                   },
                   {
@@ -10189,7 +10223,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ]
@@ -10217,7 +10251,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ]
@@ -10236,7 +10270,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ]
@@ -10293,10 +10327,16 @@
                       "L3"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
-                "type":"INPUT",
-                "dependencyType":"AND"
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "vlansDetails":{
                 "key":"vlansDetails",
@@ -10305,6 +10345,7 @@
                   "vlanId",
                   "vlansIdfResolver",
                   "vlanName",
+                  "buildingL2OrL3",
                   "vlanCampusSviGroup",
                   "vlanDhcpHelpers",
                   "sviOspfConfiguration",
@@ -10802,7 +10843,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -10830,6 +10871,12 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
                 "dependencyType":"AND",
@@ -10846,15 +10893,22 @@
               },
               "sviOspfEnabled":{
                 "key":"sviOspfEnabled",
-                "type":"INPUT",
                 "dependency":{
                   "buildingUnderlayRoutingProtocol":{
                     "value":[
                       "OSPF"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               },
               "sviOspfPointToPoint":{
                 "key":"sviOspfPointToPoint",
@@ -10870,10 +10924,16 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
-                "type":"INPUT",
-                "dependencyType":"AND"
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "sviOspfArea":{
                 "key":"sviOspfArea",
@@ -10889,10 +10949,16 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
-                "type":"INPUT",
-                "dependencyType":"AND"
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "sviOspfCost":{
                 "key":"sviOspfCost",
@@ -10908,10 +10974,16 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
-                "type":"INPUT",
-                "dependencyType":"AND"
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "sviOspfAuthentication":{
                 "key":"sviOspfAuthentication",
@@ -10927,10 +10999,16 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
-                "type":"INPUT",
-                "dependencyType":"AND"
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "sviOspfKeyId":{
                 "key":"sviOspfKeyId",
@@ -10948,6 +11026,12 @@
                     "mode":"SHOW"
                   },
                   "sviOspfEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
                     "value":[
                       true
                     ],
@@ -10977,6 +11061,12 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
                 "dependencyType":"AND",
@@ -11002,6 +11092,12 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
                 "dependencyType":"AND",
@@ -11013,6 +11109,12 @@
                   "campusType":{
                     "value":[
                       "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
                     ],
                     "mode":"SHOW"
                   }
@@ -11028,6 +11130,12 @@
                       "L2"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
                 "dependencyType":"AND",
@@ -11039,6 +11147,12 @@
                   "campusType":{
                     "value":[
                       "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
                     ],
                     "mode":"SHOW"
                   }
@@ -11062,35 +11176,41 @@
               },
               "splineVtepLoopbackIPv4Pool":{
                 "key":"splineVtepLoopbackIPv4Pool",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "splineVtepDefault":{
                     "value":[
                       "Yes"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingVxlanOverlayToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
               },
               "leafVtepLoopbackIPv4Pool":{
                 "key":"leafVtepLoopbackIPv4Pool",
-                "type":"INPUT",
                 "dependency":{
-                  "leafVtepDefault":{
-                    "value":[
-                      "Yes"
-                    ],
-                    "mode":"SHOW"
-                  },
                   "campusType":{
                     "value":[
                       "L3"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingVxlanOverlayToggle":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
-                "dependencyType":"AND"
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "vrfOspfConfiguration":{
                 "key":"vrfOspfConfiguration",
@@ -11174,29 +11294,41 @@
               },
               "l3CampusPrimaryLeafSviIpAddress":{
                 "key":"l3CampusPrimaryLeafSviIpAddress",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "campusType":{
                     "value":[
                       "L3"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "l3CampusSecondaryLeafSviIpAddress":{
                 "key":"l3CampusSecondaryLeafSviIpAddress",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "campusType":{
                     "value":[
                       "L3"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "splineMlagPeerVlan":{
                 "key":"splineMlagPeerVlan",
@@ -11478,7 +11610,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ]
@@ -11772,7 +11904,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -11950,10 +12082,16 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
-                "type":"INPUT",
-                "dependencyType":"AND"
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "splineMlagDetails":{
                 "key":"splineMlagDetails",
@@ -12049,6 +12187,12 @@
                       true
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
                 "dependencyType":"AND",
@@ -12123,6 +12267,12 @@
                       "L2"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
                 "dependencyType":"AND",
@@ -12136,6 +12286,12 @@
                       "L2"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
                   }
                 },
                 "dependencyType":"AND",
@@ -12147,6 +12303,12 @@
                   "campusType":{
                     "value":[
                       "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
                     ],
                     "mode":"SHOW"
                   }
@@ -12180,7 +12342,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -12407,5 +12569,78 @@
                   }
                 },
                 "type":"INPUT"
+              },
+              "buildingL2OrL3":{
+                "key":"buildingL2OrL3",
+                "type":"INPUT",
+                "valueToLabelMap":{
+                  "True":"Routed",
+                  "False":"Bridged"
+                }
+              },
+              "l2CampusSviEnabled":{
+                "key":"l2CampusSviEnabled",
+                "dependency":{
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "vlanCampusSviVrf":{
+                "key":"vlanCampusSviVrf",
+                "dependency":{
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "vlanDhcpHelpersServer":{
+                "key":"vlanDhcpHelpersServer",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vlanDhcpHelpersSourceInterface":{
+                "key":"vlanDhcpHelpersSourceInterface",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "vlanSviEosCliStatement":{
+                "key":"vlanSviEosCliStatement",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingL2OrL3":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
