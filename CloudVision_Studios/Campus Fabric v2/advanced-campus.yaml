@@ -4334,7 +4334,7 @@
                                                   if node == switch_facts["serial_number"] and not l3_interface['ospf'].get("passive", False):
                                                       vrf_ospf_interfaces.append(l3_interface["interfaces"][i])
                                       for svi in vrf.get("svis", []):
-                                          if not svi['ospf'].get("passive", False):
+                                          if svi['ospf'].get("enabled") and not svi['ospf'].get("passive", False):
                                               vrf_ospf_interfaces.append(f"Vlan{svi['id']}")
                                       if switch_facts.get("mlag_l3") and vrf.get("mlag_ibgp_peering_vlan"):
                                           vrf_ospf_interfaces.append("Vlan{}".format(vrf["mlag_ibgp_peering_vlan"]))
