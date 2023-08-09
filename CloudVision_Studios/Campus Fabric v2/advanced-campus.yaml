@@ -32,14 +32,103 @@
               TagAssignmentKey
 
 
-          campus_designs = {
-                  "L2": "l2ls",
-                  "L3": "l3ls",
-                  "L2-VXLAN": "l2ls-vxlan",
-                  "L3-VXLAN": "l3ls-vxlan"
-              }
-
           node_type_defaults = {
+              "l2ls": {
+                  "spline": {
+                      "default_evpn_role": None,
+                      "mlag_support": True,
+                      "vtep": False,
+                      "connected_endpoints": False,
+                      "network_services_l2": True,
+                      "network_services_l3": True,
+                      "underlay_router": True,
+                      "uplink_type": "p2p"
+                  },
+                  "leaf":{
+                      "default_evpn_role": None,
+                      "mlag_support": True,
+                      "vtep": False,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": False,
+                      "underlay_router": False,
+                      "uplink_type": "port-channel"
+                  },
+                  "memberleaf": {
+                      "default_evpn_role": None,
+                      "mlag_support": False,
+                      "vtep": False,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": False,
+                      "underlay_router": False,
+                      "uplink_type": "port-channel"
+                  }
+              },
+              "l2ls-vxlan": {
+                  "spline": {
+                      "default_evpn_role": None,
+                      "mlag_support": True,
+                      "vtep": True,
+                      "connected_endpoints": False,
+                      "network_services_l2": True,
+                      "network_services_l3": True,
+                      "underlay_router": True,
+                      "uplink_type": "p2p"
+                  },
+                  "leaf":{
+                      "default_evpn_role": None,
+                      "mlag_support": True,
+                      "vtep": False,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": False,
+                      "underlay_router": False,
+                      "uplink_type": "port-channel"
+                  },
+                  "memberleaf": {
+                      "default_evpn_role": None,
+                      "mlag_support": False,
+                      "vtep": False,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": False,
+                      "underlay_router": False,
+                      "uplink_type": "port-channel"
+                  }
+              },
+              "l2ls-evpn": {
+                  "spline": {
+                      "default_evpn_role": "client",
+                      "mlag_support": True,
+                      "vtep": True,
+                      "connected_endpoints": False,
+                      "network_services_l2": True,
+                      "network_services_l3": True,
+                      "underlay_router": True,
+                      "uplink_type": "p2p"
+                  },
+                  "leaf":{
+                      "default_evpn_role": None,
+                      "mlag_support": True,
+                      "vtep": False,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": False,
+                      "underlay_router": False,
+                      "uplink_type": "port-channel"
+                  },
+                  "memberleaf": {
+                      "default_evpn_role": None,
+                      "mlag_support": False,
+                      "vtep": False,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": False,
+                      "underlay_router": False,
+                      "uplink_type": "port-channel"
+                  }
+              },
               "l3ls": {
                   "spline": {
                       "default_evpn_role": None,
@@ -72,13 +161,13 @@
                       "uplink_type": "port-channel"
                   }
               },
-              "l2ls": {
+              "l3ls-vxlan": {
                   "spline": {
                       "default_evpn_role": None,
-                      "mlag_support": True,
+                      "mlag_support": False,
                       "vtep": False,
                       "connected_endpoints": False,
-                      "network_services_l2": True,
+                      "network_services_l2": False,
                       "network_services_l3": True,
                       "underlay_router": True,
                       "uplink_type": "p2p"
@@ -86,12 +175,44 @@
                   "leaf":{
                       "default_evpn_role": None,
                       "mlag_support": True,
+                      "vtep": True,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": True,
+                      "underlay_router": True,
+                      "uplink_type": "p2p"
+                  },
+                  "memberleaf": {
+                      "default_evpn_role": None,
+                      "mlag_support": False,
                       "vtep": False,
                       "connected_endpoints": True,
                       "network_services_l2": True,
                       "network_services_l3": False,
                       "underlay_router": False,
                       "uplink_type": "port-channel"
+                  }
+              },
+              "l3ls-evpn": {
+                  "spline": {
+                      "default_evpn_role": "server",
+                      "mlag_support": False,
+                      "vtep": False,
+                      "connected_endpoints": False,
+                      "network_services_l2": False,
+                      "network_services_l3": True,
+                      "underlay_router": True,
+                      "uplink_type": "p2p"
+                  },
+                  "leaf":{
+                      "default_evpn_role": "client",
+                      "mlag_support": True,
+                      "vtep": True,
+                      "connected_endpoints": True,
+                      "network_services_l2": True,
+                      "network_services_l3": True,
+                      "underlay_router": True,
+                      "uplink_type": "p2p"
                   },
                   "memberleaf": {
                       "default_evpn_role": None,
@@ -1261,7 +1382,7 @@
           def get_inband_management_ip(switch_facts):
               validateIPNetwork(switch_facts["inband_management_subnet"], network_name=f"Inband Management Pool in {switch_facts['campus']} -> {switch_facts['building']}")
               # Use same virtual ip, primary mlag switch ip, and secondary mlag switch ip on all gateways
-              if switch_facts["campus_type"] == "l2ls":
+              if "l2ls" in switch_facts["campus_type"]:
                   if switch_facts["type"] == "spline":
                       if switch_facts.get("mlag_role", "") == "secondary":
                           # Return inband management subnet network address + 2
@@ -1443,7 +1564,18 @@
                   return
 
               # Set campus type
-              switch_facts["campus_type"] = campus_designs[building_details["design"]["campusType"]]
+              l2_or_l3 = "l3ls" if building_details["design"]["campusType"].lower() == "l3" else "l2ls"
+              vxlan_enabled = building_details["design"]["vxlanOverlay"]
+              evpn_enabled = building_details["buildingRoutingProtocols"]["buildingOverlayRoutingProtocol"] if building_details["buildingRoutingProtocols"].get("buildingOverlayRoutingProtocol") else None
+
+              campus_design = l2_or_l3
+              if vxlan_enabled and not evpn_enabled:
+                  campus_design += "-vxlan"
+              elif vxlan_enabled and evpn_enabled:
+                  campus_design += "-evpn"
+
+              ctx.info(f"Campus Design: {campus_design}")
+              switch_facts["campus_type"] = campus_design
 
               # Get custom node properties
               custom_node_properties = {
@@ -1452,13 +1584,15 @@
                   "mlag_support": None,
                   "vtep": None,
                   "network_services_l2": None,
-                  "network_services_l3": None
+                  "network_services_l3": None,
+                  "underlay_router": None,
+                  "uplink_type": None
               }
               if switch_facts["type"] == "spline":
                   spline_defaults = building_details['nodeTypeProperties']['defaultSplineProperties']
                    # Set custom EVPN role
                   if spline_defaults.get('splineEvpnRoleDefault', '').strip() != "":
-                      custom_node_properties['default_evpn_role'] = True if spline_defaults['splineEvpnRoleDefault'] == "Yes" else False
+                      custom_node_properties['default_evpn_role'] = spline_defaults['splineEvpnRoleDefault'].lower()
                   # Set custom MLAG support role
                   if spline_defaults.get('splineMlagSupportDefault', '').strip() != "":
                       custom_node_properties['mlag_support'] = True if spline_defaults['splineMlagSupportDefault'] == "Yes" else False
@@ -1474,12 +1608,18 @@
                   # Set custom L3 Network Services role
                   if spline_defaults.get('splineL3NetworkServicesDefault', '').strip() != "":
                       custom_node_properties['network_services_l3'] = True if spline_defaults['splineL3NetworkServicesDefault'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if spline_defaults.get('splineUnderlayRouter', '').strip() != "":
+                      custom_node_properties['underlay_router'] = True if spline_defaults['splineUnderlayRouter'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if spline_defaults.get('splineUplinkType', '').strip() != "":
+                      custom_node_properties['uplink_type'] = spline_defaults['splineUplinkType'].lower()
 
               elif switch_facts["type"] == "leaf":
                   leaf_defaults = building_details['nodeTypeProperties']['defaultLeafProperties']
                    # Set custom EVPN role
                   if leaf_defaults.get('leafEvpnRoleDefault', '').strip() != "":
-                      custom_node_properties['default_evpn_role'] = True if leaf_defaults['leafEvpnRoleDefault'] == "Yes" else False
+                      custom_node_properties['default_evpn_role'] = leaf_defaults['leafEvpnRoleDefault'].lower()
                   # Set custom MLAG support role
                   if leaf_defaults.get('leafMlagSupportDefault', '').strip() != "":
                       custom_node_properties['mlag_support'] = True if leaf_defaults['leafMlagSupportDefault'] == "Yes" else False
@@ -1495,6 +1635,12 @@
                   # Set custom L3 Network Services role
                   if leaf_defaults.get('leafL3NetworkServicesDefault', '').strip() != "":
                       custom_node_properties['network_services_l3'] = True if leaf_defaults['leafL3NetworkServicesDefault'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if leaf_defaults.get('leafUnderlayRouter', '').strip() != "":
+                      custom_node_properties['underlay_router'] = True if leaf_defaults['leafUnderlayRouter'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if leaf_defaults.get('leafUplinkType', '').strip() != "":
+                      custom_node_properties['uplink_type'] = leaf_defaults['leafUplinkType'].lower()
 
               # Set node properties
               switch_facts["connected_endpoints"] = default(custom_node_properties.get("connected_endpoints"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["connected_endpoints"])
@@ -1688,7 +1834,7 @@
               if switch_facts["network_services_l2"]:
                   switch_facts["spanning_tree_mode"] = node_defaults["spanningTreeDetails"].get("spanningTreeMode", "").lower()
                   if switch_facts["type"] == "spline":
-                      if switch_facts["campus_type"] == "l2ls":
+                      if "l2ls" in switch_facts["campus_type"]:
                           switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("splineSpanningTreePriority") if node_defaults["spanningTreeDetails"].get("splineSpanningTreePriority") is not None else 4096
                       else:
                           switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("splineSpanningTreePriority")
@@ -1775,7 +1921,7 @@
                       # switch_facts["bgp_ecmp"] = 4
 
                       # # Set evpn role and evpn neighbors
-                      if switch_facts["overlay_routing_protocol"] == "bgp" and switch_facts["underlay_router"] is True:
+                      if switch_facts["underlay_router"] is True and switch_facts["default_evpn_role"] is not None:
                           # Set evpn role
                           switch_facts["evpn_role"] = switch_facts.get("default_evpn_role")
 
@@ -1794,7 +1940,8 @@
                                       "bgp_as": rs["remoteAs"]
                                   })
                               switch_facts["evpn_route_servers"] = node_defaults["bgpDetails"]["evpnRouteServers"]
-
+                              if switch_facts["type"] == "leaf":
+                                  switch_facts["evpn_route_server_ids"] = []
                       else:
                           # Set evpn role
                           switch_facts["evpn_role"] = None
@@ -2041,7 +2188,7 @@
                   # Set boot vlan for aggregation switches
                   if switch_facts["type"] == "spline":
                       switch_facts["boot_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
-                  elif switch_facts["type"] == "leaf" and switch_facts["campus_type"] == "l2ls":
+                  elif switch_facts["type"] == "leaf" and "l2ls" in switch_facts["campus_type"]:
                       switch_facts["boot_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
 
                   # Set inband management details for L2 switches
@@ -2571,7 +2718,7 @@
               spline['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": []} })
 
 
-              if switch_facts["campus_type"] == "l2ls":
+              if "l2ls" in switch_facts["campus_type"]:
                   idfs_checked = []
                   for switch_id in switch_facts.get("downlink_switches_ids", []):
                       tmp_switch_facts = my_switch_facts_neighbors.get(switch_id)
@@ -3615,7 +3762,7 @@
                               "nodes": {},
                               "mtu": vlan.get("mtu"),
                           }
-                          if switch_facts["campus_type"] == "l2ls":
+                          if "l2ls" in switch_facts["campus_type"]:
                               # virtual ipv4
                               virtual_ip = vlan["sviDetails"].get("sviIpVirtualRouterAddress", "").strip()
                               if virtual_ip != "":
@@ -6249,6 +6396,71 @@
               collection_props:
                 base_field_id: idfBgpDefaultsConfigStatement
                 key: ''
+            leafEvpnRouteServerHostname:
+              id: leafEvpnRouteServerHostname
+              name: hostname
+              label: Hostname
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafEvpnRouteServerIpAddress:
+              id: leafEvpnRouteServerIpAddress
+              name: ipAddress
+              label: IP Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafEvpnRouteServerRemoteAs:
+              id: leafEvpnRouteServerRemoteAs
+              name: remoteAs
+              label: Remote ASN
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafEvpnRouteServersGroup:
+              id: leafEvpnRouteServersGroup
+              name: evpnRouteServersDetails
+              label: EVPN Route Servers Details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafEvpnRouteServerHostname
+                    - leafEvpnRouteServerIpAddress
+                    - leafEvpnRouteServerRemoteAs
+            leafEvpnRouteServersCollection:
+              id: leafEvpnRouteServersCollection
+              name: evpnRouteServers
+              label: EVPN Route Servers
+              description: Overwrite default EVPN Servers (Spline Devices) with external EVPN Route Servers
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: leafEvpnRouteServersGroup
+                key: leafEvpnRouteServerHostname
             leafBgpDetails:
               id: leafBgpDetails
               name: bgpDetails
@@ -6261,6 +6473,7 @@
                   values:
                     - idfBgpAsRange
                     - idfBgpDefaults
+                    - leafEvpnRouteServersCollection
             leafOspfDefaultsConfigStatement:
               id: leafOspfDefaultsConfigStatement
               name: ospfDefaultsConfigStatement
@@ -7942,6 +8155,40 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            splineUnderlayRouterDefault:
+              id: splineUnderlayRouterDefault
+              name: splineUnderlayRouter
+              label: Underlay Router
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splineUplinkTypeDefault:
+              id: splineUplinkTypeDefault
+              name: splineUplinkType
+              label: Uplink Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Port-Channel
+                    - P2P
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             defaultSplineProperties:
               id: defaultSplineProperties
               name: defaultSplineProperties
@@ -7958,6 +8205,8 @@
                     - splineConnectedEndpointsDefault
                     - splineL2NetworkServicesDefault
                     - splineL3NetworkServicesDefault
+                    - splineUnderlayRouterDefault
+                    - splineUplinkTypeDefault
             leafEvpnRoleDefault:
               id: leafEvpnRoleDefault
               name: leafEvpnRoleDefault
@@ -8060,6 +8309,40 @@
                 length: null
                 pattern: null
                 dynamic_options: null
+            leafUnderlayRouterDefault:
+              id: leafUnderlayRouterDefault
+              name: leafUnderlayRouter
+              label: Underlay Router
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafUplinkTypeDefault:
+              id: leafUplinkTypeDefault
+              name: leafUplinkType
+              label: Uplink Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - Port-Channel
+                    - P2P
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             defaultLeafProperties:
               id: defaultLeafProperties
               name: defaultLeafProperties
@@ -8076,6 +8359,8 @@
                     - leafConnectedEndpointsDefault
                     - leafL2NetworkServicesDefault
                     - leafL3NetworkServicesDefault
+                    - leafUnderlayRouterDefault
+                    - leafUplinkTypeDefault
             nodeTypeProperties:
               id: nodeTypeProperties
               name: nodeTypeProperties
@@ -9967,22 +10252,15 @@
               },
               "idfBgpDefaultsConfigStatement":{
                 "key":"idfBgpDefaultsConfigStatement",
+                "type":"INPUT",
                 "dependency":{
-                  "buildingUnderlayRoutingProtocol":{
-                    "value":[
-                      "BGP"
-                    ],
-                    "mode":"SHOW"
-                  },
                   "campusType":{
                     "value":[
                       "L3"
                     ],
                     "mode":"SHOW"
                   }
-                },
-                "dependencyType":"AND",
-                "type":"INPUT"
+                }
               },
               "idfDefaults":{
                 "key":"idfDefaults",
@@ -10039,12 +10317,6 @@
               "idfBgpAsRange":{
                 "key":"idfBgpAsRange",
                 "dependency":{
-                  "buildingUnderlayRoutingProtocol":{
-                    "value":[
-                      "BGP"
-                    ],
-                    "mode":"SHOW"
-                  },
                   "campusType":{
                     "value":[
                       "L3"
@@ -12642,5 +12914,67 @@
                     "mode":"SHOW"
                   }
                 }
+              },
+              "leafEvpnRouteServerHostname":{
+                "key":"leafEvpnRouteServerHostname",
+                "dependency":{
+                  "buildingOverlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "leafEvpnRouteServerIpAddress":{
+                "key":"leafEvpnRouteServerIpAddress",
+                "dependency":{
+                  "buildingOverlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "leafEvpnRouteServerRemoteAs":{
+                "key":"leafEvpnRouteServerRemoteAs",
+                "dependency":{
+                  "buildingOverlayRoutingProtocol":{
+                    "value":[
+                      "BGP"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "leafEvpnRouteServersCollection":{
+                "key":"leafEvpnRouteServersCollection",
+                "type":"INPUT",
+                "isPageLayout":false
               }
             }
