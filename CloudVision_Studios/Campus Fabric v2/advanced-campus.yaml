@@ -262,7 +262,14 @@
                   "mlag_ethernet_interfaces": "MLAG_{mlag_peer}_{mlag_peer_interface}",
                   "mlag_port_channel_interface": "MLAG_PEER_{switch_facts['mlag_peer']}_Po{switch_facts['mlag_port_channel_id']}"
               },
-              "p2p_interface_settings": []
+              "p2p_interface_settings": [],
+              "fabric_ip_addressing": {
+                  "mlag": "first_id",
+                  "vtep": "first_id"
+              },
+              "fabric_bgp_numbering": {
+                  "mlag": "first_id"
+              }
           }
 
           platform_settings = {
@@ -1350,8 +1357,17 @@
               validateIPNetwork(mlag_peer_ipv4_pool, network_name=f"MLAG Peering Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
               mlag_subnet = ipaddress.ip_network(mlag_peer_ipv4_pool)
               assert mlag_subnet.prefixlen <= mlag_peer_subnet_mask, "MLAG Subnet mask length must be longer than the mask of the mlag subnet"
-              if mlag_subnet.prefixlen != mlag_peer_subnet_mask:
-                  mlag_subnet = list(mlag_subnet.subnets(new_prefix=mlag_peer_subnet_mask))[int(switch_facts["mlag_primary_id"]) - 1]
+              # Check formula 
+              if fabric_variables["fabric_ip_addressing"]["mlag"] != "same_subnet" and mlag_subnet.prefixlen != mlag_peer_subnet_mask:
+                  # first_id formula
+                  index = int(switch_facts["mlag_primary_id"]) - 1
+                  # odd_id formula
+                  if fabric_variables["fabric_ip_addressing"]["mlag"] == "odd_id":
+                      index = _mlag_odd_id_based_offset(switch_facts)
+              else:
+                  index = 0
+              assert index < len(list(mlag_subnet.subnets(new_prefix=mlag_peer_subnet_mask))), f"There is not enough address space to allocate unique /31 subnets for the number of MLAG pairs in {switch_facts['campus']} -> {switch_facts['building']}. If you wish to re-use the same /31 pool for all MLAG pairs, enter a /30 or /31 size pool."
+              mlag_subnet = list(mlag_subnet.subnets(new_prefix=mlag_peer_subnet_mask))[index]
               if mlag_role == "primary":
                   return list(mlag_subnet.hosts())[0]
               elif mlag_role == "secondary":
@@ -1368,15 +1384,24 @@
 
 
           def get_vtep_loopback(switch_facts, offset=None):
-              if switch_facts["type"] == "spline" or offset is None:
-                  offset = 0
+
               validateIPNetwork(switch_facts["vtep_loopback_ipv4_pool"], network_name=f"VTEP Source Address Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
               vtep_loopback_subnet = switch_facts["vtep_loopback_ipv4_pool"]
+
+              if offset is None:
+                  offset=0
+              if switch_facts["type"] == "spline":
+                  return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[0]
+
+              
+              index = switch_facts["id"] - 1
               if switch_facts.get("mlag_primary_id"):
-                  switch_id = switch_facts["mlag_primary_id"] - 1 + offset
-              else:
-                  switch_id = switch_facts["id"] - 1 + offset
-              return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[switch_id]
+                  index = switch_facts["mlag_primary_id"] - 1
+              if fabric_variables["fabric_ip_addressing"]["vtep"] == "odd_id":
+                  index = _mlag_odd_id_based_offset(switch_facts)                    
+
+              index += offset
+              return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[index]
 
 
           def get_inband_management_ip(switch_facts):
@@ -1574,7 +1599,6 @@
               elif vxlan_enabled and evpn_enabled:
                   campus_design += "-evpn"
 
-              ctx.info(f"Campus Design: {campus_design}")
               switch_facts["campus_type"] = campus_design
 
               # Get custom node properties
@@ -1766,6 +1790,10 @@
                   else:
                       switch_facts["overlay_routing_protocol"] = ""
 
+              # Get MLAG ip addressing and bgp numbering formulas
+              switch_facts["fabric_ip_addressing"] = fabric_variables["fabric_ip_addressing"]
+              switch_facts["fabric_bgp_numbering"] = fabric_variables["fabric_bgp_numbering"]
+
               # Get node defaults from user inputs
               if switch_facts["type"] == "spline":
                   node_defaults = building_details.get("splineDefaults", {})
@@ -1876,6 +1904,118 @@
               if switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
                   switch_facts["virtual_router_mac_address"] = node_defaults["mlagDetails"]["virtualRouterMacAddress"]
 
+              # Get mlag settings
+              if switch_facts["mlag_support"] == True:
+                  mlag_peer_switch_facts = get_mlag_peer_by_tags(switch_facts)
+                  if mlag_peer_switch_facts is not None:
+                      switch_facts["mlag"] = True
+                  else:
+                      ctx.warning(f"Could not find an MLAG peer for {switch_facts['hostname']}")
+                      switch_facts["mlag"] = False
+
+                  if switch_facts["mlag"] == True and mlag_peer_switch_facts is not None:
+                      switch_facts["mlag_peer"] = mlag_peer_switch_facts["hostname"]
+
+                      switch_facts["mlag_peer_serial_number"] = mlag_peer_switch_facts["serial_number"]
+
+                      switch_facts["mlag_group"] = switch_facts["group"]
+
+                      if switch_facts["underlay_router"] == True:
+                          switch_facts["mlag_l3"] = True
+                      else:
+                          switch_facts["mlag_l3"] = False
+
+                      switch_facts["mlag_peer_vlan"] =  node_defaults["mlagDetails"]["mlagPeerVlan"]
+                      switch_facts["mlag_peer_ipv4_pool"] = node_defaults["mlagDetails"]["mlagPeerIPv4Pool"]
+                      switch_facts["mlag_peer_subnet_mask"] = 31
+                      if switch_facts.get("underlay_router"):
+                          # Set mlag_peer_l3_vlan if there is value set in studio input
+                          if node_defaults['mlagDetails']['mlagPeerL3Vlan'] is not None \
+                                  and node_defaults['mlagDetails']['mlagPeerL3IPv4Pool'].strip() != "":
+                              switch_facts['mlag_peer_l3_vlan'] = node_defaults['mlagDetails']['mlagPeerL3Vlan']
+                              switch_facts['mlag_peer_l3_ipv4_pool'] = node_defaults['mlagDetails']['mlagPeerL3IPv4Pool']
+                              switch_facts['mlag_peer_l3_subnet_mask'] = 31
+                          else:
+                              switch_facts['mlag_peer_l3_vlan'] = switch_facts['mlag_peer_vlan']
+                              switch_facts['mlag_peer_l3_ipv4_pool'] = switch_facts["mlag_peer_ipv4_pool"]
+                              switch_facts['mlag_peer_l3_subnet_mask']= switch_facts["mlag_peer_subnet_mask"]
+
+                      switch_facts["mlag_lacp_mode"] = "active"
+                      switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
+                      switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
+
+                      # switch_facts["mlag_ibgp_origin_incomplete"] = True
+
+                      if int(switch_facts["id"]) < int(mlag_peer_switch_facts["id"]):
+                          switch_facts["mlag_primary_id"] = int(switch_facts["id"])
+                          switch_facts["mlag_secondary_id"] = int(mlag_peer_switch_facts["id"])
+                          switch_facts["mlag_role"] = "primary"
+
+                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
+                                                                    switch_facts["mlag_peer_subnet_mask"], "primary"))
+
+                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
+                                                                         switch_facts["mlag_peer_subnet_mask"], "secondary"))
+
+                          if switch_facts.get("underlay_router"):
+                              switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                           switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
+
+                              switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                                switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
+
+                      else:
+                          switch_facts["mlag_primary_id"] = int(mlag_peer_switch_facts["id"])
+                          switch_facts["mlag_secondary_id"] = int(switch_facts["id"])
+                          switch_facts["mlag_role"] = "secondary"
+
+                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
+                              switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_peer_subnet_mask"], "secondary"))
+
+                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
+                                                                         switch_facts["mlag_peer_subnet_mask"], "primary"))
+
+
+                          if switch_facts.get("underlay_router"):
+
+
+                              switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                           switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
+
+                              switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                                switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
+
+                      # Set mlag interfaces
+                      # Set from topology studio
+                      switch_facts["mlag_interfaces"], switch_facts["mlag_peer_switch_interfaces"] = set_mlag_interfaces_from_topology(switch_facts)
+
+                      # Set from node defaults (only available on splines)
+                      if len(node_defaults["mlagDetails"].get("mlagPeerInterfaces", [])) > 0:
+                          mlag_interfaces = []
+                          for iface_entry in node_defaults["mlagDetails"]["mlagPeerInterfaces"]:
+                              mlag_interfaces += range_expand(iface_entry)
+                          switch_facts["mlag_interfaces"] = natural_sort(mlag_interfaces)
+                          switch_facts["mlag_peer_switch_interfaces"] = switch_facts["mlag_interfaces"]
+
+                      # Set from idf inputs
+                      if switch_facts["type"] == "leaf" and idf_details["hideShowToggles"].get("displayPodFabricInterfaceInputs", False) is True:
+                          idf_mlag_interfaces = idf_details.get("idfMlagPeerInterfaces", [])
+                          if len(idf_mlag_interfaces) > 0:
+                              mlag_interfaces = []
+                              for iface_entry in idf_mlag_interfaces:
+                                  mlag_interfaces += range_expand(iface_entry)
+                              switch_facts["mlag_interfaces"] = natural_sort(mlag_interfaces)
+                              switch_facts["mlag_peer_switch_interfaces"] = switch_facts["mlag_interfaces"]
+
+
+                      if len(switch_facts.get("mlag_interfaces", [])) > 0:
+                          switch_facts["mlag_interfaces_speed"] = node_defaults["mlagDetails"]["mlagPeerInterfacesSpeed"]
+                          switch_facts["mlag_interfaces_cli"] = node_defaults["mlagDetails"].get("mlagPeerInterfacesEosCli")
+                          switch_facts["mlag_peer_link_cli"] = node_defaults["mlagDetails"].get("mlagPeerLinkEosCli")
+
+              else:
+                  switch_facts["mlag"] = False
+
               # Get router related facts
               if switch_facts["underlay_router"] == True and node_defaults.get("routerIdPool") is not None:
                   switch_facts["loopback_ipv4_pool"] = node_defaults["routerIdPool"]
@@ -1903,10 +2043,12 @@
                       # Set asn
                       asns = string_to_list(str(node_defaults["bgpDetails"].get("bgpAsns", [])))
                       if len(asns) > 1:
+                          index = switch_facts["id"] - 1
                           if switch_facts.get("mlag_primary_id"):
-                              switch_facts["bgp_as"] = asns[switch_facts["mlag_primary_id"] - 1]
-                          else:
-                              switch_facts["bgp_as"] = asns[switch_facts["id"] - 1]
+                              index = switch_facts["mlag_primary_id"] - 1
+                          if fabric_variables["fabric_bgp_numbering"]["mlag"] == "odd_id":
+                              index = _mlag_odd_id_based_offset(switch_facts)                    
+                          switch_facts["bgp_as"] = asns[index]
                       elif len(asns) == 1:
                           switch_facts["bgp_as"] = asns[0]
                       else:
@@ -1958,130 +2100,17 @@
                       switch_facts["underlay_ospf_bfd_enable"] = building_details["advancedFabricConfigurations"]["ospfDetails"]["bfd"]
                       switch_facts["ospf_defaults"] = node_defaults["ospfDetails"]["ospfDefaults"]
 
-              # Get mlag settings
-              if switch_facts["mlag_support"] == True:
-                  mlag_peer_switch_facts = get_mlag_peer_by_tags(switch_facts)
-                  if mlag_peer_switch_facts is not None:
-                      switch_facts["mlag"] = True
-                  else:
-                      ctx.warning(f"Could not find an MLAG peer for {switch_facts['hostname']}")
-                      switch_facts["mlag"] = False
-
-                  if switch_facts["mlag"] == True and mlag_peer_switch_facts is not None:
-                      switch_facts["mlag_peer"] = mlag_peer_switch_facts["hostname"]
-
-                      switch_facts["mlag_peer_serial_number"] = mlag_peer_switch_facts["serial_number"]
-
-                      switch_facts["mlag_group"] = switch_facts["group"]
-
-                      if switch_facts["underlay_router"] == True:
-                          switch_facts["mlag_l3"] = True
-                      else:
-                          switch_facts["mlag_l3"] = False
-
-                      switch_facts["mlag_peer_vlan"] =  node_defaults["mlagDetails"]["mlagPeerVlan"]
-                      switch_facts["mlag_peer_ipv4_pool"] = node_defaults["mlagDetails"]["mlagPeerIPv4Pool"]
-                      switch_facts["mlag_peer_subnet_mask"] = 31
-                      if switch_facts.get("underlay_router"):
-                          # Set mlag_peer_l3_vlan if there is value set in studio input
-                          if node_defaults['mlagDetails']['mlagPeerL3Vlan'] is not None \
-                                  and node_defaults['mlagDetails']['mlagPeerL3IPv4Pool'].strip() != "":
-                              switch_facts['mlag_peer_l3_vlan'] = node_defaults['mlagDetails']['mlagPeerL3Vlan']
-                              switch_facts['mlag_peer_l3_ipv4_pool'] = node_defaults['mlagDetails']['mlagPeerL3IPv4Pool']
-                              switch_facts['mlag_peer_l3_subnet_mask'] = 31
-                          else:
-                              switch_facts['mlag_peer_l3_vlan'] = switch_facts['mlag_peer_vlan']
-                              switch_facts['mlag_peer_l3_ipv4_pool'] = switch_facts["mlag_peer_ipv4_pool"]
-                              switch_facts['mlag_peer_l3_subnet_mask']= switch_facts["mlag_peer_subnet_mask"]
-
-                      switch_facts["mlag_lacp_mode"] = "active"
-                      switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
-                      switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
-
-                      # switch_facts["mlag_ibgp_origin_incomplete"] = True
-
-                      if int(switch_facts["id"]) < int(mlag_peer_switch_facts["id"]):
-                          switch_facts["mlag_primary_id"] = int(switch_facts["id"])
-
-                          switch_facts["mlag_role"] = "primary"
-
-                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
-                                                                    switch_facts["mlag_peer_subnet_mask"], "primary"))
-
-                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
-                                                                         switch_facts["mlag_peer_subnet_mask"], "secondary"))
-
-                          if switch_facts.get("underlay_router"):
-                              switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                           switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
-
-                              switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                                switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
-
-                      else:
-                          switch_facts["mlag_primary_id"] = int(mlag_peer_switch_facts["id"])
-
-                          switch_facts["mlag_role"] = "secondary"
-
-                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
-                              switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_peer_subnet_mask"], "secondary"))
-
-                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
-                                                                         switch_facts["mlag_peer_subnet_mask"], "primary"))
-
-
-                          if switch_facts.get("underlay_router"):
-
-
-                              switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                           switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
-
-                              switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                                switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
-
-                      # Set mlag interfaces
-                      # Set from topology studio
-                      switch_facts["mlag_interfaces"], switch_facts["mlag_peer_switch_interfaces"] = set_mlag_interfaces_from_topology(switch_facts)
-
-                      # Set from node defaults (only available on splines)
-                      if len(node_defaults["mlagDetails"].get("mlagPeerInterfaces", [])) > 0:
-                          mlag_interfaces = []
-                          for iface_entry in node_defaults["mlagDetails"]["mlagPeerInterfaces"]:
-                              mlag_interfaces += range_expand(iface_entry)
-                          switch_facts["mlag_interfaces"] = natural_sort(mlag_interfaces)
-                          switch_facts["mlag_peer_switch_interfaces"] = switch_facts["mlag_interfaces"]
-
-                      # Set from idf inputs
-                      if switch_facts["type"] == "leaf" and idf_details["hideShowToggles"].get("displayPodFabricInterfaceInputs", False) is True:
-                          idf_mlag_interfaces = idf_details.get("idfMlagPeerInterfaces", [])
-                          if len(idf_mlag_interfaces) > 0:
-                              mlag_interfaces = []
-                              for iface_entry in idf_mlag_interfaces:
-                                  mlag_interfaces += range_expand(iface_entry)
-                              switch_facts["mlag_interfaces"] = natural_sort(mlag_interfaces)
-                              switch_facts["mlag_peer_switch_interfaces"] = switch_facts["mlag_interfaces"]
-
-
-                      if len(switch_facts.get("mlag_interfaces", [])) > 0:
-                          switch_facts["mlag_interfaces_speed"] = node_defaults["mlagDetails"]["mlagPeerInterfacesSpeed"]
-                          switch_facts["mlag_interfaces_cli"] = node_defaults["mlagDetails"].get("mlagPeerInterfacesEosCli")
-                          switch_facts["mlag_peer_link_cli"] = node_defaults["mlagDetails"].get("mlagPeerLinkEosCli")
-
-              else:
-                  switch_facts["mlag"] = False
-
               if switch_facts["underlay_router"] == True:
                   if switch_facts["vtep"]:  # and building_details["buildingRoutingProtocols"]["buildingOverlayRoutingProtocol"] != "":
                       switch_facts["vtep_loopback_ipv4_pool"] = node_defaults.get("vtepLoopbackIPv4Pool")
                       switch_facts["vtep_loopback"] = "Loopback1"
-                      if building_details["nodeTypeProperties"]["defaultSplineProperties"].get("splineVtepDefault"):
-                          vtep_offset = 1
+                      if building_details["nodeTypeProperties"]["defaultSplineProperties"].get("splineVtepDefault", "") and \
+                              building_details.get("idfDefaults", {}).get("vtepLoopbackIPv4Pool") == building_details.get("splineDefaults", {}).get("vtepLoopbackIPv4Pool"):
+                          spline_offset = 1
                       else:
-                          vtep_offset = 0
-                      switch_facts["vtep_ip"] =  str(get_vtep_loopback(switch_facts, offset=vtep_offset))
-                  # else:
-                  #     # Turn off the vtep setting since there are no VTEPs in this network
-                  #     switch_facts["vtep"] = False
+                          spline_offset = 0
+
+                      switch_facts["vtep_ip"] =  str(get_vtep_loopback(switch_facts, offset=spline_offset))
 
               # Get multicast
               switch_facts["underlay_multicast"] = building_details["advancedFabricConfigurations"]["multicast"].get("underlayMulticast")
@@ -2234,6 +2263,8 @@
 
                   # set boot vlan for campus ZTP feature
                   switch_facts["boot_vlan"] = switch_facts.get("inband_management_vlan")
+                  # set whether or not to enable inband ztp
+                  switch_facts["inband_ztp"] = idf_details["inbandManagementDetails"]["enableInbandZtp"]
 
               # IP locking
               ip_locking_details = building_details["advancedFabricConfigurations"].get("ipLocking")
@@ -2497,7 +2528,7 @@
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
                       uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
-                      ctx.info(f"{uplink_interface}: {uplink_switch_facts['hostname']}")
+                      # ctx.info(f"{uplink_interface}: {uplink_switch_facts['hostname']}")
                       link_facts["peer_id"] = uplink_switch_facts["serial_number"]
                       link_facts["peer"] = uplink_switch_facts["hostname"]
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
@@ -2948,6 +2979,16 @@
                       config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]['trunk_groups']\
                           .append("LEAF_PEER_L3")
 
+                  if switch_facts.get("ptp") and switch_facts["ptp"].get("enabled") is True:
+                      ptp_config = {}
+                      # Apply PTP profile config
+                      ptp_profile = get_item(ptp_profiles, "profile", switch_facts["ptp"]["profile"], default={})
+                      ptp_config.update(ptp_profile)
+
+                      ptp_config["enable"] = True
+                      ptp_config.pop("profile", None)
+                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["ptp"] = ptp_config
+
                   # Set ethernet interfaces
                   for i, iface in enumerate(switch_facts['mlag_interfaces']):
                       mlag_peer = switch_facts['mlag_peer']
@@ -3039,11 +3080,12 @@
               boot_ztp_eligible = False
               if compare_eos_versions(switch_facts["eos_version"], "4.27.1F") >= 0:
                   boot_ztp_eligible = True
-              # Add boot ztp vlan to downstream interfaces
+              # Add boot ztp vlan and inband ztp config to downstream interfaces
               if switch_facts.get("boot_vlan") is not None and switch_facts["network_services_l2"] is True:
                   for interface in switch_facts.get("downlink_interfaces", []):
                       underlay_data["links"][interface] = {
                           "boot_vlan": switch_facts["boot_vlan"],
+                          # "inband_ztp": switch_facts["inband_ztp"],
                           "type": "underlay_l2"
                       }
 
@@ -3072,10 +3114,12 @@
                           # eos cli
                           link["eos_cli"] = neighbor_switch_facts.get("uplink_interface_cli", [])
                           # inband ztp
-                          if neighbor_link_info.get("vlans"):
-                              link["vlans"] = neighbor_link_info["vlans"]
-                          if neighbor_switch_facts.get("boot_vlan") is not None:
-                              link["boot_vlan"] = neighbor_switch_facts["boot_vlan"]
+                          if neighbor_switch_facts.get("inband_ztp"):
+                              link["inband_ztp"] = neighbor_switch_facts["inband_ztp"]
+                              if neighbor_link_info.get("vlans"):
+                                  link["vlans"] = neighbor_link_info["vlans"]
+                              if neighbor_switch_facts.get("boot_vlan") is not None:
+                                  link["boot_vlan"] = neighbor_switch_facts["boot_vlan"]                    
 
                           interface = neighbor_link_info["peer_interface"]
                           underlay_data["links"][interface] = link
@@ -3174,6 +3218,9 @@
                           ptp_config["enable"] = True
                           ptp_config.pop("profile", None)
                           port_channel["ptp"] = ptp_config
+
+                      if link.get("inband_ztp"):
+                          port_channel["lacp_fallback_mode"] = "static"
 
                       config["port_channel_interfaces"]["Port-Channel{}".format(link["channel_group_id"])] = port_channel
 
@@ -3309,7 +3356,7 @@
               overlay_data["evpn_route_clients"] = {}
               if switch_facts["evpn_role"] == "server":
                   for campus_switch_facts in my_switch_facts_neighbors.values():
-                      if campus_switch_facts["evpn_role"] is not None and campus_switch_facts["evpn_role"] == "client":
+                      if campus_switch_facts.get("evpn_role") is not None and campus_switch_facts["evpn_role"] == "client":
                           if switch_facts['serial_number'] in campus_switch_facts["evpn_route_server_ids"]:
                               client = {
                                   "bgp_as": campus_switch_facts["bgp_as"],
@@ -4421,8 +4468,40 @@
                                           peer_info.pop("set_ipv6_next_hop")
                                   config['router_bgp']['vrfs'][vrf['name']]['neighbors'][peer] = peer_info
 
-
               return config
+
+
+          def _mlag_odd_id_based_offset(switch_facts) -> int:
+              """
+              Return the subnet offset for an MLAG pair based on odd id
+              Requires a pair of odd and even IDs
+              """
+              if switch_facts.get("mlag"):
+                  # Verify a mix of odd and even IDs
+                  if (switch_facts["mlag_primary_id"] % 2) == (switch_facts["mlag_secondary_id"] % 2):
+                      raise Error("MLAG compact addressing mode requires all MLAG pairs to have a single odd and even ID")
+
+                  odd_id = switch_facts["mlag_primary_id"]
+                  if odd_id % 2 == 0:
+                      odd_id = switch_facts["mlag_secondary_id"]
+              else:
+                  odd_id = switch_facts["id"]
+              return int((odd_id - 1) / 2)
+
+
+          def set_custom_fabric_variables(custom_settings):
+              ctx.info(f"{custom_settings}")
+              # Set MLAG IP Address
+              if custom_settings["fabricIpAddressing"]["mlag"].get("ipAddressing"):
+                  fabric_variables["fabric_ip_addressing"]["mlag"] = custom_settings["fabricIpAddressing"]["mlag"]["ipAddressing"]
+              if custom_settings["fabricIpAddressing"]["mlag"].get("vtepSourceInterfaceIpAddressing"):
+                  fabric_variables["fabric_ip_addressing"]["vtep"] = custom_settings["fabricIpAddressing"]["mlag"]["vtepSourceInterfaceIpAddressing"]
+              if custom_settings["fabricIpAddressing"]["mlag"].get("bgpNumbering"):
+                  fabric_variables["fabric_bgp_numbering"]["mlag"] = custom_settings["fabricIpAddressing"]["mlag"]["bgpNumbering"]
+
+              ctx.info(f"{fabric_variables}")
+
+
 
           # Check campus input is not None
           if not campus:
@@ -4471,6 +4550,9 @@
               query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR IDF:\"{}\")".format(my_switch_facts['campus'], my_switch_facts['building'], my_switch_facts['group'])
 
           my_switch_facts_neighbors = set_switch_facts_properties_for_query(query, campus)
+
+          # Set custom fabric settings
+          set_custom_fabric_variables(generalSettings)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts properties for all switches in building: {time.time() - task_time} seconds")
@@ -4594,7 +4676,7 @@
               ctx.info(f"Time taken to update tags: {time.time() - task_time} seconds")
               task_time = time.time()
 
-          # ctx.info(f"{my_switch_facts}")
+          ctx.info(f"{my_switch_facts}")
           # ctx.info(f"{config}")
           %>
           % if config.get("address_locking"):
@@ -4820,6 +4902,9 @@
           %       for trunk_group in config["port_channel_interfaces"][port_channel_interface]["trunk_groups"]:
              switchport trunk group ${ trunk_group }
           %       endfor
+          %     endif
+          %     if config["port_channel_interfaces"][port_channel_interface].get("lacp_fallback_mode"):
+             port-channel lacp fallback ${ config["port_channel_interfaces"][port_channel_interface]["lacp_fallback_mode"] }
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("mlag"):
              mlag ${ config["port_channel_interfaces"][port_channel_interface]["mlag"] }
@@ -6092,6 +6177,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6106,6 +6192,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6132,6 +6219,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 169.254.0.0/31
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6158,6 +6246,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6172,6 +6261,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1c:73:00:00:99
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6186,6 +6276,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6200,6 +6291,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6224,6 +6316,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6266,6 +6359,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: MSTP
+                is_secret: false
                 static_options:
                   values:
                     - MSTP
@@ -6353,6 +6447,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6367,6 +6462,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6381,6 +6477,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6405,6 +6502,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6419,6 +6517,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6433,6 +6532,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6483,6 +6583,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6518,6 +6619,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: auto
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6532,6 +6634,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: auto
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6546,6 +6649,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6570,6 +6674,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6632,6 +6737,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1C:73
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6688,6 +6794,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6702,6 +6809,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: MSTP
+                is_secret: false
                 static_options:
                   values:
                     - RSTP
@@ -6772,6 +6880,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 169.254.0.0/31
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6798,6 +6907,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6812,6 +6922,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1c:73:00:00:99
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6826,6 +6937,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6850,6 +6962,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6864,6 +6977,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6888,6 +7002,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6931,6 +7046,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6945,6 +7061,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6959,6 +7076,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6983,6 +7101,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -6997,6 +7116,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7011,6 +7131,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7061,6 +7182,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7117,6 +7239,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 00:1C:73
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7152,18 +7275,6 @@
                     - splineBgpDetails
                     - splineOspfDetails
                     - splinesPtpDetails
-            podId:
-              id: podId
-              name: podId
-              label: Pod ID
-              description: Used as an index for certain inputs defined under the IDF Defaults section.
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
             leafUplinkInterfaceName:
               id: leafUplinkInterfaceName
               name: uplinkInterface
@@ -7173,6 +7284,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7187,6 +7299,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7201,6 +7314,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7215,6 +7329,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7253,6 +7368,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7267,6 +7383,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7281,6 +7398,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7295,6 +7413,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7333,6 +7452,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7377,11 +7497,21 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
                 pattern: null
                 dynamic_options: null
+            podInbandZtp:
+              id: podInbandZtp
+              name: enableInbandZtp
+              label: Enable Inband ZTP
+              description: Turn on in order to configure LACP fallback on downstream port-channel interfaces which allows for inband ZTP.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
             podInbandManagementGroup:
               id: podInbandManagementGroup
               name: inbandManagementDetails
@@ -7393,6 +7523,7 @@
                 members:
                   values:
                     - podInbandManagementIpv4Range
+                    - podInbandZtp
             idfFacts:
               id: idfFacts
               name: idfFacts
@@ -7403,7 +7534,6 @@
               group_props:
                 members:
                   values:
-                    - podId
                     - leafUplinkInterfaces
                     - memberLeafUplinkInterfaces
                     - idfMlagPeerInterfaces
@@ -7440,6 +7570,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7454,6 +7585,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7477,6 +7609,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7491,6 +7624,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7505,6 +7639,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7532,6 +7667,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7546,6 +7682,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7560,6 +7697,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7590,6 +7728,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7604,6 +7743,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7640,6 +7780,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7654,6 +7795,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7668,6 +7810,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7682,6 +7825,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7696,6 +7840,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7737,6 +7882,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7844,6 +7990,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 0.0.0.0
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7870,6 +8017,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Simple
@@ -7887,6 +8035,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7901,6 +8050,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: sha512
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -7915,6 +8065,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8062,6 +8213,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Server
@@ -8079,6 +8231,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8096,6 +8249,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8113,6 +8267,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8130,6 +8285,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8147,6 +8303,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8164,6 +8321,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8181,6 +8339,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Port-Channel
@@ -8216,6 +8375,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Server
@@ -8233,6 +8393,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8250,6 +8411,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8267,6 +8429,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8284,6 +8447,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8301,6 +8465,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8318,6 +8483,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'Yes'
@@ -8335,6 +8501,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Port-Channel
@@ -8381,7 +8548,8 @@
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
-                default_value: BGP
+                default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - BGP
@@ -8399,6 +8567,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - BGP
@@ -8439,6 +8608,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: 0.0.0.0
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8584,6 +8754,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8635,6 +8806,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8649,6 +8821,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8684,6 +8857,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: default
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8721,6 +8895,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8735,6 +8910,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8792,6 +8968,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: aes67-r16-2016
+                is_secret: false
                 static_options:
                   values:
                     - aes67-r16-2016
@@ -8887,6 +9064,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -8951,6 +9129,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - L3
@@ -9020,6 +9199,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9046,6 +9226,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9072,6 +9253,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9132,6 +9314,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9146,6 +9329,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9160,6 +9344,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9258,6 +9443,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9330,6 +9516,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9344,6 +9531,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9358,6 +9546,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - standard
@@ -9377,6 +9566,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -9430,6 +9620,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9468,6 +9659,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9482,6 +9674,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9508,6 +9701,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9522,6 +9716,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9548,6 +9743,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - 'True'
@@ -9576,6 +9772,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9649,6 +9846,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9686,6 +9884,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9700,6 +9899,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9714,6 +9914,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9749,6 +9950,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9782,6 +9984,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9817,6 +10020,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options:
                   values:
                     - Simple
@@ -9834,6 +10038,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9860,6 +10065,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -9874,6 +10080,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -10029,6 +10236,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -10043,6 +10251,7 @@
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
+                is_secret: false
                 static_options: null
                 format: null
                 length: null
@@ -10146,6 +10355,96 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: Campus
                 tag_filter_query: null
+            mlagFabricIpAddressingMlagLocalInterface:
+              id: mlagFabricIpAddressingMlagLocalInterface
+              name: ipAddressing
+              label: MLAG Local Interface IP Addressing
+              description: This variable defines the Multi-chassis Link Aggregation (MLAG) algorithm used. Each MLAG link will have a /31 subnet with each subnet allocated from the relevant MLAG pool via a calculated offset. The offset is calculated using one of the MLAG algorithms mentioned in the MLAG description.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options:
+                  values:
+                    - first_id
+                    - odd_id
+                    - same_subnet
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            mlagFabricIpAddressingBgpNumbering:
+              id: mlagFabricIpAddressingBgpNumbering
+              name: bgpNumbering
+              label: BGP Numbering
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options:
+                  values:
+                    - first_id
+                    - odd_id
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            mlagFabricIpAddressingVtepSourceInterface:
+              id: mlagFabricIpAddressingVtepSourceInterface
+              name: vtepSourceInterfaceIpAddressing
+              label: VTEP Source Interface IP Addressing
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options:
+                  values:
+                    - first_id
+                    - odd_id
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            mlagFabricIpAddressing:
+              id: mlagFabricIpAddressing
+              name: mlag
+              label: MLAG
+              description: 'MLAG Algorithms:   - first_id: (mlag_primary_id - 1) * 2 where mlag_primary_id is the ID of the first node defined under the node_group. This allocation method will skip every other /31 subnet making it less space efficient than odd_id.   - odd_id: (odd_id - 1) / 2. Requires the node_group to have a node with an odd ID and a node with an even ID.   - same_subnet: the offset will always be zero. This allocation method will cause every MLAG link to be addressed with the same /31 subnet.'
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - mlagFabricIpAddressingMlagLocalInterface
+                    - mlagFabricIpAddressingBgpNumbering
+                    - mlagFabricIpAddressingVtepSourceInterface
+            fabricIpAddressingGroup:
+              id: fabricIpAddressingGroup
+              name: fabricIpAddressing
+              label: Fabric Allocations
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - mlagFabricIpAddressing
+            generalSettings:
+              id: generalSettings
+              name: generalSettings
+              label: General Settings
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - fabricIpAddressingGroup
             root:
               id: root
               name: ''
@@ -10157,6 +10456,7 @@
                 members:
                   values:
                     - campus
+                    - generalSettings
         layout:
           value: |
             {
@@ -10240,7 +10540,6 @@
                 "key":"idfFacts",
                 "type":"INPUT",
                 "order":[
-                  "podId",
                   "podInbandManagementGroup",
                   "leafTagger",
                   "memberLeafTagger",
@@ -10304,15 +10603,22 @@
               },
               "idfRouterIdPool":{
                 "key":"idfRouterIdPool",
-                "type":"INPUT",
                 "dependency":{
                   "campusType":{
                     "value":[
                       "L3"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingUnderlayRoutingProtocol":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               },
               "idfBgpAsRange":{
                 "key":"idfBgpAsRange",
@@ -10412,15 +10718,22 @@
               },
               "idfUplinkIpv4Pool":{
                 "key":"idfUplinkIpv4Pool",
-                "type":"INPUT",
                 "dependency":{
                   "campusType":{
                     "value":[
                       "L3"
                     ],
                     "mode":"SHOW"
+                  },
+                  "buildingUnderlayRoutingProtocol":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               },
               "splineVtepKnob":{
                 "key":"splineVtepKnob",
@@ -11694,7 +12007,6 @@
               },
               "splineMlagPeerInterfaceName":{
                 "key":"splineMlagPeerInterfaceName",
-                "type":"INPUT",
                 "dependency":{
                   "campusType":{
                     "value":[
@@ -11708,7 +12020,9 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
               },
               "splineBgpAsn":{
                 "key":"splineBgpAsn",
@@ -12976,5 +13290,83 @@
                 "key":"leafEvpnRouteServersCollection",
                 "type":"INPUT",
                 "isPageLayout":false
+              },
+              "mlagFabricIpAddressing":{
+                "key":"mlagFabricIpAddressing",
+                "type":"INPUT",
+                "order":[
+                  "mlagFabricIpAddressingMlagLocalInterface",
+                  "mlagFabricIpAddressingBgpNumbering",
+                  "mlagFabricIpAddressingVtepSourceInterface"
+                ]
+              },
+              "splineMlagPeerInterfacesSpeed":{
+                "key":"splineMlagPeerInterfacesSpeed",
+                "type":"INPUT",
+                "dependencyType":"OR",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineMlagPeerInterfacesCliStatement":{
+                "key":"splineMlagPeerInterfacesCliStatement",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineMlagPeerLinkCliStatement":{
+                "key":"splineMlagPeerLinkCliStatement",
+                "type":"INPUT",
+                "dependencyType":"OR",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "splineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "splineRouterIdPool":{
+                "key":"splineRouterIdPool",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingUnderlayRoutingProtocol":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
