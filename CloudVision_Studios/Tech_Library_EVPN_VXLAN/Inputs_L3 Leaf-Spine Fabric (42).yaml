@@ -1,0 +1,139 @@
+path: []
+inputs:
+  dataCenters:
+    - inputs:
+        dataCenter:
+          fabricSettings:
+            bgpPeerGroupSettings:
+              evpnOverlayPeerGroup:
+                name: LOCAL-EVPN-PEERS
+                password: MpcYJ8iYzZ/RmvfjkMEt8A==
+              ipv4UnderlayPeerGroup:
+                name: LOCAL-IPV4-PEERS
+                password: Sa5SKaKcDquL4saaToCnIg==
+              mlagIPv4PeerGroup:
+                name: MLAG-IPV4-PEER
+                password: sajw9BcwdlH5qxKUrVqShA==
+          platformSettingsResolver: []
+          pods:
+            - inputs:
+                pod:
+                  LeafDomains:
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:1
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:2
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:3
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:4
+                  commonBGPConfig:
+                    evpnEnabled: true
+                    leafAsnRange: 65101-65199
+                    leafBgpDefaults:
+                      - address-family evpn
+                      - route import match-failure action discard
+                    leafLoopback0Subnet: 10.0.1.0/25
+                    spineAsn: '65100'
+                    spineBGPDynamicNeighbors: true
+                    spineLoopback0Subnet: 10.0.1.128/25
+                  commonMlagConfig:
+                    lacpMode: active
+                    mlagPeerLinkSubnet: 169.254.0.0/24
+                    mlagPortChannelId: 1000
+                    mlagSubnetMask: 31
+                    mlagVlan: 4094
+                    virtualRouterMacAddress: 00:1c:73:00:00:99
+                  l2LeafDomains: []
+                  maximums: {}
+                  ospfConfiguration: {}
+                  overlayDetails:
+                    leafLoopback1Subnet: 10.1.1.0/24
+                    vxlanOverlay: true
+                  spanningTreeMode: ''
+                  underlayRouting:
+                    underlayFabricSubnet: 192.168.1.0/24
+                    underlayFabricSubnetMask: '31'
+                    underlayRoutingProtocol: BGP
+              tags:
+                query: DC-Pod:A
+          superSpinePlanes: []
+      tags:
+        query: DC:Domain-A
+    - inputs:
+        dataCenter:
+          fabricSettings:
+            bgpPeerGroupSettings:
+              evpnOverlayPeerGroup:
+                name: LOCAL-EVPN-PEERS
+                password: MpcYJ8iYzZ/RmvfjkMEt8A==
+          platformSettingsResolver: []
+          pods:
+            - inputs:
+                pod:
+                  LeafDomains:
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:1
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:2
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:3
+                    - inputs:
+                        l3LeafDomain:
+                          l3LeafMlag: true
+                      tags:
+                        query: Leaf-Domain:4
+                  commonBGPConfig:
+                    evpnEnabled: true
+                    leafAsnRange: 65301-65399
+                    leafBgpDefaults:
+                      - address-family evpn
+                      - route import match-failure action discard
+                    leafLoopback0Subnet: 10.0.3.0/25
+                    spineAsn: '65300'
+                    spineBGPDynamicNeighbors: true
+                    spineLoopback0Subnet: 10.0.3.128/25
+                  commonMlagConfig:
+                    lacpMode: active
+                    mlagPeerLinkSubnet: 169.254.0.0/24
+                    mlagPortChannelId: 1000
+                    mlagSubnetMask: 31
+                    mlagVlan: 4094
+                    virtualRouterMacAddress: 00:1c:73:00:00:99
+                  l2LeafDomains: []
+                  maximums: {}
+                  ospfConfiguration: {}
+                  overlayDetails:
+                    leafLoopback1Subnet: 10.3.3.0/24
+                    vxlanOverlay: true
+                  spanningTreeMode: ''
+                  underlayRouting:
+                    underlayFabricSubnet: 192.168.1.0/24
+                    underlayFabricSubnetMask: '31'
+                    underlayRoutingProtocol: OSPF
+              tags:
+                query: DC-Pod:C
+          superSpinePlanes: []
+      tags:
+        query: DC:Domain-C
