@@ -1,0 +1,89 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: 8e99305e-7c27-4bd9-ac84-bf65f3cc24ce
+        workspace_id: ''
+      display_name: Quick setup
+      description: Very simple studio to simply set hostname and MGMT IP in a table
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |-
+          hostname ${devices.resolve()["deviceSpecificDetails"]["hostname"]}
+
+          interface Management1
+             ip address ${devices.resolve()["deviceSpecificDetails"]["mgmt_ip"]}/24
+      input_schema:
+        fields:
+          values:
+            bb621acf-7bc4-449b-b3de-d155efbb7f72:
+              id: bb621acf-7bc4-449b-b3de-d155efbb7f72
+              name: hostname
+              label: Hostname
+              description: ''
+              required: true
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            a40917f0-4426-4bab-845b-a29c533b0e7c:
+              id: a40917f0-4426-4bab-845b-a29c533b0e7c
+              name: mgmt_ip
+              label: Management IP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            34cfcd36-87c1-4243-ae81-30fad5cd01bf:
+              id: 34cfcd36-87c1-4243-ae81-30fad5cd01bf
+              name: deviceSpecificDetails
+              label: Device specific details
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - bb621acf-7bc4-449b-b3de-d155efbb7f72
+                    - a40917f0-4426-4bab-845b-a29c533b0e7c
+            f85a947e-63d2-4477-9add-b98ad4bd803f:
+              id: f85a947e-63d2-4477-9add-b98ad4bd803f
+              name: devices
+              label: Device
+              description: ''
+              required: true
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 34cfcd36-87c1-4243-ae81-30fad5cd01bf
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - f85a947e-63d2-4477-9add-b98ad4bd803f
+        layout:
+          value: '{"0711c8c5-4125-42fe-bf93-81dedf73363a":{"key":"0711c8c5-4125-42fe-bf93-81dedf73363a","type":"INPUT","isPageLayout":false},"f85a947e-63d2-4477-9add-b98ad4bd803f":{"key":"f85a947e-63d2-4477-9add-b98ad4bd803f","type":"INPUT","isPageLayout":false}}'
