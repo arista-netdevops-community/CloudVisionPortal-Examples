@@ -1,0 +1,63 @@
+path: []
+inputs:
+  configletAssignmentRoots:
+    - b4bbf274-e22c-4f49-9539-0096bf7f155f
+  configletAssignments:
+    - configletAssignmentId: b4bbf274-e22c-4f49-9539-0096bf7f155f
+      description: ''
+      displayName: All devices
+      query: 'device:* '
+      matchPolicy: 1
+      configletIds:
+        - cb433f97-8f80-4f4f-aa0f-06ae768c2c52
+        - 90eaf8a3-85fd-4333-8575-9fa82acfc159
+        - a6d2510d-1f9a-4e98-8b4f-3c31b74e8333
+      childAssignmentIds: []
+  configlets:
+    - displayName: Configlet 1
+      description: ''
+      migratedFrom: ''
+      body: ''
+      configletId: e33000b8-6ae4-4024-ac6d-cbf4e27721e5
+    - displayName: Configlet 1
+      description: ''
+      migratedFrom: ''
+      body: |-
+        no aaa root
+        no username admin
+        !
+        username arista privilege 15 role network-admin secret sha512 $6$ZGX/X07MoiWP9hvX$3UaAtOAiBGc54DYHdQt5dsr5P2HLydxjrda51Zw69tSsF4tahXPVj26PwOiZUy/xFRZL3CAkT7.lsOPqWfIbU0
+        username cvpadmin secret sha512 $6$hhXGl4.FBh93E3vm$ZeZeHJKz3ypfjd3fAm.f3YfyrUZMR8UGQ33rofdp.KVO3NCexHS8KsF2pETl5VIutZR6KT7ixAsA4SRvgjHw.1
+        username ec2-user shell /bin/bash nopassword
+        username ec2-user ssh-key ssh-rsa ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDB2kGCywDo7ojYPKp3eY/cpgmdeWs0s/FU6PVAZGq67INB/HxMygTgvqPXJykKdXVp7wMxNpEDx98wQLZ6lmtIJxfWaWaQKy9eAeP6L1YIQh6rksj3Us2DMnfgSKzJKYkxt4RvT1kGYcLrCR47aSrUM75tq8fbyELbJRnIsPDLCvWQXqdOkzDHM23Jdzd7zkXxcA8kmylPqUFQQ/9QelUOMClwwZTW9p6jQuOtpKEVp2+XTalRy8+G6yprG2e97sk1PhFVE0F9GgC3Ua6wWXGZbd5VN5hKQnQhsM5zFK7ZtcWax/KP304G5Q7jetf0GBFfH3jDd3nEU6KaOlWHWcrGzIocR0016H6FMJ8zkfPFMX5BvRWXlkf/Oi1fs6/O8C7ggZzwMWKF2Lp8ueh47lBIMwIhtUVI5WDQ1LNro8Xy4iJc6o74am8BnX8adlN3bknwULVkMCFHViBmRPYCdR/bTUBK8TKQEsEk0Xr+P3u3B54h582zCOCct4oAj617y08= root@buildkitsandbox
+        username service shell /bin/bash secret sha512 $6$OF8RpVWQ0JibHaKg$lLlb4X.zjI1jCrw49sQSigVGc7PbEZxUGc9iSKKr73LtR0nbOyHouTjx969tYpukM9hAHzNmVFPeRqzBcdCrA.
+
+        agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+      configletId: cb433f97-8f80-4f4f-aa0f-06ae768c2c52
+    - displayName: Configlet 4
+      description: ''
+      migratedFrom: ''
+      body: |-
+        daemon TerminAttr
+           exec /usr/bin/TerminAttr -smashexcludes=ale,flexCounter,hardware,kni,pulse,strata -cvaddr=192.168.0.5:9910 -cvauth=token,/tmp/token -cvvrf=default -taillogs
+           no shutdown
+      configletId: a6d2510d-1f9a-4e98-8b4f-3c31b74e8333
+    - displayName: Configlet 2
+      description: ''
+      migratedFrom: ''
+      body: |-
+        switchport default mode routed
+        !
+        transceiver qsfp default-mode 4x10G
+        !
+        service routing protocols model ribd
+        !
+        ip name-server vrf default 10.255.0.2
+        !
+        spanning-tree mode mstp
+        !
+        management api http-commands
+           no shutdown
+        !
+        ip routing
+      configletId: 90eaf8a3-85fd-4333-8575-9fa82acfc159
