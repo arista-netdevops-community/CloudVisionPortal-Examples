@@ -1,0 +1,152 @@
+path: []
+inputs:
+  profileOfProfiles:
+    - profileOfProfilesName: TRUNK
+      vlanProfile: TRUNK
+    - profileOfProfilesName: ROUTED
+      vlanProfile: ROUTED
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - accessVlan: '16'
+                      channelGroup: ''
+                      description: EOS9 to EOS4 vlan16
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 16.16.16.133/24
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: ROUTED
+                      vlanName: ''
+                      vrf: ''
+                    - accessVlan: '16'
+                      channelGroup: ''
+                      description: EOS20 to EOS4 vlan16
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 16.16.16.134/24
+                      memberNumberCollection:
+                        - '2'
+                      profileOfProfileName: ROUTED
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:33E4FB4214FC9339BBA74AB2FF22B4E4
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:470AC4D5A1580DB15D2103ACEF18EE6F
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: 16.16.16.128
+                      description: vlan16_default_route
+                      enabled: true
+                      ipPrefix: ''
+                      memberNumberCollection:
+                        - all-switches
+                      secIp: []
+                      virtualRouterAddress: ''
+                      vlanId: '16'
+                      vrf: ''
+              tags:
+                query: Switch-Group:Campus-End-Devices
+      tags:
+        query: ' device:eos9,eos20 '
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: ''
+                      description: eos20
+                      enabled: true
+                      interfaceName: e6
+                      ipPrefix: ''
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:8F426BFC97B29EF3598C7150EA01BB75
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:Switch3_Edge_Ports
+      tags:
+        query: Campus-Pod:3
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: ''
+                      description: eos9
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: ''
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:4A8C2317429164977975DE8D250C9BE1
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:Switch4_Edge_Ports
+      tags:
+        query: Campus-Pod:4
+  vlanProfiles:
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 15
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ''
+      profileIpAddressVirtual: ''
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED $1
+      profileIpAddressVirtual: ''
+      vlanName: ''

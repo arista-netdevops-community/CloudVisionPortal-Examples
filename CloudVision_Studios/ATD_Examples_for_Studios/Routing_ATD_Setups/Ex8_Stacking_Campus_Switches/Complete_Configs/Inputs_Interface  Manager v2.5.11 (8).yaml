@@ -1,0 +1,305 @@
+path: []
+inputs:
+  aclNames: []
+  igmpProfiles: []
+  pimProfiles:
+    - pimInterfaceCommands:
+        pimMode: sparse-mode
+        pimType: ipv4
+      pimProfileName: PIM
+  profileOfProfiles:
+    - aclIn: ''
+      pimProfile: PIM
+      profileOfProfilesName: DHCP-HLP-PIM
+      vlanProfile: DHCP-HELPERS
+    - profileOfProfilesName: PTP-Master
+      ptpProfile: Master
+      vlanProfile: TRUNK
+    - profileOfProfilesName: PTP-Slave
+      ptpProfile: Slave
+      vlanProfile: TRUNK
+  ptpProfiles:
+    - ptpGlobalCommands:
+        domain: 127
+        mode: boundary
+        sourceIp: 12.12.12.12
+        ttl: 32
+      ptpPorts:
+        announceInterval: 0
+        delayReqInterval: -3
+        enable: true
+        errorCorrectionEncoding: false
+        role: master
+        syncMessageInterval: -3
+      ptpProfileName: Master
+    - ptpGlobalCommands:
+        domain: 127
+        mode: boundary
+        ttl: 32
+      ptpPorts:
+        announceInterval: -3
+        delayReqInterval: -3
+        enable: true
+        errorCorrectionEncoding: false
+        syncMessageInterval: -3
+      ptpProfileName: Slave
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges: []
+                  loopbackInterfaces:
+                    - description: eos9 red
+                      ipPrefix: 14.14.14.2
+                      memberNumberCollection:
+                        - '1'
+                      number: 2
+                      vrf: red
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:470AC4D5A1580DB15D2103ACEF18EE6F
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:L3DC_End_Devices
+      tags:
+        query: device:eos9
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges: []
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  portMirror: []
+                  stack:
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:485EE1E0B53B0205019028AD14698A59
+                    - inputs:
+                        stackMember: '4'
+                      tags:
+                        query: device:7E51B21365F2A3CBE95808FD01560168
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:A0C726A9A92063DE5464F90214FB0F75
+                    - inputs:
+                        stackMember: '5'
+                      tags:
+                        query: device:CC852E4016C58E3464FF2114DAD6F449
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:F8FA9DAB7680E0EE5C75E57BB742DC0B
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: ''
+                      description: eos6
+                      enabled: true
+                      ipPrefix: 13.13.13.2/24
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: DHCP-HLP-PIM
+                      secIp:
+                        - secPrefix: 13.113.13.2/24
+                        - secPrefix: 13.13.113.2/24
+                      virtualRouterAddress: 13.13.13.1
+                      vlanId: '13'
+                      vrf: ''
+                    - defaultGatewayNextHop: ''
+                      description: eos8
+                      enabled: true
+                      ipPrefix: 13.13.13.3/24
+                      memberNumberCollection:
+                        - '2'
+                      profileOfProfileName: DHCP-HLP-PIM
+                      secIp:
+                        - secPrefix: 13.113.13.3/24
+                        - secPrefix: 13.13.113.3/24
+                      virtualRouterAddress: 13.13.13.1
+                      vlanId: '13'
+                      vrf: ''
+                    - defaultGatewayNextHop: 13.13.13.1
+                      description: eos14
+                      enabled: true
+                      ipPrefix: 13.13.13.4/24
+                      memberNumberCollection:
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: vlan13
+                    - defaultGatewayNextHop: 13.13.13.1
+                      description: eos15
+                      enabled: true
+                      ipPrefix: 13.13.13.5/24
+                      memberNumberCollection:
+                        - '4'
+                      secIp: []
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: vlan13
+                    - defaultGatewayNextHop: 13.13.13.1
+                      description: eos18
+                      enabled: true
+                      ipPrefix: 13.13.13.6/24
+                      memberNumberCollection:
+                        - '5'
+                      secIp: []
+                      virtualRouterAddress: ''
+                      vlanId: '13'
+                      vrf: vlan13
+                  vlans:
+                    - memberNumberCollection:
+                        - all-switches
+                      privateVlanType: ''
+                      state: ''
+                      trunkGroup: ''
+                      vlanId: '13'
+                      vlanName: v13
+              tags:
+                query: Switch-Group:Campus2
+      tags:
+        query: 'Switch-Group:Campus2 '
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: '21'
+                      description: PTP Master PC21
+                      enabled: true
+                      interfaceName: e1,e2
+                      ipPrefix: ''
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '2'
+                      profileOfProfileName: PTP-Master
+                      vlanName: ''
+                      vrf: ''
+                    - channelGroup: '11'
+                      description: PTP Slave PC
+                      enabled: true
+                      interfaceName: e2
+                      ipPrefix: ''
+                      lacpEnabled: enabled
+                      memberNumberCollection:
+                        - '1'
+                        - '3'
+                      profileOfProfileName: PTP-Slave
+                      vlanName: ''
+                      vrf: ''
+                  loopbackInterfaces:
+                    - description: PTP address
+                      ipPrefix: 12.12.12.1
+                      number: 2
+                      vrf: ''
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:270569E99D881DAC035A1A0B7CAE0C42
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:A378E919650FFBC42EA80AD177EDD02E
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:EA5AB75EB06B0CA310F287427DC59C14
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: ''
+                      description: 15_eos11
+                      enabled: true
+                      ipPrefix: 15.15.15.2/24
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: DHCP-HLP-PIM
+                      secIp:
+                        - secPrefix: 15.115.15.2/24
+                        - secPrefix: 15.15.115.2/24
+                      virtualRouterAddress: 15.15.15.1
+                      vlanId: '15'
+                      vrf: ''
+                    - defaultGatewayNextHop: ''
+                      description: 15_eos13
+                      enabled: true
+                      ipPrefix: 15.15.15.3/24
+                      memberNumberCollection:
+                        - '3'
+                      profileOfProfileName: DHCP-HLP-PIM
+                      secIp:
+                        - secPrefix: 15.115.15.3/24
+                        - secPrefix: 15.15.115.3/24
+                      virtualRouterAddress: 15.15.15.1
+                      vlanId: '15'
+                      vrf: ''
+                    - defaultGatewayNextHop: 15.15.15.1
+                      description: 15_eos12_vrf_vlan15
+                      enabled: true
+                      ipPrefix: 15.15.15.4/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: ''
+                      vlanId: '15'
+                      vrf: vlan15
+                  vlans:
+                    - memberNumberCollection:
+                        - all-switches
+                      privateVlanType: ''
+                      state: ''
+                      trunkGroup: ''
+                      vlanId: '15'
+                      vlanName: v15
+              tags:
+                query: Switch-Group:Campus1
+      tags:
+        query: 'Switch-Group:Campus1 '
+  vlanProfiles:
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      dhcpHelpers:
+        - helperAddress: 1.2.3.4
+        - helperAddress: 5.6.7.8
+        - helperAddress: 9.8.7.6
+        - helperAddress: 5.4.3.2
+      ipaddress: ''
+      mode: routed
+      name: DHCP-HELPERS
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: DHCP-HELPERS
+      profileIpAddressVirtual: ''
+      reversePathForwardingMode: null
+      vlanName: ''
+    - allowedVlans: ''
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: ''
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ''
+      profileIpAddressVirtual: ''
+      vlanName: ''
