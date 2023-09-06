@@ -101,7 +101,9 @@ def writeListToTextFile(filename, tagAssigns):
       for entry in tagAssigns:
          (tagLabel, tagValue, deviceId) = entry
          if deviceIdentifier == 'hostname':
-            device = id2Host[deviceId]
+            device = id2Host.get(deviceId)
+            if not device:
+              continue
          else:
             device = deviceId
          f.write("%s, %s, %s\n" % (tagLabel, tagValue, device))
