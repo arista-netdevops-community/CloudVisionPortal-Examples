@@ -2400,9 +2400,13 @@
 
                       # Get uplink_switch_ids if not already set (This is time consuming way to get switch_facts)
                       for hostname in uplink_switches:
+                          found_id = False
                           for tmp_switch_sn, tmp_switch_facts in my_switch_facts_neighbors.items():
                               if tmp_switch_facts["hostname"] == hostname:
                                   uplink_switches_ids.append(tmp_switch_sn)
+                                  found_id = True
+                          if found_id is False:
+                              uplink_switches_ids.append(hostname)
 
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
@@ -2501,25 +2505,26 @@
                   for i, uplink_interface in enumerate(switch_facts["uplink_interfaces"]):
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
-                      uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
-                      link_facts["peer_id"] = uplink_switch_facts["serial_number"]
-                      link_facts["peer"] = uplink_switch_facts["hostname"]
-                      link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
-                      link_facts["peer_type"] = uplink_switch_facts["type"]
-                      link_facts["peer_bgp_as"] = uplink_switch_facts.get("bgp_as")
-                      link_facts["type"] = "underlay_p2p"
-                      link_facts["speed"] = uplink_switch_facts.get("uplink_interface_speed")
-                      link_facts["ip_address"] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
-                      link_facts["peer_ip_address"] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
-                      link_facts["eos_cli"] = switch_facts.get("uplink_interface_cli", [])
-                      # multicast/pim
-                      if switch_facts.get("underlay_multicast"):
-                          link_facts["underlay_multicast"] = True
-                      else:
-                          link_facts["underlay_multicast"] = False
-                      # ptp
-                      if switch_facts.get("ptp") is not None and switch_facts["ptp"].get("enabled") is True:
-                          link_facts["ptp"] = {"enable": True}
+                      uplink_switch_facts = my_switch_facts_neighbors.get(uplink_switch_id)
+                      if uplink_switch_facts:
+                          link_facts["peer_id"] = uplink_switch_facts["serial_number"]
+                          link_facts["peer"] = uplink_switch_facts["hostname"]
+                          link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
+                          link_facts["peer_type"] = uplink_switch_facts["type"]
+                          link_facts["peer_bgp_as"] = uplink_switch_facts.get("bgp_as")
+                          link_facts["type"] = "underlay_p2p"
+                          link_facts["speed"] = uplink_switch_facts.get("uplink_interface_speed")
+                          link_facts["ip_address"] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
+                          link_facts["peer_ip_address"] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
+                          link_facts["eos_cli"] = switch_facts.get("uplink_interface_cli", [])
+                          # multicast/pim
+                          if switch_facts.get("underlay_multicast"):
+                              link_facts["underlay_multicast"] = True
+                          else:
+                              link_facts["underlay_multicast"] = False
+                          # ptp
+                          if switch_facts.get("ptp") is not None and switch_facts["ptp"].get("enabled") is True:
+                              link_facts["ptp"] = {"enable": True}
 
                       topology_facts["links"][uplink_interface] = link_facts
 
@@ -2527,16 +2532,20 @@
                   for i, uplink_interface in enumerate(switch_facts["uplink_interfaces"]):
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
-                      uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
+                      uplink_switch_facts = my_switch_facts_neighbors.get(uplink_switch_id, {})
                       # ctx.info(f"{uplink_interface}: {uplink_switch_facts['hostname']}")
-                      link_facts["peer_id"] = uplink_switch_facts["serial_number"]
-                      link_facts["peer"] = uplink_switch_facts["hostname"]
+                      link_facts["peer_id"] = uplink_switch_facts.get("serial_number")
+                      link_facts["peer"] = uplink_switch_facts.get("hostname", switch_facts["uplink_switches"][i])
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
-                      link_facts["peer_type"] = uplink_switch_facts["type"]
+                      link_facts["peer_type"] = uplink_switch_facts.get("type")
                       # Campus Service has a field here for allowed_vlans
                       if switch_facts["allow_all_vlans"] is False:
-                          # Remove vlans if uplink switch doesn't have them
-                          uplink_vlans = list(set(switch_facts["vlans"]) & set(uplink_switch_facts.get("vlans", [])))
+                          # add list of vlans allowed on uplink interface
+                          uplink_vlans = list(set(switch_facts["vlans"]))
+                          # if uplink switch has a list of vlans, remove the vlans that this switch has but uplink switch doesn't have
+                          if uplink_switch_facts.get("vlans") is not None:
+                              uplink_vlans = list(set(switch_facts["vlans"]) & set(uplink_switch_facts.get("vlans", [])))
+                          # add inband management vlan
                           if switch_facts.get("inband_management_vlan"):
                               uplink_vlans.append(switch_facts["inband_management_vlan"])
                           link_facts["vlans"] = uplink_vlans
@@ -3171,7 +3180,7 @@
                           config["ethernet_interfaces"][iface]["peer_interface"] = link["peer_interface"]
                       if link.get("peer_type"):
                           config["ethernet_interfaces"][iface]["peer_type"] = link["peer_type"]
-                      if link.get("peer_type") and link.get("peer_interface"):
+                      if link.get("peer") and link.get("peer_interface"):
                           config["ethernet_interfaces"][iface]["description"] = "TO_{}_{}".format(link["peer"].upper(), link["peer_interface"])
                       if link.get("boot_vlan") and boot_ztp_eligible is True:
                           config["ethernet_interfaces"][iface]["boot_vlan"] = link["boot_vlan"]
