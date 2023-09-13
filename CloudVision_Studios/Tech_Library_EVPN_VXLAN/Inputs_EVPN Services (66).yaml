@@ -1,0 +1,430 @@
+path: []
+inputs:
+  advancedSettings:
+    bgpPeerGroupSettings:
+      evpnOverlayCorePeerGroup:
+        name: REMOTE-EVPN-PEERS
+  evpnGatewayVteps:
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: true
+          evpnL3:
+            enable: true
+            interDomain: true
+          remoteEvpnGatewayVtepPeers:
+            - peerBgpAsn: 65500
+              peerHostname: BB1
+              peerIpAddress: 10.0.0.221
+            - peerBgpAsn: 65500
+              peerHostname: BB2
+              peerIpAddress: 10.0.0.222
+      tags:
+        query: 'device:SN-A-LEAF7,SN-A-LEAF8 '
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: true
+          evpnL3:
+            enable: true
+            interDomain: true
+          remoteEvpnGatewayVtepPeers:
+            - peerBgpAsn: 65500
+              peerHostname: BB1
+              peerIpAddress: 10.0.0.221
+            - peerBgpAsn: 65500
+              peerHostname: BB2
+              peerIpAddress: 10.0.0.222
+      tags:
+        query: device:SN-B-LEAF7,SN-B-LEAF8
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: true
+          evpnL3:
+            enable: true
+            interDomain: true
+          remoteEvpnGatewayVtepPeers:
+            - peerBgpAsn: 65500
+              peerHostname: BB1
+              peerIpAddress: 10.0.0.221
+            - peerBgpAsn: 65500
+              peerHostname: BB2
+              peerIpAddress: 10.0.0.222
+      tags:
+        query: device:SN-C-LEAF7,SN-C-LEAF8
+  tenants:
+    - macVrfVniBase: 10000
+      name: PROD
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Blue--Vlan10
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 10.10.10.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF4
+              tags:
+                query: Vlan:Blue
+          vlanId: 10
+          vrf: PROD
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Vlan20-Green
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: "10.20.20.1/24\t"
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF5
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF7
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF6
+              tags:
+                query: Vlan:Green
+          vlanId: 20
+          vrf: PROD
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Vlan30-Orange
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 10.30.30.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF4
+              tags:
+                query: Vlan:Orange
+          vlanId: 30
+          vrf: PROD
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Vlan40-Purple
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: "10.40.40.1/24\t"
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF6
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF5
+              tags:
+                query: Vlan:Purple
+          vlanId: 40
+          vrf: PROD
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers: []
+          iBgpDetails:
+            iBgpSubnet: 10.0.1.0/30
+            iBgpSubnetMask: 30
+            iBgpVlanId: 3001
+          l3Interfaces: []
+          name: PROD
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 50001
+    - macVrfVniBase: 10000
+      name: DEV
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Vlan50-Yellow
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: "10.50.50.1/24\t"
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF5
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF4
+              tags:
+                query: Vlan:Yellow
+          vlanId: 50
+          vrf: DEV
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Vlan60-Red
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: "10.60.60.1/24\t"
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF5
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-C-LEAF6
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF4
+              tags:
+                query: Vlan:Red
+          vlanId: 60
+          vrf: DEV
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Vlan70-Brown
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: "10.70.70.1/24\t"
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF5
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-A-LEAF6
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF4
+              tags:
+                query: Vlan:Brown
+          vlanId: 70
+          vrf: DEV
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: Vlan80-Black
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 10.80.80.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF5
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF8
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF6
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:SN-B-LEAF7
+              tags:
+                query: Vlan:Black
+          vlanId: 80
+          vrf: DEV
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers: []
+          iBgpDetails:
+            iBgpSubnet: 10.0.2.0/30
+            iBgpSubnetMask: 30
+            iBgpVlanId: 3002
+          l3Interfaces: []
+          name: DEV
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 50002
