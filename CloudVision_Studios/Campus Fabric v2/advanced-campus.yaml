@@ -3,7 +3,7 @@
   body:
     value:
       key:
-        studio_id: avd-campus-fabric
+        studio_id: studio-avd-campus-fabric
         workspace_id: ''
       display_name: AVD Campus Fabric
       description: Configure the fabric campus fabric and create VLANs at different campus buildings.
@@ -1357,7 +1357,7 @@
               validateIPNetwork(mlag_peer_ipv4_pool, network_name=f"MLAG Peering Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
               mlag_subnet = ipaddress.ip_network(mlag_peer_ipv4_pool)
               assert mlag_subnet.prefixlen <= mlag_peer_subnet_mask, "MLAG Subnet mask length must be longer than the mask of the mlag subnet"
-              # Check formula 
+              # Check formula
               if fabric_variables["fabric_ip_addressing"]["mlag"] != "same_subnet" and mlag_subnet.prefixlen != mlag_peer_subnet_mask:
                   # first_id formula
                   index = int(switch_facts["mlag_primary_id"]) - 1
@@ -1393,42 +1393,41 @@
               if switch_facts["type"] == "spline":
                   return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[0]
 
-              
+
               index = switch_facts["id"] - 1
               if switch_facts.get("mlag_primary_id"):
                   index = switch_facts["mlag_primary_id"] - 1
               if fabric_variables["fabric_ip_addressing"]["vtep"] == "odd_id":
-                  index = _mlag_odd_id_based_offset(switch_facts)                    
+                  index = _mlag_odd_id_based_offset(switch_facts)
 
               index += offset
               return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[index]
 
 
-          def get_inband_management_ip(switch_facts):
+          def get_child_inband_management_ip(switch_facts):
               validateIPNetwork(switch_facts["inband_management_subnet"], network_name=f"Inband Management Pool in {switch_facts['campus']} -> {switch_facts['building']}")
+              ib_mgmt_subnet_length = ipaddress.ip_network(switch_facts["inband_management_subnet"]).prefixlen
               # Use same virtual ip, primary mlag switch ip, and secondary mlag switch ip on all gateways
-              if "l2ls" in switch_facts["campus_type"]:
-                  if switch_facts["type"] == "spline":
-                      if switch_facts.get("mlag_role", "") == "secondary":
-                          # Return inband management subnet network address + 2
-                          list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[2]
-                      else:
-                          # Return inband management subnet network address + 1
-                          return list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[1]
-                  else:
-                      if switch_facts.get("inband_management_ip_range", "").strip() != "":
-                          # get switches in same pod
-                          leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
-                          memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
-                          switches_in_pod = leaf_switches_in_pod + memberleaf_switches_in_pod
-                          ip_ranges = switch_facts["inband_management_ip_range"].split(",")
-                          ip_address_pool = extend_ip_ranges(ip_ranges)
-                          for i, tmp_switch_facts in enumerate(switches_in_pod):
-                              if tmp_switch_facts['serial_number'] == switch_facts['serial_number']:
-                                  index = i
-                                  break
+              if switch_facts.get("inband_management_ip_range"):
+                  ib_hosts_in_pod = []
+                  # get switches in same pod
+                  leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
+                  memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
+                  if "l2ls" in switch_facts["campus_type"]:
+                      ib_hosts_in_pod = leaf_switches_in_pod + memberleaf_switches_in_pod
+                  elif "l3ls" in switch_facts["campus_type"]:
+                      ib_hosts_in_pod = memberleaf_switches_in_pod
+                  ip_ranges = switch_facts["inband_management_ip_range"].split(",")
+                  ip_address_pool = extend_ip_ranges(ip_ranges)
+                  for i, tmp_switch_facts in enumerate(ib_hosts_in_pod):
+                      if tmp_switch_facts['serial_number'] == switch_facts['serial_number']:
+                          index = i
+                          break
 
-                          return ip_address_pool[index]
+
+                  return f"{ip_address_pool[index]}/{ib_mgmt_subnet_length}"
+
+
               return
 
 
@@ -2047,7 +2046,7 @@
                           if switch_facts.get("mlag_primary_id"):
                               index = switch_facts["mlag_primary_id"] - 1
                           if fabric_variables["fabric_bgp_numbering"]["mlag"] == "odd_id":
-                              index = _mlag_odd_id_based_offset(switch_facts)                    
+                              index = _mlag_odd_id_based_offset(switch_facts)
                           switch_facts["bgp_as"] = asns[index]
                       elif len(asns) == 1:
                           switch_facts["bgp_as"] = asns[0]
@@ -2214,57 +2213,36 @@
 
               # Get inband management details
               if building_details["advancedFabricConfigurations"].get("inbandManagementDetails"):
-                  # Set boot vlan for aggregation switches
-                  if switch_facts["type"] == "spline":
-                      switch_facts["boot_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
-                  elif switch_facts["type"] == "leaf" and "l2ls" in switch_facts["campus_type"]:
-                      switch_facts["boot_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
-
-                  # Set inband management details for L2 switches
-                  # inband management vlan
-                  switch_facts["inband_management_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
-
-                  # inband management subnet
-                  switch_facts["inband_management_subnet"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
-
-                  # get pod inband management pool
-                  if idf_details:
-                      switch_facts["inband_management_ip_range"] = idf_details["inbandManagementDetails"]["podInbandManagementIpv4Range"]
-                  else:
-                      switch_facts["inband_management_ip_range"] = None
-
-              # Set inband management details
-              if switch_facts.get("inband_management_subnet") and switch_facts.get("inband_management_vlan"):
-                  # inband management role and parents
-                  if switch_facts["type"] != "spline":
-                      switch_facts["inband_management_role"] = "child"
-
-                  # inbound management parent devices
-                  switch_facts["inband_management_parents"] = switch_facts["uplink_switches_ids"]
-
-                  # inband_management_ip
-                  ib_mgmt_ip = get_inband_management_ip(switch_facts)
-                  if ib_mgmt_ip:
-                      ib_mgmt_subnet = ipaddress.ip_network(switch_facts["inband_management_subnet"]).prefixlen
-                      ib_mgmt_ip = f"{ib_mgmt_ip}/{ib_mgmt_subnet}"
-
-                  switch_facts["inband_management_ip"] = ib_mgmt_ip
-
-                  # inband management gateway
-                  switch_facts["inband_management_gateway"] = str(list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[0])
-
-                  # inband management interface
-                  switch_facts["inband_management_interface"] = "Vlan{}".format(switch_facts["inband_management_vlan"])
-
                   inband_mgmt_vrf = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVrf", "default")
                   switch_facts["inband_management_vrf"] = inband_mgmt_vrf if inband_mgmt_vrf.strip() != "" else "default"
-
                   switch_facts["inband_management_ip_helpers"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("ipHelperAddresses", [])
+                  # Set boot vlan for L2 child switches
+                  if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["leaf", "memberleaf"]) or \
+                          ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in [ "memberleaf"]):
+                      # Set building level variables
+                      switch_facts["inband_management_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
+                      switch_facts["inband_management_subnet"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
 
-                  # set boot vlan for campus ZTP feature
-                  switch_facts["boot_vlan"] = switch_facts.get("inband_management_vlan")
-                  # set whether or not to enable inband ztp
-                  switch_facts["inband_ztp"] = idf_details["inbandManagementDetails"]["enableInbandZtp"]
+                      # Set idf variables
+                      switch_facts["inband_management_ip_range"] = idf_details["inbandManagementDetails"]["idfInbandManagementIpv4Range"]
+                      # set whether or not to enable inband ztp
+                      switch_facts["inband_ztp"] = idf_details["inbandManagementDetails"].get("inbandZtp", True)
+                      # Override building level inband management vlan/subnet
+                      if idf_details["inbandManagementDetails"].get("inbandManagementVlan"):
+                          switch_facts["inband_management_vlan"] = idf_details["inbandManagementDetails"]["inbandManagementVlan"]
+                          switch_facts["inband_management_subnet"] = idf_details["inbandManagementDetails"]["inbandManagementSubnet"]
+
+                      if switch_facts.get("inband_management_vlan") and switch_facts.get("inband_management_subnet"):
+                          switch_facts["inband_management_role"] = "child"
+                          # inbound management parent devices
+                          switch_facts["inband_management_parents"] = switch_facts["uplink_switches_ids"]
+
+                          # inband management gateway
+                          switch_facts["inband_management_gateway"] = str(list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[0])
+
+                          # inband management interface
+                          switch_facts["inband_management_interface"] = "Vlan{}".format(switch_facts["inband_management_vlan"])
+
 
               # IP locking
               ip_locking_details = building_details["advancedFabricConfigurations"].get("ipLocking")
@@ -2400,9 +2378,13 @@
 
                       # Get uplink_switch_ids if not already set (This is time consuming way to get switch_facts)
                       for hostname in uplink_switches:
+                          found_id = False
                           for tmp_switch_sn, tmp_switch_facts in my_switch_facts_neighbors.items():
                               if tmp_switch_facts["hostname"] == hostname:
                                   uplink_switches_ids.append(tmp_switch_sn)
+                                  found_id = True
+                          if found_id is False:
+                              uplink_switches_ids.append(hostname)
 
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
@@ -2501,25 +2483,26 @@
                   for i, uplink_interface in enumerate(switch_facts["uplink_interfaces"]):
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
-                      uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
-                      link_facts["peer_id"] = uplink_switch_facts["serial_number"]
-                      link_facts["peer"] = uplink_switch_facts["hostname"]
-                      link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
-                      link_facts["peer_type"] = uplink_switch_facts["type"]
-                      link_facts["peer_bgp_as"] = uplink_switch_facts.get("bgp_as")
-                      link_facts["type"] = "underlay_p2p"
-                      link_facts["speed"] = uplink_switch_facts.get("uplink_interface_speed")
-                      link_facts["ip_address"] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
-                      link_facts["peer_ip_address"] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
-                      link_facts["eos_cli"] = switch_facts.get("uplink_interface_cli", [])
-                      # multicast/pim
-                      if switch_facts.get("underlay_multicast"):
-                          link_facts["underlay_multicast"] = True
-                      else:
-                          link_facts["underlay_multicast"] = False
-                      # ptp
-                      if switch_facts.get("ptp") is not None and switch_facts["ptp"].get("enabled") is True:
-                          link_facts["ptp"] = {"enable": True}
+                      uplink_switch_facts = my_switch_facts_neighbors.get(uplink_switch_id)
+                      if uplink_switch_facts:
+                          link_facts["peer_id"] = uplink_switch_facts["serial_number"]
+                          link_facts["peer"] = uplink_switch_facts["hostname"]
+                          link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
+                          link_facts["peer_type"] = uplink_switch_facts["type"]
+                          link_facts["peer_bgp_as"] = uplink_switch_facts.get("bgp_as")
+                          link_facts["type"] = "underlay_p2p"
+                          link_facts["speed"] = uplink_switch_facts.get("uplink_interface_speed")
+                          link_facts["ip_address"] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
+                          link_facts["peer_ip_address"] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
+                          link_facts["eos_cli"] = switch_facts.get("uplink_interface_cli", [])
+                          # multicast/pim
+                          if switch_facts.get("underlay_multicast"):
+                              link_facts["underlay_multicast"] = True
+                          else:
+                              link_facts["underlay_multicast"] = False
+                          # ptp
+                          if switch_facts.get("ptp") is not None and switch_facts["ptp"].get("enabled") is True:
+                              link_facts["ptp"] = {"enable": True}
 
                       topology_facts["links"][uplink_interface] = link_facts
 
@@ -2527,16 +2510,20 @@
                   for i, uplink_interface in enumerate(switch_facts["uplink_interfaces"]):
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
-                      uplink_switch_facts = my_switch_facts_neighbors[uplink_switch_id]
+                      uplink_switch_facts = my_switch_facts_neighbors.get(uplink_switch_id, {})
                       # ctx.info(f"{uplink_interface}: {uplink_switch_facts['hostname']}")
-                      link_facts["peer_id"] = uplink_switch_facts["serial_number"]
-                      link_facts["peer"] = uplink_switch_facts["hostname"]
+                      link_facts["peer_id"] = uplink_switch_facts.get("serial_number")
+                      link_facts["peer"] = uplink_switch_facts.get("hostname", switch_facts["uplink_switches"][i])
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
-                      link_facts["peer_type"] = uplink_switch_facts["type"]
+                      link_facts["peer_type"] = uplink_switch_facts.get("type")
                       # Campus Service has a field here for allowed_vlans
                       if switch_facts["allow_all_vlans"] is False:
-                          # Remove vlans if uplink switch doesn't have them
-                          uplink_vlans = list(set(switch_facts["vlans"]) & set(uplink_switch_facts.get("vlans", [])))
+                          # add list of vlans allowed on uplink interface
+                          uplink_vlans = list(set(switch_facts["vlans"]))
+                          # if uplink switch has a list of vlans, remove the vlans that this switch has but uplink switch doesn't have
+                          if uplink_switch_facts.get("vlans") is not None:
+                              uplink_vlans = list(set(switch_facts["vlans"]) & set(uplink_switch_facts.get("vlans", [])))
+                          # add inband management vlan
                           if switch_facts.get("inband_management_vlan"):
                               uplink_vlans.append(switch_facts["inband_management_vlan"])
                           link_facts["vlans"] = uplink_vlans
@@ -2654,10 +2641,10 @@
                                   add_vrfs[vrf_name] = {
                                       "svis": []
                                   }
-                          
+
                               # Add vlan to vrf's add_svis
                               add_vrfs[vrf_name]["svis"].append(int(vlan['vlanId']))
-                          
+
                           elif vlan["l2OrL3"] is False:
                               add_l2vlans.append(int(vlan['vlanId']))
                               leaf['vlans'].append(int(vlan['vlanId']))
@@ -2774,7 +2761,7 @@
                                       for svi in tmp_switch_facts["tenants"][tenant]["vrfs"][vrf].get("svis", {}):
                                           if svi not in spline['tenants'][tenant]["vrfs"][vrf]["svis"]:
                                               spline['tenants'][tenant]["vrfs"][vrf]["svis"].append(svi)
-                              
+
                               for l2vlan in tmp_switch_facts["tenants"][tenant].get("l2vlans", {}):
                                   if l2vlan not in spline['tenants'][tenant]["l2vlans"]:
                                       spline['tenants'][tenant]["l2vlans"].append(l2vlan)
@@ -2989,6 +2976,10 @@
                       ptp_config.pop("profile", None)
                       config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["ptp"] = ptp_config
 
+                  if switch_facts.get("inband_ztp") and switch_facts.get("inband_management_vlan"):
+                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_mode"] = "static"
+                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_timeout"] = 30
+
                   # Set ethernet interfaces
                   for i, iface in enumerate(switch_facts['mlag_interfaces']):
                       mlag_peer = switch_facts['mlag_peer']
@@ -3007,6 +2998,9 @@
                           "speed": switch_facts["mlag_interfaces_speed"],
                           "eos_cli": switch_facts["mlag_interfaces_cli"]
                       }
+                      # inband ztp
+                      if switch_facts.get("inband_ztp") and switch_facts.get("inband_management_vlan"):
+                          config['ethernet_interfaces'][iface]["lldp"] = {"ztp_vlan": switch_facts["inband_management_vlan"]}
 
                   # Set mlag config
                   config['mlag_configuration'] = {
@@ -3080,14 +3074,6 @@
               boot_ztp_eligible = False
               if compare_eos_versions(switch_facts["eos_version"], "4.27.1F") >= 0:
                   boot_ztp_eligible = True
-              # Add boot ztp vlan and inband ztp config to downstream interfaces
-              if switch_facts.get("boot_vlan") is not None and switch_facts["network_services_l2"] is True:
-                  for interface in switch_facts.get("downlink_interfaces", []):
-                      underlay_data["links"][interface] = {
-                          "boot_vlan": switch_facts["boot_vlan"],
-                          # "inband_ztp": switch_facts["inband_ztp"],
-                          "type": "underlay_l2"
-                      }
 
               # First add interface details from devices whose uplink interface neighbors are this switch
               for sn in switch_facts["downlink_switches_ids"]:
@@ -3114,12 +3100,8 @@
                           # eos cli
                           link["eos_cli"] = neighbor_switch_facts.get("uplink_interface_cli", [])
                           # inband ztp
-                          if neighbor_switch_facts.get("inband_ztp"):
-                              link["inband_ztp"] = neighbor_switch_facts["inband_ztp"]
-                              if neighbor_link_info.get("vlans"):
-                                  link["vlans"] = neighbor_link_info["vlans"]
-                              if neighbor_switch_facts.get("boot_vlan") is not None:
-                                  link["boot_vlan"] = neighbor_switch_facts["boot_vlan"]                    
+                          if neighbor_switch_facts.get("inband_ztp") and neighbor_switch_facts.get("inband_management_vlan"):
+                              link["ztp_vlan"] = neighbor_switch_facts["inband_management_vlan"]
 
                           interface = neighbor_link_info["peer_interface"]
                           underlay_data["links"][interface] = link
@@ -3171,11 +3153,11 @@
                           config["ethernet_interfaces"][iface]["peer_interface"] = link["peer_interface"]
                       if link.get("peer_type"):
                           config["ethernet_interfaces"][iface]["peer_type"] = link["peer_type"]
-                      if link.get("peer_type") and link.get("peer_interface"):
+                      if link.get("peer") and link.get("peer_interface"):
                           config["ethernet_interfaces"][iface]["description"] = "TO_{}_{}".format(link["peer"].upper(), link["peer_interface"])
-                      if link.get("boot_vlan") and boot_ztp_eligible is True:
-                          config["ethernet_interfaces"][iface]["boot_vlan"] = link["boot_vlan"]
-                      else:
+                      if link.get("ztp_vlan") and boot_ztp_eligible is True:
+                          config["ethernet_interfaces"][iface]["lldp"] = {"ztp_vlan": link["ztp_vlan"]}
+                      elif boot_ztp_eligible:
                           issue_boot_ztp_warning = True
 
                       if link.get("channel_group_id"):
@@ -3219,8 +3201,9 @@
                           ptp_config.pop("profile", None)
                           port_channel["ptp"] = ptp_config
 
-                      if link.get("inband_ztp"):
+                      if link.get("ztp_vlan"):
                           port_channel["lacp_fallback_mode"] = "static"
+                          port_channel["lacp_fallback_timeout"] = 30
 
                       config["port_channel_interfaces"]["Port-Channel{}".format(link["channel_group_id"])] = port_channel
 
@@ -3436,7 +3419,7 @@
                           "description": "L2LEAF_INBAND_MGMT",
                           "shutdown": False,
                           "mtu": switch_facts["p2p_uplinks_mtu"],
-                          "ip_address": switch_facts["inband_management_ip"],
+                          "ip_address": get_child_inband_management_ip(switch_facts),
                           "gateway": switch_facts["inband_management_gateway"],
                           "type": "inband"
                       }
@@ -3938,9 +3921,9 @@
                                   spanning_tree_priority = vlan["vlanSpanningTreeDetails"].get("vlanStpPriorityMemberLeaf")
 
                               svi["spanning_tree_priority"] = spanning_tree_priority if spanning_tree_priority is not None else switch_facts["spanning_tree_priority"]
-                      
+
                           tenant[tenant_name]["vrfs"][vrf_name]["svis"][vlan_id] = svi
-                  
+
                   elif vlan["l2OrL3"] is False:
                       if switch_facts["network_services_l2"]:
                           l2_vlan = {
@@ -4906,6 +4889,9 @@
           %     if config["port_channel_interfaces"][port_channel_interface].get("lacp_fallback_mode"):
              port-channel lacp fallback ${ config["port_channel_interfaces"][port_channel_interface]["lacp_fallback_mode"] }
           %     endif
+          %     if config["port_channel_interfaces"][port_channel_interface].get("lacp_fallback_timeout"):
+             port-channel lacp fallback ${ config["port_channel_interfaces"][port_channel_interface]["lacp_fallback_timeout"] }
+          %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("mlag"):
              mlag ${ config["port_channel_interfaces"][port_channel_interface]["mlag"] }
           %     endif
@@ -4956,8 +4942,8 @@
           %     if config["ethernet_interfaces"][ethernet_interface].get("speed") and config["ethernet_interfaces"][ethernet_interface]["speed"].strip() not in ["", "auto"]:
              speed ${config["ethernet_interfaces"][ethernet_interface]["speed"]}
           %     endif
-          %     if config["ethernet_interfaces"][ethernet_interface].get("boot_vlan"):
-             lldp tlv transmit ztp vlan ${config["ethernet_interfaces"][ethernet_interface]["boot_vlan"]}
+          %     if config["ethernet_interfaces"][ethernet_interface].get("lldp", {}).get("ztp_vlan"):
+             lldp tlv transmit ztp vlan ${config["ethernet_interfaces"][ethernet_interface]["lldp"]["ztp_vlan"]}
           %     endif
           %     if config["ethernet_interfaces"][ethernet_interface].get("channel_group") is not None:
              channel-group ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["id"] } mode ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["mode"] }
@@ -7488,9 +7474,9 @@
                 members:
                   values:
                     - displayPodFabricInterfaceInputsToggle
-            podInbandManagementIpv4Range:
-              id: podInbandManagementIpv4Range
-              name: podInbandManagementIpv4Range
+            idfInbandManagementIpv4Range:
+              id: idfInbandManagementIpv4Range
+              name: idfInbandManagementIpv4Range
               label: Inband Management IP Allocation Range
               description: Enter the IP range from which to allocate inband management IP addresses from.  This range should fall within the larger Inband Management Subnet Pool defined in the Inband Management Details section of IDF Defaults.  For example, if the Inband Management subnet is 192.168.0.0/24, a valid range of IP addresses would be 192.168.0.4-192.168.12.
               required: false
@@ -7503,11 +7489,38 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            podInbandZtp:
-              id: podInbandZtp
-              name: enableInbandZtp
-              label: Enable Inband ZTP
-              description: Turn on in order to configure LACP fallback on downstream port-channel interfaces which allows for inband ZTP.
+            idfInbandManagementVlan:
+              id: idfInbandManagementVlan
+              name: inbandManagementVlan
+              label: Inband Management VLAN
+              description: Override the Building Level Inband Management VLAN
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            idfInbandManagementSubnet:
+              id: idfInbandManagementSubnet
+              name: inbandManagementSubnet
+              label: Inband Management Subnet
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            idfInbandZtp:
+              id: idfInbandZtp
+              name: inbandZtp
+              label: Inband ZTP
+              description: ''
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
@@ -7522,8 +7535,10 @@
               group_props:
                 members:
                   values:
-                    - podInbandManagementIpv4Range
-                    - podInbandZtp
+                    - idfInbandManagementIpv4Range
+                    - idfInbandManagementVlan
+                    - idfInbandManagementSubnet
+                    - idfInbandZtp
             idfFacts:
               id: idfFacts
               name: idfFacts
@@ -10776,7 +10791,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -10794,7 +10809,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-                      
+
                     ]
                   },
                   {
@@ -10808,7 +10823,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -10836,7 +10851,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -10855,7 +10870,7 @@
                   {
                     "tagLabel":"NodeId",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -11428,7 +11443,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -12075,8 +12090,16 @@
               },
               "l2CampusInbandManagementSubnet":{
                 "key":"l2CampusInbandManagementSubnet",
+                "dependencyType":"AND",
                 "type":"INPUT",
-                "dependencyType":"AND"
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               },
               "buildingOverlayRoutingProtocol":{
                 "key":"buildingOverlayRoutingProtocol",
@@ -12196,7 +12219,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -12490,7 +12513,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -12904,16 +12927,16 @@
               },
               "buildingPtpIdfsApply":{
                 "key":"buildingPtpIdfsApply",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "buildingPtpEnabled":{
                     "value":[
-                      "__ANY__"
+                      true
                     ],
-                    "mode":"HIDE"
+                    "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "buildingPtpIdfsTagger":{
                 "type":"TAGGER",
@@ -12928,7 +12951,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -13362,6 +13385,53 @@
                 "dependencyType":"AND",
                 "dependency":{
                   "buildingUnderlayRoutingProtocol":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "podInbandManagementGroup":{
+                "key":"podInbandManagementGroup",
+                "type":"INPUT",
+                "order":[
+                  "idfInbandManagementVlan",
+                  "idfInbandManagementSubnet",
+                  "idfInbandManagementIpv4Range",
+                  "idfInbandZtp"
+                ]
+              },
+              "idfInbandManagementSubnet":{
+                "key":"idfInbandManagementSubnet",
+                "dependency":{
+                  "idfInbandManagementVlan":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
+              },
+              "idfInbandZtp":{
+                "key":"idfInbandZtp",
+                "type":"INPUT",
+                "dependency":{
+                  "idfInbandManagementVlan":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "l2CampusInbandManagementVlan":{
                     "value":[
                       "__ANY__"
                     ],
