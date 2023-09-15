@@ -1552,39 +1552,32 @@
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
                   return
 
-              # Set node id
-              # Set node id based on NodeId mini-tagger values
-              node_id =  device_tags.get("NodeId", [0])[0]
+              # Set switch node type and node id
+              # First attempt to resolve switch as a member leaf switch then leaf switch
+              if device_matches_resolver_query(building_details["idfs"], device_id):
+                  idf_details = building_details["idfs"].resolve(device=device_id)["idfFacts"]
+                  # attempt to resolve as member leaf
+                  if device_matches_resolver_query(idf_details["memberLeafs"], device_id):
+                      switch_facts["type"] = "memberleaf"
+                      node_id = idf_details["memberLeafs"].resolve(device=device_id)["memberLeafsInfo"]["nodeId"]
+                  # attempt to resolve switch as a leaf switch
+                  elif device_matches_resolver_query(idf_details["leafs"], device_id):
+                      switch_facts["type"] = "leaf"
+                      node_id = idf_details["leafs"].resolve(device=device_id)["leafsInfo"]["nodeId"]
 
-              if node_id == 0:
-                  ctx.warning(f"No NodeId tag set for {switch_facts['hostname']}")
-                  return
+              elif device_matches_resolver_query(building_details["splines"], device_id):
+                  switch_facts["type"] = "spline"
+                  node_id = building_details["splines"].resolve(device=device_id)["splinesInfo"]["nodeId"]
 
-              switch_facts['id'] = int(node_id)
 
-              # Set switch node type
-              switch_facts["type"] = None
-              potential_roles = {"Spline": "spline", "Leaf": "leaf", "Member-Leaf": "memberleaf"}
-              roles_applied_to_switch = device_tags.get("Role", [None])
-              # If no role is applied to switch, switch should not be in fabric build
-              if roles_applied_to_switch is None:
+              if switch_facts.get("type") is None:
                   ctx.warning(f"No Role tag set for {switch_facts['hostname']}")
                   return
 
-              # Check to see that a device isn't assigned multiple roles within the campus fabric
-              roles_intersect = [role for role in roles_applied_to_switch if role in list(potential_roles.keys())]
-              assert len(roles_intersect) <= 1, f"Only 1 campus role should be applied to the switch. " \
-                                                f"Detected the following roles applied to {switch_facts['hostname']}: {roles_intersect}"
-
-              # Set node type
-              if roles_applied_to_switch is not None:
-                  for role in potential_roles.keys():
-                      if role in roles_applied_to_switch:
-                          switch_facts["type"] = potential_roles[role]
-                          break
-
-              if switch_facts["type"] is None:
-                  ctx.warning(f"No Role tag set for {switch_facts['hostname']}")
+              if node_id:
+                  switch_facts['id']  = int(node_id)
+              else:
+                  ctx.warning(f"No Node Id set for {switch_facts['hostname']}")
                   return
 
               # Set campus type
@@ -7539,6 +7532,78 @@
                     - idfInbandManagementVlan
                     - idfInbandManagementSubnet
                     - idfInbandZtp
+            leafsNodeId:
+              id: leafsNodeId
+              name: nodeId
+              label: Node Id
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            leafsResolverGroup:
+              id: leafsResolverGroup
+              name: leafsInfo
+              label: Leafs Info
+              description: Group of members for Leafs
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafsNodeId
+            leafsResolver:
+              id: leafsResolver
+              name: leafs
+              label: Leafs
+              description: Leafs make up the top level of the access layer.  They uplink to the building's Spline switches and provide uplink connectivity for their IDF's member leafs.  An IDF requires at least 1 leaf but no more than 2.  If 2 leafs are supplied, they will form an MLAG pair.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: leafsResolverGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
+            memberLeafsNodeId:
+              id: memberLeafsNodeId
+              name: nodeId
+              label: Node Id
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            memberLeafsResolverGroup:
+              id: memberLeafsResolverGroup
+              name: memberLeafsInfo
+              label: Member Leafs Info
+              description: Group of members for Member Leafs
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - memberLeafsNodeId
+            memberLeafsResolver:
+              id: memberLeafsResolver
+              name: memberLeafs
+              label: Member Leafs
+              description: Member Leafs sit at the bottom of the access layer in an IDF.  They uplink to their IDF's leaf switches.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: memberLeafsResolverGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
             idfFacts:
               id: idfFacts
               name: idfFacts
@@ -7554,6 +7619,8 @@
                     - idfMlagPeerInterfaces
                     - idfHideShowTogglesGroup
                     - podInbandManagementGroup
+                    - leafsResolver
+                    - memberLeafsResolver
             idfs:
               id: idfs
               name: idfs
@@ -7605,7 +7672,9 @@
                 format: null
                 length: null
                 pattern: null
-                dynamic_options: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"vrfName"}'
             l2CampusSviEnabled:
               id: l2CampusSviEnabled
               name: sviEnabled
@@ -9174,6 +9243,42 @@
                   values:
                     - campusType
                     - buildingVxlanOverlayToggle
+            splinesNodeId:
+              id: splinesNodeId
+              name: nodeId
+              label: Node Id
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            splinesResolverGroup:
+              id: splinesResolverGroup
+              name: splinesInfo
+              label: Splines Info
+              description: Group of members for Splines
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splinesNodeId
+            splinesResolver:
+              id: splinesResolver
+              name: splines
+              label: Splines
+              description: Assign devices to be Spline switches in this network.  A spline is a switch that typically sits at the MDF level of the network and provides upstream connectivity for IDFs out to the rest of the network.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: splinesResolverGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: device
+                tag_filter_query: null
             buildingFacts:
               id: buildingFacts
               name: buildingFacts
@@ -9192,6 +9297,7 @@
                     - buildingRoutingProtocols
                     - advancedFabricConfigurations
                     - buildingDesign
+                    - splinesResolver
             buildingResolver:
               id: buildingResolver
               name: building
@@ -10481,7 +10587,7 @@
                 "order":[
                   "buildingDesign",
                   "buildingRoutingProtocols",
-                  "splineTagger",
+                  "splinesResolver",
                   "splineDefaults",
                   "idfs",
                   "idfDefaults",
@@ -10556,8 +10662,8 @@
                 "type":"INPUT",
                 "order":[
                   "podInbandManagementGroup",
-                  "leafTagger",
-                  "memberLeafTagger",
+                  "leafsResolver",
+                  "memberLeafsResolver",
                   "idfHideShowTogglesGroup",
                   "leafUplinkInterfaces",
                   "idfMlagPeerInterfaces",
@@ -10777,102 +10883,12 @@
                   "lacpMode"
                 ]
               },
-              "splineTagger":{
-                "type":"TAGGER",
-                "parentKey":"buildingFacts",
-                "key":"splineTagger",
-                "name":"Splines",
-                "assignmentType":"SINGLE",
-                "prepopulate":true,
-                "tagFilterQuery":"Role:Spline",
-                "tagType":"DEVICE",
-                "description":"Splines are often the switch at the MDF layer which sit between the core and IDF layers.  Each spline at this building should have a unique NodeId value starting from 1.",
-                "columns":[
-                  {
-                    "tagLabel":"NodeId",
-                    "suggestedValues":[
-
-                    ]
-                  }
-                ]
-              },
-              "roleTagger":{
-                "type":"TAGGER",
-                "parentKey":"campusDetails",
-                "key":"roleTagger",
-                "name":"Role",
-                "assignmentType":"MULTIPLE",
-                "prepopulate":true,
-                "tagType":"DEVICE",
-                "description":"Assign a role to each switch in this campus.",
-                "columns":[
-                  {
-                    "tagLabel":"Building",
-                    "suggestedValues":[
-
-                    ]
-                  },
-                  {
-                    "tagLabel":"Role",
-                    "suggestedValues":[
-                      "Spline",
-                      "Leaf",
-                      "Member-Leaf"
-                    ]
-                  },
-                  {
-                    "tagLabel":"NodeId",
-                    "suggestedValues":[
-
-                    ]
-                  }
-                ]
-              },
               "campusDetails":{
                 "key":"campusDetails",
                 "type":"INPUT",
                 "order":[
                   "buildingResolver",
-                  "campusServices",
-                  "roleTagger"
-                ]
-              },
-              "leafTagger":{
-                "type":"TAGGER",
-                "parentKey":"idfFacts",
-                "key":"leafTagger",
-                "name":"Leafs",
-                "assignmentType":"SINGLE",
-                "prepopulate":true,
-                "tagFilterQuery":"Role:Leaf ",
-                "tagType":"DEVICE",
-                "description":"Assign Leaf Node ID",
-                "columns":[
-                  {
-                    "tagLabel":"NodeId",
-                    "suggestedValues":[
-
-                    ]
-                  }
-                ]
-              },
-              "memberLeafTagger":{
-                "type":"TAGGER",
-                "parentKey":"idfFacts",
-                "key":"memberLeafTagger",
-                "name":"Member Leafs",
-                "assignmentType":"SINGLE",
-                "prepopulate":true,
-                "tagFilterQuery":"Role:Member-Leaf ",
-                "tagType":"DEVICE",
-                "description":"Assign Leaf Node ID",
-                "columns":[
-                  {
-                    "tagLabel":"NodeId",
-                    "suggestedValues":[
-
-                    ]
-                  }
+                  "campusServices"
                 ]
               },
               "idfResolver":{
@@ -13438,5 +13454,21 @@
                     "mode":"SHOW"
                   }
                 }
+              },
+              "splinesResolver":{
+                "key":"splinesResolver",
+                "type":"INPUT",
+                "isPageLayout":false,
+                "showDefaultRow":false
+              },
+              "leafsResolver":{
+                "key":"leafsResolver",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "memberLeafsResolver":{
+                "key":"memberLeafsResolver",
+                "type":"INPUT",
+                "showDefaultRow":false
               }
             }
