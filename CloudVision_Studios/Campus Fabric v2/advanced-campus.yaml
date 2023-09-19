@@ -11,12 +11,14 @@
         type: TEMPLATE_TYPE_MAKO
         body: |-
           <%
-          import os
           import ipaddress
+          import json
+          import os
           import re
           import time
           from collections import Counter, OrderedDict
           from copy import deepcopy
+          from itertools import count, groupby
           import tagsearch_python.tagsearch_pb2_grpc as tsgr
           import tagsearch_python.tagsearch_pb2 as tspb
           from arista.tag.v2.services import TagConfigServiceStub, \
@@ -440,6 +442,23 @@
           ]
 
 
+          # Turning on DEBUG_LEVEL will impact performance
+          DEBUG_LEVEL = 3
+          if DEBUG_LEVEL:
+              ctx.benchmarkingOn()
+
+
+          def dump_my_switch_facts(stage):
+              if DEBUG_LEVEL > 2:
+                  ctx.info(f"{my_device.id} FACTS Stage {stage}: \n{json.dumps(my_switch_facts_neighbors[my_device.id], sort_keys=True, indent=4)}")
+
+
+          def dump_my_config(stage):
+              if DEBUG_LEVEL > 2:
+                  ctx.info(f"{my_device.id} CONFIG Stage {stage}: \n{json.dumps(my_config, sort_keys=True, indent=4)}")
+
+
+          @ctx.benchmark
           def compare_eos_versions(version1, version2):
               version1 = re.sub(r'[a-zA-Z]', "", version1)
               version2 = re.sub(r'[a-zA-Z]', "", version2)
@@ -455,6 +474,7 @@
               return 0
 
 
+          @ctx.benchmark
           def validIPAddress(ip):
               '''
               Returns True for a valid ipv4 address
@@ -467,6 +487,7 @@
                   return None
 
 
+          @ctx.benchmark
           def validateIPNetwork(ip_network, network_name=None):
               '''
               Returns True for a valid ipv4 network
@@ -483,6 +504,7 @@
                   assert False, error_message
 
 
+          @ctx.benchmark
           def extend_ip_ranges(ip_ranges):
               '''
               Args:
@@ -502,6 +524,7 @@
               return output
 
 
+          @ctx.benchmark
           def convert_dicts(dictionary, primary_key="name", secondary_key=None):
               """
               The `arista.avd.convert_dicts` filter will convert a dictionary containing nested dictionaries to a list of
@@ -582,7 +605,7 @@
                   return output
 
 
-          from itertools import count, groupby
+          @ctx.benchmark
           def list_compress(list_to_compress):
               if not isinstance(list_to_compress, list):
                   raise TypeError(f"value must be of type list, got {type(list_to_compress)}")
@@ -590,6 +613,7 @@
               return ",".join("-".join(map(str, (g[0], g[-1])[: len(g)])) for g in G)
 
 
+          @ctx.benchmark
           def string_to_list(string_to_convert):
               numbers = []
               segments = [segment.strip() for segment in string_to_convert.split(",") if segment.strip() != ""]
@@ -604,14 +628,17 @@
               return numbers
 
 
+          @ctx.benchmark
           def convert(text):
               return int(text) if text.isdigit() else text.lower()
 
 
+          @ctx.benchmark
           def natural_sort(iterable, sort_key=None):
               if iterable is None:
                   return []
 
+              @ctx.benchmark
               def alphanum_key(key):
                   if sort_key is not None and isinstance(key, dict):
                       return [convert(c) for c in re.split("([0-9]+)", str(key.get(sort_key, key)))]
@@ -621,6 +648,7 @@
               return sorted(iterable, key=alphanum_key)
 
 
+          @ctx.benchmark
           def range_expand(range_to_expand):
               if not (isinstance(range_to_expand, list) or isinstance(range_to_expand, str)):
                   raise TypeError(f"value must be of type list or str, got {type(range_to_expand)}")
@@ -700,6 +728,7 @@
                               else:
                                   first_subinterface = last_subinterface
 
+                              @ctx.benchmark
                               def expand_subinterfaces(interface_string):
                                   result = []
                                   if last_subinterface:
@@ -709,6 +738,7 @@
                                       result.append(interface_string)
                                   return result
 
+                              @ctx.benchmark
                               def expand_interfaces(interface_string):
                                   result = []
                                   for interface in range(first_interface, last_interface + 1):
@@ -716,6 +746,7 @@
                                           result.append(res)
                                   return result
 
+                              @ctx.benchmark
                               def expand_parent_interfaces(interface_string):
                                   result = []
                                   if last_parent_interface:
@@ -727,6 +758,7 @@
                                           result.append(res)
                                   return result
 
+                              @ctx.benchmark
                               def expand_module(interface_string):
                                   result = []
                                   if last_module:
@@ -746,6 +778,7 @@
               return result
 
 
+          @ctx.benchmark
           def default(*values):
               """
               Accepts any number of arguments. Return the first value which is not None
@@ -766,6 +799,7 @@
               return None
 
 
+          @ctx.benchmark
           def get(dictionary, key, default=None, required=False, org_key=None, separator="."):
               """
               Get a value from a dictionary or nested dictionaries.
@@ -811,6 +845,7 @@
                       return value
 
 
+          @ctx.benchmark
           def get_all(data, path: str, required: bool = False, org_path=None):
               """
               Get all values from data matching a data path.
@@ -865,6 +900,7 @@
               return []
 
 
+          @ctx.benchmark
           def get_item(list_of_dicts: list, key, value, default=None, required=False, case_sensitive=False, var_name=None):
               """
               Get one dictionary from a list of dictionaries by matching the given key and value
@@ -918,6 +954,7 @@
               return default
 
 
+          @ctx.benchmark
           def strip_null_from_data(data, strip_values_tuple=(None,)):
               """
               strip_null_from_data Generic function to strip null entries regardless type of variable.
@@ -937,6 +974,7 @@
               return data
 
 
+          @ctx.benchmark
           def strip_empties_from_list(
               data,
               strip_values_tuple=(
@@ -970,6 +1008,7 @@
               return new_data
 
 
+          @ctx.benchmark
           def strip_empties_from_dict(
               data,
               strip_values_tuple=(
@@ -1003,6 +1042,7 @@
               return new_data
 
 
+          @ctx.benchmark
           def __get_devices_matching_tag_query(query):
               # Now try to search with this query to get the matching devices
               tsclient = ctx.getApiClient(tsgr.TagSearchStub)
@@ -1011,10 +1051,12 @@
               return [match.device.device_id for match in search_res.matches] or query
 
 
+          @ctx.benchmark
           def get_device_tags(device_id, all_tags):
               return all_tags.get(device_id, {})
 
 
+          @ctx.benchmark
           def get_all_tags(workspaceID, tagLabelList):
               result = {}
               defaultValues = {}
@@ -1083,6 +1125,7 @@
               return result
 
 
+          @ctx.benchmark
           def get_tag_values_applied_to_device(tag_assignment_key):
               '''
               Returns all tags applied to a device that match the label of the input tag_assignment_key
@@ -1100,6 +1143,7 @@
               return matching_tags
 
 
+          @ctx.benchmark
           def get_tag_for_device_by_label(device_id, workspace_id, tag_label):
               result = {}
               defaultValues = []
@@ -1130,6 +1174,7 @@
               return result
 
 
+          @ctx.benchmark
           def create_tag(tag_key):
               '''
               tag_key is a TagKey
@@ -1143,6 +1188,7 @@
               client.Set(tcsr)
 
 
+          @ctx.benchmark
           def apply_tag(tag_assignment_key):
               '''
               tag_assignment_key is a TagAssignmentKey
@@ -1159,6 +1205,7 @@
               client.Set(tacsr)
 
 
+          @ctx.benchmark
           def remove_tag(tag_assignment_key):
               '''
               tag_assignment_key is a TagAssignmentKey
@@ -1175,6 +1222,7 @@
               client.Set(tacsr)
 
 
+          @ctx.benchmark
           def remove_all_tag_values(tag_label, device_id, workspace_id, value=None):
               '''
               Removes all tags with the input tag label matchiing the input device_id
@@ -1204,6 +1252,7 @@
                               remove_tag(tak_to_remove)
 
 
+          @ctx.benchmark
           def update_device_tag(tag_assignment_key, multiple_values=False):
               """
               tag_assignment_key is a TagAssignmentKey that you want to update the device with
@@ -1239,6 +1288,7 @@
               apply_tag(tag_assignment_key)
 
 
+          @ctx.benchmark
           def update_tags(switch_facts):
               device_id = switch_facts['serial_number']
               # NodeId tag
@@ -1322,6 +1372,7 @@
               return
 
 
+          @ctx.benchmark
           def device_matches_resolver_query(resolver, device_id):
               _, ctx_resolver = resolver.resolveWithContext(device_id)
               if ctx_resolver and ctx_resolver.query_str.strip() != "":
@@ -1330,6 +1381,7 @@
                   return False
 
 
+          @ctx.benchmark
           def get_mlag_peer_by_tags(switch_facts):
               potential_roles = {"spline": "Spline", "leaf": "Leaf", "memberleaf": "Member-Leaf"}
               mlag_peer_switch_facts = None
@@ -1353,6 +1405,7 @@
               return mlag_peer_switch_facts
 
 
+          @ctx.benchmark
           def get_mlag_ip(switch_facts, mlag_peer_ipv4_pool, mlag_peer_subnet_mask, mlag_role):
               validateIPNetwork(mlag_peer_ipv4_pool, network_name=f"MLAG Peering Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
               mlag_subnet = ipaddress.ip_network(mlag_peer_ipv4_pool)
@@ -1375,6 +1428,7 @@
               return
 
 
+          @ctx.benchmark
           def get_router_id(switch_facts):
               validateIPNetwork(switch_facts["loopback_ipv4_pool"], network_name=f"Router ID Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
               router_id_subnet = switch_facts["loopback_ipv4_pool"]
@@ -1383,6 +1437,7 @@
               return list(ipaddress.ip_network(router_id_subnet).hosts())[(switch_id - 1) + offset]
 
 
+          @ctx.benchmark
           def get_vtep_loopback(switch_facts, offset=None):
 
               validateIPNetwork(switch_facts["vtep_loopback_ipv4_pool"], network_name=f"VTEP Source Address Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
@@ -1404,6 +1459,7 @@
               return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[index]
 
 
+          @ctx.benchmark
           def get_child_inband_management_ip(switch_facts):
               validateIPNetwork(switch_facts["inband_management_subnet"], network_name=f"Inband Management Pool in {switch_facts['campus']} -> {switch_facts['building']}")
               ib_mgmt_subnet_length = ipaddress.ip_network(switch_facts["inband_management_subnet"]).prefixlen
@@ -1431,6 +1487,7 @@
               return
 
 
+          @ctx.benchmark
           def get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
               if switch_facts.get('type') not in ["leaf", "spline"] or \
                       switch_facts['uplink_ipv4_pool'] is None or \
@@ -1472,6 +1529,7 @@
               return list(child_subnet.hosts())[0]
 
 
+          @ctx.benchmark
           def get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
               if switch_facts.get('type') not in ["leaf", "spline"] or \
                       switch_facts['uplink_ipv4_pool'] is None or \
@@ -1513,6 +1571,7 @@
               return list(child_subnet.hosts())[1]
 
 
+          @ctx.benchmark
           def set_switch_facts_properties(device_id, campus_resolver):
               # Initialize switch_facts
               switch_facts = {}
@@ -1704,6 +1763,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def set_switch_facts_properties_for_query(query, campus_resolver):
               # Dictionary of switches that will be returned
               all_switch_facts = {}
@@ -1723,6 +1783,7 @@
               return all_switch_facts
 
 
+          @ctx.benchmark
           def set_switch_facts(switch_facts, campus_resolver):
               # device_id from switch_facts
               device_id = switch_facts["serial_number"]
@@ -2268,6 +2329,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def get_device_interfaces(switch_facts):
               device_id = switch_facts['serial_number']
               interfaces = []
@@ -2285,6 +2347,7 @@
               return natural_sort(interfaces, sort_key='interface_name')
 
 
+          @ctx.benchmark
           def set_mlag_interfaces_from_topology(switch_facts):
               device_id = switch_facts['serial_number']
 
@@ -2308,6 +2371,7 @@
               return mlag_interfaces, mlag_peer_interfaces
 
 
+          @ctx.benchmark
           def get_uplink_info_from_inputs(switch_facts, campus_resolver):
               '''
               Returns switch_facts' uplink_interfaces, uplink_switches, and uplink switches' downlink_interfaces
@@ -2382,6 +2446,7 @@
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
+          @ctx.benchmark
           def get_uplink_info_from_topology(switch_facts):
               # Initialize return variables
               uplink_interfaces = []
@@ -2432,6 +2497,7 @@
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
+          @ctx.benchmark
           def set_switch_uplink_info(switch_facts, campus_resolver):
               # Get interface info from topology studio
               switch_facts["uplink_interfaces"], switch_facts["uplink_switches"], switch_facts["uplink_switches_ids"], switch_facts["uplink_switch_interfaces"]  = get_uplink_info_from_topology(switch_facts)
@@ -2448,6 +2514,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def set_switch_downlink_info(switch_facts):
               '''
               Using switch_facts uplink info which is previously set by set_switch_uplink_info(switch_facts. campus_resolver), set the
@@ -2468,6 +2535,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def set_topology_facts(switch_facts):
               topology_facts = {
                   "links": {}
@@ -2548,6 +2616,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def get_network_services_leaf_switch(switch_facts, campus_resolver):
               # device_id from switch_facts
               device_id = switch_facts["serial_number"]
@@ -2657,6 +2726,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def get_network_services_spline_switch(switch_facts, campus_resolver):
               '''
               Get VLANs applied to spline switch via downstream neighbors
@@ -2771,6 +2841,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def set_base_config(config, switch_facts):
               # IP locking
               # Check to see whether it should be configured or not based on role
@@ -2893,6 +2964,7 @@
               return config
 
 
+          @ctx.benchmark
           def set_mlag_config(config, switch_facts):
               if switch_facts.get('mlag'):
                   # Set spanning tree relevant config
@@ -3058,6 +3130,7 @@
               return config
 
 
+          @ctx.benchmark
           def set_underlay_config(config, switch_facts):
               # logic
               underlay_data = {}
@@ -3302,6 +3375,7 @@
               return config
 
 
+          @ctx.benchmark
           def set_overlay_config(config, switch_facts):
               if not switch_facts.get("underlay_router"):
                   return config
@@ -3383,6 +3457,7 @@
               return config
 
 
+          @ctx.benchmark
           def set_vxlan_config(config, switch_facts):
               if switch_facts.get("vtep") == True:
                   config["vxlan_interface"] = {
@@ -3399,6 +3474,7 @@
               return config
 
 
+          @ctx.benchmark
           def set_inband_management_config(config, switch_facts):
               if switch_facts.get("inband_management_role", "") == "child":
                   # child-vlans
@@ -3507,6 +3583,7 @@
               return config
 
 
+          @ctx.benchmark
           def get_tenants(switch_facts, campus_resolver):
               '''
               Convert studio services data model to avd network services data model
@@ -3928,6 +4005,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def set_network_services_config(config, switch_facts):
               # logic (Probably will be easier to break away from AVD logic)
               if switch_facts["network_services_l2"] is True or switch_facts["network_services_l3"] is True:
@@ -4447,6 +4525,7 @@
               return config
 
 
+          @ctx.benchmark
           def _mlag_odd_id_based_offset(switch_facts) -> int:
               """
               Return the subnet offset for an MLAG pair based on odd id
@@ -4465,6 +4544,7 @@
               return int((odd_id - 1) / 2)
 
 
+          @ctx.benchmark
           def set_custom_fabric_variables(custom_settings):
               ctx.info(f"{custom_settings}")
               # Set MLAG IP Address
@@ -4478,7 +4558,8 @@
               ctx.info(f"{fabric_variables}")
 
 
-
+          # Template mainline start
+          #
           # Check campus input is not None
           if not campus:
               return
@@ -4496,6 +4577,7 @@
 
           # Initialize variables
           my_switch_facts = {}
+          my_switch_facts_neighbors = {}
           my_config = {}
 
           # Pre-populate dictionaries used for getting switch facts
@@ -4508,6 +4590,8 @@
 
           # Set my_switch_facts' switch properties
           my_switch_facts = set_switch_facts_properties(my_device.id, campus)
+          my_switch_facts_neighbors[my_switch_facts["serial_number"]] = my_switch_facts
+          dump_my_switch_facts(1)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set my_switch_facts properties: {time.time() - task_time} seconds")
@@ -4517,8 +4601,6 @@
               ctx.info(f"{my_device.id}: my_switch_facts is {my_switch_facts}")
               return
 
-          ctx.info(f"{my_switch_facts.get('hostname')} Device Properties: {my_switch_facts}")
-
           # Set all switches in same building as my_switch's switch_facts properties
           if my_switch_facts["type"] == "spline":
               query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR Role:Leaf)".format(my_switch_facts['campus'], my_switch_facts['building'])
@@ -4526,9 +4608,11 @@
               query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR IDF:\"{}\")".format(my_switch_facts['campus'], my_switch_facts['building'], my_switch_facts['group'])
 
           my_switch_facts_neighbors = set_switch_facts_properties_for_query(query, campus)
+          dump_my_switch_facts(2)
 
           # Set custom fabric settings
           set_custom_fabric_variables(generalSettings)
+          dump_my_switch_facts(3)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts properties for all switches in building: {time.time() - task_time} seconds")
@@ -4537,6 +4621,7 @@
           # Set uplink info for all switch_facts in my_switch_facts_neighbors
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_uplink_info(switch_facts, campus)
+          dump_my_switch_facts(4)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts uplink info for all switches in building: {time.time() - task_time} seconds")
@@ -4545,6 +4630,7 @@
           # Set downlink info for all of my_switch_facts' neighbors
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_downlink_info(switch_facts)
+          dump_my_switch_facts(5)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set downlink info for all of my_switch_facts' neighbors: {time.time() - task_time} seconds")
@@ -4553,6 +4639,7 @@
           # Set switch_facts for all of my_switch_facts neighbors and my_switch_facts
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_facts(switch_facts, campus)
+          dump_my_switch_facts(6)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts for all of my_switch_facts neighbors and my_switch_facts: {time.time() - task_time} seconds")
@@ -4562,6 +4649,7 @@
           for switch_facts in my_switch_facts_neighbors.values():
               if switch_facts["type"] in ["leaf", "memberleaf"]:
                   switch_facts = get_network_services_leaf_switch(switch_facts, campus)
+          dump_my_switch_facts(7)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to get network services applied to each idf switch (part 1a): {time.time() - task_time} seconds")
@@ -4574,6 +4662,7 @@
           for switch_facts in my_switch_facts_neighbors.values():
               if switch_facts["type"] == "spline":
                   switch_facts = get_network_services_spline_switch(switch_facts, campus)
+          dump_my_switch_facts(8)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to network services applied to each spline switch (part 1b): {time.time() - task_time} seconds")
@@ -4582,6 +4671,7 @@
           # Set topology facts ( in order to set transit p2p and port-channel links )
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_topology_facts(switch_facts)
+          dump_my_switch_facts(9)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set topology_facts: {time.time() - task_time} seconds")
@@ -4592,6 +4682,7 @@
 
           # Get network services in AVD format (part 2)
           my_switch_facts = get_tenants(my_switch_facts, campus)
+          dump_my_switch_facts(10)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to get network services in AVD format (part 2) for my_switch_facts: {time.time() - task_time} seconds")
@@ -4632,12 +4723,19 @@
           }
 
           my_config = set_base_config(my_config, my_switch_facts)
+          dump_my_config(1)
           my_config = set_mlag_config(my_config, my_switch_facts)
+          dump_my_config(2)
           my_config = set_underlay_config(my_config, my_switch_facts)
+          dump_my_config(3)
           my_config = set_overlay_config(my_config, my_switch_facts)
+          dump_my_config(4)
           my_config = set_vxlan_config(my_config, my_switch_facts)
+          dump_my_config(5)
           my_config = set_inband_management_config(my_config, my_switch_facts)
+          dump_my_config(6)
           my_config = set_network_services_config(my_config, my_switch_facts)
+          dump_my_config(7)
 
           config = my_config
 
@@ -4652,8 +4750,8 @@
               ctx.info(f"Time taken to update tags: {time.time() - task_time} seconds")
               task_time = time.time()
 
-          ctx.info(f"{my_switch_facts}")
-          # ctx.info(f"{config}")
+          dump_my_switch_facts(11)
+          ctx.benchmarkDump()
           %>
           % if config.get("address_locking"):
           address locking
