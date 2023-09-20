@@ -1,0 +1,247 @@
+path: []
+inputs:
+  aclNames:
+    - aclLines:
+        - description: null
+          destination: any
+          log: false
+          nextHopGroup: null
+          permitDenyRemark: permit
+          protocol: ip
+          seqNumber: '10'
+          source: any
+          tracked: false
+      aclSettings: {}
+      devices:
+        - inputs:
+            interfaces:
+              configGlobalCommands: false
+              controlPlaneAcl: true
+          tags:
+            query: device:eos8
+      name: ACL
+  profileOfProfiles:
+    - profileOfProfilesName: TRUNK
+      vlanProfile: TRUNK
+    - profileOfProfilesName: ROUTED
+      vlanProfile: ROUTED
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - accessVlan: '15'
+                      channelGroup: null
+                      description: 'EOS9 to EOS4 vlan15 '
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 15.15.15.133/24
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: ROUTED
+                      vlanName: null
+                      vrf: vlan15
+                    - accessVlan: '15'
+                      channelGroup: null
+                      description: EOS 20 to EOS3 vlan15
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 15.15.15.134/24
+                      memberNumberCollection:
+                        - '3'
+                      profileOfProfileName: ROUTED
+                      vlanName: null
+                      vrf: vlan15
+                    - accessVlan: '16'
+                      channelGroup: null
+                      description: EOS9 to EOS4 vlan16
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 16.16.16.133/24
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: ROUTED
+                      vlanName: null
+                      vrf: vlan16
+                    - accessVlan: '16'
+                      channelGroup: null
+                      description: EOS20 to EOS4 vlan16
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: 16.16.16.134/24
+                      memberNumberCollection:
+                        - '3'
+                      profileOfProfileName: ROUTED
+                      vlanName: null
+                      vrf: vlan16
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:eos12
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:eos9
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:eos20
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: 15.15.15.128
+                      description: vlan15_default_route
+                      enabled: true
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '15'
+                      vrf: vlan15
+                    - defaultGatewayNextHop: 16.16.16.128
+                      description: vlan16_default_route
+                      enabled: true
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '16'
+                      vrf: vlan16
+                    - defaultGatewayNextHop: null
+                      description: vlan16_eos12
+                      enabled: true
+                      ipPrefix: 16.16.16.4/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '16'
+                      vrf: null
+                    - defaultGatewayNextHop: 15.15.15.1
+                      description: vlan15_eos12
+                      enabled: true
+                      ipPrefix: 15.15.15.4/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '15'
+                      vrf: null
+                  vlans:
+                    - memberNumberCollection:
+                        - '1'
+                        - '3'
+                      privateVlanType: null
+                      state: active
+                      trunkGroup: null
+                      vlanId: '15'
+                      vlanName: '15'
+                    - memberNumberCollection:
+                        - '1'
+                        - '3'
+                      privateVlanType: null
+                      state: active
+                      trunkGroup: null
+                      vlanId: '16'
+                      vlanName: '16'
+              tags:
+                query: Switch-Group:Campus-End-Devices
+      tags:
+        query: ' device:eos9,eos20,eos12 '
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: null
+                      description: to eos20
+                      enabled: true
+                      interfaceName: '6'
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:eos3
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:Switch3_Edge_Ports
+      tags:
+        query: Campus-Pod:3
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges:
+                    - channelGroup: null
+                      description: to eos9
+                      enabled: true
+                      interfaceName: e1
+                      ipPrefix: null
+                      memberNumberCollection:
+                        - '1'
+                      profileOfProfileName: TRUNK
+                      vlanName: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:eos4
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:Switch4_Edge_Ports
+      tags:
+        query: Campus-Pod:4
+  vlanProfiles:
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      vlanName: null
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED $1
+      profileIpAddressVirtual: null
+      vlanName: null
