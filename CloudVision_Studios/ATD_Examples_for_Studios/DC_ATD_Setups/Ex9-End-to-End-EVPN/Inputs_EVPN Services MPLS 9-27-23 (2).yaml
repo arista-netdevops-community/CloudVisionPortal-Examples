@@ -1,0 +1,176 @@
+path: []
+inputs:
+  encapType: VXLAN
+  evpnGatewayVteps:
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: true
+          evpnL3: {}
+          remoteEvpnGatewayVtepPeers: []
+      tags:
+        query: device:s1-spine1
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: true
+          evpnL3: {}
+          remoteEvpnGatewayVtepPeers: []
+      tags:
+        query: device:s1-spine2
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: true
+          evpnL3: {}
+          remoteEvpnGatewayVtepPeers: []
+      tags:
+        query: device:s2-spine1
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: true
+          evpnL3: {}
+          remoteEvpnGatewayVtepPeers: []
+      tags:
+        query: device:s2-spine2
+  tenants:
+    - macVrfVniBase: 10000
+      name: red
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.1.6.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf2
+              tags:
+                query: device:s1-leaf2 OR device:s1-leaf1
+          vlanId: 6
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.1.8.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf4
+              tags:
+                query: device:s1-leaf3 | device:s1-leaf4
+          vlanId: 8
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.1.16.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf2
+              tags:
+                query: device:s2-leaf1 | device:s2-leaf2
+          vlanId: 16
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.1.18.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf4
+              tags:
+                query: device:s2-leaf3 | device:s2-leaf4
+          vlanId: 18
+          vrf: red
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: red
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 85
+  vlanBundleMacVrfAttributeFormats:
+    macVrfRouteDistinguisherFormat: Router-ID:Last-VNI
+    macVrfRouteTargetFormat: First-VNI:Last-VNI
