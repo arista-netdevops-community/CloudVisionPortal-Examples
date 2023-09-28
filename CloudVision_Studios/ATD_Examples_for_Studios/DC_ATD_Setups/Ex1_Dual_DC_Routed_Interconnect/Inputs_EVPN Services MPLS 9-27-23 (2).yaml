@@ -1,0 +1,307 @@
+path: []
+inputs:
+  encapType: VXLAN
+  tenants:
+    - macVrfVniBase: 10000
+      name: dç1-wan
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.1.2.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf2
+              tags:
+                query: device:s1-leaf1,s1-leaf2
+          vlanId: 2
+          vrf: wan
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.1.4.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf4
+              tags:
+                query: device:s1-leaf3,s1-leaf4
+          vlanId: 4
+          vrf: wan
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: device:s1-brdr1
+          vlanId: 5
+          vrf: wan
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: wan
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr2
+              tags:
+                query: device:s1-brdr2
+          vlanId: 6
+          vrf: wan
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: dc1-wan->border1
+              defaultOriginate: {}
+              description: dc1-wan->border1
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-brdr1
+                  tags:
+                    query: device:s1-brdr1
+              maxRoutes: {}
+              neighborIpAddress: 5.1.1.0
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: dc1-wan->border2
+              defaultOriginate: {}
+              description: dc1-wan->border2
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s1-brdr2
+                  tags:
+                    query: device:s1-brdr2
+              maxRoutes: {}
+              neighborIpAddress: 6.1.1.0
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: wan
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 5001
+    - macVrfVniBase: 10000
+      name: dc2-wan
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v12
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.2.12.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf2
+              tags:
+                query: device:s2-leaf1,s2-leaf2
+          vlanId: 12
+          vrf: wan
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v14
+          overrideVariables: {}
+          sviIpAddresses:
+            sviVirtualIpAddress: 1.2.14.1/24
+            virtualAddressConfigType: true
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf4
+              tags:
+                query: device:s2-leaf3,s2-leaf4
+          vlanId: 14
+          vrf: wan
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: 'device:s2-brdr1 '
+          vlanId: 15
+          vrf: wan
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: null
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr2
+              tags:
+                query: device:s2-brdr2
+          vlanId: 16
+          vrf: wan
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices: []
+          externalBgpPeers:
+            - bgpPeeringName: dc2-wan-border1
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-brdr1
+                  tags:
+                    query: device:s2-brdr1
+              maxRoutes: {}
+              neighborIpAddress: 15.1.1.0
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+            - bgpPeeringName: dc2-wan-border2
+              defaultOriginate: {}
+              description: null
+              devices:
+                - inputs:
+                    devices:
+                      hostname:
+                        - inputs:
+                            apply: true
+                          tags:
+                            query: device:s2-brdr2
+                  tags:
+                    query: device:s2-brdr2
+              maxRoutes: {}
+              neighborIpAddress: 16.1.1.0
+              nextHop: {}
+              password: null
+              remoteAs: 941
+              routeMap: {}
+              updateSource: null
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: wan
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 5001
