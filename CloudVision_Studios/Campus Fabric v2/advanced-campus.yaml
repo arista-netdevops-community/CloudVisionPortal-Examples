@@ -11,14 +11,12 @@
         type: TEMPLATE_TYPE_MAKO
         body: |-
           <%
-          import ipaddress
-          import json
           import os
+          import ipaddress
           import re
           import time
           from collections import Counter, OrderedDict
           from copy import deepcopy
-          from itertools import count, groupby
           import tagsearch_python.tagsearch_pb2_grpc as tsgr
           import tagsearch_python.tagsearch_pb2 as tspb
           from arista.tag.v2.services import TagConfigServiceStub, \
@@ -442,23 +440,6 @@
           ]
 
 
-          # Turning on DEBUG_LEVEL will impact performance
-          DEBUG_LEVEL = 3
-          if DEBUG_LEVEL:
-              ctx.benchmarkingOn()
-
-
-          def dump_my_switch_facts(stage):
-              if DEBUG_LEVEL > 2:
-                  ctx.info(f"{my_device.id} FACTS Stage {stage}: \n{json.dumps(my_switch_facts_neighbors[my_device.id], sort_keys=True, indent=4)}")
-
-
-          def dump_my_config(stage):
-              if DEBUG_LEVEL > 2:
-                  ctx.info(f"{my_device.id} CONFIG Stage {stage}: \n{json.dumps(my_config, sort_keys=True, indent=4)}")
-
-
-          @ctx.benchmark
           def compare_eos_versions(version1, version2):
               version1 = re.sub(r'[a-zA-Z]', "", version1)
               version2 = re.sub(r'[a-zA-Z]', "", version2)
@@ -474,7 +455,6 @@
               return 0
 
 
-          @ctx.benchmark
           def validIPAddress(ip):
               '''
               Returns True for a valid ipv4 address
@@ -487,7 +467,6 @@
                   return None
 
 
-          @ctx.benchmark
           def validateIPNetwork(ip_network, network_name=None):
               '''
               Returns True for a valid ipv4 network
@@ -504,7 +483,6 @@
                   assert False, error_message
 
 
-          @ctx.benchmark
           def extend_ip_ranges(ip_ranges):
               '''
               Args:
@@ -524,7 +502,6 @@
               return output
 
 
-          @ctx.benchmark
           def convert_dicts(dictionary, primary_key="name", secondary_key=None):
               """
               The `arista.avd.convert_dicts` filter will convert a dictionary containing nested dictionaries to a list of
@@ -605,7 +582,7 @@
                   return output
 
 
-          @ctx.benchmark
+          from itertools import count, groupby
           def list_compress(list_to_compress):
               if not isinstance(list_to_compress, list):
                   raise TypeError(f"value must be of type list, got {type(list_to_compress)}")
@@ -613,7 +590,6 @@
               return ",".join("-".join(map(str, (g[0], g[-1])[: len(g)])) for g in G)
 
 
-          @ctx.benchmark
           def string_to_list(string_to_convert):
               numbers = []
               segments = [segment.strip() for segment in string_to_convert.split(",") if segment.strip() != ""]
@@ -628,17 +604,14 @@
               return numbers
 
 
-          @ctx.benchmark
           def convert(text):
               return int(text) if text.isdigit() else text.lower()
 
 
-          @ctx.benchmark
           def natural_sort(iterable, sort_key=None):
               if iterable is None:
                   return []
 
-              @ctx.benchmark
               def alphanum_key(key):
                   if sort_key is not None and isinstance(key, dict):
                       return [convert(c) for c in re.split("([0-9]+)", str(key.get(sort_key, key)))]
@@ -648,7 +621,6 @@
               return sorted(iterable, key=alphanum_key)
 
 
-          @ctx.benchmark
           def range_expand(range_to_expand):
               if not (isinstance(range_to_expand, list) or isinstance(range_to_expand, str)):
                   raise TypeError(f"value must be of type list or str, got {type(range_to_expand)}")
@@ -728,7 +700,6 @@
                               else:
                                   first_subinterface = last_subinterface
 
-                              @ctx.benchmark
                               def expand_subinterfaces(interface_string):
                                   result = []
                                   if last_subinterface:
@@ -738,7 +709,6 @@
                                       result.append(interface_string)
                                   return result
 
-                              @ctx.benchmark
                               def expand_interfaces(interface_string):
                                   result = []
                                   for interface in range(first_interface, last_interface + 1):
@@ -746,7 +716,6 @@
                                           result.append(res)
                                   return result
 
-                              @ctx.benchmark
                               def expand_parent_interfaces(interface_string):
                                   result = []
                                   if last_parent_interface:
@@ -758,7 +727,6 @@
                                           result.append(res)
                                   return result
 
-                              @ctx.benchmark
                               def expand_module(interface_string):
                                   result = []
                                   if last_module:
@@ -778,7 +746,6 @@
               return result
 
 
-          @ctx.benchmark
           def default(*values):
               """
               Accepts any number of arguments. Return the first value which is not None
@@ -799,7 +766,6 @@
               return None
 
 
-          @ctx.benchmark
           def get(dictionary, key, default=None, required=False, org_key=None, separator="."):
               """
               Get a value from a dictionary or nested dictionaries.
@@ -845,7 +811,6 @@
                       return value
 
 
-          @ctx.benchmark
           def get_all(data, path: str, required: bool = False, org_path=None):
               """
               Get all values from data matching a data path.
@@ -900,7 +865,6 @@
               return []
 
 
-          @ctx.benchmark
           def get_item(list_of_dicts: list, key, value, default=None, required=False, case_sensitive=False, var_name=None):
               """
               Get one dictionary from a list of dictionaries by matching the given key and value
@@ -954,7 +918,6 @@
               return default
 
 
-          @ctx.benchmark
           def strip_null_from_data(data, strip_values_tuple=(None,)):
               """
               strip_null_from_data Generic function to strip null entries regardless type of variable.
@@ -974,7 +937,6 @@
               return data
 
 
-          @ctx.benchmark
           def strip_empties_from_list(
               data,
               strip_values_tuple=(
@@ -1008,7 +970,6 @@
               return new_data
 
 
-          @ctx.benchmark
           def strip_empties_from_dict(
               data,
               strip_values_tuple=(
@@ -1042,7 +1003,6 @@
               return new_data
 
 
-          @ctx.benchmark
           def __get_devices_matching_tag_query(query):
               # Now try to search with this query to get the matching devices
               tsclient = ctx.getApiClient(tsgr.TagSearchStub)
@@ -1051,12 +1011,10 @@
               return [match.device.device_id for match in search_res.matches] or query
 
 
-          @ctx.benchmark
           def get_device_tags(device_id, all_tags):
               return all_tags.get(device_id, {})
 
 
-          @ctx.benchmark
           def get_all_tags(workspaceID, tagLabelList):
               result = {}
               defaultValues = {}
@@ -1125,7 +1083,6 @@
               return result
 
 
-          @ctx.benchmark
           def get_tag_values_applied_to_device(tag_assignment_key):
               '''
               Returns all tags applied to a device that match the label of the input tag_assignment_key
@@ -1143,7 +1100,6 @@
               return matching_tags
 
 
-          @ctx.benchmark
           def get_tag_for_device_by_label(device_id, workspace_id, tag_label):
               result = {}
               defaultValues = []
@@ -1174,7 +1130,6 @@
               return result
 
 
-          @ctx.benchmark
           def create_tag(tag_key):
               '''
               tag_key is a TagKey
@@ -1188,7 +1143,6 @@
               client.Set(tcsr)
 
 
-          @ctx.benchmark
           def apply_tag(tag_assignment_key):
               '''
               tag_assignment_key is a TagAssignmentKey
@@ -1205,7 +1159,6 @@
               client.Set(tacsr)
 
 
-          @ctx.benchmark
           def remove_tag(tag_assignment_key):
               '''
               tag_assignment_key is a TagAssignmentKey
@@ -1222,7 +1175,6 @@
               client.Set(tacsr)
 
 
-          @ctx.benchmark
           def remove_all_tag_values(tag_label, device_id, workspace_id, value=None):
               '''
               Removes all tags with the input tag label matchiing the input device_id
@@ -1252,7 +1204,6 @@
                               remove_tag(tak_to_remove)
 
 
-          @ctx.benchmark
           def update_device_tag(tag_assignment_key, multiple_values=False):
               """
               tag_assignment_key is a TagAssignmentKey that you want to update the device with
@@ -1288,7 +1239,6 @@
               apply_tag(tag_assignment_key)
 
 
-          @ctx.benchmark
           def update_tags(switch_facts):
               device_id = switch_facts['serial_number']
               # NodeId tag
@@ -1372,7 +1322,6 @@
               return
 
 
-          @ctx.benchmark
           def device_matches_resolver_query(resolver, device_id):
               _, ctx_resolver = resolver.resolveWithContext(device_id)
               if ctx_resolver and ctx_resolver.query_str.strip() != "":
@@ -1381,31 +1330,21 @@
                   return False
 
 
-          @ctx.benchmark
           def get_mlag_peer_by_tags(switch_facts):
               potential_roles = {"spline": "Spline", "leaf": "Leaf", "memberleaf": "Member-Leaf"}
               mlag_peer_switch_facts = None
               device_id = switch_facts["serial_number"]
-              role = potential_roles.get(switch_facts["type"])
-              campus = switch_facts["campus"]
-              building = switch_facts["building"]
-              if role is None:
-                  return
-              query = f'NOT device:{device_id} AND Role:{role} AND NOT Role:Member-Leaf AND Campus:"{campus}" AND Building:"{building}"'
-              if switch_facts["type"] == "leaf":
-                  query += f' IDF:"{switch_facts["group"]}"'
 
-              potential_mlag_peer_sns = __get_devices_matching_tag_query(query)
-              if type(potential_mlag_peer_sns) == list:
-                  if len(potential_mlag_peer_sns) > 1:
-                      ctx.warning(f"Detected multiple MLAG peers for {switch_facts['hostname']}: {potential_mlag_peer_sns}")
-                  if len(potential_mlag_peer_sns) > 0:
-                      mlag_peer_switch_facts = my_switch_facts_neighbors.get(potential_mlag_peer_sns[0])
+              for tmp_switch_facts in my_switch_facts_neighbors.values():
+                  if switch_facts["type"] == tmp_switch_facts["type"] and \
+                          switch_facts["group"] == tmp_switch_facts["group"] and \
+                          switch_facts["serial_number"] != tmp_switch_facts["serial_number"]:
+                      mlag_peer_switch_facts = tmp_switch_facts
+                      break
 
               return mlag_peer_switch_facts
 
 
-          @ctx.benchmark
           def get_mlag_ip(switch_facts, mlag_peer_ipv4_pool, mlag_peer_subnet_mask, mlag_role):
               validateIPNetwork(mlag_peer_ipv4_pool, network_name=f"MLAG Peering Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
               mlag_subnet = ipaddress.ip_network(mlag_peer_ipv4_pool)
@@ -1428,7 +1367,6 @@
               return
 
 
-          @ctx.benchmark
           def get_router_id(switch_facts):
               validateIPNetwork(switch_facts["loopback_ipv4_pool"], network_name=f"Router ID Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
               router_id_subnet = switch_facts["loopback_ipv4_pool"]
@@ -1437,7 +1375,6 @@
               return list(ipaddress.ip_network(router_id_subnet).hosts())[(switch_id - 1) + offset]
 
 
-          @ctx.benchmark
           def get_vtep_loopback(switch_facts, offset=None):
 
               validateIPNetwork(switch_facts["vtep_loopback_ipv4_pool"], network_name=f"VTEP Source Address Pool for {switch_facts['type']}s in {switch_facts['campus']} -> {switch_facts['building']}")
@@ -1459,7 +1396,6 @@
               return list(ipaddress.ip_network(vtep_loopback_subnet).hosts())[index]
 
 
-          @ctx.benchmark
           def get_child_inband_management_ip(switch_facts):
               validateIPNetwork(switch_facts["inband_management_subnet"], network_name=f"Inband Management Pool in {switch_facts['campus']} -> {switch_facts['building']}")
               ib_mgmt_subnet_length = ipaddress.ip_network(switch_facts["inband_management_subnet"]).prefixlen
@@ -1487,7 +1423,6 @@
               return
 
 
-          @ctx.benchmark
           def get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
               if switch_facts.get('type') not in ["leaf", "spline"] or \
                       switch_facts['uplink_ipv4_pool'] is None or \
@@ -1529,7 +1464,6 @@
               return list(child_subnet.hosts())[0]
 
 
-          @ctx.benchmark
           def get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
               if switch_facts.get('type') not in ["leaf", "spline"] or \
                       switch_facts['uplink_ipv4_pool'] is None or \
@@ -1571,8 +1505,7 @@
               return list(child_subnet.hosts())[1]
 
 
-          @ctx.benchmark
-          def set_switch_facts_properties(device_id, campus_resolver):
+          def set_switch_facts_properties(device_id, campus_resolver, general_settings):
               # Initialize switch_facts
               switch_facts = {}
               switch_facts = {"serial_number": device_id}
@@ -1611,7 +1544,7 @@
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
                   return
 
-              # Set switch node type and node id
+              # Set switch node type and node id        
               # First attempt to resolve switch as a member leaf switch then leaf switch
               if device_matches_resolver_query(building_details["idfs"], device_id):
                   idf_details = building_details["idfs"].resolve(device=device_id)["idfFacts"]
@@ -1690,6 +1623,12 @@
                   if spline_defaults.get('splineUplinkType', '').strip() != "":
                       custom_node_properties['uplink_type'] = spline_defaults['splineUplinkType'].lower()
 
+                  # Set inband ztp interfaces
+                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+                      ctx.info(f"{switch_facts['inband_ztp_interfaces']}")
+
               elif switch_facts["type"] == "leaf":
                   leaf_defaults = building_details['nodeTypeProperties']['defaultLeafProperties']
                    # Set custom EVPN role
@@ -1716,6 +1655,17 @@
                   # Set custom Underlay Router role
                   if leaf_defaults.get('leafUplinkType', '').strip() != "":
                       custom_node_properties['uplink_type'] = leaf_defaults['leafUplinkType'].lower()
+
+                  # Set inband ztp interfaces
+                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+
+              elif switch_facts["type"] == "memberleaf":
+                  # Set inband ztp interfaces
+                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)        
 
               # Set node properties
               switch_facts["connected_endpoints"] = default(custom_node_properties.get("connected_endpoints"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["connected_endpoints"])
@@ -1763,8 +1713,7 @@
               return switch_facts
 
 
-          @ctx.benchmark
-          def set_switch_facts_properties_for_query(query, campus_resolver):
+          def set_switch_facts_properties_for_query(query, campus_resolver, general_settings):
               # Dictionary of switches that will be returned
               all_switch_facts = {}
 
@@ -1775,7 +1724,7 @@
               tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
               tagmresp =  tsclient.GetTagMatchesV2(tagmr)
               for match in tagmresp.matches:
-                  switch_facts_from_query = set_switch_facts_properties(match.device.device_id, campus_resolver)
+                  switch_facts_from_query = set_switch_facts_properties(match.device.device_id, campus_resolver, general_settings)
                   if switch_facts_from_query is None:
                       continue
                   if match.device.device_id not in all_switch_facts:
@@ -1783,7 +1732,6 @@
               return all_switch_facts
 
 
-          @ctx.benchmark
           def set_switch_facts(switch_facts, campus_resolver):
               # device_id from switch_facts
               device_id = switch_facts["serial_number"]
@@ -1864,10 +1812,8 @@
               # Set uplink defaults
               if not node_defaults.get("uplinkInterfaceDetails"):
                   node_defaults["uplinkInterfaceDetails"] = {
-                      "leafUplinkInterfacesSpeed": None,
-                      "leafUplinksEosCli": [],
-                      "memberLeafUplinkInterfacesSpeed": None,
-                      "memberLeafUplinksEosCli": []
+                      "leafUplinksEosCli": "",
+                      "memberLeafUplinksEosCli": ""
                   }
 
               # Set MLAG defaults
@@ -1877,10 +1823,8 @@
                       "mlagPeerL3Vlan": None,
                       "mlagPeerIPv4Pool": "169.254.0.0/31",
                       "mlagPeerL3IPv4Pool": "",
-                      "mlagPeerLinkEosCli": [],
-                      "mlagPeerInterfaces": [],
-                      "mlagPeerInterfacesSpeed": "",
-                      "mlagPeerInterfacesEosCli": [],
+                      "mlagPeerLinkEosCli": "",
+                      "mlagPeerInterfacesEosCli": "",
                       "virtualRouterMacAddress": "00:1c:73:00:00:99"
                   }
 
@@ -1888,13 +1832,13 @@
               if not node_defaults.get("bgpDetails"):
                   node_defaults["bgpDefaults"] = {
                       "bgpAsns": [],
-                      "bgpDefaults": []
+                      "bgpDefaults": ""
                   }
 
               # Set OSPF defaults
               if not node_defaults.get("ospfDetails"):
                   node_defaults["ospfDetails"] = {
-                      "ospfDefaults": []
+                      "ospfDefaults": ""
                   }
 
               # Set PTP defaults
@@ -1903,6 +1847,16 @@
                       "priority1": None,
                       "leafPriority1": None,
                       "memberLeafPriority1": None
+                  }
+
+              # Set Dot1x defaults
+              if not building_details["advancedFabricConfigurations"].get("dot1x"):
+                  building_details["advancedFabricConfigurations"]["dot1x"] = {
+                      "enable": True,
+                      "dynamicAuthorization": {},
+                      "lldpBypass": None,
+                      "macBasedAuthentication": {},
+                      "radiusAvPair": {}
                   }
 
               # Logs
@@ -1944,14 +1898,11 @@
 
               # Get uplink interfaces
               if switch_facts["type"] == "leaf":
-                  switch_facts["uplink_interface_speed"] = node_defaults["uplinkInterfaceDetails"].get("leafUplinkInterfacesSpeed")
-                  switch_facts["uplink_interface_cli"] = node_defaults["uplinkInterfaceDetails"].get("leafUplinksEosCli", [])
+                  switch_facts["uplink_interface_cli"] = node_defaults["uplinkInterfaceDetails"].get("leafUplinksEosCli")
               elif switch_facts["type"] == "memberleaf":
-                  switch_facts["uplink_interface_speed"] = node_defaults["uplinkInterfaceDetails"].get("memberLeafUplinkInterfacesSpeed")
-                  switch_facts["uplink_interface_cli"] = node_defaults["uplinkInterfaceDetails"].get("memberLeafUplinksEosCli", [])
+                  switch_facts["uplink_interface_cli"] = node_defaults["uplinkInterfaceDetails"].get("memberLeafUplinksEosCli")
               else:
-                  switch_facts["uplink_interface_speed"] = None
-                  switch_facts["uplink_interface_cli"] = []
+                  switch_facts["uplink_interface_cli"] = ""
 
               # virtual router mac
               if switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
@@ -2062,7 +2013,6 @@
 
 
                       if len(switch_facts.get("mlag_interfaces", [])) > 0:
-                          switch_facts["mlag_interfaces_speed"] = node_defaults["mlagDetails"]["mlagPeerInterfacesSpeed"]
                           switch_facts["mlag_interfaces_cli"] = node_defaults["mlagDetails"].get("mlagPeerInterfacesEosCli")
                           switch_facts["mlag_peer_link_cli"] = node_defaults["mlagDetails"].get("mlagPeerLinkEosCli")
 
@@ -2070,7 +2020,7 @@
                   switch_facts["mlag"] = False
 
               # Get router related facts
-              if switch_facts["underlay_router"] == True and node_defaults.get("routerIdPool") is not None:
+              if switch_facts["underlay_router"] == True and node_defaults.get("routerIdPool"):
                   switch_facts["loopback_ipv4_pool"] = node_defaults["routerIdPool"]
 
                   if switch_facts["type"] == "spline":
@@ -2084,12 +2034,13 @@
 
                   # switch_facts["loopback_ipv4_description"]  =
 
-                  # Set Router ID
-                  switch_facts["router_id"] = str(get_router_id(switch_facts))
+                  if switch_facts.get("underlay_routing_protocol"):
+                       # Set Router ID
+                      switch_facts["router_id"] = str(get_router_id(switch_facts))
 
-                  # Set uplink ipv4 pool
-                  switch_facts["uplink_ipv4_pool"] = node_defaults.get("uplinkIpv4Pool")
-                  switch_facts["uplink_ipv4_subnet_mask"] = 31
+                      # Set uplink ipv4 pool
+                      switch_facts["uplink_ipv4_pool"] = node_defaults.get("uplinkIpv4Pool")
+                      switch_facts["uplink_ipv4_subnet_mask"] = 31
 
                   # Set BGP parameters
                   if switch_facts["underlay_routing_protocol"] == "bgp" or switch_facts["overlay_routing_protocol"] == "bgp":
@@ -2153,17 +2104,16 @@
                       switch_facts["underlay_ospf_bfd_enable"] = building_details["advancedFabricConfigurations"]["ospfDetails"]["bfd"]
                       switch_facts["ospf_defaults"] = node_defaults["ospfDetails"]["ospfDefaults"]
 
-              if switch_facts["underlay_router"] == True:
-                  if switch_facts["vtep"]:  # and building_details["buildingRoutingProtocols"]["buildingOverlayRoutingProtocol"] != "":
-                      switch_facts["vtep_loopback_ipv4_pool"] = node_defaults.get("vtepLoopbackIPv4Pool")
-                      switch_facts["vtep_loopback"] = "Loopback1"
-                      if building_details["nodeTypeProperties"]["defaultSplineProperties"].get("splineVtepDefault", "") and \
-                              building_details.get("idfDefaults", {}).get("vtepLoopbackIPv4Pool") == building_details.get("splineDefaults", {}).get("vtepLoopbackIPv4Pool"):
-                          spline_offset = 1
-                      else:
-                          spline_offset = 0
+              if switch_facts["underlay_router"] and switch_facts["vtep"]:
+                  switch_facts["vtep_loopback_ipv4_pool"] = node_defaults.get("vtepLoopbackIPv4Pool")
+                  switch_facts["vtep_loopback"] = "Loopback1"
+                  if building_details["nodeTypeProperties"]["defaultSplineProperties"].get("splineVtepDefault", "") and \
+                          building_details.get("idfDefaults", {}).get("vtepLoopbackIPv4Pool") == building_details.get("splineDefaults", {}).get("vtepLoopbackIPv4Pool"):
+                      spline_offset = 1
+                  else:
+                      spline_offset = 0
 
-                      switch_facts["vtep_ip"] =  str(get_vtep_loopback(switch_facts, offset=spline_offset))
+                  switch_facts["vtep_ip"] =  str(get_vtep_loopback(switch_facts, offset=spline_offset))
 
               # Get multicast
               switch_facts["underlay_multicast"] = building_details["advancedFabricConfigurations"]["multicast"].get("underlayMulticast")
@@ -2267,16 +2217,18 @@
 
               # Get inband management details
               if building_details["advancedFabricConfigurations"].get("inbandManagementDetails"):
+                  # Set building level variables
+                  switch_facts["inband_management_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
+                  switch_facts["inband_management_subnet"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
                   inband_mgmt_vrf = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVrf", "default")
                   switch_facts["inband_management_vrf"] = inband_mgmt_vrf if inband_mgmt_vrf.strip() != "" else "default"
                   switch_facts["inband_management_ip_helpers"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("ipHelperAddresses", [])
+                  # Set boot vlan for splines
+                  if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["spline"]):
+                      switch_facts["inband_ztp"] = True
                   # Set boot vlan for L2 child switches
                   if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["leaf", "memberleaf"]) or \
                           ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in [ "memberleaf"]):
-                      # Set building level variables
-                      switch_facts["inband_management_vlan"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
-                      switch_facts["inband_management_subnet"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
-
                       # Set idf variables
                       switch_facts["inband_management_ip_range"] = idf_details["inbandManagementDetails"]["idfInbandManagementIpv4Range"]
                       # set whether or not to enable inband ztp
@@ -2315,6 +2267,29 @@
                       # Define source interface
                       switch_facts["ip_locking"]["local_interface"] = get(ip_locking_details, "localInterface", default=switch_facts.get("inband_management_interface"))
 
+              # Dot1x
+              dot1x_enabled = building_details["advancedFabricConfigurations"].get("dot1x", {}).get("enable")
+              if dot1x_enabled:
+                  dot1x_details = building_details["advancedFabricConfigurations"]["dot1x"]
+                  switch_facts["dot1x"] = {
+                      "system_auth_control": dot1x_details["enable"],
+                      "dynamic_authorization": dot1x_details["dynamicAuthorization"].get("enable"),
+                      "protocol_lldp_bypass": dot1x_details["lldpBypass"],
+                      "mac_based_authentication": {},
+                      "radius_av_pair": {}
+                  }
+                  if dot1x_details["dynamicAuthorization"].get("port"):
+                      switch_facts["dot1x"]["dynamic_authorization_port"] = dot1x_details["dynamicAuthorization"]["port"]
+                  if dot1x_details["macBasedAuthentication"].get("delay"):
+                      switch_facts["dot1x"]["mac_based_authentication"]["delay"] = dot1x_details["macBasedAuthentication"]["delay"]
+                  if dot1x_details["macBasedAuthentication"].get("holdPeriod"):
+                      switch_facts["dot1x"]["mac_based_authentication"]["hold_period"] = dot1x_details["macBasedAuthentication"]["holdPeriod"]
+                  if dot1x_details["radiusAvPair"].get("serviceType"):
+                      switch_facts["dot1x"]["radius_av_pair"]["service_type"] = dot1x_details["radiusAvPair"]["serviceType"]
+                  if dot1x_details["radiusAvPair"].get("framedMtu"):
+                      switch_facts["dot1x"]["radius_av_pair"]["framed_mtu"] = dot1x_details["radiusAvPair"]["framedMtu"]
+
+
               if r'(v|c)EOS(-)*(Lab)*' in switch_facts["platform_settings"]["regexes"]:
                   switch_facts["p2p_uplinks_mtu"] = 1500
               else:
@@ -2329,7 +2304,6 @@
               return switch_facts
 
 
-          @ctx.benchmark
           def get_device_interfaces(switch_facts):
               device_id = switch_facts['serial_number']
               interfaces = []
@@ -2347,7 +2321,6 @@
               return natural_sort(interfaces, sort_key='interface_name')
 
 
-          @ctx.benchmark
           def set_mlag_interfaces_from_topology(switch_facts):
               device_id = switch_facts['serial_number']
 
@@ -2371,7 +2344,6 @@
               return mlag_interfaces, mlag_peer_interfaces
 
 
-          @ctx.benchmark
           def get_uplink_info_from_inputs(switch_facts, campus_resolver):
               '''
               Returns switch_facts' uplink_interfaces, uplink_switches, and uplink switches' downlink_interfaces
@@ -2446,7 +2418,6 @@
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
-          @ctx.benchmark
           def get_uplink_info_from_topology(switch_facts):
               # Initialize return variables
               uplink_interfaces = []
@@ -2497,7 +2468,6 @@
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
-          @ctx.benchmark
           def set_switch_uplink_info(switch_facts, campus_resolver):
               # Get interface info from topology studio
               switch_facts["uplink_interfaces"], switch_facts["uplink_switches"], switch_facts["uplink_switches_ids"], switch_facts["uplink_switch_interfaces"]  = get_uplink_info_from_topology(switch_facts)
@@ -2514,7 +2484,6 @@
               return switch_facts
 
 
-          @ctx.benchmark
           def set_switch_downlink_info(switch_facts):
               '''
               Using switch_facts uplink info which is previously set by set_switch_uplink_info(switch_facts. campus_resolver), set the
@@ -2535,7 +2504,6 @@
               return switch_facts
 
 
-          @ctx.benchmark
           def set_topology_facts(switch_facts):
               topology_facts = {
                   "links": {}
@@ -2552,10 +2520,10 @@
                           link_facts["peer_type"] = uplink_switch_facts["type"]
                           link_facts["peer_bgp_as"] = uplink_switch_facts.get("bgp_as")
                           link_facts["type"] = "underlay_p2p"
-                          link_facts["speed"] = uplink_switch_facts.get("uplink_interface_speed")
+                          link_facts["speed"] = uplink_switch_facts.get("uplink_interface_speed", "auto")
                           link_facts["ip_address"] = str(get_p2p_uplinks_ip(switch_facts, uplink_switch_facts, i))
                           link_facts["peer_ip_address"] = str(get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, i))
-                          link_facts["eos_cli"] = switch_facts.get("uplink_interface_cli", [])
+                          link_facts["eos_cli"] = switch_facts.get("uplink_interface_cli", "")
                           # multicast/pim
                           if switch_facts.get("underlay_multicast"):
                               link_facts["underlay_multicast"] = True
@@ -2589,7 +2557,7 @@
                               uplink_vlans.append(switch_facts["inband_management_vlan"])
                           link_facts["vlans"] = uplink_vlans
                       link_facts["type"] = "underlay_l2"
-                      link_facts["speed"] = switch_facts.get("uplink_interface_speed")
+                      link_facts["speed"] = switch_facts.get("uplink_interface_speed", "auto")
                       if uplink_switch_facts.get("mlag") is not None and uplink_switch_facts.get("mlag") is True:
                           link_facts["channel_description"] = uplink_switch_facts["mlag_group"]
 
@@ -2616,7 +2584,6 @@
               return switch_facts
 
 
-          @ctx.benchmark
           def get_network_services_leaf_switch(switch_facts, campus_resolver):
               # device_id from switch_facts
               device_id = switch_facts["serial_number"]
@@ -2726,7 +2693,6 @@
               return switch_facts
 
 
-          @ctx.benchmark
           def get_network_services_spline_switch(switch_facts, campus_resolver):
               '''
               Get VLANs applied to spline switch via downstream neighbors
@@ -2841,8 +2807,9 @@
               return switch_facts
 
 
-          @ctx.benchmark
           def set_base_config(config, switch_facts):
+              # hostname
+              config["hostname"] = switch_facts["hostname"]
               # IP locking
               # Check to see whether it should be configured or not based on role
               # Check to see whether it should be configured or not based on user input
@@ -2961,10 +2928,21 @@
                       config["router_bgp"]["maximum_paths"] = switch_facts["bgp_maximum_paths"]
                   if switch_facts.get("bgp_ecmp"):
                       config["router_bgp"]["ecmp"] = switch_facts["bgp_ecmp"]
+
+              # Set dot1x
+              if switch_facts["connected_endpoints"] and switch_facts.get("dot1x", {}).get("system_auth_control"):
+                  dynamic_auth_port = switch_facts["dot1x"].pop("dynamic_authorization_port", None)
+                  if switch_facts["dot1x"].get("dynamic_authorization") and dynamic_auth_port:
+                      config["radius_server"] = {
+                          "dynamic_authorization": {
+                              "port": dynamic_auth_port
+                          }
+                      }
+                  config["dot1x"] = switch_facts["dot1x"]
+              
               return config
 
 
-          @ctx.benchmark
           def set_mlag_config(config, switch_facts):
               if switch_facts.get('mlag'):
                   # Set spanning tree relevant config
@@ -3042,8 +3020,10 @@
                       config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["ptp"] = ptp_config
 
                   if switch_facts.get("inband_ztp") and switch_facts.get("inband_management_vlan"):
-                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_mode"] = "static"
-                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_timeout"] = 30
+                      lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
+                      lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
+                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_mode"] = lacp_fallback_mode
+                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_timeout"] = lacp_fallback_timeout
 
                   # Set ethernet interfaces
                   for i, iface in enumerate(switch_facts['mlag_interfaces']):
@@ -3060,12 +3040,9 @@
                               "id": switch_facts['mlag_port_channel_id'],
                               "mode": switch_facts['mlag_lacp_mode']
                           },
-                          "speed": switch_facts["mlag_interfaces_speed"],
+                          "speed": switch_facts.get("mlag_interfaces_speed", "auto"),
                           "eos_cli": switch_facts["mlag_interfaces_cli"]
                       }
-                      # inband ztp
-                      if switch_facts.get("inband_ztp") and switch_facts.get("inband_management_vlan"):
-                          config['ethernet_interfaces'][iface]["lldp"] = {"ztp_vlan": switch_facts["inband_management_vlan"]}
 
                   # Set mlag config
                   config['mlag_configuration'] = {
@@ -3127,19 +3104,13 @@
                           "description": switch_facts['mlag_peer']
                       }
 
-              return config
+              return config            
 
 
-          @ctx.benchmark
           def set_underlay_config(config, switch_facts):
               # logic
               underlay_data = {}
               underlay_data["links"] = switch_facts["topology"]["links"]
-              # Determine whether or not boot ztp can be configured on this switch
-              issue_boot_ztp_warning = False
-              boot_ztp_eligible = False
-              if compare_eos_versions(switch_facts["eos_version"], "4.27.1F") >= 0:
-                  boot_ztp_eligible = True
 
               # First add interface details from devices whose uplink interface neighbors are this switch
               for sn in switch_facts["downlink_switches_ids"]:
@@ -3153,9 +3124,10 @@
                           link["peer_type"] = neighbor_switch_facts["type"]
                           link["peer_bgp_as"] = neighbor_switch_facts.get("bgp_as")
                           link["type"] = neighbor_link_info["type"]
-                          link["speed"] = neighbor_link_info["speed"]
+                          link["speed"] = neighbor_link_info.get("speed", "auto")
                           link["ip_address"] = neighbor_link_info.get("peer_ip_address")
                           link["peer_ip_address"] = neighbor_link_info.get("ip_address")
+                          link["vlans"] = neighbor_link_info.get("vlans")
                           link["channel_group_id"] = neighbor_link_info.get("peer_channel_group_id")
                           link["peer_channel_group_id"] = neighbor_link_info.get("channel_group_id")
                           link["channel_description"] = neighbor_link_info.get("peer_channel_description")
@@ -3164,7 +3136,7 @@
                           # ptp
                           link["ptp"] = neighbor_link_info.get("ptp")
                           # eos cli
-                          link["eos_cli"] = neighbor_switch_facts.get("uplink_interface_cli", [])
+                          link["eos_cli"] = neighbor_switch_facts.get("uplink_interface_cli", "")
                           # inband ztp
                           if neighbor_switch_facts.get("inband_ztp") and neighbor_switch_facts.get("inband_management_vlan"):
                               link["ztp_vlan"] = neighbor_switch_facts["inband_management_vlan"]
@@ -3181,7 +3153,7 @@
                           "peer_interface": link["peer_interface"],
                           "peer_type": link["peer_type"],
                           "description": "P2P_LINK_TO_{}_{}".format(link["peer"].upper(), link["peer_interface"]),
-                          "speed": link.get("speed"),
+                          "speed": link.get("speed", "auto"),
                           "mtu": switch_facts["p2p_uplinks_mtu"],
                           "type": "routed",
                           "shutdown": False,
@@ -3211,7 +3183,7 @@
                       config["ethernet_interfaces"][iface] = {
                           "type": "switched",
                           "shutdown": False,
-                          "speed": link.get("speed")
+                          "speed": link.get("speed", "auto")
                       }
                       if link.get("peer"):
                           config["ethernet_interfaces"][iface]["peer"] = link["peer"]
@@ -3221,10 +3193,6 @@
                           config["ethernet_interfaces"][iface]["peer_type"] = link["peer_type"]
                       if link.get("peer") and link.get("peer_interface"):
                           config["ethernet_interfaces"][iface]["description"] = "TO_{}_{}".format(link["peer"].upper(), link["peer_interface"])
-                      if link.get("ztp_vlan") and boot_ztp_eligible is True:
-                          config["ethernet_interfaces"][iface]["lldp"] = {"ztp_vlan": link["ztp_vlan"]}
-                      elif boot_ztp_eligible:
-                          issue_boot_ztp_warning = True
 
                       if link.get("channel_group_id"):
                           config["ethernet_interfaces"][iface]["channel_group"] = {
@@ -3233,10 +3201,7 @@
                           }
 
                   # Add EOS CLI
-                  config["ethernet_interfaces"][iface]["eos_cli"] = link.get("eos_cli", [])
-
-              if issue_boot_ztp_warning is True:
-                  ctx.warning(f"Could not configure a boot vlan on downstream interfaces for {switch_facts['hostname']} because its EOS version is {switch_facts['eos_version']}.  The switch's EOS version must be >= 4.27.1F.")
+                  config["ethernet_interfaces"][iface]["eos_cli"] = link.get("eos_cli", "")
 
               # Set Port-Channel interfaces
               port_channel_list = [] # go through this
@@ -3254,6 +3219,7 @@
                       }
                       if switch_facts.get("mlag"):
                           port_channel["mlag"] = link["channel_group_id"]
+
                       if link.get('vlans'):
                           port_channel['vlans'] = list_compress(link['vlans'])
 
@@ -3262,16 +3228,18 @@
                           # Apply PTP profile config
                           ptp_profile = get_item(ptp_profiles, "profile", switch_facts["ptp"]["profile"], default={})
                           ptp_config.update(ptp_profile)
-
                           ptp_config["enable"] = True
                           ptp_config.pop("profile", None)
                           port_channel["ptp"] = ptp_config
 
                       if link.get("ztp_vlan"):
-                          port_channel["lacp_fallback_mode"] = "static"
-                          port_channel["lacp_fallback_timeout"] = 30
+                          lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
+                          lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
+                          port_channel["lacp_fallback_mode"] = lacp_fallback_mode
+                          port_channel["lacp_fallback_timeout"] = lacp_fallback_timeout
 
                       config["port_channel_interfaces"]["Port-Channel{}".format(link["channel_group_id"])] = port_channel
+
 
               # L2 and L3
               if switch_facts["network_services_l2"] == True and \
@@ -3375,7 +3343,6 @@
               return config
 
 
-          @ctx.benchmark
           def set_overlay_config(config, switch_facts):
               if not switch_facts.get("underlay_router"):
                   return config
@@ -3457,7 +3424,6 @@
               return config
 
 
-          @ctx.benchmark
           def set_vxlan_config(config, switch_facts):
               if switch_facts.get("vtep") == True:
                   config["vxlan_interface"] = {
@@ -3474,7 +3440,6 @@
               return config
 
 
-          @ctx.benchmark
           def set_inband_management_config(config, switch_facts):
               if switch_facts.get("inband_management_role", "") == "child":
                   # child-vlans
@@ -3516,7 +3481,12 @@
                               inband_management_data["subnets"].append(tmp_switch_facts["inband_management_subnet"])
                               inband_management_data["ip_helpers_details"].append(tmp_switch_facts.get("inband_management_ip_helpers"))
 
-                  if inband_management_data.get("role", "") == "parent":
+                  if switch_facts["inband_management_vlan"] not in inband_management_data["vlans"]:
+                      inband_management_data["vlans"].append(switch_facts["inband_management_vlan"])
+                      inband_management_data["subnets"].append(switch_facts["inband_management_subnet"])
+                      inband_management_data["ip_helpers_details"].append(switch_facts.get("inband_management_ip_helpers"))
+
+                  if inband_management_data.get("role", "") == "parent" or len(inband_management_data["vlans"]) > 0:
                       # parent-vrfs
                       if switch_facts["inband_management_vrf"] != "default" and switch_facts["inband_management_vrf"] not in config["vrfs"]:
                           config["vrfs"][switch_facts["inband_management_vrf"]] = {
@@ -3533,10 +3503,11 @@
                       for i, subnet in enumerate(inband_management_data.get("subnets", [])):
                           vlan_interface = {
                               "description": "L2LEAF_INBAND_MGMT",
+                              "no_autostate": True,
                               "shutdown": False,
                               "vrf": switch_facts["inband_management_vrf"],
                               "mtu": switch_facts["p2p_uplinks_mtu"],
-                              "ip_virtual_router_addresses": [str(list(ipaddress.ip_network(subnet).hosts())[0])],
+                              "ip_virtual_router_addresses": [list(ipaddress.ip_network(subnet).hosts())[0]],
                               "ip_attached_host_route_export": {
                                   "distance": 19
                               },
@@ -3547,7 +3518,7 @@
                                   "source_interface": ip_helper.get("dhcpSourceInterface")
                               }
 
-                          if switch_facts.get("mlag") is not None and switch_facts["mlag"] is True and switch_facts["mlag_role"] == "secondary":
+                          if switch_facts.get("mlag") and switch_facts["mlag_role"] == "secondary":
                               ip_address = list(ipaddress.ip_network(subnet).hosts())[2]
                           else:
                               ip_address = list(ipaddress.ip_network(subnet).hosts())[1]
@@ -3583,7 +3554,6 @@
               return config
 
 
-          @ctx.benchmark
           def get_tenants(switch_facts, campus_resolver):
               '''
               Convert studio services data model to avd network services data model
@@ -3733,9 +3703,8 @@
                                   interface["description"] = l3_interface["description"]
                               if l3_interface.get("mtu"):
                                   interface["mtu"] = l3_interface["mtu"]
-                              if len(l3_interface.get("eosCli", [])) > 0:
+                              if l3_interface.get("eosCli"):
                                   interface["raw_eos_cli"] = l3_interface["eosCli"]
-                                  # interface["raw_eos_cli"] = "\n".join(l3_interface["eosCli"])  # will use this method when extended text input type is available
                               # Check ospf
                               if switch_facts["underlay_routing_protocol"] == "ospf" and l3_interface.get("ospf"):
                                   ospf = {
@@ -3973,9 +3942,8 @@
                               svi["underlay_multicast"] = False
 
                           # eos cli
-                          if len(vlan.get("eosCli", [])) > 0:
+                          if vlan.get("eosCli"):
                               svi["raw_eos_cli"] = vlan["eosCli"]
-                              # svi["raw_eos_cli"] = "\n".join(vlan["eosCli"])  # will use this method when extended text input type is available
 
                           # vlan mst instance
                           if switch_facts.get("spanning_tree_mode") == "mstp":
@@ -4005,7 +3973,6 @@
               return switch_facts
 
 
-          @ctx.benchmark
           def set_network_services_config(config, switch_facts):
               # logic (Probably will be easier to break away from AVD logic)
               if switch_facts["network_services_l2"] is True or switch_facts["network_services_l3"] is True:
@@ -4486,7 +4453,7 @@
                                       "ipv4": {"neighbors": {}, "networks": {}},
                                       "ipv6": {"neighbors": {}, "networks": {}}
                                   },
-                                  "eos_cli": []
+                                  "eos_cli": ""
                               }
                               if vrf['name'] != "default":
                                   config['router_bgp']['vrfs'][vrf['name']]['redistribute_routes']['connected'] = {}
@@ -4525,7 +4492,31 @@
               return config
 
 
-          @ctx.benchmark
+          def set_inband_ztp_interfaces_config(config, switch_facts):
+              # Determine whether or not boot ztp can be configured on this switch
+              boot_ztp_eligible = False
+              if compare_eos_versions(switch_facts["eos_version"], "4.27.1F") >= 0:
+                  boot_ztp_eligible = True
+              else:
+                  ctx.warning(f"Could not configure a boot vlan on downstream interfaces for {switch_facts['hostname']} because its EOS version is {switch_facts['eos_version']}.  The switch's EOS version must be >= 4.27.1F.")
+                  return config
+
+              if boot_ztp_eligible:
+                  for iface in switch_facts.get("inband_ztp_interfaces", []):
+                      if iface not in config["ethernet_interfaces"]:
+                          config["ethernet_interfaces"][iface] = {}
+                      config["ethernet_interfaces"][iface]["type"] = "switched"
+                      config["ethernet_interfaces"][iface]["shutdown"] = False
+                      config["ethernet_interfaces"][iface]["vlans"] = switch_facts["inband_management_vlan"]
+                      if fabric_variables["inband_ztp"]["interface_ztp_method"] == "access":
+                          config["ethernet_interfaces"][iface]["mode"] = "access"
+                      elif fabric_variables["inband_ztp"]["interface_ztp_method"] == "lldp tlv":
+                          config["ethernet_interfaces"][iface]["mode"] = "trunk"
+                          config["ethernet_interfaces"][iface]["lldp"] = {"ztp_vlan": switch_facts["inband_management_vlan"]}
+
+              return config
+
+
           def _mlag_odd_id_based_offset(switch_facts) -> int:
               """
               Return the subnet offset for an MLAG pair based on odd id
@@ -4544,9 +4535,7 @@
               return int((odd_id - 1) / 2)
 
 
-          @ctx.benchmark
           def set_custom_fabric_variables(custom_settings):
-              ctx.info(f"{custom_settings}")
               # Set MLAG IP Address
               if custom_settings["fabricIpAddressing"]["mlag"].get("ipAddressing"):
                   fabric_variables["fabric_ip_addressing"]["mlag"] = custom_settings["fabricIpAddressing"]["mlag"]["ipAddressing"]
@@ -4555,11 +4544,18 @@
               if custom_settings["fabricIpAddressing"]["mlag"].get("bgpNumbering"):
                   fabric_variables["fabric_bgp_numbering"]["mlag"] = custom_settings["fabricIpAddressing"]["mlag"]["bgpNumbering"]
 
+              # Inband ZTP settings
+              fabric_variables["inband_ztp"] = {}
+              fabric_variables["inband_ztp"]["lacp_fallback_mode"] = custom_settings["inbandZtp"]["lacpFallback"].get("mode", "individual")
+              if custom_settings["inbandZtp"]["lacpFallback"].get("timeout"):
+                  fabric_variables["inband_ztp"]["lacp_fallback_timeout"] = custom_settings["inbandZtp"]["lacpFallback"]["timeout"]
+              else:
+                  fabric_variables["inband_ztp"]["lacp_fallback_timeout"] = 30
+              fabric_variables["inband_ztp"]["interface_ztp_method"] = custom_settings["inbandZtp"].get("interfaceZtpMethod", "access")
               ctx.info(f"{fabric_variables}")
 
 
-          # Template mainline start
-          #
+
           # Check campus input is not None
           if not campus:
               return
@@ -4577,7 +4573,6 @@
 
           # Initialize variables
           my_switch_facts = {}
-          my_switch_facts_neighbors = {}
           my_config = {}
 
           # Pre-populate dictionaries used for getting switch facts
@@ -4589,9 +4584,7 @@
               task_time = time.time()
 
           # Set my_switch_facts' switch properties
-          my_switch_facts = set_switch_facts_properties(my_device.id, campus)
-          my_switch_facts_neighbors[my_switch_facts["serial_number"]] = my_switch_facts
-          dump_my_switch_facts(1)
+          my_switch_facts = set_switch_facts_properties(my_device.id, campus, generalSettings)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set my_switch_facts properties: {time.time() - task_time} seconds")
@@ -4601,18 +4594,19 @@
               ctx.info(f"{my_device.id}: my_switch_facts is {my_switch_facts}")
               return
 
+          ctx.info(f"{my_switch_facts.get('hostname')} Device Properties: {my_switch_facts}")
+
           # Set all switches in same building as my_switch's switch_facts properties
           if my_switch_facts["type"] == "spline":
               query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR Role:Leaf)".format(my_switch_facts['campus'], my_switch_facts['building'])
           else:  #if my_switch_facts["type"] in ["leaf", "memberleaf"]
               query = "Campus:\"{}\" AND Building:\"{}\" AND (Role:Spline OR IDF:\"{}\")".format(my_switch_facts['campus'], my_switch_facts['building'], my_switch_facts['group'])
 
-          my_switch_facts_neighbors = set_switch_facts_properties_for_query(query, campus)
-          dump_my_switch_facts(2)
+          query = "Campus:\"{}\" AND Building:\"{}\"".format(my_switch_facts['campus'], my_switch_facts['building'])
+          my_switch_facts_neighbors = set_switch_facts_properties_for_query(query, campus, generalSettings)
 
           # Set custom fabric settings
           set_custom_fabric_variables(generalSettings)
-          dump_my_switch_facts(3)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts properties for all switches in building: {time.time() - task_time} seconds")
@@ -4621,7 +4615,6 @@
           # Set uplink info for all switch_facts in my_switch_facts_neighbors
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_uplink_info(switch_facts, campus)
-          dump_my_switch_facts(4)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts uplink info for all switches in building: {time.time() - task_time} seconds")
@@ -4630,7 +4623,6 @@
           # Set downlink info for all of my_switch_facts' neighbors
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_downlink_info(switch_facts)
-          dump_my_switch_facts(5)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set downlink info for all of my_switch_facts' neighbors: {time.time() - task_time} seconds")
@@ -4639,7 +4631,6 @@
           # Set switch_facts for all of my_switch_facts neighbors and my_switch_facts
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_facts(switch_facts, campus)
-          dump_my_switch_facts(6)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts for all of my_switch_facts neighbors and my_switch_facts: {time.time() - task_time} seconds")
@@ -4649,7 +4640,6 @@
           for switch_facts in my_switch_facts_neighbors.values():
               if switch_facts["type"] in ["leaf", "memberleaf"]:
                   switch_facts = get_network_services_leaf_switch(switch_facts, campus)
-          dump_my_switch_facts(7)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to get network services applied to each idf switch (part 1a): {time.time() - task_time} seconds")
@@ -4662,7 +4652,6 @@
           for switch_facts in my_switch_facts_neighbors.values():
               if switch_facts["type"] == "spline":
                   switch_facts = get_network_services_spline_switch(switch_facts, campus)
-          dump_my_switch_facts(8)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to network services applied to each spline switch (part 1b): {time.time() - task_time} seconds")
@@ -4671,7 +4660,6 @@
           # Set topology facts ( in order to set transit p2p and port-channel links )
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_topology_facts(switch_facts)
-          dump_my_switch_facts(9)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set topology_facts: {time.time() - task_time} seconds")
@@ -4682,7 +4670,6 @@
 
           # Get network services in AVD format (part 2)
           my_switch_facts = get_tenants(my_switch_facts, campus)
-          dump_my_switch_facts(10)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to get network services in AVD format (part 2) for my_switch_facts: {time.time() - task_time} seconds")
@@ -4723,19 +4710,13 @@
           }
 
           my_config = set_base_config(my_config, my_switch_facts)
-          dump_my_config(1)
           my_config = set_mlag_config(my_config, my_switch_facts)
-          dump_my_config(2)
           my_config = set_underlay_config(my_config, my_switch_facts)
-          dump_my_config(3)
           my_config = set_overlay_config(my_config, my_switch_facts)
-          dump_my_config(4)
           my_config = set_vxlan_config(my_config, my_switch_facts)
-          dump_my_config(5)
           my_config = set_inband_management_config(my_config, my_switch_facts)
-          dump_my_config(6)
           my_config = set_network_services_config(my_config, my_switch_facts)
-          dump_my_config(7)
+          my_config = set_inband_ztp_interfaces_config(my_config, my_switch_facts)
 
           config = my_config
 
@@ -4750,8 +4731,8 @@
               ctx.info(f"Time taken to update tags: {time.time() - task_time} seconds")
               task_time = time.time()
 
-          dump_my_switch_facts(11)
-          ctx.benchmarkDump()
+          ctx.info(f"{my_switch_facts}")
+          # ctx.info(f"{config}")
           %>
           % if config.get("address_locking"):
           address locking
@@ -4791,6 +4772,9 @@
           service routing protocols model multi-agent
           !
           % endif
+          ## hostname
+          hostname ${config["hostname"]}
+          !
           ## eos - ptp
           % if config.get("ptp"):
           %     if config["ptp"].get("clock_identity"):
@@ -4868,6 +4852,17 @@
           ptp monitor threshold missing-message sync ${ config["ptp"]["monitor"]["missing_message"]["sequence_ids"]["sync"] } sequence-ids
           %             endif
           %         endif
+          %     endif
+          !
+          % endif
+          ## eos - radius server
+          % if config.get("radius_server"):
+          %     if config["radius_server"].get("dynamic_authorization"):
+          <%         dynamic_authorization_cli = "radius-server dynamic-authorization" %>
+          %         if config["radius_server"]["dynamic_authorization"].get("port"):
+          <%             dynamic_authorization_cli = dynamic_authorization_cli + " port " + str(config["radius_server"]["dynamic_authorization"]["port"]) %>
+          %         endif
+          ${ dynamic_authorization_cli }
           %     endif
           !
           % endif
@@ -4981,7 +4976,7 @@
              port-channel lacp fallback ${ config["port_channel_interfaces"][port_channel_interface]["lacp_fallback_mode"] }
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("lacp_fallback_timeout"):
-             port-channel lacp fallback ${ config["port_channel_interfaces"][port_channel_interface]["lacp_fallback_timeout"] }
+             port-channel lacp fallback timeout ${ config["port_channel_interfaces"][port_channel_interface]["lacp_fallback_timeout"] }
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("mlag"):
              mlag ${ config["port_channel_interfaces"][port_channel_interface]["mlag"] }
@@ -5016,7 +5011,7 @@
           %         endif
           %     endif
           %     if config["port_channel_interfaces"][port_channel_interface].get("eos_cli"):
-          %         for cli_statement in config["port_channel_interfaces"][port_channel_interface]["eos_cli"]:
+          %         for cli_statement in config["port_channel_interfaces"][port_channel_interface]["eos_cli"].split("\n"):
              ${cli_statement}
           %         endfor
           %     endif
@@ -5038,7 +5033,7 @@
           %     endif
           %     if config["ethernet_interfaces"][ethernet_interface].get("channel_group") is not None:
              channel-group ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["id"] } mode ${ config["ethernet_interfaces"][ethernet_interface]["channel_group"]["mode"] }
-          %     else:
+          %     endif:
           %         if config["ethernet_interfaces"][ethernet_interface].get("mtu") is not None:
              mtu ${ config["ethernet_interfaces"][ethernet_interface]["mtu"] }
           %         endif
@@ -5144,9 +5139,8 @@
              pim ipv4 sparse-mode
           %           endif
           %         endif
-          %     endif
           %     if config["ethernet_interfaces"][ethernet_interface].get("eos_cli"):
-          %         for cli_statement in config["ethernet_interfaces"][ethernet_interface]["eos_cli"]:
+          %         for cli_statement in config["ethernet_interfaces"][ethernet_interface]["eos_cli"].split("\n"):
              ${cli_statement}
           %         endfor
           %     endif
@@ -5315,7 +5309,7 @@
           %         endif
           %     endif
           %     if config["vlan_interfaces"][vlan_interface].get("eos_cli"):
-          %         for cli_statement in config["vlan_interfaces"][vlan_interface]["eos_cli"]:
+          %         for cli_statement in config["vlan_interfaces"][vlan_interface]["eos_cli"].split("\n"):
              ${cli_statement}
           %         endfor
           %     endif
@@ -5693,8 +5687,8 @@
              ${ redistribute_route_cli }
           %       endfor
           %     endif
-          %     if config["router_bgp"].get("bgp_defaults") is not None:
-          %       for bgp_default in config["router_bgp"]["bgp_defaults"]:
+          %     if config["router_bgp"].get("bgp_defaults"):
+          %       for bgp_default in config["router_bgp"]["bgp_defaults"].split("\n"):
              ${ bgp_default }
           %       endfor
           !
@@ -6181,7 +6175,7 @@
              bfd default
           %     endif
           %     if config["router_ospf"]["process_ids"][process_id].get("ospf_defaults"):
-          %         for ospf_default in config["router_ospf"]["process_ids"][process_id]["ospf_defaults"]:
+          %         for ospf_default in config["router_ospf"]["process_ids"][process_id]["ospf_defaults"].split("\n"):
              ${ospf_default}
           %         endfor
           %     endif
@@ -6240,6 +6234,38 @@
           %         endif
              !
           %     endfor
+          % endif
+          ## eos - dot1x
+          % if config.get("dot1x"):
+          %     if config["dot1x"].get("system_auth_control"):
+          dot1x system-auth-control
+          %     endif
+          %     if config["dot1x"].get("protocol_lldp_bypass"):
+          dot1x protocol lldp bypass
+          %     endif
+          %     if config["dot1x"].get("dynamic_authorization"):
+          dot1x dynamic-authorization
+          %     endif
+          %     if config["dot1x"].get("mac_based_authentication") or config["dot1x"].get("radius_av_pair"):
+          dot1x
+          %         if config["dot1x"].get("mac_based_authentication"):
+          %             if config["dot1x"].get("mac_based_authentication", {}).get("delay"):
+             mac based authentication delay ${ config["dot1x"]["mac_based_authentication"]["delay"] } seconds
+          %             endif
+          %             if config["dot1x"].get("mac_based_authentication", {}).get("hold_period"):
+             mac based authentication hold period ${ config["dot1x"]["mac_based_authentication"]["hold_period"] } seconds
+          %             endif
+          %         endif
+          %         if config["dot1x"].get("radius_av_pair"):
+          %             if config["dot1x"]["radius_av_pair"].get("service_type"):
+             radius av-pair service-type
+          %             endif
+          %             if config["dot1x"]["radius_av_pair"].get("framed_mtu"):
+             radius av-pair framed-mtu ${ config["dot1x"]["radius_av_pair"]["framed_mtu"] }
+          %             endif
+          %         endif
+          %     endif
+          !
           % endif
           <% ctx.info(f"Time taken to run studio: {time.time() - start_time} seconds") %>
       input_schema:
@@ -6344,50 +6370,25 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            leafMlagPeerInterfacesSpeed:
-              id: leafMlagPeerInterfacesSpeed
-              name: mlagPeerInterfacesSpeed
-              label: MLAG Peer Interfaces Speed
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
             leafMlagPeerInterfacesCliStatement:
               id: leafMlagPeerInterfacesCliStatement
-              name: cliStatement
-              label: CLI Statement
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            leafMlagPeerInterfacesEosCli:
-              id: leafMlagPeerInterfacesEosCli
               name: mlagPeerInterfacesEosCli
               label: MLAG Peer Interfaces EOS CLI
               description: ''
               required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: leafMlagPeerInterfacesCliStatement
-                key: ''
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             leafMlagPeerLinkCliStatement:
               id: leafMlagPeerLinkCliStatement
-              name: cliStatement
-              label: CLI Statement
+              name: mlagPeerLinkEosCli
+              label: MLAG Peer Link EOS CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -6399,16 +6400,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            leafMlagPeerLinkEosCli:
-              id: leafMlagPeerLinkEosCli
-              name: mlagPeerLinkEosCli
-              label: MLAG Peer Link EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: leafMlagPeerLinkCliStatement
-                key: ''
             leafMlagDetails:
               id: leafMlagDetails
               name: mlagDetails
@@ -6424,9 +6415,8 @@
                     - leafMlagPeerL3Vlan
                     - leafMlagPeerL3IPv4Pool
                     - leafVirtualRouterMacAddress
-                    - leafMlagPeerInterfacesSpeed
-                    - leafMlagPeerInterfacesEosCli
-                    - leafMlagPeerLinkEosCli
+                    - leafMlagPeerInterfacesCliStatement
+                    - leafMlagPeerLinkCliStatement
             idfSpanningTreeMode:
               id: idfSpanningTreeMode
               name: spanningTreeMode
@@ -6545,31 +6535,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            idfBgpDefaultsConfigStatement:
-              id: idfBgpDefaultsConfigStatement
-              name: bgpDefaultsConfigStatement
-              label: Config Statement
-              description: Input raw EOS CLI
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            idfBgpDefaults:
-              id: idfBgpDefaults
-              name: bgpDefaults
-              label: BGP Defaults
-              description: Configure additional commands under the 'router bgp' context.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: idfBgpDefaultsConfigStatement
-                key: ''
             leafEvpnRouteServerHostname:
               id: leafEvpnRouteServerHostname
               name: hostname
@@ -6638,6 +6603,21 @@
               collection_props:
                 base_field_id: leafEvpnRouteServersGroup
                 key: leafEvpnRouteServerHostname
+            idfBgpDefaultsConfigStatement:
+              id: idfBgpDefaultsConfigStatement
+              name: bgpDefaults
+              label: BGP Defaults
+              description: Configure additional commands under the 'router bgp <asn>' context.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             leafBgpDetails:
               id: leafBgpDetails
               name: bgpDetails
@@ -6649,13 +6629,13 @@
                 members:
                   values:
                     - idfBgpAsRange
-                    - idfBgpDefaults
                     - leafEvpnRouteServersCollection
+                    - idfBgpDefaultsConfigStatement
             leafOspfDefaultsConfigStatement:
               id: leafOspfDefaultsConfigStatement
-              name: ospfDefaultsConfigStatement
-              label: Config Statement
-              description: Input raw EOS CLI
+              name: ospfDefaults
+              label: OSPF Defaults
+              description: Configure additional commands under the 'router ospf <process-id>' context.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -6666,16 +6646,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            leafOspfDefaults:
-              id: leafOspfDefaults
-              name: ospfDefaults
-              label: OSPF Defaults
-              description: Configure additional commands under the 'router ospf <process-id>' context.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: leafOspfDefaultsConfigStatement
-                key: ''
             leafOspfDetails:
               id: leafOspfDetails
               name: ospfDetails
@@ -6686,66 +6656,26 @@
               group_props:
                 members:
                   values:
-                    - leafOspfDefaults
-            idfDefaultsLeafUplinkInterfacesSpeed:
-              id: idfDefaultsLeafUplinkInterfacesSpeed
-              name: leafUplinkInterfacesSpeed
-              label: Leaf Uplink Interfaces Speed
-              description: Speed will apply to switch interfaces on both ends of uplinks.
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: auto
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            idfDefaultsMemberLeafUplinkInterfacesSpeed:
-              id: idfDefaultsMemberLeafUplinkInterfacesSpeed
-              name: memberLeafUplinkInterfacesSpeed
-              label: Member-Leaf Uplink Interfaces Speed
-              description: Speed will apply to switch interfaces on both ends of uplinks.
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: auto
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
+                    - leafOspfDefaultsConfigStatement
             leafUplinksCliStatement:
               id: leafUplinksCliStatement
-              name: cliStatement
-              label: CLI Statement
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            leafUplinksEosCli:
-              id: leafUplinksEosCli
               name: leafUplinksEosCli
               label: Leaf Uplinks EOS CLI
               description: ''
               required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: leafUplinksCliStatement
-                key: ''
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             memberLeafUplinksCliStatement:
               id: memberLeafUplinksCliStatement
-              name: cliStatement
-              label: CLI Statement
+              name: memberLeafUplinksEosCli
+              label: Member-Leaf Uplinks EOS CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -6757,16 +6687,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            memberLeafUplinksEosCli:
-              id: memberLeafUplinksEosCli
-              name: memberLeafUplinksEosCli
-              label: Member-Leaf Uplinks EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: memberLeafUplinksCliStatement
-                key: ''
             idfUplinkInterfaceDetails:
               id: idfUplinkInterfaceDetails
               name: uplinkInterfaceDetails
@@ -6777,10 +6697,8 @@
               group_props:
                 members:
                   values:
-                    - idfDefaultsLeafUplinkInterfacesSpeed
-                    - idfDefaultsMemberLeafUplinkInterfacesSpeed
-                    - leafUplinksEosCli
-                    - memberLeafUplinksEosCli
+                    - leafUplinksCliStatement
+                    - memberLeafUplinksCliStatement
             leafPtpPriority1:
               id: leafPtpPriority1
               name: leafPriority1
@@ -7005,35 +6923,10 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            splineMlagPeerInterfaceName:
-              id: splineMlagPeerInterfaceName
-              name: mlagPeerInterfaceName
-              label: Interface Name
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            splineMlagPeerInterfaces:
-              id: splineMlagPeerInterfaces
-              name: mlagPeerInterfaces
-              label: MLAG Peer Interfaces
-              description: Define the interfaces that will make up the MLAG peer link for the splines.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: splineMlagPeerInterfaceName
-                key: ''
-            splineMlagPeerInterfacesSpeed:
-              id: splineMlagPeerInterfacesSpeed
-              name: mlagPeerInterfacesSpeed
-              label: MLAG Peer Interfaces Speed
+            splineMlagPeerLinkCliStatement:
+              id: splineMlagPeerLinkCliStatement
+              name: mlagPeerLinkEosCli
+              label: MLAG Peer Link EOS CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -7047,35 +6940,10 @@
                 dynamic_options: null
             splineMlagPeerInterfacesCliStatement:
               id: splineMlagPeerInterfacesCliStatement
-              name: cliStatement
-              label: CLI Statement
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            splineMlagPeerInterfacesEosCli:
-              id: splineMlagPeerInterfacesEosCli
               name: mlagPeerInterfacesEosCli
               label: MLAG Peer Interfaces EOS CLI
               description: ''
               required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: splineMlagPeerInterfacesCliStatement
-                key: ''
-            splineMlagPeerLinkCliStatement:
-              id: splineMlagPeerLinkCliStatement
-              name: cliStatement
-              label: CLI Statement
-              description: ''
-              required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
                 default_value: null
@@ -7085,16 +6953,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            splineMlagPeerLinkEosCli:
-              id: splineMlagPeerLinkEosCli
-              name: mlagPeerLinkEosCli
-              label: MLAG Peer Link EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: splineMlagPeerLinkCliStatement
-                key: ''
             splineMlagDetails:
               id: splineMlagDetails
               name: mlagDetails
@@ -7110,10 +6968,8 @@
                     - splineMlagPeerL3Vlan
                     - splineMlagPeerL3IPv4Pool
                     - splineVirtualRouterMacAddress
-                    - splineMlagPeerInterfaces
-                    - splineMlagPeerInterfacesSpeed
-                    - splineMlagPeerInterfacesEosCli
-                    - splineMlagPeerLinkEosCli
+                    - splineMlagPeerLinkCliStatement
+                    - splineMlagPeerInterfacesCliStatement
             splineVtepLoopbackIPv4Pool:
               id: splineVtepLoopbackIPv4Pool
               name: vtepLoopbackIPv4Pool
@@ -7144,31 +7000,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            splineBgpDefaultsConfigStatement:
-              id: splineBgpDefaultsConfigStatement
-              name: bgpDefaultsConfigStatement
-              label: Config Statement
-              description: Input raw EOS CLI
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            splineBgpDefaults:
-              id: splineBgpDefaults
-              name: bgpDefaults
-              label: BGP Defaults
-              description: Configure additional commands under the 'router bgp' context.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: splineBgpDefaultsConfigStatement
-                key: ''
             evpnRouteServerHostname:
               id: evpnRouteServerHostname
               name: hostname
@@ -7237,6 +7068,21 @@
               collection_props:
                 base_field_id: evpnRouteServersDetails
                 key: ''
+            splineBgpDefaultsConfigStatement:
+              id: splineBgpDefaultsConfigStatement
+              name: bgpDefaults
+              label: BGP Defaults
+              description: Configure additional commands under the 'router bgp <asn>' context.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             splineBgpDetails:
               id: splineBgpDetails
               name: bgpDetails
@@ -7248,13 +7094,13 @@
                 members:
                   values:
                     - splineBgpAsn
-                    - splineBgpDefaults
                     - buildingEvpnRouteServers
+                    - splineBgpDefaultsConfigStatement
             splineOspfDefaultsConfigStatement:
               id: splineOspfDefaultsConfigStatement
-              name: ospfDefaultsConfigStatement
-              label: Config Statement
-              description: Input raw EOS CLI
+              name: ospfDefaults
+              label: OSPF Defaults
+              description: Configure additional commands under the 'router ospf <process-id>' context.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -7265,16 +7111,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            splineOspfDefaults:
-              id: splineOspfDefaults
-              name: ospfDefaults
-              label: OSPF Defaults
-              description: Configure additional commands under the 'router ospf <process-id>' context.
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: splineOspfDefaultsConfigStatement
-                key: ''
             splineOspfDetails:
               id: splineOspfDetails
               name: ospfDetails
@@ -7285,7 +7121,7 @@
               group_props:
                 members:
                   values:
-                    - splineOspfDefaults
+                    - splineOspfDefaultsConfigStatement
             splinesPtpPriority1:
               id: splinesPtpPriority1
               name: priority1
@@ -7666,8 +7502,8 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: device
                 tag_filter_query: null
-            memberLeafsNodeId:
-              id: memberLeafsNodeId
+            8a51a1c1-aefa-4c91-9b52-8b483f92cad3:
+              id: 8a51a1c1-aefa-4c91-9b52-8b483f92cad3
               name: nodeId
               label: Node Id
               description: ''
@@ -7688,7 +7524,7 @@
               group_props:
                 members:
                   values:
-                    - memberLeafsNodeId
+                    - 8a51a1c1-aefa-4c91-9b52-8b483f92cad3
             memberLeafsResolver:
               id: memberLeafsResolver
               name: memberLeafs
@@ -8055,31 +7891,6 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: IDF
                 tag_filter_query: null
-            vlanSviEosCliStatement:
-              id: vlanSviEosCliStatement
-              name: cliStatement
-              label: CLI Statement
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            vlanSviEosCli:
-              id: vlanSviEosCli
-              name: eosCli
-              label: EOS CLI
-              description: Raw CLI to be applied on SVI
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: vlanSviEosCliStatement
-                key: ''
             vlanStpPrioritySpline:
               id: vlanStpPrioritySpline
               name: vlanStpPrioritySpline
@@ -8344,6 +8155,21 @@
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
                 default_value: true
+            vlanSviEosCliStatement:
+              id: vlanSviEosCliStatement
+              name: eosCli
+              label: EOS CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             vlansDetails:
               id: vlansDetails
               name: vlanDetails
@@ -8359,11 +8185,11 @@
                     - vlanDhcpHelpers
                     - vlanName
                     - vlansIdfResolver
-                    - vlanSviEosCli
                     - vlanSpanningTreeDetails
                     - sviOspfConfiguration
                     - sviMulticast
                     - buildingL2OrL3
+                    - vlanSviEosCliStatement
             vlans:
               id: vlans
               name: vlans
@@ -9286,6 +9112,141 @@
                     - buildingIpLockingIpv4Enabled
                     - buildingIpLockingIpv6Enable
                     - buildingIpLockingDhcpServers
+            buildingDot1xEnable:
+              id: buildingDot1xEnable
+              name: enable
+              label: Enable
+              description: Enable 802.1x on all devices which will have endpoints connected to them
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
+            buildingDot1xLldpBypass:
+              id: buildingDot1xLldpBypass
+              name: lldpBypass
+              label: LLDP Bypass
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            buildingDot1xMbaDelay:
+              id: buildingDot1xMbaDelay
+              name: delay
+              label: Delay
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            buildingDot1xMbaHoldPeriod:
+              id: buildingDot1xMbaHoldPeriod
+              name: holdPeriod
+              label: Hold Period
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            buildingDot1xMba:
+              id: buildingDot1xMba
+              name: macBasedAuthentication
+              label: Mac Based Authentication
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - buildingDot1xMbaDelay
+                    - buildingDot1xMbaHoldPeriod
+            buildingDot1xRadiusAvPairServiceType:
+              id: buildingDot1xRadiusAvPairServiceType
+              name: serviceType
+              label: Service Type
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            buildingDot1xRadiusAvPairFramedMtu:
+              id: buildingDot1xRadiusAvPairFramedMtu
+              name: framedMtu
+              label: Framed MTU
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            buildingDot1xRadiusAvPair:
+              id: buildingDot1xRadiusAvPair
+              name: radiusAvPair
+              label: Radius AV Pair
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - buildingDot1xRadiusAvPairServiceType
+                    - buildingDot1xRadiusAvPairFramedMtu
+            buildingDot1xDynamicAuthorizationEnable:
+              id: buildingDot1xDynamicAuthorizationEnable
+              name: enable
+              label: Enable
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
+            buildingDot1xDynamicAuthorizationPort:
+              id: buildingDot1xDynamicAuthorizationPort
+              name: port
+              label: Port
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            buildingDot1xDynamicAuthorization:
+              id: buildingDot1xDynamicAuthorization
+              name: dynamicAuthorization
+              label: Dynamic Authorization
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - buildingDot1xDynamicAuthorizationEnable
+                    - buildingDot1xDynamicAuthorizationPort
+            buildingDot1x:
+              id: buildingDot1x
+              name: dot1x
+              label: 802.1x
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - buildingDot1xEnable
+                    - buildingDot1xLldpBypass
+                    - buildingDot1xMba
+                    - buildingDot1xRadiusAvPair
+                    - buildingDot1xDynamicAuthorization
             advancedFabricConfigurations:
               id: advancedFabricConfigurations
               name: advancedFabricConfigurations
@@ -9302,6 +9263,7 @@
                     - buildingMulticast
                     - buildingPtp
                     - buildingIpLocking
+                    - buildingDot1x
             campusType:
               id: campusType
               name: campusType
@@ -10160,31 +10122,6 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            vrfL3InterfaceCliStatement:
-              id: vrfL3InterfaceCliStatement
-              name: cliStatement
-              label: CLI Statement
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            vrfL3InterfaceEosCli:
-              id: vrfL3InterfaceEosCli
-              name: eosCli
-              label: EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: vrfL3InterfaceCliStatement
-                key: ''
             vrfL3InterfaceOspfEnabled:
               id: vrfL3InterfaceOspfEnabled
               name: enabled
@@ -10395,6 +10332,21 @@
                 members:
                   values:
                     - vrfL3InterfacePtpEnabled
+            vrfL3InterfaceCliStatement:
+              id: vrfL3InterfaceCliStatement
+              name: eosCli
+              label: EOS CLI
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
             vrfL3InterfaceDetails:
               id: vrfL3InterfaceDetails
               name: interfaceDetails
@@ -10410,10 +10362,10 @@
                     - vrfL3InterfaceDescription
                     - vrfL3InterfaceEnabled
                     - vrfL3InterfaceMtu
-                    - vrfL3InterfaceEosCli
                     - vrfL3InterfaceOspf
                     - vrfL3InterfaceMulticast
                     - vrfL3InterfacePtp
+                    - vrfL3InterfaceCliStatement
             vrfL3InterfacesCollection:
               id: vrfL3InterfacesCollection
               name: interfaces
@@ -10653,6 +10605,239 @@
                 members:
                   values:
                     - mlagFabricIpAddressing
+            splinesInbandZtpEthernetInterfaces:
+              id: splinesInbandZtpEthernetInterfaces
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            splinesInbandZtpEthernetInterfacesCollection:
+              id: splinesInbandZtpEthernetInterfacesCollection
+              name: inbandZtpInterfaces
+              label: Inband ZTP Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: splinesInbandZtpEthernetInterfaces
+                key: ''
+            splinesInbandZtpEthernetInterfacesGroup:
+              id: splinesInbandZtpEthernetInterfacesGroup
+              name: inbandZtpInterfacesGroup
+              label: Splines Interfaces Group
+              description: Group of members for Splines Default Interfaces
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splinesInbandZtpEthernetInterfacesCollection
+            splinesInbandZtpEthernetInterfacesResolver:
+              id: splinesInbandZtpEthernetInterfacesResolver
+              name: splinesInbandZtpInterfaces
+              label: Splines Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: splinesInbandZtpEthernetInterfacesGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            leafsInbandZtpEthernetInterfaces:
+              id: leafsInbandZtpEthernetInterfaces
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            leafsInbandZtpEthernetInterfacesCollection:
+              id: leafsInbandZtpEthernetInterfacesCollection
+              name: inbandZtpInterfaces
+              label: Inband ZTP Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: leafsInbandZtpEthernetInterfaces
+                key: ''
+            leafsInbandZtpEthernetInterfacesGroup:
+              id: leafsInbandZtpEthernetInterfacesGroup
+              name: inbandZtpInterfacesGroup
+              label: Leafs Interfaces Group
+              description: Group of members for Leafs Default Interfaces
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - leafsInbandZtpEthernetInterfacesCollection
+            leafsInbandZtpEthernetInterfacesResolver:
+              id: leafsInbandZtpEthernetInterfacesResolver
+              name: leafsInbandZtpInterfaces
+              label: Leafs Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: leafsInbandZtpEthernetInterfacesGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            memberLeafsInbandZtpEthernetInterfaces:
+              id: memberLeafsInbandZtpEthernetInterfaces
+              name: interfaces
+              label: Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            memberLeafsInbandZtpEthernetInterfacesCollection:
+              id: memberLeafsInbandZtpEthernetInterfacesCollection
+              name: inbandZtpInterfaces
+              label: Inband ZTP Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: memberLeafsInbandZtpEthernetInterfaces
+                key: ''
+            memberLeafsInbandZtpEthernetInterfacesGroup:
+              id: memberLeafsInbandZtpEthernetInterfacesGroup
+              name: inbandZtpInterfacesGroup
+              label: Member Leafs Interfaces Group
+              description: Group of members for Member Leafs Default Interfaces
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - memberLeafsInbandZtpEthernetInterfacesCollection
+            memberLeafsInbandZtpEthernetInterfacesResolver:
+              id: memberLeafsInbandZtpEthernetInterfacesResolver
+              name: memberLeafsInbandZtpInterfaces
+              label: Member Leafs Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: memberLeafsInbandZtpEthernetInterfacesGroup
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            inbandZtpEthernetInterfaces:
+              id: inbandZtpEthernetInterfaces
+              name: inbandZtpInterfaces
+              label: ZTP Interfaces
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - splinesInbandZtpEthernetInterfacesResolver
+                    - leafsInbandZtpEthernetInterfacesResolver
+                    - memberLeafsInbandZtpEthernetInterfacesResolver
+            portChannelInterfaceInbandZtpLacpFallbackMode:
+              id: portChannelInterfaceInbandZtpLacpFallbackMode
+              name: mode
+              label: Mode
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: individual
+                is_secret: false
+                static_options:
+                  values:
+                    - individual
+                    - static
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            portChannelInterfaceInbandZtpLacpFallbackTimeout:
+              id: portChannelInterfaceInbandZtpLacpFallbackTimeout
+              name: timeout
+              label: Timeout
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '30'
+                range: null
+                static_options: null
+                dynamic_options: null
+            portChannelInterfaceInbandZtpMethod:
+              id: portChannelInterfaceInbandZtpMethod
+              name: lacpFallback
+              label: LACP Fallback
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - portChannelInterfaceInbandZtpLacpFallbackMode
+                    - portChannelInterfaceInbandZtpLacpFallbackTimeout
+            ethernetInterfaceInbandZtpMethod:
+              id: ethernetInterfaceInbandZtpMethod
+              name: interfaceZtpMethod
+              label: Interface ZTP Method
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: access
+                is_secret: false
+                static_options:
+                  values:
+                    - access
+                    - lldp tlv
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            inbandZtpSettings:
+              id: inbandZtpSettings
+              name: inbandZtp
+              label: Inband ZTP
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - inbandZtpEthernetInterfaces
+                    - portChannelInterfaceInbandZtpMethod
+                    - ethernetInterfaceInbandZtpMethod
             generalSettings:
               id: generalSettings
               name: generalSettings
@@ -10664,6 +10849,7 @@
                 members:
                   values:
                     - fabricIpAddressingGroup
+                    - inbandZtpSettings
             root:
               id: root
               name: ''
@@ -10770,7 +10956,6 @@
               },
               "idfBgpDefaultsConfigStatement":{
                 "key":"idfBgpDefaultsConfigStatement",
-                "type":"INPUT",
                 "dependency":{
                   "campusType":{
                     "value":[
@@ -10778,7 +10963,9 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "idfDefaults":{
                 "key":"idfDefaults",
@@ -10881,7 +11068,8 @@
                     "mode":"SHOW"
                   }
                 },
-                "type":"INPUT"
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "ospfProcessId":{
                 "key":"ospfProcessId",
@@ -11065,7 +11253,7 @@
                   "sviOspfConfiguration",
                   "sviMulticast",
                   "vlanSpanningTreeDetails",
-                  "vlanSviEosCli"
+                  "vlanSviEosCliStatement"
                 ]
               },
               "vlanCampusSviGroup":{
@@ -11557,7 +11745,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -12250,8 +12438,6 @@
               },
               "splineOspfDefaultsConfigStatement":{
                 "key":"splineOspfDefaultsConfigStatement",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "buildingUnderlayRoutingProtocol":{
                     "value":[
@@ -12259,12 +12445,13 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "leafOspfDefaultsConfigStatement":{
                 "key":"leafOspfDefaultsConfigStatement",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "campusType":{
                     "value":[
@@ -12278,7 +12465,10 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "vrfDetails":{
                 "key":"vrfDetails",
@@ -12333,7 +12523,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ]
@@ -12368,7 +12558,7 @@
                   "vrfL3InterfaceOspf",
                   "vrfL3InterfaceMulticast",
                   "vrfL3InterfacePtp",
-                  "vrfL3InterfaceEosCli"
+                  "vrfL3InterfaceCliStatement"
                 ]
               },
               "vrfL3InterfaceOspfSimpleAuthKey":{
@@ -12627,7 +12817,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -12825,10 +13015,8 @@
                   "splineMlagPeerL3Vlan",
                   "splineMlagPeerL3IPv4Pool",
                   "splineVirtualRouterMacAddress",
-                  "splineMlagPeerInterfaces",
-                  "splineMlagPeerInterfacesSpeed",
-                  "splineMlagPeerInterfacesEosCli",
-                  "splineMlagPeerLinkEosCli"
+                  "splineMlagPeerInterfacesCliStatement",
+                  "splineMlagPeerLinkCliStatement"
                 ]
               },
               "advancedFabricConfigurations":{
@@ -12840,7 +13028,8 @@
                   "mstInstances",
                   "buildingMulticast",
                   "buildingPtp",
-                  "buildingIpLocking"
+                  "buildingIpLocking",
+                  "buildingDot1x"
                 ]
               },
               "vrfL3InterfaceOspf":{
@@ -12861,10 +13050,8 @@
                 "key":"idfUplinkInterfaceDetails",
                 "type":"INPUT",
                 "order":[
-                  "idfDefaultsLeafUplinkInterfacesSpeed",
-                  "leafUplinksEosCli",
-                  "idfDefaultsMemberLeafUplinkInterfacesSpeed",
-                  "memberLeafUplinksEosCli"
+                  "leafUplinksCliStatement",
+                  "memberLeafUplinksCliStatement"
                 ]
               },
               "vrfL3InterfaceOspfPassive":{
@@ -13065,7 +13252,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -13251,8 +13438,8 @@
                 "type":"INPUT",
                 "order":[
                   "splineBgpAsn",
-                  "buildingEvpnRouteServers",
-                  "splineBgpDefaults"
+                  "splineBgpDefaultsConfigStatement",
+                  "buildingEvpnRouteServers"
                 ]
               },
               "evpnRouteServerHostname":{
@@ -13355,8 +13542,6 @@
               },
               "vlanSviEosCliStatement":{
                 "key":"vlanSviEosCliStatement",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "buildingL2OrL3":{
                     "value":[
@@ -13364,7 +13549,10 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "leafEvpnRouteServerHostname":{
                 "key":"leafEvpnRouteServerHostname",
@@ -13458,7 +13646,6 @@
               },
               "splineMlagPeerInterfacesCliStatement":{
                 "key":"splineMlagPeerInterfacesCliStatement",
-                "type":"INPUT",
                 "dependency":{
                   "campusType":{
                     "value":[
@@ -13472,12 +13659,12 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "splineMlagPeerLinkCliStatement":{
                 "key":"splineMlagPeerLinkCliStatement",
-                "type":"INPUT",
-                "dependencyType":"OR",
                 "dependency":{
                   "campusType":{
                     "value":[
@@ -13491,7 +13678,10 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "splineRouterIdPool":{
                 "key":"splineRouterIdPool",
@@ -13568,5 +13758,166 @@
                 "key":"memberLeafsResolver",
                 "type":"INPUT",
                 "showDefaultRow":false
+              },
+              "splinesInbandZtpEthernetInterfacesResolver":{
+                "key":"splinesInbandZtpEthernetInterfacesResolver",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "leafsInbandZtpEthernetInterfacesResolver":{
+                "key":"leafsInbandZtpEthernetInterfacesResolver",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "memberLeafsInbandZtpEthernetInterfacesResolver":{
+                "key":"memberLeafsInbandZtpEthernetInterfacesResolver",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "inbandZtpSettings":{
+                "key":"inbandZtpSettings",
+                "type":"INPUT",
+                "order":[
+                  "portChannelInterfaceInbandZtpMethod",
+                  "ethernetInterfaceInbandZtpMethod",
+                  "inbandZtpEthernetInterfaces"
+                ]
+              },
+              "leafMlagPeerInterfacesCliStatement":{
+                "key":"leafMlagPeerInterfacesCliStatement",
+                "type":"INPUT",
+                "isMultiLine":true
+              },
+              "leafMlagPeerLinkCliStatement":{
+                "key":"leafMlagPeerLinkCliStatement",
+                "type":"INPUT",
+                "isMultiLine":true
+              },
+              "leafUplinksCliStatement":{
+                "key":"leafUplinksCliStatement",
+                "type":"INPUT",
+                "isMultiLine":true
+              },
+              "memberLeafUplinksCliStatement":{
+                "key":"memberLeafUplinksCliStatement",
+                "type":"INPUT",
+                "isMultiLine":true
+              },
+              "buildingDot1xDynamicAuthorizationEnable":{
+                "key":"buildingDot1xDynamicAuthorizationEnable",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingDot1xEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "buildingDot1xLldpBypass":{
+                "key":"buildingDot1xLldpBypass",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingDot1xEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "buildingDot1xMbaDelay":{
+                "key":"buildingDot1xMbaDelay",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingDot1xEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "buildingDot1xMbaHoldPeriod":{
+                "key":"buildingDot1xMbaHoldPeriod",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingDot1xEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "buildingDot1xRadiusAvPairServiceType":{
+                "key":"buildingDot1xRadiusAvPairServiceType",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingDot1xEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "buildingDot1xRadiusAvPairFramedMtu":{
+                "key":"buildingDot1xRadiusAvPairFramedMtu",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "buildingDot1xEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                }
+              },
+              "buildingDot1x":{
+                "key":"buildingDot1x",
+                "type":"INPUT",
+                "order":[
+                  "buildingDot1xEnable",
+                  "buildingDot1xDynamicAuthorization",
+                  "buildingDot1xLldpBypass",
+                  "buildingDot1xMba",
+                  "buildingDot1xRadiusAvPair"
+                ]
+              },
+              "buildingDot1xDynamicAuthorizationPort":{
+                "key":"buildingDot1xDynamicAuthorizationPort",
+                "dependency":{
+                  "buildingDot1xEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  },
+                  "buildingDot1xDynamicAuthorizationEnable":{
+                    "value":[
+                      false
+                    ],
+                    "mode":"HIDE"
+                  }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "leafBgpDetails":{
+                "key":"leafBgpDetails",
+                "type":"INPUT",
+                "order":[
+                  "idfBgpAsRange",
+                  "idfBgpDefaultsConfigStatement",
+                  "leafEvpnRouteServersCollection"
+                ]
               }
             }
