@@ -2310,7 +2310,7 @@
 
               for interface in ctx.topology.getDevices(deviceIds=[device_id])[0].getInterfaces():
                   peer_device, peer_interface = interface.getPeerInfo()
-                  if peer_device is not None and "Ethernet" in interface.name:
+                  if peer_device is not None and "Ethernet" in interface.name and "Ethernet" in peer_interface.name:
                       interfaces.append({
                           "interface_name": interface.name,
                           "peer_interface_name": peer_interface.name,
