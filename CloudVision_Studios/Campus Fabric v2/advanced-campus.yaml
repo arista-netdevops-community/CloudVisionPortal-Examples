@@ -6765,7 +6765,7 @@
               id: idfDefaults
               name: idfDefaults
               label: IDF Defaults
-              description: ''
+              description: Set parameters which will be used to generate configuration across all IDF switches in this building.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -6784,7 +6784,7 @@
               id: splineRouterIdPool
               name: routerIdPool
               label: Router ID Pool
-              description: Define the IPv4 pool from which IP addresses are allocated to each spline's Loopback0 interface.
+              description: Define the IPv4 pool from which IP addresses are allocated to each MDF device's Loopback0 interface.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -6846,7 +6846,7 @@
               id: splineSpanningTreeDetails
               name: spanningTreeDetails
               label: Spanning Tree Details
-              description: Spanning tree settings to be applied on Spline switches
+              description: Spanning tree settings to be applied on MDF switches
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -6957,7 +6957,7 @@
               id: splineMlagDetails
               name: mlagDetails
               label: MLAG Details
-              description: MLAG settings to be applied on Spline switches
+              description: MLAG settings to be applied on MDF switches
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -6974,7 +6974,7 @@
               id: splineVtepLoopbackIPv4Pool
               name: vtepLoopbackIPv4Pool
               label: VTEP Loopback IPv4 Pool
-              description: Define the IPv4 pool from which IP addresses are allocated to each spline's Loopback1 interface.
+              description: Define the IPv4 pool from which IP addresses are allocated to each MDF device's Loopback1 interface.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -6989,7 +6989,7 @@
               id: splineBgpAsn
               name: bgpAsns
               label: BGP ASN
-              description: BGP AS assigned to spline switches
+              description: BGP AS assigned to MDF devices
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -7062,7 +7062,7 @@
               id: buildingEvpnRouteServers
               name: evpnRouteServers
               label: EVPN Route Servers
-              description: List of devices acting as EVPN route-servers.  Spline switches will configure an EVPN BGP peering to each route server listed.
+              description: List of devices acting as EVPN route-servers.  MDF devices will configure an EVPN BGP peering to each route server listed.
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -7087,7 +7087,7 @@
               id: splineBgpDetails
               name: bgpDetails
               label: BGP Details
-              description: BGP settings to be applied on Spline switches
+              description: BGP settings to be applied on MDF devices
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -7115,7 +7115,7 @@
               id: splineOspfDetails
               name: ospfDetails
               label: OSPF Details
-              description: OSPF settings to be applied on Spline switches
+              description: OSPF settings to be applied on MDF devices
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -7174,8 +7174,8 @@
             splineDefaults:
               id: splineDefaults
               name: splineDefaults
-              label: Spline Defaults
-              description: Set parameters which will be used to generate configuration across all spline switches in this building.
+              label: MDF Defaults
+              description: Set parameters which will be used to generate configuration across all MDF switches in this building.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -9329,8 +9329,8 @@
             splinesResolver:
               id: splinesResolver
               name: splines
-              label: Splines
-              description: Assign devices to be Spline switches in this network.  A spline is a switch that typically sits at the MDF level of the network and provides upstream connectivity for IDFs out to the rest of the network.
+              label: MDF
+              description: Assign devices to become MDF switches for this building. The MDF is where the core of the data and voice network of the building is located. All IDFs and closets connect up to the MDF.
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
@@ -13745,9 +13745,13 @@
               },
               "splinesResolver":{
                 "key":"splinesResolver",
-                "type":"INPUT",
                 "isPageLayout":false,
-                "showDefaultRow":false
+                "showDefaultRow":false,
+                "fieldOverrides":{
+                  "label":"Spines",
+                  "description":"Spines is the term used to refer to devices that are members of the MDF layer."
+                },
+                "type":"INPUT"
               },
               "leafsResolver":{
                 "key":"leafsResolver",
