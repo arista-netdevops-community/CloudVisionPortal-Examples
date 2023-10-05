@@ -1461,7 +1461,7 @@
               child_subnet = child_subnets[((switch_id - 1) * max_uplink_switches * max_parallel_uplinks)  # This should provide starting index for potential uplink /31s for this switch
                                           + ((uplink_switch_id - 1) * max_parallel_uplinks + number_of_times_uplink_switch_has_been_seen)   # This should provide uplink switch index within above /31s
                                           + uplink_offset]  # This accounts for any offset from other uplink switch layers
-              return list(child_subnet.hosts())[0]
+              return list(child_subnet.hosts())[1]
 
 
           def get_p2p_uplinks_peer_ip(switch_facts, uplink_switch_facts, uplink_switch_index):
@@ -1502,7 +1502,7 @@
               child_subnet = child_subnets[((switch_id - 1) * max_uplink_switches * max_parallel_uplinks)  # This should provide starting index for potential uplink /31s for this switch
                                           + ((uplink_switch_id - 1) * max_parallel_uplinks + number_of_times_uplink_switch_has_been_seen)   # This should provide uplink switch index within above /31s
                                           + uplink_offset]  # This accounts for any offset from other uplink switch layers
-              return list(child_subnet.hosts())[1]
+              return list(child_subnet.hosts())[0]
 
 
           def set_switch_facts_properties(device_id, campus_resolver, general_settings):
