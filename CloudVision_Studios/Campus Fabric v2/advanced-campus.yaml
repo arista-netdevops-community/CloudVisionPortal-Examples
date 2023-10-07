@@ -1544,7 +1544,7 @@
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
                   return
 
-              # Set switch node type and node id        
+              # Set switch node type and node id
               # First attempt to resolve switch as a member leaf switch then leaf switch
               if device_matches_resolver_query(building_details["idfs"], device_id):
                   idf_details = building_details["idfs"].resolve(device=device_id)["idfFacts"]
@@ -1665,7 +1665,7 @@
                   # Set inband ztp interfaces
                   if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"], device_id):
                       inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
-                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)        
+                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
 
               # Set node properties
               switch_facts["connected_endpoints"] = default(custom_node_properties.get("connected_endpoints"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["connected_endpoints"])
@@ -2035,12 +2035,12 @@
                   # switch_facts["loopback_ipv4_description"]  =
 
                   if switch_facts.get("underlay_routing_protocol"):
-                       # Set Router ID
+                      # Set Router ID
                       switch_facts["router_id"] = str(get_router_id(switch_facts))
 
                       # Set uplink ipv4 pool
                       switch_facts["uplink_ipv4_pool"] = node_defaults.get("uplinkIpv4Pool")
-                      switch_facts["uplink_ipv4_subnet_mask"] = 31
+                      switch_facts["uplink_ipv4_subnet_mask"] = node_defaults.get("uplinkIpv4SubnetMask", 31)
 
                   # Set BGP parameters
                   if switch_facts["underlay_routing_protocol"] == "bgp" or switch_facts["overlay_routing_protocol"] == "bgp":
@@ -2223,9 +2223,9 @@
                   inband_mgmt_vrf = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVrf", "default")
                   switch_facts["inband_management_vrf"] = inband_mgmt_vrf if inband_mgmt_vrf.strip() != "" else "default"
                   switch_facts["inband_management_ip_helpers"] = building_details["advancedFabricConfigurations"]["inbandManagementDetails"].get("ipHelperAddresses", [])
-                  # Set boot vlan for splines
-                  if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["spline"]):
-                      switch_facts["inband_ztp"] = True
+                  # Set boot vlan for l3 gateway switches to advertise to l2 downstream devices
+                  if switch_facts.get("network_services_l2"):
+                      switch_facts["advertise_inband_ztp_vlan"] = True
                   # Set boot vlan for L2 child switches
                   if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["leaf", "memberleaf"]) or \
                           ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in [ "memberleaf"]):
@@ -2939,7 +2939,7 @@
                           }
                       }
                   config["dot1x"] = switch_facts["dot1x"]
-              
+
               return config
 
 
@@ -3019,7 +3019,7 @@
                       ptp_config.pop("profile", None)
                       config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["ptp"] = ptp_config
 
-                  if switch_facts.get("inband_ztp") and switch_facts.get("inband_management_vlan"):
+                  if switch_facts.get("advertise_inband_ztp_vlan") and switch_facts.get("inband_management_vlan"):
                       lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
                       lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
                       config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_mode"] = lacp_fallback_mode
@@ -3104,7 +3104,7 @@
                           "description": switch_facts['mlag_peer']
                       }
 
-              return config            
+              return config
 
 
           def set_underlay_config(config, switch_facts):
@@ -3232,7 +3232,7 @@
                           ptp_config.pop("profile", None)
                           port_channel["ptp"] = ptp_config
 
-                      if link.get("ztp_vlan"):
+                      if link.get("ztp_vlan") and switch_facts.get("advertise_inband_ztp_vlan"):
                           lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
                           lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
                           port_channel["lacp_fallback_mode"] = lacp_fallback_mode
@@ -4501,7 +4501,7 @@
                   ctx.warning(f"Could not configure a boot vlan on downstream interfaces for {switch_facts['hostname']} because its EOS version is {switch_facts['eos_version']}.  The switch's EOS version must be >= 4.27.1F.")
                   return config
 
-              if boot_ztp_eligible:
+              if switch_facts.get("advertise_inband_ztp_vlan") and boot_ztp_eligible:
                   for iface in switch_facts.get("inband_ztp_interfaces", []):
                       if iface not in config["ethernet_interfaces"]:
                           config["ethernet_interfaces"][iface] = {}
@@ -6289,7 +6289,7 @@
             idfUplinkIpv4Pool:
               id: idfUplinkIpv4Pool
               name: uplinkIpv4Pool
-              label: Uplink Ipv4 Pool
+              label: Uplink IPv4 Pool
               description: IPv4 subnet to use to connect to uplink switches
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -6761,6 +6761,18 @@
                     - memberLeafPtpPriority1
                     - idfPtpClockIdentityPrefix
                     - idfPtpAutoClockIdentity
+            idfUplinkIpv4SubnetMask:
+              id: idfUplinkIpv4SubnetMask
+              name: uplinkIpv4SubnetMask
+              label: Uplink IPv4 Subnet Mask
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: '31'
+                range: null
+                static_options: null
+                dynamic_options: null
             idfDefaults:
               id: idfDefaults
               name: idfDefaults
@@ -6780,6 +6792,7 @@
                     - leafOspfDetails
                     - idfUplinkInterfaceDetails
                     - idfPtpDetails
+                    - idfUplinkIpv4SubnetMask
             splineRouterIdPool:
               id: splineRouterIdPool
               name: routerIdPool
@@ -10880,30 +10893,6 @@
                   "nodeTypeProperties"
                 ]
               },
-              "fabricSubnet":{
-                "key":"fabricSubnet",
-                "type":"INPUT",
-                "dependency":{
-                  "fabricType":{
-                    "value":[
-                      "L3"
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
-              "fabricChildSubnetsMask":{
-                "key":"fabricChildSubnetsMask",
-                "type":"INPUT",
-                "dependency":{
-                  "fabricType":{
-                    "value":[
-                      "L3"
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
               "vxlanOverlay":{
                 "key":"vxlanOverlay",
                 "type":"INPUT",
@@ -10974,6 +10963,7 @@
                   "idfSpanningTreeDetails",
                   "leafMlagDetails",
                   "idfUplinkIpv4Pool",
+                  "idfUplinkIpv4SubnetMask",
                   "idfRouterIdPool",
                   "leafVtepLoopbackIPv4Pool",
                   "leafOspfDetails",
@@ -11745,7 +11735,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -12523,7 +12513,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -12817,7 +12807,7 @@
                   {
                     "tagLabel":"Building",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -13252,7 +13242,7 @@
                   {
                     "tagLabel":"IDF",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -13923,5 +13913,24 @@
                   "idfBgpDefaultsConfigStatement",
                   "leafEvpnRouteServersCollection"
                 ]
+              },
+              "idfUplinkIpv4SubnetMask":{
+                "key":"idfUplinkIpv4SubnetMask",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "buildingUnderlayRoutingProtocol":{
+                    "value":[
+                      "__ANY__"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
