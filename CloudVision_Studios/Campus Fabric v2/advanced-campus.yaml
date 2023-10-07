@@ -4505,6 +4505,8 @@
                   for iface in switch_facts.get("inband_ztp_interfaces", []):
                       if iface not in config["ethernet_interfaces"]:
                           config["ethernet_interfaces"][iface] = {}
+                      if config["ethernet_interfaces"][iface].get("type", "") == "routed":
+                          continue
                       config["ethernet_interfaces"][iface]["type"] = "switched"
                       config["ethernet_interfaces"][iface]["shutdown"] = False
                       config["ethernet_interfaces"][iface]["vlans"] = switch_facts["inband_management_vlan"]
