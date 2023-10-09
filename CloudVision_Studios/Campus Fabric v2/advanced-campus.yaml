@@ -1403,8 +1403,8 @@
               if switch_facts.get("inband_management_ip_range"):
                   ib_hosts_in_pod = []
                   # get switches in same pod
-                  leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
-                  memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
+                  leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts.get('group', '') == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
+                  memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts.get('group', '') == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
                   if "l2ls" in switch_facts["campus_type"]:
                       ib_hosts_in_pod = leaf_switches_in_pod + memberleaf_switches_in_pod
                   elif "l3ls" in switch_facts["campus_type"]:
@@ -1505,6 +1505,134 @@
               return list(child_subnet.hosts())[0]
 
 
+          def set_switch_facts_node_properties(switch_facts, general_settings, building_details):
+              # set device_id
+              device_id = switch_facts["serial_number"]
+              # Set campus type
+              l2_or_l3 = "l3ls" if building_details["design"]["campusType"].lower() == "l3" else "l2ls"
+              vxlan_enabled = building_details["design"]["vxlanOverlay"]
+              evpn_enabled = building_details["buildingRoutingProtocols"]["buildingOverlayRoutingProtocol"] if building_details["buildingRoutingProtocols"].get("buildingOverlayRoutingProtocol") else None
+
+              campus_design = l2_or_l3
+              if vxlan_enabled and not evpn_enabled:
+                  campus_design += "-vxlan"
+              elif vxlan_enabled and evpn_enabled:
+                  campus_design += "-evpn"
+
+              switch_facts["campus_type"] = campus_design
+
+              # Get custom node properties
+              custom_node_properties = {
+                  "connected_endpoints": None,
+                  "default_evpn_role": None,
+                  "mlag_support": None,
+                  "vtep": None,
+                  "network_services_l2": None,
+                  "network_services_l3": None,
+                  "underlay_router": None,
+                  "uplink_type": None
+              }
+              if switch_facts["type"] == "spline":
+                  spline_defaults = building_details['nodeTypeProperties']['defaultSplineProperties']
+                  # Set custom EVPN role
+                  if spline_defaults.get('splineEvpnRoleDefault', '').strip() != "":
+                      custom_node_properties['default_evpn_role'] = spline_defaults['splineEvpnRoleDefault'].lower()
+                  # Set custom MLAG support role
+                  if spline_defaults.get('splineMlagSupportDefault', '').strip() != "":
+                      custom_node_properties['mlag_support'] = True if spline_defaults['splineMlagSupportDefault'] == "Yes" else False
+                  # Set custom Vtep role
+                  if spline_defaults.get('splineVtepDefault', '').strip() != "":
+                      custom_node_properties['vtep'] = True if spline_defaults['splineVtepDefault'] == "Yes" else False
+                  # Set custom Connnected Endpoints role
+                  if spline_defaults.get('splineConnectedEndpointsDefault', '').strip() != "":
+                      custom_node_properties['connected_endpoints'] = True if spline_defaults['splineConnectedEndpointsDefault'] == "Yes" else False
+                  # Set custom L2 Network Services role
+                  if spline_defaults.get('splineL2NetworkServicesDefault', '').strip() != "":
+                      custom_node_properties['network_services_l2'] = True if spline_defaults['splineL2NetworkServicesDefault'] == "Yes" else False
+                  # Set custom L3 Network Services role
+                  if spline_defaults.get('splineL3NetworkServicesDefault', '').strip() != "":
+                      custom_node_properties['network_services_l3'] = True if spline_defaults['splineL3NetworkServicesDefault'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if spline_defaults.get('splineUnderlayRouter', '').strip() != "":
+                      custom_node_properties['underlay_router'] = True if spline_defaults['splineUnderlayRouter'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if spline_defaults.get('splineUplinkType', '').strip() != "":
+                      custom_node_properties['uplink_type'] = spline_defaults['splineUplinkType'].lower()
+
+                  # Set inband ztp interfaces
+                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+
+              elif switch_facts["type"] == "leaf":
+                  leaf_defaults = building_details['nodeTypeProperties']['defaultLeafProperties']
+                  # Set custom EVPN role
+                  if leaf_defaults.get('leafEvpnRoleDefault', '').strip() != "":
+                      custom_node_properties['default_evpn_role'] = leaf_defaults['leafEvpnRoleDefault'].lower()
+                  # Set custom MLAG support role
+                  if leaf_defaults.get('leafMlagSupportDefault', '').strip() != "":
+                      custom_node_properties['mlag_support'] = True if leaf_defaults['leafMlagSupportDefault'] == "Yes" else False
+                  # Set custom Vtep role
+                  if leaf_defaults.get('leafVtepDefault', '').strip() != "":
+                      custom_node_properties['vtep'] = True if leaf_defaults['leafVtepDefault'] == "Yes" else False
+                  # Set custom Connnected Endpoints role
+                  if leaf_defaults.get('leafConnectedEndpointsDefault', '').strip() != "":
+                      custom_node_properties['connected_endpoints'] = True if leaf_defaults['leafConnectedEndpointsDefault'] == "Yes" else False
+                  # Set custom L2 Network Services role
+                  if leaf_defaults.get('leafL2NetworkServicesDefault', '').strip() != "":
+                      custom_node_properties['network_services_l2'] = True if leaf_defaults['leafL2NetworkServicesDefault'] == "Yes" else False
+                  # Set custom L3 Network Services role
+                  if leaf_defaults.get('leafL3NetworkServicesDefault', '').strip() != "":
+                      custom_node_properties['network_services_l3'] = True if leaf_defaults['leafL3NetworkServicesDefault'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if leaf_defaults.get('leafUnderlayRouter', '').strip() != "":
+                      custom_node_properties['underlay_router'] = True if leaf_defaults['leafUnderlayRouter'] == "Yes" else False
+                  # Set custom Underlay Router role
+                  if leaf_defaults.get('leafUplinkType', '').strip() != "":
+                      custom_node_properties['uplink_type'] = leaf_defaults['leafUplinkType'].lower()
+
+                  # Set inband ztp interfaces
+                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+
+              elif switch_facts["type"] == "memberleaf":
+                  # Set inband ztp interfaces
+                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+
+              # Set node properties
+              switch_facts["connected_endpoints"] = default(custom_node_properties.get("connected_endpoints"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["connected_endpoints"])
+              switch_facts["default_evpn_role"] = default(custom_node_properties.get("default_evpn_role"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["default_evpn_role"])
+              switch_facts["mlag_support"] = default(custom_node_properties.get("mlag_support"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["mlag_support"])
+              switch_facts["network_services_l2"] = default(custom_node_properties.get("network_services_l2"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["network_services_l2"])
+              switch_facts["network_services_l3"] = default(custom_node_properties.get("network_services_l3"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["network_services_l3"])
+              switch_facts["underlay_router"] = default(custom_node_properties.get("underlay_router"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["underlay_router"])
+              switch_facts["uplink_type"] = default(custom_node_properties.get("uplink_type"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["uplink_type"])
+              switch_facts["vtep"] = default(custom_node_properties.get('vtep'), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["vtep"])
+              # switch_facts["ip_addressing"] =
+              # switch_facts["interface_descriptions"] =
+
+              # Set platform settings
+              if switch_facts.get("platform") and switch_facts.get('platform_settings') is None:
+                  for platform, settings in platform_settings.items():
+                      # Skip default as this will be applied at the end
+                      # to any switch that doesn't match any other platform
+                      if platform == "default":
+                          continue
+                      # check to see if any default platform regex is matched
+                      for regex in settings['regexes']:
+                          if re.search(regex, switch_facts['platform'], re.IGNORECASE):
+                              switch_facts['platform_settings'] = settings
+
+              # If no platform setting is matched, set to default
+              if switch_facts.get('platform_settings') is None:
+                  switch_facts['platform_settings'] = platform_settings['default']
+
+              return switch_facts
+
+
           def set_switch_facts_properties(device_id, campus_resolver, general_settings):
               # Initialize switch_facts
               switch_facts = {}
@@ -1572,113 +1700,6 @@
                   ctx.warning(f"No Node Id set for {switch_facts['hostname']}")
                   return
 
-              # Set campus type
-              l2_or_l3 = "l3ls" if building_details["design"]["campusType"].lower() == "l3" else "l2ls"
-              vxlan_enabled = building_details["design"]["vxlanOverlay"]
-              evpn_enabled = building_details["buildingRoutingProtocols"]["buildingOverlayRoutingProtocol"] if building_details["buildingRoutingProtocols"].get("buildingOverlayRoutingProtocol") else None
-
-              campus_design = l2_or_l3
-              if vxlan_enabled and not evpn_enabled:
-                  campus_design += "-vxlan"
-              elif vxlan_enabled and evpn_enabled:
-                  campus_design += "-evpn"
-
-              switch_facts["campus_type"] = campus_design
-
-              # Get custom node properties
-              custom_node_properties = {
-                  "connected_endpoints": None,
-                  "default_evpn_role": None,
-                  "mlag_support": None,
-                  "vtep": None,
-                  "network_services_l2": None,
-                  "network_services_l3": None,
-                  "underlay_router": None,
-                  "uplink_type": None
-              }
-              if switch_facts["type"] == "spline":
-                  spline_defaults = building_details['nodeTypeProperties']['defaultSplineProperties']
-                   # Set custom EVPN role
-                  if spline_defaults.get('splineEvpnRoleDefault', '').strip() != "":
-                      custom_node_properties['default_evpn_role'] = spline_defaults['splineEvpnRoleDefault'].lower()
-                  # Set custom MLAG support role
-                  if spline_defaults.get('splineMlagSupportDefault', '').strip() != "":
-                      custom_node_properties['mlag_support'] = True if spline_defaults['splineMlagSupportDefault'] == "Yes" else False
-                  # Set custom Vtep role
-                  if spline_defaults.get('splineVtepDefault', '').strip() != "":
-                      custom_node_properties['vtep'] = True if spline_defaults['splineVtepDefault'] == "Yes" else False
-                  # Set custom Connnected Endpoints role
-                  if spline_defaults.get('splineConnectedEndpointsDefault', '').strip() != "":
-                      custom_node_properties['connected_endpoints'] = True if spline_defaults['splineConnectedEndpointsDefault'] == "Yes" else False
-                  # Set custom L2 Network Services role
-                  if spline_defaults.get('splineL2NetworkServicesDefault', '').strip() != "":
-                      custom_node_properties['network_services_l2'] = True if spline_defaults['splineL2NetworkServicesDefault'] == "Yes" else False
-                  # Set custom L3 Network Services role
-                  if spline_defaults.get('splineL3NetworkServicesDefault', '').strip() != "":
-                      custom_node_properties['network_services_l3'] = True if spline_defaults['splineL3NetworkServicesDefault'] == "Yes" else False
-                  # Set custom Underlay Router role
-                  if spline_defaults.get('splineUnderlayRouter', '').strip() != "":
-                      custom_node_properties['underlay_router'] = True if spline_defaults['splineUnderlayRouter'] == "Yes" else False
-                  # Set custom Underlay Router role
-                  if spline_defaults.get('splineUplinkType', '').strip() != "":
-                      custom_node_properties['uplink_type'] = spline_defaults['splineUplinkType'].lower()
-
-                  # Set inband ztp interfaces
-                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
-                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
-                      ctx.info(f"{switch_facts['inband_ztp_interfaces']}")
-
-              elif switch_facts["type"] == "leaf":
-                  leaf_defaults = building_details['nodeTypeProperties']['defaultLeafProperties']
-                   # Set custom EVPN role
-                  if leaf_defaults.get('leafEvpnRoleDefault', '').strip() != "":
-                      custom_node_properties['default_evpn_role'] = leaf_defaults['leafEvpnRoleDefault'].lower()
-                  # Set custom MLAG support role
-                  if leaf_defaults.get('leafMlagSupportDefault', '').strip() != "":
-                      custom_node_properties['mlag_support'] = True if leaf_defaults['leafMlagSupportDefault'] == "Yes" else False
-                  # Set custom Vtep role
-                  if leaf_defaults.get('leafVtepDefault', '').strip() != "":
-                      custom_node_properties['vtep'] = True if leaf_defaults['leafVtepDefault'] == "Yes" else False
-                  # Set custom Connnected Endpoints role
-                  if leaf_defaults.get('leafConnectedEndpointsDefault', '').strip() != "":
-                      custom_node_properties['connected_endpoints'] = True if leaf_defaults['leafConnectedEndpointsDefault'] == "Yes" else False
-                  # Set custom L2 Network Services role
-                  if leaf_defaults.get('leafL2NetworkServicesDefault', '').strip() != "":
-                      custom_node_properties['network_services_l2'] = True if leaf_defaults['leafL2NetworkServicesDefault'] == "Yes" else False
-                  # Set custom L3 Network Services role
-                  if leaf_defaults.get('leafL3NetworkServicesDefault', '').strip() != "":
-                      custom_node_properties['network_services_l3'] = True if leaf_defaults['leafL3NetworkServicesDefault'] == "Yes" else False
-                  # Set custom Underlay Router role
-                  if leaf_defaults.get('leafUnderlayRouter', '').strip() != "":
-                      custom_node_properties['underlay_router'] = True if leaf_defaults['leafUnderlayRouter'] == "Yes" else False
-                  # Set custom Underlay Router role
-                  if leaf_defaults.get('leafUplinkType', '').strip() != "":
-                      custom_node_properties['uplink_type'] = leaf_defaults['leafUplinkType'].lower()
-
-                  # Set inband ztp interfaces
-                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
-                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
-
-              elif switch_facts["type"] == "memberleaf":
-                  # Set inband ztp interfaces
-                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
-                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
-
-              # Set node properties
-              switch_facts["connected_endpoints"] = default(custom_node_properties.get("connected_endpoints"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["connected_endpoints"])
-              switch_facts["default_evpn_role"] = default(custom_node_properties.get("default_evpn_role"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["default_evpn_role"])
-              switch_facts["mlag_support"] = default(custom_node_properties.get("mlag_support"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["mlag_support"])
-              switch_facts["network_services_l2"] = default(custom_node_properties.get("network_services_l2"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["network_services_l2"])
-              switch_facts["network_services_l3"] = default(custom_node_properties.get("network_services_l3"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["network_services_l3"])
-              switch_facts["underlay_router"] = default(custom_node_properties.get("underlay_router"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["underlay_router"])
-              switch_facts["uplink_type"] = default(custom_node_properties.get("uplink_type"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["uplink_type"])
-              switch_facts["vtep"] = default(custom_node_properties.get('vtep'), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["vtep"])
-              # switch_facts["ip_addressing"] =
-              # switch_facts["interface_descriptions"] =
-
               # Set group
               if switch_facts["type"] == "spline":
                   switch_facts["group"] = "{}_{}_Splines".format(switch_facts["campus"], switch_facts["building"])
@@ -1695,22 +1716,63 @@
               switch_facts["interfaces"] = get_device_interfaces(switch_facts)
 
               # Set platform settings
-              if switch_facts.get('platform_settings') is None:
-                  for platform, settings in platform_settings.items():
-                      # Skip default as this will be applied at the end
-                      # to any switch that doesn't match any other platform
-                      if platform == "default":
-                          continue
-                      # check to see if any default platform regex is matched
-                      for regex in settings['regexes']:
-                          if re.search(regex, switch_facts['platform'], re.IGNORECASE):
-                              switch_facts['platform_settings'] = settings
-
-              # If no platform setting is matched, set to default
-              if switch_facts.get('platform_settings') is None:
-                  switch_facts['platform_settings'] = platform_settings['default']
+              switch_facts = set_switch_facts_node_properties(switch_facts, general_settings, building_details)
 
               return switch_facts
+
+
+          def set_switch_facts_for_third_party_devices(switch_facts, campus_resolver, general_settings):
+              third_party_devices = {}
+              # Process Studio inputs
+              device_id = switch_facts["serial_number"]
+              campus_resolved = campus_resolver.resolve(device=device_id)
+              campus_details = None
+              if campus_resolved:
+                  campus_details = campus_resolved.get('campusDetails', None)
+              if campus_details is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
+                  return
+
+              building_resolved = campus_details["building"].resolve(device=device_id)
+              building_details = None
+              if building_resolved:
+                  building_details = building_resolved.get('buildingFacts', None)
+              if building_details is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
+                  return
+
+              # Set role and node id for switches
+              for device_info in building_details.get('thirdPartyDevices', []):
+                  third_party_device = {
+                      "serial_number": device_info["identifier"].strip(),
+                      "hostname": device_info["hostname"].strip(),
+                      "type": device_info["role"],
+                      "id": device_info["nodeId"],
+                      "interfaces": [],
+                      "campus": switch_facts["campus"],
+                      "building": switch_facts["building"],
+                      "building_details": building_details
+                  }
+                  # Set group
+                  if third_party_device["type"] == "spline":
+                      third_party_device["group"] = "{}_{}_Splines".format(switch_facts["campus"], switch_facts["building"])
+                  # Set up group setting for idf devices later
+                  # Get interface info for 3rd party devices by checking if this switch is a neighbor of other Arista switches in this campus
+                  for peer_switch_facts in my_switch_facts_neighbors.values():
+                      for peer_interface in peer_switch_facts.get("interfaces"):
+                          if third_party_device["serial_number"] in peer_interface["peer_serial_number"]:
+                              third_party_device["interfaces"].append({
+                                  "interface_name": peer_interface["peer_interface_name"],
+                                  "peer_interface_name": peer_interface["interface_name"],
+                                  "peer_hostname": peer_switch_facts["hostname"],
+                                  "peer_serial_number": peer_switch_facts["serial_number"]
+                              })
+
+                  third_party_device = set_switch_facts_node_properties(third_party_device, general_settings, building_details)
+
+                  third_party_devices[third_party_device['serial_number']] = third_party_device
+
+              return third_party_devices
 
 
           def set_switch_facts_properties_for_query(query, campus_resolver, general_settings):
@@ -1732,21 +1794,26 @@
               return all_switch_facts
 
 
-          def set_switch_facts(switch_facts, campus_resolver):
+          def set_switch_facts(switch_facts, campus_resolver, building_details=None):
+              '''
+              building_details is used when creating switch_facts for 3rd party devices 
+              '''
               # device_id from switch_facts
               device_id = switch_facts["serial_number"]
 
               # Process Studio inputs
-              campus_resolved = campus_resolver.resolve(device=device_id)
-              if campus_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
-                  return
-              campus_details = campus_resolved["campusDetails"]
-              building_resolved = campus_details["building"].resolve(device=device_id)
-              if building_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
-                  return
-              building_details = building_resolved["buildingFacts"]
+              if not building_details:
+                  campus_resolved = campus_resolver.resolve(device=device_id)
+                  if campus_resolved is None:
+                      ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
+                      return
+                  campus_details = campus_resolved["campusDetails"]
+                  building_resolved = campus_details["building"].resolve(device=device_id)
+                  if building_resolved is None:
+                      ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
+                      return
+                  building_details = building_resolved["buildingFacts"]
+
               # set building routing protocols if not set
               if not building_details.get("buildingRoutingProtocols"):
                   building_details["buildingRoutingProtocols"] = {
@@ -1917,7 +1984,7 @@
                       ctx.warning(f"Could not find an MLAG peer for {switch_facts['hostname']}")
                       switch_facts["mlag"] = False
 
-                  if switch_facts["mlag"] == True and mlag_peer_switch_facts is not None:
+                  if switch_facts["mlag"] == True and mlag_peer_switch_facts:
                       switch_facts["mlag_peer"] = mlag_peer_switch_facts["hostname"]
 
                       switch_facts["mlag_peer_serial_number"] = mlag_peer_switch_facts["serial_number"]
@@ -2020,7 +2087,7 @@
                   switch_facts["mlag"] = False
 
               # Get router related facts
-              if switch_facts["underlay_router"] == True and node_defaults.get("routerIdPool"):
+              if switch_facts["underlay_router"] and node_defaults.get("routerIdPool"):
                   switch_facts["loopback_ipv4_pool"] = node_defaults["routerIdPool"]
 
                   if switch_facts["type"] == "spline":
@@ -2226,9 +2293,8 @@
                   # Set boot vlan for l3 gateway switches to advertise to l2 downstream devices
                   if switch_facts.get("network_services_l2"):
                       switch_facts["advertise_inband_ztp_vlan"] = True
-                  # Set boot vlan for L2 child switches
-                  if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["leaf", "memberleaf"]) or \
-                          ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in [ "memberleaf"]):
+                  # Set idf level variables
+                  if switch_facts["type"] in ["leaf", "memberleaf"]:
                       # Set idf variables
                       switch_facts["inband_management_ip_range"] = idf_details["inbandManagementDetails"]["idfInbandManagementIpv4Range"]
                       # set whether or not to enable inband ztp
@@ -2238,7 +2304,8 @@
                           switch_facts["inband_management_vlan"] = idf_details["inbandManagementDetails"]["inbandManagementVlan"]
                           switch_facts["inband_management_subnet"] = idf_details["inbandManagementDetails"]["inbandManagementSubnet"]
 
-                      if switch_facts.get("inband_management_vlan") and switch_facts.get("inband_management_subnet"):
+                      if switch_facts.get("inband_management_vlan") and switch_facts.get("inband_management_subnet") \
+                              and switch_facts["network_services_l2"] and not switch_facts["network_services_l3"]:
                           switch_facts["inband_management_role"] = "child"
                           # inbound management parent devices
                           switch_facts["inband_management_parents"] = switch_facts["uplink_switches_ids"]
@@ -2310,7 +2377,7 @@
 
               for interface in ctx.topology.getDevices(deviceIds=[device_id])[0].getInterfaces():
                   peer_device, peer_interface = interface.getPeerInfo()
-                  if peer_device is not None and "Ethernet" in interface.name and "Ethernet" in peer_interface.name:
+                  if peer_device and "Ethernet" in interface.name and "Ethernet" in peer_interface.name:
                       interfaces.append({
                           "interface_name": interface.name,
                           "peer_interface_name": peer_interface.name,
@@ -2348,28 +2415,28 @@
               '''
               Returns switch_facts' uplink_interfaces, uplink_switches, and uplink switches' downlink_interfaces
               '''
-              device_id = switch_facts["serial_number"]
-              # Process Studio inputs
-              campus_resolved = campus_resolver.resolve(device=device_id)
-              if campus_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
-                  return
-              campus_details = campus_resolved["campusDetails"]
-              building_resolved = campus_details["building"].resolve(device=device_id)
-              if building_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
-                  return
-              building_details = building_resolved["buildingFacts"]
-              idf_details = building_details["idfs"].resolve(device=device_id)
-              if idf_details:
-                  idf_details = idf_details["idfFacts"]
-
               # Initialize return variables
               uplink_interfaces = []
               uplink_switches_switch_facts = []
               uplink_switches = []
               uplink_switches_ids = []
               uplink_switch_interfaces = []
+
+              device_id = switch_facts["serial_number"]
+              # Process Studio inputs
+              campus_resolved = campus_resolver.resolve(device=device_id)
+              if campus_resolved is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
+                  return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
+              campus_details = campus_resolved["campusDetails"]
+              building_resolved = campus_details["building"].resolve(device=device_id)
+              if building_resolved is None:
+                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Building input.  Make sure a 'Building' tag is applied.")
+                  return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
+              building_details = building_resolved["buildingFacts"]
+              idf_details = building_details["idfs"].resolve(device=device_id)
+              if idf_details:
+                  idf_details = idf_details["idfFacts"]
 
               # Get input values
               if idf_details and idf_details["hideShowToggles"]["displayPodFabricInterfaceInputs"] is True:
@@ -2944,165 +3011,166 @@
 
 
           def set_mlag_config(config, switch_facts):
-              if switch_facts.get('mlag'):
-                  # Set spanning tree relevant config
-                  if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
-                      config['spanning_tree']['no_spanning_tree_vlan'] = ",".join(
-                          [str(switch_facts['mlag_peer_l3_vlan']), str(switch_facts['mlag_peer_vlan'])]
-                      )
-                  else:
-                      config['spanning_tree']['no_spanning_tree_vlan'] = switch_facts['mlag_peer_vlan']
+              if not switch_facts.get('mlag') or not switch_facts['mlag_interfaces']:
+                  return config
+              # Set spanning tree relevant config
+              if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
+                  config['spanning_tree']['no_spanning_tree_vlan'] = ",".join(
+                      [str(switch_facts['mlag_peer_l3_vlan']), str(switch_facts['mlag_peer_vlan'])]
+                  )
+              else:
+                  config['spanning_tree']['no_spanning_tree_vlan'] = switch_facts['mlag_peer_vlan']
 
-                  # Set mlag vlan
-                  if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
-                      config['vlans'][switch_facts['mlag_peer_l3_vlan']] = {
-                          "tenant": "system",
-                          "name": "LEAF_PEER_L3",
-                          "trunk_groups": ['LEAF_PEER_L3']
-                      }
-                  config['vlans'][switch_facts['mlag_peer_vlan']] = {
+              # Set mlag vlan
+              if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
+                  config['vlans'][switch_facts['mlag_peer_l3_vlan']] = {
                       "tenant": "system",
-                      "name": "MLAG_PEER",
-                      "trunk_groups": ['MLAG']
+                      "name": "LEAF_PEER_L3",
+                      "trunk_groups": ['LEAF_PEER_L3']
                   }
+              config['vlans'][switch_facts['mlag_peer_vlan']] = {
+                  "tenant": "system",
+                  "name": "MLAG_PEER",
+                  "trunk_groups": ['MLAG']
+              }
 
-                  # Set mlag svis
-                  # set mlag l3 svi
-                  if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
-                      config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"] = {
-                          "description": "MLAG_PEER_L3_PEERING",
-                          "shutdown": False,
-                          "ip_address": f"{switch_facts['mlag_l3_ip']}/{switch_facts['mlag_peer_l3_subnet_mask']}",
-                          "no_autostate": True,
-                          "mtu": switch_facts['p2p_uplinks_mtu']
-                      }
-
-                  # set mlag svi
-                  config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_vlan']}"] = {
-                      "description": "MLAG_PEER",
+              # Set mlag svis
+              # set mlag l3 svi
+              if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
+                  config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"] = {
+                      "description": "MLAG_PEER_L3_PEERING",
                       "shutdown": False,
-                      "ip_address": f"{switch_facts['mlag_ip']}/{switch_facts['mlag_peer_subnet_mask']}",
+                      "ip_address": f"{switch_facts['mlag_l3_ip']}/{switch_facts['mlag_peer_l3_subnet_mask']}",
                       "no_autostate": True,
                       "mtu": switch_facts['p2p_uplinks_mtu']
                   }
 
-                  if switch_facts['mlag_l3'] is True:
-                      if switch_facts['underlay_routing_protocol'] == "ospf":
-                          config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_network_point_to_point'] = True
-                          config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_area'] = switch_facts['underlay_ospf_area']
+              # set mlag svi
+              config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_vlan']}"] = {
+                  "description": "MLAG_PEER",
+                  "shutdown": False,
+                  "ip_address": f"{switch_facts['mlag_ip']}/{switch_facts['mlag_peer_subnet_mask']}",
+                  "no_autostate": True,
+                  "mtu": switch_facts['p2p_uplinks_mtu']
+              }
 
-                      if switch_facts["underlay_multicast"]:
-                          config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]["pim"] = {"ipv4": {"sparse_mode": True}}
+              if switch_facts['mlag_l3'] is True:
+                  if switch_facts['underlay_routing_protocol'] == "ospf":
+                      config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_network_point_to_point'] = True
+                      config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]['ospf_area'] = switch_facts['underlay_ospf_area']
+
+                  if switch_facts["underlay_multicast"]:
+                      config['vlan_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"]["pim"] = {"ipv4": {"sparse_mode": True}}
 
 
-                  # Set port-channel interfaces
-                  switch_facts["mlag_port_channel_id"] = "".join(re.findall(r'\d', switch_facts["mlag_interfaces"][0]))
-                  config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"] = {
-                      "description": eval(f"f\"{fabric_variables['interface_descriptions']['mlag_port_channel_interface']}\""),
+              # Set port-channel interfaces
+              switch_facts["mlag_port_channel_id"] = "".join(re.findall(r'\d', switch_facts["mlag_interfaces"][0]))
+              config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"] = {
+                  "description": eval(f"f\"{fabric_variables['interface_descriptions']['mlag_port_channel_interface']}\""),
+                  "type": "switched",
+                  "shutdown": False,
+                  "mode": "trunk",
+                  "trunk_groups": ['MLAG'],
+                  "eos_cli": switch_facts["mlag_peer_link_cli"]
+              }
+              if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
+                  config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]['trunk_groups']\
+                      .append("LEAF_PEER_L3")
+
+              if switch_facts.get("ptp") and switch_facts["ptp"].get("enabled") is True:
+                  ptp_config = {}
+                  # Apply PTP profile config
+                  ptp_profile = get_item(ptp_profiles, "profile", switch_facts["ptp"]["profile"], default={})
+                  ptp_config.update(ptp_profile)
+
+                  ptp_config["enable"] = True
+                  ptp_config.pop("profile", None)
+                  config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["ptp"] = ptp_config
+
+              if switch_facts.get("advertise_inband_ztp_vlan") and switch_facts.get("inband_management_vlan"):
+                  lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
+                  lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
+                  config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_mode"] = lacp_fallback_mode
+                  config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_timeout"] = lacp_fallback_timeout
+
+              # Set ethernet interfaces
+              for i, iface in enumerate(switch_facts['mlag_interfaces']):
+                  mlag_peer = switch_facts['mlag_peer']
+                  mlag_peer_interface = switch_facts['mlag_peer_switch_interfaces'][i]
+                  config['ethernet_interfaces'][iface] = {
+                      "peer": mlag_peer,
+                      "peer_interface": mlag_peer_interface,
+                      "peer_type": "mlag",
+                      "description": eval(f"f\"{fabric_variables['interface_descriptions']['mlag_ethernet_interfaces']}\""),
                       "type": "switched",
                       "shutdown": False,
-                      "mode": "trunk",
-                      "trunk_groups": ['MLAG'],
-                      "eos_cli": switch_facts["mlag_peer_link_cli"]
+                      "channel_group": {
+                          "id": switch_facts['mlag_port_channel_id'],
+                          "mode": switch_facts['mlag_lacp_mode']
+                      },
+                      "speed": switch_facts.get("mlag_interfaces_speed", "auto"),
+                      "eos_cli": switch_facts["mlag_interfaces_cli"]
                   }
-                  if switch_facts['mlag_l3'] is True and switch_facts['mlag_peer_l3_vlan'] != switch_facts['mlag_peer_vlan']:
-                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]['trunk_groups']\
-                          .append("LEAF_PEER_L3")
 
-                  if switch_facts.get("ptp") and switch_facts["ptp"].get("enabled") is True:
-                      ptp_config = {}
-                      # Apply PTP profile config
-                      ptp_profile = get_item(ptp_profiles, "profile", switch_facts["ptp"]["profile"], default={})
-                      ptp_config.update(ptp_profile)
+              # Set mlag config
+              config['mlag_configuration'] = {
+                  "enabled": True,
+                  "domain_id": switch_facts['mlag_group'],
+                  "local_interface": f"Vlan{switch_facts['mlag_peer_vlan']}",
+                  "peer_address": switch_facts['mlag_peer_ip'],
+                  "peer_link": f"Port-Channel{switch_facts['mlag_port_channel_id']}",
+              }
+              if switch_facts.get('reload_delay_mlag') is not None:
+                  config['mlag_configuration']["reload_delay_mlag"] = switch_facts["reload_delay_mlag"]
+              if switch_facts.get('reload_delay_non_mlag') is not None:
+                  config['mlag_configuration']["reload_delay_non_mlag"] = switch_facts["reload_delay_non_mlag"]
 
-                      ptp_config["enable"] = True
-                      ptp_config.pop("profile", None)
-                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["ptp"] = ptp_config
+              # Set route maps
+              # Origin Incomplete for MLAG iBGP learned routes
+              # if switch_facts['mlag_l3'] is True and \
+              #         switch_facts['mlag_ibgp_origin_incomplete'] is True and \
+              #         switch_facts['underlay_routing_protocol'] == "bgp":
+              #     config['route_maps']["RM-MLAG-PEER-IN"] = {
+              #         "sequence_numbers": {
+              #             10: {
+              #                 "type": "permit",
+              #                 "set": ["origin incomplete"],
+              #                 "description": "Make routes learned over MLAG Peer-link less "
+              #                             "preferred on spines to ensure optimal routing"
+              #             }
+              #         }
+              #     }
 
-                  if switch_facts.get("advertise_inband_ztp_vlan") and switch_facts.get("inband_management_vlan"):
-                      lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
-                      lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
-                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_mode"] = lacp_fallback_mode
-                      config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["lacp_fallback_timeout"] = lacp_fallback_timeout
-
-                  # Set ethernet interfaces
-                  for i, iface in enumerate(switch_facts['mlag_interfaces']):
-                      mlag_peer = switch_facts['mlag_peer']
-                      mlag_peer_interface = switch_facts['mlag_peer_switch_interfaces'][i]
-                      config['ethernet_interfaces'][iface] = {
-                          "peer": mlag_peer,
-                          "peer_interface": mlag_peer_interface,
-                          "peer_type": "mlag",
-                          "description": eval(f"f\"{fabric_variables['interface_descriptions']['mlag_ethernet_interfaces']}\""),
-                          "type": "switched",
-                          "shutdown": False,
-                          "channel_group": {
-                              "id": switch_facts['mlag_port_channel_id'],
-                              "mode": switch_facts['mlag_lacp_mode']
-                          },
-                          "speed": switch_facts.get("mlag_interfaces_speed", "auto"),
-                          "eos_cli": switch_facts["mlag_interfaces_cli"]
-                      }
-
-                  # Set mlag config
-                  config['mlag_configuration'] = {
-                      "enabled": True,
-                      "domain_id": switch_facts['mlag_group'],
-                      "local_interface": f"Vlan{switch_facts['mlag_peer_vlan']}",
-                      "peer_address": switch_facts['mlag_peer_ip'],
-                      "peer_link": f"Port-Channel{switch_facts['mlag_port_channel_id']}",
+              # Set bgp config
+              if switch_facts['mlag_l3'] is True and switch_facts['underlay_routing_protocol'] == "bgp":
+                  (config['router_bgp']['peer_groups']
+                  [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]) = {
+                      "type": "ipv4",
+                      "remote_as": switch_facts['bgp_as'],
+                      "next_hop_self": True,
+                      "send_community": "all"
                   }
-                  if switch_facts.get('reload_delay_mlag') is not None:
-                      config['mlag_configuration']["reload_delay_mlag"] = switch_facts["reload_delay_mlag"]
-                  if switch_facts.get('reload_delay_non_mlag') is not None:
-                      config['mlag_configuration']["reload_delay_non_mlag"] = switch_facts["reload_delay_non_mlag"]
-
-                  # Set route maps
-                  # Origin Incomplete for MLAG iBGP learned routes
-                  # if switch_facts['mlag_l3'] is True and \
-                  #         switch_facts['mlag_ibgp_origin_incomplete'] is True and \
-                  #         switch_facts['underlay_routing_protocol'] == "bgp":
-                  #     config['route_maps']["RM-MLAG-PEER-IN"] = {
-                  #         "sequence_numbers": {
-                  #             10: {
-                  #                 "type": "permit",
-                  #                 "set": ["origin incomplete"],
-                  #                 "description": "Make routes learned over MLAG Peer-link less "
-                  #                             "preferred on spines to ensure optimal routing"
-                  #             }
-                  #         }
-                  #     }
-
-                  # Set bgp config
-                  if switch_facts['mlag_l3'] is True and switch_facts['underlay_routing_protocol'] == "bgp":
+                  if fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['password'] is not None:
                       (config['router_bgp']['peer_groups']
-                      [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]) = {
-                          "type": "ipv4",
-                          "remote_as": switch_facts['bgp_as'],
-                          "next_hop_self": True,
-                          "send_community": "all"
-                      }
-                      if fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['password'] is not None:
-                          (config['router_bgp']['peer_groups']
-                          [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]['password']) = \
-                              fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['password']
-                      # if switch_facts['mlag_ibgp_origin_incomplete'] is True:
-                      #     (config['router_bgp']['peer_groups']
-                      #     [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]['route_map_in']) = \
-                      #         "RM-MLAG-PEER-IN"
-                      (config['router_bgp']['address_family_ipv4']['peer_groups']
-                      [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]) = {
-                          "activate": True
-                      }
-                      config['router_bgp']['neighbor_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"] = {
-                          "peer_group": fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name'],
-                          "remote_as": switch_facts['bgp_as'],
-                          "description": switch_facts['mlag_peer']
-                      }
-                      config['router_bgp']['neighbors'][switch_facts['mlag_peer_l3_ip']] = {
-                          "peer_group": fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name'],
-                          "description": switch_facts['mlag_peer']
-                      }
+                      [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]['password']) = \
+                          fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['password']
+                  # if switch_facts['mlag_ibgp_origin_incomplete'] is True:
+                  #     (config['router_bgp']['peer_groups']
+                  #     [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]['route_map_in']) = \
+                  #         "RM-MLAG-PEER-IN"
+                  (config['router_bgp']['address_family_ipv4']['peer_groups']
+                  [fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name']]) = {
+                      "activate": True
+                  }
+                  config['router_bgp']['neighbor_interfaces'][f"Vlan{switch_facts['mlag_peer_l3_vlan']}"] = {
+                      "peer_group": fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name'],
+                      "remote_as": switch_facts['bgp_as'],
+                      "description": switch_facts['mlag_peer']
+                  }
+                  config['router_bgp']['neighbors'][switch_facts['mlag_peer_l3_ip']] = {
+                      "peer_group": fabric_variables['bgp_peer_groups']['MLAG_IPv4_UNDERLAY_PEER']['name'],
+                      "description": switch_facts['mlag_peer']
+                  }
 
               return config
 
@@ -4607,6 +4675,11 @@
           query = "Campus:\"{}\" AND Building:\"{}\"".format(my_switch_facts['campus'], my_switch_facts['building'])
           my_switch_facts_neighbors = set_switch_facts_properties_for_query(query, campus, generalSettings)
 
+          # Add 3rd party devices
+          third_party_devices = set_switch_facts_for_third_party_devices(my_switch_facts, campus, generalSettings)
+
+          my_switch_facts_neighbors.update(third_party_devices)
+
           # Set custom fabric settings
           set_custom_fabric_variables(generalSettings)
 
@@ -4632,7 +4705,12 @@
 
           # Set switch_facts for all of my_switch_facts neighbors and my_switch_facts
           for switch_facts in my_switch_facts_neighbors.values():
-              switch_facts = set_switch_facts(switch_facts, campus)
+              # Set switch_facts for 3rd party devices
+              if switch_facts.get("building_details"):
+                  switch_facts = set_switch_facts(switch_facts, campus, building_details=switch_facts["building_details"])
+              # Set switch_facts for Arista devices
+              else:
+                  switch_facts = set_switch_facts(switch_facts, campus)
 
           if log_all_checkpoint_times:
               ctx.info(f"Time taken to set switch_facts for all of my_switch_facts neighbors and my_switch_facts: {time.time() - task_time} seconds")
@@ -9354,6 +9432,89 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: device
                 tag_filter_query: null
+            buildingThirdPartyDevicesNodeIdentifier:
+              id: buildingThirdPartyDevicesNodeIdentifier
+              name: identifier
+              label: MAC Address
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            buildingThirdPartyDevicesNodeHostname:
+              id: buildingThirdPartyDevicesNodeHostname
+              name: hostname
+              label: Hostname
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            buildingThirdPartyDevicesNodeRole:
+              id: buildingThirdPartyDevicesNodeRole
+              name: role
+              label: Role
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options:
+                  values:
+                    - spline
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+            buildingThirdPartyDevicesNodeId:
+              id: buildingThirdPartyDevicesNodeId
+              name: nodeId
+              label: Node ID
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_INTEGER
+              integer_props:
+                default_value: null
+                range: null
+                static_options: null
+                dynamic_options: null
+            buildingThirdPartyDevicesGroup:
+              id: buildingThirdPartyDevicesGroup
+              name: thirdPartyDevicesGroup
+              label: Third Party Devices Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - buildingThirdPartyDevicesNodeIdentifier
+                    - buildingThirdPartyDevicesNodeHostname
+                    - buildingThirdPartyDevicesNodeRole
+                    - buildingThirdPartyDevicesNodeId
+            buildingThirdPartyDevicesCollection:
+              id: buildingThirdPartyDevicesCollection
+              name: thirdPartyDevices
+              label: Third Party Devices
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: buildingThirdPartyDevicesGroup
+                key: ''
             buildingFacts:
               id: buildingFacts
               name: buildingFacts
@@ -9373,6 +9534,7 @@
                     - advancedFabricConfigurations
                     - buildingDesign
                     - splinesResolver
+                    - buildingThirdPartyDevicesCollection
             buildingResolver:
               id: buildingResolver
               name: building
@@ -10892,7 +11054,8 @@
                   "idfDefaults",
                   "advancedFabricConfigurations",
                   "buildingServices",
-                  "nodeTypeProperties"
+                  "nodeTypeProperties",
+                  "buildingThirdPartyDevicesCollection"
                 ]
               },
               "vxlanOverlay":{
