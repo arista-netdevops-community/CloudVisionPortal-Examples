@@ -5,7 +5,7 @@
       key:
         studio_id: studio-campus-access-interfaces
         workspace_id: ''
-      display_name: Access Interface Configuration
+      display_name: AVD Access Interface Configuration
       description: Configure access interfaces for campus switches
       template:
         type: TEMPLATE_TYPE_MAKO
@@ -23,6 +23,7 @@
               TagAssignmentConfig
           from collections import ChainMap
           from copy import deepcopy
+          from typing import Union
           try:
               from deepmerge import Merger
           except ImportError as imp_exc:
@@ -1068,8 +1069,8 @@
                               "unit":  port_profile["stormControl"]["unknownUnicast"].get("unit", "percent")
                           }
                   # EOS CLI
-                  if len(port_profile.get("eosCli", [])) > 0:
-                      tmp_port_profile["raw_eos_cli"] = "\n".join(port_profile["eosCli"])
+                  if port_profile.get("eosCli"):
+                      tmp_port_profile["raw_eos_cli"] = port_profile["eosCli"]
                   # port-channel
                   if port_profile.get("portChannel"):
                       port_channel = {}
@@ -1092,8 +1093,8 @@
                           # mlag
                           port_channel["mlag"] = port_profile["portChannel"].get("mlag")
                           # EOS CLI
-                          if len(port_profile["portChannel"].get("eosCli", [])) > 0:
-                              port_channel["raw_eos_cli"] = "\n".join(port_profile["portChannel"]["eosCli"])
+                          if port_profile["portChannel"].get("eosCli"):
+                              port_channel["raw_eos_cli"] = port_profile["portChannel"]["eosCli"]
 
                       tmp_port_profile["port_channel"] = port_channel
 
@@ -1312,8 +1313,8 @@
                               "unit":  network_port["stormControl"]["unknownUnicast"].get("unit", "percent")
                           }
                   # EOS CLI
-                  if len(network_port.get("eosCli", [])) > 0:
-                      tmp_network_port["raw_eos_cli"] = "\n".join(network_port["eosCli"])
+                  if network_port.get("eosCli"):
+                      tmp_network_port["raw_eos_cli"] = network_port["eosCli"]
                   # port-channel
                   if network_port.get("portChannel"):
                       port_channel = {}
@@ -1336,8 +1337,8 @@
                           # mlag
                           port_channel["mlag"] = network_port["portChannel"].get("mlag")
                           # EOS CLI
-                          if len(network_port["portChannel"].get("eosCli", [])) > 0:
-                              port_channel["raw_eos_cli"] = "\n".join(network_port["portChannel"]["eosCli"])
+                          if network_port["portChannel"].get("eosCli"):
+                              port_channel["raw_eos_cli"] = network_port["portChannel"]["eosCli"]
 
                       tmp_network_port["port_channel"] = port_channel
 
@@ -1365,7 +1366,7 @@
               return merged_network_ports
 
 
-          def get_adapter_dot1x(adapter: dict) -> dict | None:
+          def get_adapter_dot1x(adapter: dict) -> Union[dict, None]:
               """
               Return dot1x for one adapter
               """
@@ -1375,7 +1376,7 @@
 
               return adapter.get("dot1x")
 
-          def get_adapter_ptp(adapter: dict) -> dict | None:
+          def get_adapter_ptp(adapter: dict) -> Union[dict, None]:
               """
               Return ptp for one adapter
               """
@@ -1403,7 +1404,7 @@
               return get(my_switch_facts, "platform_settings.feature_support.interface_storm_control", default=True) is True
 
 
-          def get_adapter_storm_control(adapter: dict) -> dict | None:
+          def get_adapter_storm_control(adapter: dict) -> Union[dict, None]:
               """
               Return storm_control for one adapter
               """
@@ -1417,7 +1418,7 @@
               return get(my_switch_facts, "platform_settings.feature_support.poe", default=False) is True
 
 
-          def get_adapter_poe(adapter: dict) -> dict | None:
+          def get_adapter_poe(adapter: dict) -> Union[dict, None]:
               """
               Return storm_control for one adapter
               """
@@ -1432,7 +1433,7 @@
               return get(my_switch_facts, "platform_settings.feature_support.phone", default=False) is True
 
 
-          def get_adapter_phone(adapter: dict) -> dict | None:
+          def get_adapter_phone(adapter: dict) -> Union[dict, None]:
               """
               Return phone for one adapter
               """
@@ -1457,7 +1458,7 @@
               return None
 
 
-          def get_adapter_mode(adapter: dict) -> dict | None:
+          def get_adapter_mode(adapter: dict) -> Union[dict, None]:
               """
               Return interface mode for one adapter
               """
@@ -1541,7 +1542,7 @@
               return strip_null_from_data(ethernet_interface, strip_values_tuple=(None, "", {}, []))
 
 
-          def ethernet_interfaces(network_ports) -> dict | None:
+          def ethernet_interfaces(network_ports) -> Union[dict, None]:
               """
               Return structured config for ethernet_interfaces
               """
@@ -1670,7 +1671,7 @@
               return strip_null_from_data(port_channel_interface)
 
 
-          def port_channel_interfaces(network_ports) -> dict | None:
+          def port_channel_interfaces(network_ports) -> Union[dict, None]:
               """
               Return structured config for ethernet_interfaces
               """
@@ -1715,13 +1716,13 @@
           # Attempt to resolve for switch interfaces
           my_campus_resolver = campus.resolve(device=my_device.id)
           # ctx.info(f"{my_campus_resolver}")
-          if not my_campus_resolver or not my_campus_resolver.get("building"):
+          if not my_campus_resolver or not my_campus_resolver.get("campusPod"):
               return
-          my_building_resolver = my_campus_resolver["building"].resolve(device=my_device.id)
-          # ctx.info(f"{my_building_resolver}")
-          if not my_building_resolver or not my_building_resolver.get("idf"):
+          my_campus_pod_resolver = my_campus_resolver["campusPod"].resolve(device=my_device.id)
+          # ctx.info(f"{my_campus_pod_resolver}")
+          if not my_campus_pod_resolver or not my_campus_pod_resolver.get("idf"):
               return
-          my_idf_resolver = my_building_resolver["idf"].resolve(device=my_device.id)
+          my_idf_resolver = my_campus_pod_resolver["idf"].resolve(device=my_device.id)
           # ctx.info(f"{my_idf_resolver}")
           if not my_idf_resolver or not my_idf_resolver.get("interfaces"):
               return
@@ -2537,10 +2538,10 @@
                     - portProfilePhoneVlan
                     - portProfileNativeVlan
                     - portProfileVlans
-            portProfileCliStatement:
-              id: portProfileCliStatement
-              name: cliStatement
-              label: CLI Statement
+            portProfileEosCli:
+              id: portProfileEosCli
+              name: eosCli
+              label: EOS CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -2551,16 +2552,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            portProfileEosCli:
-              id: portProfileEosCli
-              name: eosCli
-              label: EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: portProfileCliStatement
-                key: ''
             portProfilePtpEnable:
               id: portProfilePtpEnable
               name: enabled
@@ -3255,10 +3246,10 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            portProfilePortChannelCliStatement:
-              id: portProfilePortChannelCliStatement
-              name: cliStatement
-              label: CLI Statement
+            portProfilePortChannelEosCli:
+              id: portProfilePortChannelEosCli
+              name: eosCli
+              label: EOS CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -3269,16 +3260,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            portProfilePortChannelEosCli:
-              id: portProfilePortChannelEosCli
-              name: eosCli
-              label: EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: portProfilePortChannelCliStatement
-                key: ''
             portProfilePortChannel:
               id: portProfilePortChannel
               name: portChannel
@@ -3733,10 +3714,10 @@
                     - adapterPhoneVlan
                     - adapterNativeVlan
                     - adapterVlans
-            adapterCliStatement:
-              id: adapterCliStatement
-              name: cliStatement
-              label: CLI Statement
+            adapterEosCli:
+              id: adapterEosCli
+              name: eosCli
+              label: EOS CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -3747,16 +3728,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            adapterEosCli:
-              id: adapterEosCli
-              name: eosCli
-              label: EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: adapterCliStatement
-                key: ''
             adapterPtpEnable:
               id: adapterPtpEnable
               name: enabled
@@ -4450,10 +4421,10 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            adapterPortChannelCliStatement:
-              id: adapterPortChannelCliStatement
-              name: cliStatement
-              label: CLI Statement
+            adapterPortChannelEosCli:
+              id: adapterPortChannelEosCli
+              name: eosCli
+              label: EOS CLI
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -4464,16 +4435,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            adapterPortChannelEosCli:
-              id: adapterPortChannelEosCli
-              name: eosCli
-              label: EOS CLI
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_COLLECTION
-              collection_props:
-                base_field_id: adapterPortChannelCliStatement
-                key: ''
             adapterPortChannel:
               id: adapterPortChannel
               name: portChannel
@@ -4558,18 +4519,18 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: IDF
                 tag_filter_query: null
-            buildingResolver:
-              id: buildingResolver
-              name: building
-              label: Building
-              description: Select the Building of the device to configure
+            campusPodResolver:
+              id: campusPodResolver
+              name: campusPod
+              label: Campus-Pod
+              description: Select the Campus-Pod of the device to configure
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
                 base_field_id: idfResolver
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: Building
+                input_tag_label: Campus-Pod
                 tag_filter_query: null
             campusResolver:
               id: campusResolver
@@ -4579,7 +4540,7 @@
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
-                base_field_id: buildingResolver
+                base_field_id: campusPodResolver
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: Campus
@@ -5399,6 +5360,12 @@
                   }
                 }
               },
+              "adapterEosCli":{
+                "key":"adapterEosCli",
+                "type":"INPUT",
+                "isMultiLine":true,
+                "syntax":"aristaConfig"
+              },
               "adapterPortChannel":{
                 "key":"adapterPortChannel",
                 "type":"INPUT",
@@ -5490,9 +5457,8 @@
                   }
                 }
               },
-              "adapterPortChannelCliStatement":{
-                "key":"adapterPortChannelCliStatement",
-                "type":"INPUT",
+              "adapterPortChannelEosCli":{
+                "key":"adapterPortChannelEosCli",
                 "dependencyType":"AND",
                 "dependency":{
                   "adapterPortChannelMembership":{
@@ -5501,7 +5467,10 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "isMultiLine":true,
+                "syntax":"aristaConfig"
               },
               "portProfilePortChannelEnabled":{
                 "key":"portProfilePortChannelEnabled",
@@ -5568,10 +5537,8 @@
                   }
                 }
               },
-              "portProfilePortChannelCliStatement":{
-                "key":"portProfilePortChannelCliStatement",
-                "type":"INPUT",
-                "dependencyType":"AND",
+              "portProfilePortChannelEosCli":{
+                "key":"portProfilePortChannelEosCli",
                 "dependency":{
                   "portProfilePortChannelMembership":{
                     "value":[
@@ -5579,7 +5546,17 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "isMultiLine":true,
+                "syntax":"aristaConfig"
+              },
+              "portProfileEosCli":{
+                "key":"portProfileEosCli",
+                "type":"INPUT",
+                "isMultiLine":true,
+                "syntax":"aristaConfig"
               },
               "portProfilePortChannel":{
                 "key":"portProfilePortChannel",
