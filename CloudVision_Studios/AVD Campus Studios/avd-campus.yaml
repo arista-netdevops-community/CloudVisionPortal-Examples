@@ -2257,25 +2257,29 @@
               # Get inband management details
               if campus_pod_details["fabricConfigurations"].get("inbandManagementDetails"):
                   # Set campus pod level variables
-                  switch_facts["inband_management_vlan"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
-                  switch_facts["inband_management_subnet"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
+                  # Only support default VRF for inband management as of today
                   inband_mgmt_vrf = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVrf", "default")
                   switch_facts["inband_management_vrf"] = inband_mgmt_vrf if inband_mgmt_vrf.strip() != "" else "default"
+                  # All access pods to use same inband management subnet if it is an l2 campus design or an l3 vxlan design
+                  if "l2ls" in switch_facts["campus_type"] or ("l3ls" in switch_facts["campus_type"] and "vxlan" in switch_facts["campus_type"]):
+                      # All access pods to use same VLAN ID for inband management
+                      switch_facts["inband_management_vlan"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
+                      switch_facts["inband_management_subnet"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
+                  # Each access pod requires its own unique inband management subnet (l3 campus w/no vxlan)
+                  elif switch_facts["type"] in ["leaf", "memberleaf"] and ("l3ls" in switch_facts["campus_type"] and "vxlan" not in switch_facts["campus_type"]):
+                      # All access pods to use same VLAN ID for inband management
+                      switch_facts["inband_management_vlan"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
+                      switch_facts["inband_management_subnet"] = access_pod_details["inbandManagementDetails"]["inbandManagementSubnet"]
+                  # All network devices to use same dhcp server
                   switch_facts["inband_management_ip_helpers"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("ipHelperAddresses", [])
                   # Set boot vlan for devices that need to advertise inband ztp vlan to l2 downstream devices
                   if switch_facts.get("network_services_l2"):
                       switch_facts["advertise_inband_ztp_vlan"] = True
                   # Set boot vlan for L2 child switches
                   if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["leaf", "memberleaf"]) or \
-                          ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in [ "memberleaf"]):
+                          ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in ["memberleaf"]):
                       # Set access pod variables
                       switch_facts["inband_management_ip_range"] = access_pod_details["inbandManagementDetails"]["accessPodInbandManagementIpv4Range"]
-                      # set whether or not to enable inband ztp
-                      switch_facts["inband_ztp"] = access_pod_details["inbandManagementDetails"].get("inbandZtp", True)
-                      # Override campus pod level inband management vlan/subnet
-                      if access_pod_details["inbandManagementDetails"].get("inbandManagementVlan"):
-                          switch_facts["inband_management_vlan"] = access_pod_details["inbandManagementDetails"]["inbandManagementVlan"]
-                          switch_facts["inband_management_subnet"] = access_pod_details["inbandManagementDetails"]["inbandManagementSubnet"]
 
                       if switch_facts.get("inband_management_vlan") and switch_facts.get("inband_management_subnet"):
                           switch_facts["inband_management_role"] = "child"
@@ -3076,6 +3080,7 @@
                   ptp_config.pop("profile", None)
                   config['port_channel_interfaces'][f"Port-Channel{switch_facts['mlag_port_channel_id']}"]["ptp"] = ptp_config
 
+              # Can make an assumption that inband management vlan for mlag peer will be same as this device
               if switch_facts.get("advertise_inband_ztp_vlan") and switch_facts.get("inband_management_vlan"):
                   lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
                   lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
@@ -3199,7 +3204,7 @@
                           link["eos_cli"] = neighbor_link_info.get("eos_cli", "")
                           link["port_channel_eos_cli"] = neighbor_link_info.get("port_channel_eos_cli", "")
                           # inband ztp
-                          if neighbor_switch_facts.get("inband_ztp") and neighbor_switch_facts.get("inband_management_vlan"):
+                          if neighbor_switch_facts.get("inband_management_vlan"):
                               link["ztp_vlan"] = neighbor_switch_facts["inband_management_vlan"]
 
                           interface = neighbor_link_info["peer_interface"]
@@ -3295,7 +3300,7 @@
                           ptp_config.pop("profile", None)
                           port_channel["ptp"] = ptp_config
 
-                      if link.get("ztp_vlan") and switch_facts.get("advertise_inband_ztp_vlan"):
+                      if switch_facts.get("advertise_inband_ztp_vlan") and link.get("ztp_vlan"):
                           lacp_fallback_mode = fabric_variables["inband_ztp"]["lacp_fallback_mode"]
                           lacp_fallback_timeout = fabric_variables["inband_ztp"]["lacp_fallback_timeout"]
                           port_channel["lacp_fallback_mode"] = lacp_fallback_mode
@@ -4569,9 +4574,8 @@
                   boot_ztp_eligible = True
               else:
                   ctx.warning(f"Could not configure a boot vlan on downstream interfaces for {switch_facts['hostname']} because its EOS version is {switch_facts['eos_version']}.  The switch's EOS version must be >= 4.27.1F.")
-                  return config
 
-              if switch_facts.get("advertise_inband_ztp_vlan") and boot_ztp_eligible:
+              if switch_facts.get("advertise_inband_ztp_vlan"):
                   for iface in switch_facts.get("inband_ztp_interfaces", []):
                       if iface not in config["ethernet_interfaces"]:
                           config["ethernet_interfaces"][iface] = {}
@@ -4582,7 +4586,7 @@
                       config["ethernet_interfaces"][iface]["vlans"] = switch_facts["inband_management_vlan"]
                       if fabric_variables["inband_ztp"]["interface_ztp_method"] == "access":
                           config["ethernet_interfaces"][iface]["mode"] = "access"
-                      elif fabric_variables["inband_ztp"]["interface_ztp_method"] == "lldp tlv":
+                      elif fabric_variables["inband_ztp"]["interface_ztp_method"] == "lldp tlv" and boot_ztp_eligible:
                           config["ethernet_interfaces"][iface]["mode"] = "trunk"
                           config["ethernet_interfaces"][iface]["lldp"] = {"ztp_vlan": switch_facts["inband_management_vlan"]}
 
@@ -5272,7 +5276,7 @@
           % for management_interface in natural_sort( config.get("management_interfaces", {}).keys() ):
           interface ${ management_interface }
           %     if config["management_interfaces"][management_interface].get("description"):
-            description ${ config["management_interfaces"][management_interface]["description"] }
+             description ${ config["management_interfaces"][management_interface]["description"] }
           %     endif
           %     if config["management_interfaces"][management_interface].get("shutdown") and config["management_interfaces"][management_interface]["shutdown"] is True:
              shutdown
@@ -7531,7 +7535,7 @@
               id: accessPodHideShowTogglesGroup
               name: hideShowToggles
               label: Hide/Show Toggles
-              description: 'This section is only need for third-party devices topology setup.'
+              description: This section is only need for third-party devices topology setup.
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -7553,18 +7557,6 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            accessPodInbandManagementVlan:
-              id: accessPodInbandManagementVlan
-              name: inbandManagementVlan
-              label: Inband Management VLAN
-              description: Override the Campus-Pod Level Inband Management VLAN
-              required: false
-              type: INPUT_FIELD_TYPE_INTEGER
-              integer_props:
-                default_value: null
-                range: null
-                static_options: null
-                dynamic_options: null
             accessPodInbandManagementSubnet:
               id: accessPodInbandManagementSubnet
               name: inbandManagementSubnet
@@ -7580,17 +7572,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            accessPodInbandZtp:
-              id: accessPodInbandZtp
-              name: inbandZtp
-              label: Inband ZTP
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: true
-            podInbandManagementGroup:
-              id: podInbandManagementGroup
+            accessPodInbandManagementDetails:
+              id: accessPodInbandManagementDetails
               name: inbandManagementDetails
               label: Inband Management Details
               description: ''
@@ -7600,9 +7583,7 @@
                 members:
                   values:
                     - accessPodInbandManagementIpv4Range
-                    - accessPodInbandManagementVlan
                     - accessPodInbandManagementSubnet
-                    - accessPodInbandZtp
             leafsNodeId:
               id: leafsNodeId
               name: nodeId
@@ -7689,7 +7670,7 @@
                     - memberLeafUplinkInterfaces
                     - accessPodMlagPeerInterfaces
                     - accessPodHideShowTogglesGroup
-                    - podInbandManagementGroup
+                    - accessPodInbandManagementDetails
                     - leafsResolver
                     - memberLeafsResolver
             accessPods:
@@ -8930,8 +8911,8 @@
               collection_props:
                 base_field_id: mstInstanceDetails
                 key: mstInstanceId
-            l2CampusInbandManagementVlan:
-              id: l2CampusInbandManagementVlan
+            campusPodInbandManagementVlan:
+              id: campusPodInbandManagementVlan
               name: inbandManagementVlan
               label: Inband Management VLAN
               description: VLAN ID used for inband management of devices in the campus pod.
@@ -8942,8 +8923,8 @@
                 range: null
                 static_options: null
                 dynamic_options: null
-            l2CampusInbandManagementSubnet:
-              id: l2CampusInbandManagementSubnet
+            campusPodInbandManagementSubnet:
+              id: campusPodInbandManagementSubnet
               name: inbandManagementSubnet
               label: Inband Management Subnet
               description: Define the inband management subnet for the campus pod.  Assign a range larger than total leafs + member-leafs + 5.  The subnet should be in CIDR notation.
@@ -8957,8 +8938,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            l2CampusInbandManagementDhcpServer:
-              id: l2CampusInbandManagementDhcpServer
+            campusPodInbandManagementDhcpServer:
+              id: campusPodInbandManagementDhcpServer
               name: dhcpServer
               label: DHCP Server
               description: ''
@@ -8972,8 +8953,8 @@
                 length: null
                 pattern: null
                 dynamic_options: null
-            l2CampusInbandManagementIpHelperAddressesDetails:
-              id: l2CampusInbandManagementIpHelperAddressesDetails
+            campusPodInbandManagementIpHelperAddressesDetails:
+              id: campusPodInbandManagementIpHelperAddressesDetails
               name: ipHelperAddressesDetails
               label: IP Helper Addresses Details
               description: Group of members for IP Helper Addresses
@@ -8982,34 +8963,19 @@
               group_props:
                 members:
                   values:
-                    - l2CampusInbandManagementDhcpServer
-            l2CampusInbandManagementIpHelperAddresses:
-              id: l2CampusInbandManagementIpHelperAddresses
+                    - campusPodInbandManagementDhcpServer
+            campusPodInbandManagementIpHelperAddresses:
+              id: campusPodInbandManagementIpHelperAddresses
               name: ipHelperAddresses
               label: IP Helper Addresses
-              description: 'Add DHCP helper addresses to be configured on the inband management gateway SVI'
+              description: Add DHCP helper addresses to be configured on the inband management gateway SVI
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
-                base_field_id: l2CampusInbandManagementIpHelperAddressesDetails
+                base_field_id: campusPodInbandManagementIpHelperAddressesDetails
                 key: ''
-            l2CampusInbandManagementVrf:
-              id: l2CampusInbandManagementVrf
-              name: inbandManagementVrf
-              label: Inband Management VRF
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: default
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-            l2CampusInbandManagementDetails:
-              id: l2CampusInbandManagementDetails
+            campusPodInbandManagementDetails:
+              id: campusPodInbandManagementDetails
               name: inbandManagementDetails
               label: Inband Management
               description: Inband Management settings used for Access Pod switches.
@@ -9018,10 +8984,9 @@
               group_props:
                 members:
                   values:
-                    - l2CampusInbandManagementVlan
-                    - l2CampusInbandManagementSubnet
-                    - l2CampusInbandManagementIpHelperAddresses
-                    - l2CampusInbandManagementVrf
+                    - campusPodInbandManagementVlan
+                    - campusPodInbandManagementSubnet
+                    - campusPodInbandManagementIpHelperAddresses
             campusPodUnderlayMulticast:
               id: campusPodUnderlayMulticast
               name: underlayMulticast
@@ -9396,7 +9361,7 @@
                   values:
                     - ospfConfiguration
                     - mstInstances
-                    - l2CampusInbandManagementDetails
+                    - campusPodInbandManagementDetails
                     - campusPodMulticast
                     - campusPodPtp
                     - campusPodIpLocking
@@ -10915,7 +10880,6 @@
                 static_options:
                   values:
                     - individual
-                    - static
                 format: null
                 length: null
                 pattern: null
@@ -10957,7 +10921,6 @@
                 static_options:
                   values:
                     - access
-                    - lldp tlv
                 format: null
                 length: null
                 pattern: null
@@ -11082,7 +11045,7 @@
                 "key":"accessPodFacts",
                 "type":"INPUT",
                 "order":[
-                  "podInbandManagementGroup",
+                  "accessPodInbandManagementDetails",
                   "leafsResolver",
                   "memberLeafsResolver",
                   "accessPodHideShowTogglesGroup",
@@ -12525,15 +12488,13 @@
                 "type":"INPUT",
                 "isPageLayout":true
               },
-              "l2CampusInbandManagementVlan":{
-                "key":"l2CampusInbandManagementVlan",
+              "campusPodInbandManagementVlan":{
+                "key":"campusPodInbandManagementVlan",
                 "type":"INPUT",
                 "dependencyType":"AND"
               },
-              "l2CampusInbandManagementSubnet":{
-                "key":"l2CampusInbandManagementSubnet",
-                "dependencyType":"AND",
-                "type":"INPUT",
+              "campusPodInbandManagementSubnet":{
+                "key":"campusPodInbandManagementSubnet",
                 "dependency":{
                   "campusType":{
                     "value":[
@@ -12541,7 +12502,9 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"OR",
+                "type":"INPUT"
               },
               "campusPodOverlayRoutingProtocol":{
                 "key":"campusPodOverlayRoutingProtocol",
@@ -13165,7 +13128,7 @@
                 "key":"fabricConfigurations",
                 "type":"INPUT",
                 "order":[
-                  "l2CampusInbandManagementDetails",
+                  "campusPodInbandManagementDetails",
                   "ospfConfiguration",
                   "mstInstances",
                   "campusPodMulticast",
@@ -13223,14 +13186,13 @@
                   }
                 }
               },
-              "l2CampusInbandManagementDetails":{
-                "key":"l2CampusInbandManagementDetails",
+              "campusPodInbandManagementDetails":{
+                "key":"campusPodInbandManagementDetails",
                 "type":"INPUT",
                 "order":[
-                  "l2CampusInbandManagementVrf",
-                  "l2CampusInbandManagementVlan",
-                  "l2CampusInbandManagementSubnet",
-                  "l2CampusInbandManagementIpHelperAddresses"
+                  "campusPodInbandManagementVlan",
+                  "campusPodInbandManagementSubnet",
+                  "campusPodInbandManagementIpHelperAddresses"
                 ]
               },
               "sviPimEnabled":{
@@ -13843,25 +13805,17 @@
                   }
                 }
               },
-              "podInbandManagementGroup":{
-                "key":"podInbandManagementGroup",
+              "accessPodInbandManagementDetails":{
+                "key":"accessPodInbandManagementDetails",
                 "type":"INPUT",
                 "order":[
-                  "accessPodInbandManagementVlan",
                   "accessPodInbandManagementSubnet",
-                  "accessPodInbandManagementIpv4Range",
-                  "accessPodInbandZtp"
+                  "accessPodInbandManagementIpv4Range"
                 ]
               },
               "accessPodInbandManagementSubnet":{
                 "key":"accessPodInbandManagementSubnet",
                 "dependency":{
-                  "accessPodInbandManagementVlan":{
-                    "value":[
-                      "__ANY__"
-                    ],
-                    "mode":"SHOW"
-                  },
                   "campusType":{
                     "value":[
                       "L3"
@@ -13869,7 +13823,7 @@
                     "mode":"SHOW"
                   }
                 },
-                "dependencyType":"OR",
+                "dependencyType":"AND",
                 "type":"INPUT"
               },
               "accessPodInbandZtp":{
@@ -13882,7 +13836,7 @@
                     ],
                     "mode":"SHOW"
                   },
-                  "l2CampusInbandManagementVlan":{
+                  "campusPodInbandManagementVlan":{
                     "value":[
                       "__ANY__"
                     ],
@@ -14155,7 +14109,7 @@
                   "addButtonLabel":"Device"
                 }
               },
-               "vrfL3InterfaceEosCli":{
+              "vrfL3InterfaceEosCli":{
                 "key":"vrfL3InterfaceEosCli",
                 "type":"INPUT",
                 "isMultiLine":true,
