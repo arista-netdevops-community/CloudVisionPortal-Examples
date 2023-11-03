@@ -1,0 +1,480 @@
+path: []
+inputs:
+  fabric_vars:
+    - inputs:
+        fabric:
+          connected_endpoints:
+            - inputs:
+                connected_endpoints_group:
+                  yaml: |-
+                    port_profiles:
+                      - profile: vlan11
+                        mode: access
+                        vlans: 11
+                      - profile: vlan12
+                        mode: access
+                        vlans: 12
+                      - profile: vlan21
+                        mode: access
+                        vlans: 21
+                      - profile: vlan22
+                        mode: access
+                        vlans: 22
+                    network_ports:
+                      - switches:
+                          - s1-leaf[13]
+                        switch_ports:
+                          - Ethernet4
+                        description: Connection to host
+                        profile: vlan11
+                      - switches:
+                          - s1-leaf[24]
+                        switch_ports:
+                          - Ethernet4
+                        description: Connection to host
+                        profile: vlan12
+                      - switches:
+                          - s2-leaf[13]
+                        switch_ports:
+                          - Ethernet4
+                        description: Connection to host
+                        profile: vlan21
+                      - switches:
+                          - s2-leaf[24]
+                        switch_ports:
+                          - Ethernet4
+                        description: Connection to host
+                        profile: vlan22
+              tags:
+                query: 'AVD_Role:l3leaf '
+          dc_vars:
+            - inputs:
+                dc:
+                  pod_vars:
+                    - inputs:
+                        dc:
+                          role_vars:
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    spine:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.254.0.0/27
+                                        bgp_as: 65100 
+                                        uplink_switches: ['s1-brdr1', 's1-brdr2'] 
+                                        uplink_ipv4_pool: 10.1.1.0/26 
+                                      nodes: 
+                                        - name: s1-spine1
+                                          id: 1 
+                                        - name: s1-spine2
+                                          id: 2
+                              tags:
+                                query: AVD_Role:spine
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    l3leaf:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.254.1.0/27 
+                                        loopback_ipv4_offset: 2 
+                                        vtep_loopback_ipv4_pool: 10.254.2.0/27 
+                                        uplink_switches: ['s1-spine1', 's1-spine2'] 
+                                        uplink_ipv4_pool: 10.254.255.0/26 
+                                        mlag_peer_ipv4_pool: 10.254.1.64/27 
+                                        mlag_peer_l3_ipv4_pool: 10.254.1.96/27 
+                                        virtual_router_mac_address: 00:1c:73:00:00:99 
+                                        spanning_tree_priority: 4096 
+                                        spanning_tree_mode: mstp 
+                                      node_groups: 
+                                        - group: LEAF-DOMAIN-1
+                                          bgp_as: 65101
+                                          nodes:
+                                            - name: s1-leaf1
+                                              id: 1
+                                            - name: s1-leaf2
+                                              id: 2
+                                        - group: LEAF-DOMAIN-2
+                                          bgp_as: 65102
+                                          nodes:
+                                            - name: s1-leaf3
+                                              id: 3
+                                            - name: s1-leaf4
+                                              id: 4
+                              tags:
+                                query: AVD_Role:l3leaf
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    super_spine:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.1.255.0/26
+                                        bgp_as: 65301
+                                        uplink_switches: ['s1-core1', 's1-core2'] 
+                                        uplink_ipv4_pool: 10.1.2.0/26 
+                                      nodes: 
+                                        - name: s1-brdr1
+                                          id: 1 
+                                        - name: s1-brdr2
+                                          id: 2
+                              tags:
+                                query: AVD_Role:super-spine
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |+
+                                    core:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.3.255.0/26
+                                        bgp_as: 65501
+                                      nodes: 
+                                        - name: s1-core1
+                                          id: 1 
+                                        - name: s1-core2
+                                          id: 2
+
+
+                              tags:
+                                query: AVD_Role:core
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |
+                                    host:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 99.0.255.0/26
+                                        bgp_as: 1
+                                      nodes: 
+                                        - name: s1-host1
+                                          id: 1 
+                                        - name: s1-host2
+                                          id: 2
+                              tags:
+                                query: AVD_Role:host
+                          yaml: null
+                      tags:
+                        query: AVD_POD_Name:A
+                  yaml: null
+              tags:
+                query: AVD_DC_Name:DC1
+            - inputs:
+                dc:
+                  pod_vars:
+                    - inputs:
+                        dc:
+                          role_vars:
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    spine:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.253.0.0/27
+                                        bgp_as: 65200 
+                                        uplink_switches: ['s2-brdr1', 's2-brdr2'] 
+                                        uplink_ipv4_pool: 10.2.1.0/26 
+                                      nodes: 
+                                        - name: s2-spine1
+                                          id: 1 
+                                        - name: s2-spine2
+                                          id: 2  
+                              tags:
+                                query: AVD_Role:spine
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |
+                                    l3leaf:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.254.3.0/27 
+                                        loopback_ipv4_offset: 2 
+                                        vtep_loopback_ipv4_pool: 10.254.4.0/27 
+                                        uplink_switches: ['s2-spine1', 's2-spine2'] 
+                                        uplink_ipv4_pool: 10.255.255.0/26 
+                                        mlag_peer_ipv4_pool: 10.255.1.64/27 
+                                        mlag_peer_l3_ipv4_pool: 10.255.1.96/27 
+                                        virtual_router_mac_address: 00:1c:73:00:00:99 
+                                        spanning_tree_priority: 4096 
+                                        spanning_tree_mode: mstp 
+                                      node_groups: 
+                                        - group: LEAF-DOMAIN-1
+                                          bgp_as: 65201
+                                          nodes:
+                                            - name: s2-leaf1
+                                              id: 1
+                                            - name: s2-leaf2
+                                              id: 2
+                                        - group: LEAF-DOMAIN-2
+                                          bgp_as: 65201
+                                          nodes:
+                                            - name: s2-leaf3
+                                              id: 3
+                                            - name: s2-leaf4
+                                              id: 4
+                              tags:
+                                query: AVD_Role:l3leaf
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    super_spine:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.2.255.0/26
+                                        bgp_as: 65401
+                                        uplink_switches: ['s2-core1', 's2-core2'] 
+                                        uplink_ipv4_pool: 10.1.3.0/26 
+                                      nodes: 
+                                        - name: s2-brdr1
+                                          id: 1 
+                                        - name: s2-brdr2
+                                          id: 2
+                              tags:
+                                query: AVD_Role:super-spine
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |
+                                    core:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 10.4.255.0/26
+                                        bgp_as: 65601
+                                      nodes: 
+                                        - name: s2-core1
+                                          id: 1 
+                                        - name: s2-core2
+                                          id: 2
+                              tags:
+                                query: AVD_Role:core
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    host:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 99.0.255.0/26
+                                        bgp_as: 1
+                                      nodes: 
+                                        - name: s2-host1
+                                          id: 1 
+                                        - name: s2-host2
+                                          id: 2
+                                             
+                              tags:
+                                query: AVD_Role:host
+                          yaml: null
+                      tags:
+                        query: AVD_POD_Name:A
+                  yaml: null
+              tags:
+                query: AVD_DC_Name:DC2
+          network_services:
+            - inputs:
+                network_services_group:
+                  yaml: |-
+                    ---
+                    tenants:
+                      - name: red
+                        mac_vrf_vni_base: 10000
+                        vrfs:
+                          - name: light-red
+                            vrf_vni: 10
+                            vtep_diagnostic:
+                              loopback: 10
+                              loopback_ip_range: 10.255.10.0/27
+                            svis:
+                              - id: 11
+                                name: light-red-vlan11
+                                enabled: true
+                                ip_address_virtual: 10.10.11.1/24
+                              - id: 12
+                                name: light-red-vlan12
+                                enabled: true
+                                ip_address_virtual: 10.10.12.1/24
+                          - name: dark-red
+                            vrf_vni: 11
+                            vtep_diagnostic:
+                              loopback: 11
+                              loopback_ip_range: 10.255.11.0/27
+                            svis:
+                              - id: 21
+                                name: dark-red-vlan21
+                                enabled: true
+                                ip_address_virtual: 10.10.21.1/24
+                              - id: 22
+                                name: dark-red-vlan22
+                                enabled: true
+                                ip_address_virtual: 10.10.22.1/24
+                        l2vlans:
+                          - id: 3000
+                            name: L2_VLAN3000
+              tags:
+                query: AVD_Role:l3leaf
+          yaml: |-
+            ---
+            underlay_routing_protocol: ebgp
+            overlay_routing_protocol: ebgp
+
+            bgp_peer_groups: 
+              evpn_overlay_peers:
+                password: 
+              ipv4_underlay_peers:
+                password: 
+              mlag_ipv4_underlay_peer:
+                password: 
+
+            p2p_uplinks_mtu: 1500 
+
+            default_interfaces: 
+              - types: [ spine ]
+                platforms: [ default ]
+                downlink_interfaces: [ ethernet2-5 ]
+                uplink_interfaces: [ ethernet7-8 ]
+              - types: [ l3leaf ]
+                platforms: [ default ]
+                uplink_interfaces: [ ethernet2-3 ]
+                mlag_interfaces: ['Ethernet1', 'Ethernet6'] 
+              - types: [ super-spine ]
+                platforms: [ default ]
+                downlink_interfaces: [ ethernet2-3 ] 
+                uplink_interfaces: [ ethernet4-5 ]
+              - types: [ core ]
+                platforms: [ default ]
+                downlink_interfaces: [ ethernet2-3 ] 
+            l3_edge:
+              p2p_links_ip_pools:
+                - name: DCI_IP_pool
+                  ipv4_pool: 172.100.100.0/24
+                - name: Link_Local
+                  ipv4_pool: 169.254.0.0/16
+                - name: Vlan10
+                  ipv4_pool: 192.168.1.0/24
+              p2p_links_profiles:
+                - name: DCI_profile
+                  ip_pool: DCI_IP_pool
+                  as: [65501, 65601]
+                  include_in_underlay_protocol: true
+                - name: Unused
+                  ip_pool: Link_Local
+                  include_in_underlay_protocol: false
+                - name: Hosts
+                  ip_pool: Vlan10
+                  include_in_underlay_protocol: false
+              p2p_links:
+                - id: 1
+                  nodes: [s1-core1, s2-core1]
+                  interfaces: [Ethernet4, Ethernet4]
+                  profile: DCI_profile
+                - id: 2
+                  nodes: [s1-core2, s2-core2]
+                  interfaces: [Ethernet4, Ethernet4]
+                  profile: DCI_profile
+                - id: 3 
+                  nodes: [s1-core1, s1-core2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Unused
+                - id: 4 
+                  nodes: [s2-core1, s2-core2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Unused
+                - id: 5 
+                  nodes: [s1-core1, s1-core2]
+                  interfaces: [Ethernet6, Ethernet6]
+                  profile: Unused
+                - id: 6 
+                  nodes: [s2-core1, s2-core2]
+                  interfaces: [Ethernet6, Ethernet6]
+                  profile: Unused
+                - id: 7 
+                  nodes: [s1-brdr1, s1-brdr2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Unused
+                - id: 8 
+                  nodes: [s2-brdr1, s2-brdr2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Unused
+                - id: 9 
+                  nodes: [s1-brdr1, s1-brdr2]
+                  interfaces: [Ethernet6, Ethernet6]
+                  profile: Unused
+                - id: 10 
+                  nodes: [s2-brdr1, s2-brdr2]
+                  interfaces: [Ethernet6, Ethernet6]
+                  profile: Unused
+                - id: 11 
+                  nodes: [s1-spine1, s1-spine2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Unused
+                - id: 12 
+                  nodes: [s2-spine1, s2-spine2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Unused
+                - id: 13 
+                  nodes: [s1-spine1, s1-spine2]
+                  interfaces: [Ethernet6, Ethernet6]
+                  profile: Unused
+                - id: 14 
+                  nodes: [s2-spine1, s2-spine2]
+                  interfaces: [Ethernet6, Ethernet6]
+                  profile: Unused
+                - id: 15 
+                  nodes: [s1-host1, s1-host2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Hosts
+                  ip: [10.10.11.2/24, 10.10.11.3/24]
+                - id: 16
+                  nodes: [s1-host1, s1-host2]
+                  interfaces: [Ethernet2, Ethernet2]
+                  profile: Hosts
+                  ip: [10.10.12.2/24, 10.10.12.3/24]
+                - id: 17
+                  nodes: [s2-host1, s2-host2]
+                  interfaces: [Ethernet1, Ethernet1]
+                  profile: Hosts
+                  ip: [10.10.21.2/24, 10.10.21.3/24]
+                - id: 18
+                  nodes: [s2-host1, s2-host2]
+                  interfaces: [Ethernet2, Ethernet2]
+                  profile: Hosts
+                  ip: [10.10.22.4/24, 10.10.22.5/24]
+      tags:
+        query: AVD_Fabric_Name:ATD-DC
+  yaml: |-
+    node_type_keys:
+      - key: core
+        type: core
+
+      - key: host
+        type: host
+        network_services:
+          l2: true
+          l3: true 
+          
+      - key: super_spine
+        type: super-spine
+
+      - key: spine
+        type: spine
+        default_evpn_role: server
+
+      - key: l3leaf
+        type: l3leaf
+        connected_endpoints: true
+        default_evpn_role: client
+        default_ptp_priority1: 30
+        mlag_support: true
+        network_services:
+          l2: true
+          l3: true
+        vtep: true
