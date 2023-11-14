@@ -1216,7 +1216,22 @@
               ib_mgmt_subnet_length = ipaddress.ip_network(switch_facts["inband_management_subnet"]).prefixlen
               # Use same virtual ip, primary mlag switch ip, and secondary mlag switch ip on all gateways
               host_addresses = list(ipaddress.ip_network(switch_facts['inband_management_subnet']).hosts())
-              ip_address = host_addresses[int(switch_facts['id']) + 2]
+              ib_hosts_in_pod = []
+              # get switches in same pod
+              leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
+              memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
+              if "l2ls" in switch_facts["campus_type"]:
+                  index = switch_facts["id"] - 1
+              elif "l3ls" in switch_facts["campus_type"]:
+                  ib_hosts_in_pod = memberleaf_switches_in_pod
+                  for i, tmp_switch_facts in enumerate(ib_hosts_in_pod):
+                      if tmp_switch_facts['serial_number'] == switch_facts['serial_number']:
+                          index = i
+                          break
+
+              ip_address = host_addresses[int(index) + 3]
+
+              
               return f"{ip_address}/{ib_mgmt_subnet_length}"
 
 
@@ -15196,15 +15211,9 @@
                       "L2"
                     ],
                     "mode":"SHOW"
-                  },
-                  "campusPodUnderlayRoutingProtocol":{
-                    "value":[
-                      "eBGP"
-                    ],
-                    "mode":"SHOW"
                   }
                 },
-                "dependencyType":"OR",
+                "dependencyType":"AND",
                 "type":"INPUT"
               },
               "campusPodOverlayRoutingProtocol":{
