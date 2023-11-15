@@ -3573,10 +3573,10 @@
               if svi_ip_virtual_router_subnet:
                   svi["ip_virtual_router_addresses"] = [ str(list(ipaddress.ip_network(svi_ip_virtual_router_subnet).hosts())[0]) ]
                   if switch_facts.get("mlag_role") == "secondary":
-                      svi["ip_address"] = list(ipaddress.ip_network(svi_ip_virtual_router_subnet).hosts())[2]
+                      ip_address = list(ipaddress.ip_network(svi_ip_virtual_router_subnet).hosts())[2]
                   else:
-                      svi["ip_address"] = list(ipaddress.ip_network(svi_ip_virtual_router_subnet).hosts())[1]
-
+                      ip_address = list(ipaddress.ip_network(svi_ip_virtual_router_subnet).hosts())[1]
+                  svi["ip_address"] = f"{ip_address}/{ipaddress.ip_network(svi_ip_virtual_router_subnet).prefixlen}"
               # # IPv4 address configuration
               # if svi.get("nodes",{}).get(switch_facts['serial_number'], {}).get("ip_address"):
               #     svi["ip_address"] = svi["nodes"][switch_facts['serial_number']]["ip_address"]
