@@ -3231,6 +3231,8 @@
               # ip virtual router subnet
               elif not avd_svi["vxlan"] and get(pod_info, "ipVirtualRouterSubnet"):
                   avd_svi["ip_virtual_router_subnet"] = pod_info["ipVirtualRouterSubnet"]
+              elif not avd_svi["vxlan"]:
+                  avd_svi["ip_virtual_router_subnet"] = svi["ipVirtualRouterSubnet"]
               # node shutdown
               if get(pod_info, "enabled"):
                   avd_svi["nodes"] = {
