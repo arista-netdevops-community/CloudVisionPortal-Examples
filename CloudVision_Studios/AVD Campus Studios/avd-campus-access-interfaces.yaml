@@ -992,7 +992,7 @@
                               }
                           # multiHostAuthenticated
                           if str_to_bool(port_profile["dot1x"]["hostMode"].get("multiHostAuthenticated", "").strip()) \
-                                  and tmp_port_profile["dot1x"].get("mode", "") in ["multi-host"]:
+                                  and port_profile["dot1x"]["hostMode"].get("mode", "") in ["multi-host"]:
                               tmp_port_profile["dot1x"]["host_mode"]["multi_host_authenticated"] = str_to_bool(port_profile["dot1x"]["hostMode"]["multiHostAuthenticated"])
                       # MBA
                       if port_profile["dot1x"].get("macBasedAuthentication"):
@@ -1237,7 +1237,7 @@
                               }
                           # multiHostAuthenticated
                           if str_to_bool(network_port["dot1x"]["hostMode"].get("multiHostAuthenticated", "").strip()) \
-                                  and tmp_network_port["dot1x"].get("mode", "") in ["multi-host"]:
+                                  and network_port["dot1x"]["hostMode"].get("mode", "") in ["multi-host"]:
                               tmp_network_port["dot1x"]["host_mode"]["multi_host_authenticated"] = str_to_bool(network_port["dot1x"]["hostMode"]["multiHostAuthenticated"])
                       # MBA
                       if network_port["dot1x"].get("macBasedAuthentication"):
@@ -1720,13 +1720,13 @@
               return
           my_campus_pod_resolver = my_campus_resolver["campusPod"].resolve(device=my_device.id)
           # ctx.info(f"{my_campus_pod_resolver}")
-          if not my_campus_pod_resolver or not my_campus_pod_resolver.get("idf"):
+          if not my_campus_pod_resolver or not my_campus_pod_resolver.get("Access-Pod"):
               return
-          my_idf_resolver = my_campus_pod_resolver["idf"].resolve(device=my_device.id)
-          # ctx.info(f"{my_idf_resolver}")
-          if not my_idf_resolver or not my_idf_resolver.get("interfaces"):
+          my_access_pod_resolver = my_campus_pod_resolver["Access-Pod"].resolve(device=my_device.id)
+          # ctx.info(f"{my_access_pod_resolver}")
+          if not my_access_pod_resolver or not my_access_pod_resolver.get("interfaces"):
               return
-          studios_interface_inputs = my_idf_resolver["interfaces"]
+          studios_interface_inputs = my_access_pod_resolver["interfaces"]
           if not studios_interface_inputs:
               return
           # ctx.info(f"{studios_interface_inputs}")
@@ -4506,18 +4506,18 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_INTERFACE_TAG
                 input_tag_label: interface
                 tag_filter_query: null
-            idfResolver:
-              id: idfResolver
-              name: idf
-              label: IDF
-              description: Select the IDF of the device to configure
+            accessPodResolver:
+              id: accessPodResolver
+              name: accessPod
+              label: Access Pod
+              description: Select the Access Pod of the device to configure
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
                 base_field_id: interfacesResolver
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: IDF
+                input_tag_label: Access-Pod
                 tag_filter_query: null
             campusPodResolver:
               id: campusPodResolver
@@ -4527,7 +4527,7 @@
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
-                base_field_id: idfResolver
+                base_field_id: accessPodResolver
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_ALL
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: Campus-Pod
