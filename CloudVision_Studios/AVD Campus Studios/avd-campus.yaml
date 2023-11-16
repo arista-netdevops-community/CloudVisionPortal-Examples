@@ -3579,6 +3579,7 @@
                   else:
                       ip_address = list(ipaddress.ip_network(svi_ip_virtual_router_subnet).hosts())[1]
                   svi["ip_address"] = f"{ip_address}/{ipaddress.ip_network(svi_ip_virtual_router_subnet).prefixlen}"
+
               # # IPv4 address configuration
               # if svi.get("nodes",{}).get(switch_facts['serial_number'], {}).get("ip_address"):
               #     svi["ip_address"] = svi["nodes"][switch_facts['serial_number']]["ip_address"]
@@ -17667,5 +17668,18 @@
                 "type":"INPUT",
                 "isPageLayout":false,
                 "showDefaultRow":false
+              },
+              "campusSviPodEnabled":{
+                "key":"campusSviPodEnabled",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusServicesCampusPodType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
