@@ -1,0 +1,305 @@
+path: []
+inputs:
+  advancedSettings:
+    bgpPeerGroupSettings:
+      evpnOverlayCorePeerGroup:
+        name: DCI-EVPN
+  evpnGatewayVteps:
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: false
+          evpnL3:
+            enable: true
+            interDomain: true
+          remoteEvpnGatewayVtepPeers:
+            - peerBgpAsn: 65104
+              peerHostname: s2b1
+              peerIpAddress: 172.16.12.7
+      tags:
+        query: device:s1-brdr1
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: false
+          evpnL3:
+            enable: true
+            interDomain: true
+          remoteEvpnGatewayVtepPeers:
+            - peerBgpAsn: 65104
+              peerHostname: s2b2
+              peerIpAddress: 172.16.12.8
+      tags:
+        query: device:s1-brdr2
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: false
+          evpnL3:
+            enable: true
+            interDomain: true
+          remoteEvpnGatewayVtepPeers:
+            - peerBgpAsn: 65004
+              peerHostname: s1b1
+              peerIpAddress: 172.16.2.7
+      tags:
+        query: device:s2-brdr1
+    - inputs:
+        remoteEvpnGatewayVtepsDetails:
+          evpnL2:
+            enable: false
+          evpnL3:
+            enable: true
+            interDomain: true
+          remoteEvpnGatewayVtepPeers:
+            - peerBgpAsn: 65004
+              peerHostname: s1b2
+              peerIpAddress: 172.16.2.8
+      tags:
+        query: device:s2-brdr2
+  tenants:
+    - macVrfVniBase: 10000
+      name: red
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v6
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-spine1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-spine2
+              tags:
+                query: DC:DC1
+          vlanId: 6
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v8
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-leaf4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-spine1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-spine2
+              tags:
+                query: DC:DC1
+          vlanId: 8
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v16
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-spine1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-spine2
+              tags:
+                query: DC:DC2
+          vlanId: 16
+          vrf: red
+          vxlan: true
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          l3OrL2: true
+          mtu: 9214
+          name: v18
+          nodes: []
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-leaf4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-spine1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-spine2
+              tags:
+                query: DC:DC2
+          vlanId: 18
+          vrf: red
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          devices:
+            - inputs:
+                devices:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:s2-brdr2
+              tags:
+                query: device:s1-brdr1,s1-brdr2,s2-brdr1,s2-brdr2
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: red
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 3456
