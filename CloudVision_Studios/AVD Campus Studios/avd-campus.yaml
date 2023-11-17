@@ -1247,7 +1247,7 @@
 
               ip_address = host_addresses[int(index) + 3]
 
-              
+
               return f"{ip_address}/{ib_mgmt_subnet_length}"
 
 
@@ -1789,18 +1789,18 @@
                   switch_facts["inband_management_vrf"] = inband_mgmt_vrf if inband_mgmt_vrf.strip() != "" else "default"
                   # All access pods to use same inband management subnet if it is an l2 campus design or an l3 vxlan design
                   if "l2ls" in switch_facts["campus_type"] or ("l3ls" in switch_facts["campus_type"] and "vxlan" in switch_facts["campus_type"]):
-                      # All access pods to use same VLAN ID for inband management 
+                      # All access pods to use same VLAN ID for inband management
                       switch_facts["inband_management_vlan"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
                       switch_facts["inband_management_subnet"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementSubnet")
                   # Each access pod requires its own unique inband management subnet (l3 campus w/no vxlan)
                   elif switch_facts["type"] in ["leaf", "memberleaf"] and ("l3ls" in switch_facts["campus_type"] and "vxlan" not in switch_facts["campus_type"]):
-                      # All access pods to use same VLAN ID for inband management 
+                      # All access pods to use same VLAN ID for inband management
                       switch_facts["inband_management_vlan"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("inbandManagementVlan")
                       access_pod_inband_management_resolver = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"]["accessPods"].resolve(device=device_id)
                       access_pod_inband_mgmt_subnet = access_pod_inband_management_resolver["inbandManagementDetails"].get("inbandManagementSubnet")
                       assert access_pod_inband_mgmt_subnet, f"Please enter an inband management subnet for {switch_facts['campus']} -> {switch_facts['campus_pod']}-> {switch_facts['group']}"
                       switch_facts["inband_management_subnet"] = access_pod_inband_mgmt_subnet
-                  # All network devices to use same dhcp server 
+                  # All network devices to use same dhcp server
                   switch_facts["inband_management_ip_helpers"] = campus_pod_details["fabricConfigurations"]["inbandManagementDetails"].get("ipHelperAddresses", [])
                   # Set boot vlan for devices that need to advertise inband ztp vlan to l2 downstream devices
                   if switch_facts.get("network_services_l2"):
@@ -3370,7 +3370,7 @@
               # Add default vrf to campus_services vrfs if not present
               if "default" not in [vrf["name"] for vrf in campus_services_details.get("vrfs", [])]:
                   campus_services_details["vrfs"].insert(0, {"name":"default"})
-              
+
               campus_name = "Campus"
               campus_pod_name = "Pod"
               tenant_name = f"{campus_name}_{campus_pod_name}"
@@ -4067,7 +4067,7 @@
                   @ctx.benchmark
                   def prepare_vtep_tenant_vrf_general(tenant, vrf, switch_facts):
                       # Set vrf rd
-                      vrf["route_distinguisher"] = get_vrf_rd(switch_facts, vrf) 
+                      vrf["route_distinguisher"] = get_vrf_rd(switch_facts, vrf)
                       # Set vrf rt
                       vrf['route_target'] = get_vrf_rt(switch_facts, vrf)
                       # Set l3 multicast group
@@ -4158,7 +4158,7 @@
                                   if switch_facts["overlay_routing_protocol"] == "ebgp":
                                       route_targets["import"] = {"evpn": [vrf['route_target']]}
                                       route_targets["export"] = {"evpn": [vrf['route_target']]}
-                                  
+
                                   # additional route targets
                                   if vrf.get('additional_route_targets'):
                                       for rt in natural_sort(vrf['additional_route_targets']):
@@ -4431,13 +4431,7 @@
           @ctx.benchmark
           def set_inband_ztp_interfaces_config(config, switch_facts):
               # Determine whether or not boot ztp can be configured on this switch
-              boot_ztp_eligible = False
-              if compare_eos_versions(switch_facts["eos_version"], "4.27.1F") >= 0:
-                  boot_ztp_eligible = True
-              else:
-                  ctx.warning(f"Could not configure a boot vlan on downstream interfaces for {switch_facts['hostname']} because its EOS version is {switch_facts['eos_version']}.  The switch's EOS version must be >= 4.27.1F.")
-
-              if switch_facts.get("advertise_inband_ztp_vlan"):
+              if switch_facts.get("advertise_inband_ztp_vlan") and switch_facts.get("inband_management_vlan"):
                   for iface in switch_facts.get("inband_ztp_interfaces", []):
                       if iface not in config["ethernet_interfaces"]:
                           config["ethernet_interfaces"][iface] = {}
@@ -4756,7 +4750,7 @@
                   switch_facts["eos_version"] = tag.value
 
               # set campus pod fabric name
-              switch_facts["fabric_name"] = f"{switch_facts['campus']}-{switch_facts['campus_pod']}" 
+              switch_facts["fabric_name"] = f"{switch_facts['campus']}-{switch_facts['campus_pod']}"
 
               # Get facts from inputs
               # Set switch node type and node id
@@ -4782,7 +4776,7 @@
                           switch_facts['id'] = node_id
                   else:
                       ctx.warning(f"{switch_facts['hostname']} is a member of {switch_facts['campus']} --> {switch_facts['campus_pod']} -> {switch_facts['group']} but does not have a role set.")
-                      return   
+                      return
               else:
                   ctx.warning(f"No role set for {switch_facts['hostname']}")
                   return
@@ -4863,36 +4857,36 @@
                   "underlay_router": None,
                   "uplink_type": None
               }
-              if switch_facts["type"] == "spline":
-                  spline_defaults = campus_pod_details['nodeTypeProperties']['defaultSplineProperties']
+              if switch_facts["type"] == "spine":
+                  spine_defaults = campus_pod_details['nodeTypeProperties']['defaultSpineProperties']
                   # Set custom EVPN role
-                  if spline_defaults.get('splineEvpnRoleDefault', '').strip() != "":
-                      custom_node_properties['default_evpn_role'] = spline_defaults['splineEvpnRoleDefault'].lower()
+                  if spine_defaults.get('spineEvpnRoleDefault', '').strip() != "":
+                      custom_node_properties['default_evpn_role'] = spine_defaults['spineEvpnRoleDefault'].lower()
                   # Set custom MLAG support role
-                  if spline_defaults.get('splineMlagSupportDefault', '').strip() != "":
-                      custom_node_properties['mlag_support'] = True if spline_defaults['splineMlagSupportDefault'] == "Yes" else False
+                  if spine_defaults.get('spineMlagSupportDefault', '').strip() != "":
+                      custom_node_properties['mlag_support'] = True if spine_defaults['spineMlagSupportDefault'] == "Yes" else False
                   # Set custom Vtep role
-                  if spline_defaults.get('splineVtepDefault', '').strip() != "":
-                      custom_node_properties['vtep'] = True if spline_defaults['splineVtepDefault'] == "Yes" else False
+                  if spine_defaults.get('spineVtepDefault', '').strip() != "":
+                      custom_node_properties['vtep'] = True if spine_defaults['spineVtepDefault'] == "Yes" else False
                   # Set custom Connnected Endpoints role
-                  if spline_defaults.get('splineConnectedEndpointsDefault', '').strip() != "":
-                      custom_node_properties['connected_endpoints'] = True if spline_defaults['splineConnectedEndpointsDefault'] == "Yes" else False
+                  if spine_defaults.get('spineConnectedEndpointsDefault', '').strip() != "":
+                      custom_node_properties['connected_endpoints'] = True if spine_defaults['spineConnectedEndpointsDefault'] == "Yes" else False
                   # Set custom L2 Network Services role
-                  if spline_defaults.get('splineL2NetworkServicesDefault', '').strip() != "":
-                      custom_node_properties['network_services_l2'] = True if spline_defaults['splineL2NetworkServicesDefault'] == "Yes" else False
+                  if spine_defaults.get('spineL2NetworkServicesDefault', '').strip() != "":
+                      custom_node_properties['network_services_l2'] = True if spine_defaults['spineL2NetworkServicesDefault'] == "Yes" else False
                   # Set custom L3 Network Services role
-                  if spline_defaults.get('splineL3NetworkServicesDefault', '').strip() != "":
-                      custom_node_properties['network_services_l3'] = True if spline_defaults['splineL3NetworkServicesDefault'] == "Yes" else False
+                  if spine_defaults.get('spineL3NetworkServicesDefault', '').strip() != "":
+                      custom_node_properties['network_services_l3'] = True if spine_defaults['spineL3NetworkServicesDefault'] == "Yes" else False
                   # Set custom Underlay Router role
-                  if spline_defaults.get('splineUnderlayRouter', '').strip() != "":
-                      custom_node_properties['underlay_router'] = True if spline_defaults['splineUnderlayRouter'] == "Yes" else False
+                  if spine_defaults.get('spineUnderlayRouter', '').strip() != "":
+                      custom_node_properties['underlay_router'] = True if spine_defaults['spineUnderlayRouter'] == "Yes" else False
                   # Set custom Underlay Router role
-                  if spline_defaults.get('splineUplinkType', '').strip() != "":
-                      custom_node_properties['uplink_type'] = spline_defaults['splineUplinkType'].lower()
+                  if spine_defaults.get('spineUplinkType', '').strip() != "":
+                      custom_node_properties['uplink_type'] = spine_defaults['spineUplinkType'].lower()
 
                   # Set inband ztp interfaces
-                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["spinesInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["spinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
                       switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
 
               elif switch_facts["type"] == "leaf":
@@ -5082,7 +5076,7 @@
               if campus_details is None:
                   ctx.warning(f"{switch_facts['hostname']} should be in a Campus.")
                   return
-              
+
               campus_pod_resolved, campus_pod_ctx = campus_details["campusPod"].resolveWithContext(device=device_id)
               if not campus_pod_resolved or not campus_pod_ctx.query_str:
                   return
@@ -9624,8 +9618,8 @@
                 extra_values_allowed: false
             campusPodSviDhcpHelpersSourceInterface:
               id: campusPodSviDhcpHelpersSourceInterface
-              name: dhcpSourceInterface
-              label: DHCP Source Interface
+              name: sourceInterface
+              label: Source Interface
               description: Interface to source DHCP requests from
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -14599,7 +14593,7 @@
                   {
                     "tagLabel":"Access-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -15356,7 +15350,7 @@
               "vrfRedistributeStaticRoutesToggle":{
                 "key":"vrfRedistributeStaticRoutesToggle",
                 "dependency":{
-                  
+
                 },
                 "dependencyType":"AND",
                 "type":"INPUT"
@@ -15374,7 +15368,7 @@
                   {
                     "tagLabel":"Campus-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -15600,7 +15594,7 @@
                   {
                     "tagLabel":"Campus-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -16037,7 +16031,7 @@
                   {
                     "tagLabel":"Access-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
