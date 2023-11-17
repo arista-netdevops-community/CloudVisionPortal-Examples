@@ -1,0 +1,519 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: false
+            globalAS: 914
+            iBgpListenRange: 0.0.0.0/0
+            overlayIBgpPeerGroupName: LOCAL-EVPN-PEERS
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+            vxlanSourceInterface: Loopback1
+          commonMlagConfig: {}
+          coreRouters: []
+          erDomains:
+            - inputs:
+                erDomain:
+                  bgpDefaults:
+                    bgpSettings:
+                      addressFamilyEvpn: {}
+                      bgpDefaultSettings:
+                        bgpDistance: 20 200 200
+                        maximumPaths: 4
+                        noBgpDefaultIPv4Unicast: true
+                      gracefulRestartGroup:
+                        gracefulRestart: true
+                        gracefulRestartTime: 300
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 11.21.0.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s1-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1b1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 11.11.11.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@s1-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1b2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.11.11.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@s1-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 16.16.16.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@s1-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 26.26.26.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet6@s1-core1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 1.2.1.2
+                          mlagGroup:
+                            enableIgpOnPeerLink: true
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet1@s1-core1
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet6@s1-core1
+                            mlagRole: None
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.22.0.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s1-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1b1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 11.12.11.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@s1-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1b2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.12.11.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@s1-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 16.16.16.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@s1-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 26.26.26.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet6@s1-core2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 1.2.1.2
+                          mlagGroup:
+                            enableIgpOnPeerLink: true
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet1@s1-core2
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet6@s1-core2
+                            mlagRole: None
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s1-core2
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 11.21.0.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s2-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2b1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 31.31.31.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@s2-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2b2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 32.31.31.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@s2-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 17.17.17.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@s2-core1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 27.27.27.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet6@s2-core1
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 3.4.3.4
+                          mlagGroup:
+                            enableIgpOnPeerLink: true
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet1@s2-core1
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet6@s2-core1
+                            mlagRole: None
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-core1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors: []
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 12.22.0.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet4@s2-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2b1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 31.32.31.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet2@s2-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2b2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 32.32.31.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet3@s2-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 17.17.17.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet1@s2-core2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 64
+                                  eripAddress: 27.27.27.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                              tags:
+                                query: interface:Ethernet6@s2-core2
+                          interfaces: []
+                          loopback1:
+                            loopback1Ipv4Address: 3.4.3.4
+                          mlagGroup:
+                            enableIgpOnPeerLink: true
+                            mlagInterfaces:
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet1@s2-core2
+                              - inputs:
+                                  mlagInterfacesGroup:
+                                    mlagDescription: null
+                                tags:
+                                  query: interface:Ethernet6@s2-core2
+                            mlagRole: None
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:s2-core2
+                  peerGroups: []
+                  prefixLists: []
+                  rrHostnames: []
+              tags:
+                query: Edge-Router-Domain:IP-Network
+            - inputs:
+                erDomain:
+                  bgpDefaults:
+                    bgpSettings:
+                      addressFamilyEvpn:
+                        aamhPreference: []
+                        defaultNextHopSelfReceivedEvpnRoutes: inter-domain
+                      bgpDefaultSettings:
+                        bgpDistance: 20 200 200
+                        noBgpDefaultIPv4Unicast: true
+                      gracefulRestartGroup:
+                        gracefulRestart: true
+                        gracefulRestartTime: 300
+                  communityLists: []
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: s2b1
+                              neighborIp: 172.16.12.7
+                              peerAsn: 65104
+                              peerGroup: DCI-EVPN
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 11.11.11.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet4@s1-brdr1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 11.12.11.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet5@s1-brdr1
+                      tags:
+                        query: device:s1-brdr1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: s2b2
+                              neighborIp: 172.16.12.8
+                              peerAsn: 65104
+                              peerGroup: DCI-EVPN
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1b1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 12.11.11.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet4@s1-brdr2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s1b2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 12.12.11.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet5@s1-brdr2
+                      tags:
+                        query: device:s1-brdr2
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: s1b1
+                              neighborIp: 172.16.2.7
+                              peerAsn: 65004
+                              peerGroup: DCI-EVPN
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 31.31.31.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet4@s2-brdr1
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 31.32.31.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet5@s2-brdr1
+                      tags:
+                        query: device:s2-brdr1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: s1b2
+                              neighborIp: 172.16.2.8
+                              peerAsn: 65004
+                              peerGroup: DCI-EVPN
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c1
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 32.31.31.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet4@s2-brdr2
+                            - inputs:
+                                erneighborDetails:
+                                  description: s2c2
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  eripAddress: 32.32.31.0
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet5@s2-brdr2
+                      tags:
+                        query: device:s2-brdr2
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: true
+                        bgpDefaultInformationOriginate: Disabled
+                        eBgpMultiHopTtl: 3
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                        updateSource: Loopback0
+                      dciOptions:
+                        defaultEncapsulation: VXLAN
+                        evpnDomain: remote
+                      description: DCI-EVPN
+                      eBgpAuthKey: null
+                      erAddressFamily: evpn
+                      listenRange: []
+                      peerGroupCliInput: []
+                      peerGroupName: DCI-EVPN
+                      routeMapIn: []
+                      routeMapInName: null
+                      routeMapOut: []
+                      routeMapOutName: null
+                  prefixLists: []
+                  rrHostnames: []
+              tags:
+                query: Edge-Router-Domain:Border_Leafs
+          rrs: []
+          underlayRoutingGroup:
+            bgpPeerGroupName: Enterprise-Routing-Underlay-BGP
+            igp: OSPF
+            igpProcessId: 1
+            redistributeConnected: false
+      tags:
+        query: Network:Ex4-IP-Network
