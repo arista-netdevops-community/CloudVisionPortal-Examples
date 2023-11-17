@@ -3398,7 +3398,7 @@
               campus_pod_services_details = campus_pod_services_resolved["services"]
               # Add default vrf to campus_services vrfs if not present
               if "default" not in [vrf["name"] for vrf in campus_services_details.get("vrfs", [])]:
-                  campus_services_details["vrfs"].append({"name":"default"})
+                  campus_services_details["vrfs"].insert(0, {"name":"default"})
               
               campus_name = "Campus"
               campus_pod_name = "Pod"
@@ -3411,8 +3411,9 @@
               }
 
               avd_vrfs = {}
-              for vrf in campus_services_details.get("vrfs", []):
+              for i, vrf in enumerate(campus_services_details.get("vrfs", [])):
                   avd_vrf = get_tenant_vrf(vrf)
+                  avd_vrf["vrf_id"] = i
                   avd_vrf["svis"] = []
                   avd_vrfs[vrf["name"]] = avd_vrf
 
