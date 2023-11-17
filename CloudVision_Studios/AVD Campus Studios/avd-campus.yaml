@@ -18,8 +18,6 @@
           import time
           from itertools import count, groupby
           from cloudvision.cvlib.tags import Tag
-          import tagsearch_python.tagsearch_pb2_grpc as tsgr
-          import tagsearch_python.tagsearch_pb2 as tspb
 
 
           node_type_defaults = {
@@ -1266,12 +1264,10 @@
               uplink_switch_id = uplink_switch_facts['id']
 
               previous_switches_seen = switch_facts['uplink_switches_ids'][:uplink_switch_index]
-              # ctx.info(f"Previous Switches Seen: {previous_switches_seen}")
               number_of_times_uplink_switch_has_been_seen = previous_switches_seen.count(uplink_switch_facts['serial_number'])
-              # ctx.info(f"Number of times previously seen {uplink_switch_facts['serial_number']}: {number_of_times_uplink_switch_has_been_seen}")
 
-              max_uplink_switches = 2  # switch_facts['max_uplink_switches']
-              max_parallel_uplinks = 1  # switch_facts['max_parallel_uplinks']
+              max_uplink_switches = 2
+              max_parallel_uplinks = 1
 
               if len(uplink_ipv4_pool) > 1:
                   uplink_ipv4_pool = uplink_ipv4_pool[uplink_switch_id - 1]
@@ -1308,12 +1304,10 @@
               uplink_switch_id = uplink_switch_facts['id']
 
               previous_switches_seen = switch_facts['uplink_switches_ids'][:uplink_switch_index]
-              # ctx.info(f"Previous Switches Seen: {previous_switches_seen}")
               number_of_times_uplink_switch_has_been_seen = previous_switches_seen.count(uplink_switch_facts['serial_number'])
-              # ctx.info(f"Number of times previously seen {uplink_switch_facts['serial_number']}: {number_of_times_uplink_switch_has_been_seen}")
 
-              max_uplink_switches = 2  # switch_facts['max_uplink_switches']
-              max_parallel_uplinks = 1  # switch_facts['max_parallel_uplinks']
+              max_uplink_switches = 2
+              max_parallel_uplinks = 1
 
               if len(uplink_ipv4_pool) > 1:
                   uplink_ipv4_pool = uplink_ipv4_pool[uplink_switch_id - 1]
@@ -1338,21 +1332,10 @@
 
 
           @ctx.benchmark
-          def set_switch_facts(switch_facts, campus_resolver):
+          def set_switch_facts(switch_facts):
               # device_id from switch_facts
               device_id = switch_facts["serial_number"]
 
-              # Process Studio inputs
-              campus_resolved = campus_resolver.resolve(device=device_id)
-              if campus_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
-                  return
-              campus_details = campus_resolved["campusDetails"]
-              campus_pod_resolved = campus_details["campusPod"].resolve(device=device_id)
-              if campus_pod_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus-Pod input.  Make sure a 'Campus-Pod' tag is applied.")
-                  return
-              campus_pod_details = campus_pod_resolved["campusPodFacts"]
               # set campus pod routing protocols if not set
               if not campus_pod_details.get("campusPodRoutingProtocols"):
                   campus_pod_details["campusPodRoutingProtocols"] = {
@@ -1466,12 +1449,6 @@
                       "leafPriority1": None,
                       "memberLeafPriority1": None
                   }
-
-              # Logs
-              # if switch_facts["hostname"] == my_switch_facts["hostname"]:
-              #     ctx.info(f"{switch_facts['hostname']}")
-              #     ctx.info(f"Campus-Pod Details: {campus_pod_details}")
-              #     ctx.info(f"Node Defaults: {node_defaults}")
 
               # Get spanning tree details
               if switch_facts["network_services_l2"]:
@@ -1804,9 +1781,6 @@
                   ptp["profile"] = default_ptp_profile
                   switch_facts["ptp"] = strip_null_from_data(ptp, (None, {}))
 
-              # if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
-              #     ctx.info(f"{switch_facts['ptp']}")
-
               # Get inband management details
               if campus_pod_details["fabricConfigurations"].get("inbandManagementDetails"):
                   # Set campus pod level variables
@@ -1995,7 +1969,7 @@
 
 
           @ctx.benchmark
-          def set_switch_uplink_info(switch_facts, campus_resolver):
+          def set_switch_uplink_info(switch_facts):
               # Get interface info from topology studio
               switch_facts["uplink_interfaces"], switch_facts["uplink_switches"], switch_facts["uplink_switches_ids"], switch_facts["uplink_switch_interfaces"]  = get_uplink_info_from_topology(switch_facts)
 
@@ -2060,7 +2034,6 @@
                       link_facts = {}
                       uplink_switch_id = switch_facts["uplink_switches_ids"][i]
                       uplink_switch_facts = my_switch_facts_neighbors.get(uplink_switch_id, {})
-                      # ctx.info(f"{uplink_interface}: {uplink_switch_facts['hostname']}")
                       link_facts["peer_id"] = uplink_switch_facts.get("serial_number")
                       link_facts["peer"] = uplink_switch_facts.get("hostname", switch_facts["uplink_switches"][i])
                       link_facts["peer_interface"] = switch_facts["uplink_switch_interfaces"][i]
@@ -3314,7 +3287,6 @@
               Returns:
                   all_services: a dictionary that conforms to avd's network services data model
               '''
-              # ctx.info(f"{tenants}")
               avd_tenants = []
               for tenant in tenants:
                   avd_tenant = {
@@ -3389,7 +3361,6 @@
               if campus_services_resolved is None:
                   ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
                   return avd_tenants
-              # ctx.info(f"{campus_services_resolved}")
               campus_services_details = campus_services_resolved["campusServicesGroup"]
               campus_pod_services_resolved = campus_services_details["campusPodsServices"].resolve(device=device_id)
               if campus_pod_services_resolved is None:
@@ -4769,54 +4740,32 @@
 
 
           @ctx.benchmark
-          def get_switch_basics(device_id, campus_resolver, general_settings):
+          def get_switch_basics(device_id):
               dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
               # Initialize switch_facts
               switch_facts = {}
               switch_facts['serial_number'] = device_id
               switch_facts['hostname'] = dev.hostName
               switch_facts['platform'] = dev.modelName
-
-              # Get facts from inputs
-              #
+              switch_facts["campus"] = campus_pod_details["campus"]
+              switch_facts["campus_pod"] = campus_pod_details["campus_pod"]
               # TBD - eos system tag won't be found, need topology field or user tag for it,
               #       else for checks utilize platform instead of eos version
               switch_facts["eos_version"] = "0"
               if tag := dev.getSingleTag(ctx, 'eos', required=False):
                   switch_facts["eos_version"] = tag.value
 
-              # Process Studio inputs
-              campus_resolved, campus_ctx = campus_resolver.resolveWithContext(device=device_id)
-              if not campus_resolved or not campus_ctx.query_str:
-                  return
-              switch_facts["campus"] = re.match(r"Campus:(.*)", campus_ctx.query_str).group(1)
-              campus_details = campus_resolved.get('campusDetails', None)
-              if campus_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus.")
-                  return
-
-              campus_pod_resolved, campus_pod_ctx = campus_details["campusPod"].resolveWithContext(device=device_id)
-              if not campus_pod_resolved or not campus_pod_ctx.query_str:
-                  return
-              switch_facts["campus_pod"] = re.match(r"Campus-Pod:(.*)", campus_pod_ctx.query_str).group(1)
-              campus_pod_details = campus_pod_resolved.get('campusPodFacts', None)
-              if campus_pod_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus-Pod")
-                  return
-
-              # Set campus_pod_details
-              switch_facts["campus_pod_details"] = campus_pod_details
-
               # set campus pod fabric name
               switch_facts["fabric_name"] = f"{switch_facts['campus']}-{switch_facts['campus_pod']}" 
 
+              # Get facts from inputs
               # Set switch node type and node id
               if device_matches_resolver_query(campus_pod_details["spines"], device_id):
                   switch_facts["type"] = "spine"
                   switch_facts["group"] = f"{switch_facts['campus']}_{switch_facts['campus_pod']}_Spines"
                   node_id = campus_pod_details["spines"].resolve(device=device_id)["spinesInfo"].get("nodeId")
                   if node_id:
-                      switch_facts['id'] =  node_id # pool_manager.get_id(device_id)
+                      switch_facts['id'] =  node_id
               elif device_matches_resolver_query(campus_pod_details["accessPods"], device_id):
                   access_pod_details_resolved, access_pod_ctx = campus_pod_details["accessPods"].resolveWithContext(device=device_id)
                   switch_facts["group"] = re.match(r"Access-Pod:(.*)", access_pod_ctx.query_str).group(1)
@@ -4825,12 +4774,12 @@
                       switch_facts["type"] = "leaf"
                       node_id = access_pod_details["leafs"].resolve(device=device_id)["leafsInfo"].get("nodeId")
                       if node_id:
-                          switch_facts['id'] = node_id  # pool_manager.get_id(device_id)
+                          switch_facts['id'] = node_id
                   elif device_matches_resolver_query(access_pod_details["memberLeafs"], device_id):
                       switch_facts["type"] = "memberleaf"
                       node_id = access_pod_details["memberLeafs"].resolve(device=device_id)["memberLeafsInfo"].get("nodeId")
                       if node_id:
-                          switch_facts['id'] = node_id  # pool_manager.get_id(device_id)
+                          switch_facts['id'] = node_id
                   else:
                       ctx.warning(f"{switch_facts['hostname']} is a member of {switch_facts['campus']} --> {switch_facts['campus_pod']} -> {switch_facts['group']} but does not have a role set.")
                       return   
@@ -4842,44 +4791,14 @@
               switch_facts["interfaces"] = get_device_interfaces(switch_facts)
 
               # Set platform settings
-              switch_facts = set_switch_facts_node_properties(switch_facts, campus_pod_details, general_settings)
+              switch_facts = set_switch_facts_node_properties(switch_facts)
 
               return switch_facts
 
 
           @ctx.benchmark
-          def get_switch_basics_for_neighbors(neighbors, campus_resolver, general_settings):
-              # Dictionary of switches that will be returned
-              all_switch_facts = {}
-              for device_id in neighbors:
-                  switch_facts_device = get_switch_basics(device_id, campus_resolver, general_settings)
-                  if neighbor_switch_facts is None:
-                      continue
-                  all_switch_facts[device_id] = switch_facts_device
-              return all_switch_facts
-
-
-          @ctx.benchmark
-          def get_switch_basics_for_third_party_devices(switch_facts, campus_resolver, general_settings):
+          def get_switch_basics_for_third_party_devices(device_id):
               third_party_devices = {}
-              # Process Studio inputs
-              device_id = switch_facts["serial_number"]
-              campus_resolved = campus_resolver.resolve(device=device_id)
-              campus_details = None
-              if campus_resolved:
-                  campus_details = campus_resolved.get('campusDetails', None)
-              if campus_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
-                  return
-
-              campus_pod_resolved = campus_details["campusPod"].resolve(device=device_id)
-              campus_pod_details = None
-              if campus_pod_resolved:
-                  campus_pod_details = campus_pod_resolved.get('campusPodFacts', None)
-              if campus_pod_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus Pod input.  Make sure a 'Campus-Pod' tag is applied.")
-                  return
-
               # Set role and node id for switches
               for device_info in campus_pod_details.get('thirdPartyDevices', []):
                   third_party_device = {
@@ -4888,14 +4807,14 @@
                       "type": device_info["role"],
                       "id": device_info["nodeId"],
                       "interfaces": [],
-                      "campus": switch_facts["campus"],
-                      "campus_pod": switch_facts["campus_pod"],
-                      "fabric_name": f"{switch_facts['campus']}-{switch_facts['campus_pod']}", 
+                      "campus": campus_pod_details["campus"],
+                      "campus_pod": campus_pod_details["campus_pod"],
+                      "fabric_name": f"{campus_pod_details['campus']}-{campus_pod_details['campus_pod']}", 
                       "campus_pod_details": campus_pod_details
                   }
                   # Set group
                   if third_party_device["type"] == "spine":
-                      third_party_device["group"] = "{}_{}_Spines".format(switch_facts["campus"], switch_facts["campus_pod"])
+                      third_party_device["group"] = f"{campus_pod_details['campus']}_{campus_pod_details['campus_pod']}_Spines"
                   # Set up group setting for idf devices later
                   # Get interface info for 3rd party devices by checking if this switch is a neighbor of other Arista switches in this campus
                   for peer_switch_facts in my_switch_facts_neighbors.values():
@@ -4909,7 +4828,7 @@
                                   "peer_serial_number": peer_switch_facts["serial_number"]
                               })
 
-                  third_party_device = set_switch_facts_node_properties(third_party_device, campus_pod_details, general_settings)
+                  third_party_device = set_switch_facts_node_properties(third_party_device)
 
                   third_party_devices[third_party_device['serial_number']] = third_party_device
 
@@ -4917,7 +4836,7 @@
 
 
           @ctx.benchmark
-          def set_switch_facts_node_properties(switch_facts, campus_pod_details, general_settings):
+          def set_switch_facts_node_properties(switch_facts):
               # set device_id
               device_id = switch_facts["serial_number"]
               # Set campus type
@@ -4972,8 +4891,8 @@
                       custom_node_properties['uplink_type'] = spline_defaults['splineUplinkType'].lower()
 
                   # Set inband ztp interfaces
-                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["splinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
                       switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
 
               elif switch_facts["type"] == "leaf":
@@ -5004,14 +4923,14 @@
                       custom_node_properties['uplink_type'] = leaf_defaults['leafUplinkType'].lower()
 
                   # Set inband ztp interfaces
-                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
                       switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
 
               elif switch_facts["type"] == "memberleaf":
                   # Set inband ztp interfaces
-                  if device_matches_resolver_query(general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = general_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
+                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"], device_id):
+                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
                       switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
 
               # Set node properties
@@ -5046,79 +4965,26 @@
               return switch_facts
 
 
-          @ctx.benchmark
-          def get_switches_in_my_campus_pod(device_id, campus_resolver):
-              switch_serial_numbers = []
-              dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
-              # Process Studio inputs
-              campus_resolved, campus_ctx = campus_resolver.resolveWithContext(device=device_id)
-              if not campus_resolved or not campus_ctx.query_str:
-                  return
-              campus_name = re.match(r"Campus:(.*)", campus_ctx.query_str).group(1)
-              campus_details = campus_resolved.get('campusDetails', None)
-              if campus_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus.")
-                  return
-              campus_pod_resolved, campus_pod_ctx = campus_details["campusPod"].resolveWithContext(device=device_id)
-              if not campus_pod_resolved or not campus_pod_ctx.query_str:
-                  return
-              campus_pod_name = re.match(r"Campus-Pod:(.*)", campus_pod_ctx.query_str).group(1)
-              campus_pod_details = campus_pod_resolved.get('campusPodFacts', None)
-              if campus_pod_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus-Pod")
-                  return
+          def get_switches_in_my_campus_pod(device_id):
+              all_switch_facts = {}
+              # Get Spines
+              spines_details = campus_pod_details["spines"].resolveAllWithContext(strict=True)
+              for spine_dev, _, _ in spines_details:
+                  switch_facts_device = get_switch_basics(spine_dev)
+                  if switch_facts_device is None:
+                      continue
+                  all_switch_facts[spine_dev] = switch_facts_device
+              # Get Leaf and Member Leafs
+              access_pods_details = campus_pod_details["accessPods"].resolveAllWithContext(strict=True)
+              for access_pod_dev, _, _ in access_pods_details:
+                  switch_facts_device = get_switch_basics(access_pod_dev)
+                  if switch_facts_device is None:
+                      continue
+                  all_switch_facts[access_pod_dev] = switch_facts_device
 
-              # Create tagstub
-              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
-
-              # Get switches in same data center
-              query = f"Campus:\"{campus_name}\" AND Campus-Pod:\"{campus_pod_name}\""
-              tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
-              tagmresp = tsclient.GetTagMatchesV2(tagmr)
-              for match in tagmresp.matches:
-                  if match.device.device_id not in switch_serial_numbers:
-                      switch_serial_numbers.append(match.device.device_id)
-
-              return switch_serial_numbers
+              return all_switch_facts
 
 
-          @ctx.benchmark
-          def get_switches_in_my_campus_pod(device_id, campus_resolver):
-              switch_serial_numbers = []
-              dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
-              # Process Studio inputs
-              campus_resolved, campus_ctx = campus_resolver.resolveWithContext(device=device_id)
-              if not campus_resolved or not campus_ctx.query_str:
-                  return
-              campus_name = re.match(r"Campus:(.*)", campus_ctx.query_str).group(1)
-              campus_details = campus_resolved.get('campusDetails', None)
-              if campus_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus.")
-                  return
-              campus_pod_resolved, campus_pod_ctx = campus_details["campusPod"].resolveWithContext(device=device_id)
-              if not campus_pod_resolved or not campus_pod_ctx.query_str:
-                  return
-              campus_pod_name = re.match(r"Campus-Pod:(.*)", campus_pod_ctx.query_str).group(1)
-              campus_pod_details = campus_pod_resolved.get('campusPodFacts', None)
-              if campus_pod_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus-Pod")
-                  return
-
-              # Create tagstub
-              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
-
-              # Get switches in same data center
-              query = f"Campus:\"{campus_name}\" AND Campus-Pod:\"{campus_pod_name}\""
-              tagmr = tspb.TagMatchRequestV2(query=query, workspace_id=workspace_id, topology_studio_request=True)
-              tagmresp = tsclient.GetTagMatchesV2(tagmr)
-              for match in tagmresp.matches:
-                  if match.device.device_id not in switch_serial_numbers:
-                      switch_serial_numbers.append(match.device.device_id)
-
-              return switch_serial_numbers
-
-
-          @ctx.benchmark
           def create_node_id_dict(switch_facts_neighbors):
               id_pools = []
               for switch_facts in switch_facts_neighbors.values():
@@ -5153,7 +5019,6 @@
               return id_pools
 
 
-          @ctx.benchmark
           def get_node_id(id_pools, switch_facts):
               id_pool = None
               for id_data_id_pool in id_pools:
@@ -5185,11 +5050,11 @@
               return first_available_id, id_pools
 
 
-          @ctx.benchmark
+
           def get_node_ids(id_pools):
               # existing_node_ids
               # Get node ids for spines
-              spines_details = my_switch_facts["campus_pod_details"]["spines"].resolveAllWithContext(strict=True)
+              spines_details = campus_pod_details["spines"].resolveAllWithContext(strict=True)
               for spine_dev, _, _ in spines_details:
                   switch_facts = my_switch_facts_neighbors.get(spine_dev)
                   if switch_facts:
@@ -5198,13 +5063,37 @@
                           switch_facts["id"] = node_id
 
               # Get node ids for access-pods
-              access_pods_details = my_switch_facts["campus_pod_details"]["accessPods"].resolveAllWithContext(strict=True)
+              access_pods_details = campus_pod_details["accessPods"].resolveAllWithContext(strict=True)
               for access_pod_dev, _, _ in access_pods_details:
                   switch_facts = my_switch_facts_neighbors.get(access_pod_dev)
                   if switch_facts:
                       node_id, id_pools = get_node_id(id_pools, switch_facts)
                       if node_id:
                           switch_facts["id"] = node_id
+
+
+          def get_campus_pod_details(device_id, campus_resolver):
+              # Process Studio inputs
+              campus_resolved, campus_ctx = campus_resolver.resolveWithContext(device=device_id)
+              if not campus_resolved or not campus_ctx.query_str:
+                  return
+              campus_name = re.match(r"Campus:(.*)", campus_ctx.query_str).group(1)
+              campus_details = campus_resolved.get('campusDetails', None)
+              if campus_details is None:
+                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus.")
+                  return
+              
+              campus_pod_resolved, campus_pod_ctx = campus_details["campusPod"].resolveWithContext(device=device_id)
+              if not campus_pod_resolved or not campus_pod_ctx.query_str:
+                  return
+              campus_pod_name = re.match(r"Campus-Pod:(.*)", campus_pod_ctx.query_str).group(1)
+              campus_pod_details = campus_pod_resolved.get('campusPodFacts', None)
+              if campus_pod_details is None:
+                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus-Pod")
+                  return
+              campus_pod_details["campus"] = campus_name
+              campus_pod_details["campus_pod"] = campus_pod_name
+              return campus_pod_details
 
           # Template mainline start
           #
@@ -5219,35 +5108,28 @@
           if log_all_checkpoint_times:
               task_time = time.time()
 
-
           # Get studio info from ctx
           my_device = ctx.getDevice()
           workspace_id = ctx.studio.workspaceId
 
           # Initialize variables
+          advanced_fabric_settings = advancedFabricSettings
           my_switch_facts = {}
           my_switch_facts_neighbors = {}
           my_config = {}
 
-          # # Set my_switch_facts' switch properties
-          # my_switch_facts = get_switch_basics(my_device.id, campus, advancedFabricSettings)
-
-          # if my_switch_facts is None:
-          #     return
-
           # Get all switches in same campus pod as build switch
-          my_neighbors = get_switches_in_my_campus_pod(my_device.id, campus)
-          if not my_neighbors:
+          campus_pod_details = get_campus_pod_details(my_device.id, campus)
+          if not campus_pod_details:
               return
 
-          my_switch_facts_neighbors = get_switch_basics_for_neighbors(
-                                                            my_neighbors, campus, advancedFabricSettings)
+          my_switch_facts_neighbors = get_switches_in_my_campus_pod(my_device.id)
+          if not my_switch_facts_neighbors:
+              return
           dump_my_switch_facts(1)
 
-          my_switch_facts = my_switch_facts_neighbors[my_device.id]
-
           # Add 3rd party devices
-          third_party_devices = get_switch_basics_for_third_party_devices(my_switch_facts, campus, generalSettings)
+          third_party_devices = get_switch_basics_for_third_party_devices(my_device.id)
           my_switch_facts_neighbors.update(third_party_devices)
 
           # Get already assigned node ids and mappings
@@ -5262,7 +5144,7 @@
 
           # Set uplink info for all switch_facts in my_switch_facts_neighbors
           for switch_facts in my_switch_facts_neighbors.values():
-              switch_facts = set_switch_uplink_info(switch_facts, campus)
+              switch_facts = set_switch_uplink_info(switch_facts)
           dump_my_switch_facts(4)
 
           # Set downlink info for all of my_switch_facts' neighbors
@@ -5272,7 +5154,7 @@
 
           # Set switch_facts for all of my_switch_facts neighbors and my_switch_facts
           for switch_facts in my_switch_facts_neighbors.values():
-              switch_facts = set_switch_facts(switch_facts, campus)
+              switch_facts = set_switch_facts(switch_facts)
           dump_my_switch_facts(6)
 
           # Get tenant network services in AVD format
@@ -5296,7 +5178,7 @@
           dump_my_switch_facts(9)
 
           # Get my_switch_facts from my_switch_facts_neighbors
-          my_switch_facts = my_switch_facts_neighbors[my_switch_facts["serial_number"]]
+          my_switch_facts = my_switch_facts_neighbors[my_device.id]
 
           # Set structured config
           my_config = {
