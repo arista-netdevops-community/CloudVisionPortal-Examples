@@ -3195,7 +3195,7 @@
           def get_tenant_svi(svi, switch_facts, campus_type=""):
               device_id = switch_facts["serial_number"]
               avd_svi = {"id": svi["id"]}
-              # Initialize devices
+              # Get devices
               devices = []
               if get(svi, "devices"):
                   for tag_matcher in svi["devices"]:
@@ -3208,9 +3208,6 @@
                       devices.append(device_id)
               # Assign devices
               avd_svi["devices"] = devices
-              # name
-              assert get(svi, "name"), f"No name is configured for SVI {svi['id']}."
-              avd_svi["name"] = svi["name"]
 
               #vxlan
               avd_svi["vxlan"] = str_to_bool(svi.get("vxlan", "No"))
@@ -3224,6 +3221,14 @@
                   avd_svi["ip_virtual_router_subnet"] = pod_info["ipVirtualRouterSubnet"]
               elif not avd_svi["vxlan"]:
                   avd_svi["ip_virtual_router_subnet"] = svi["ipVirtualRouterSubnet"]
+
+              # name
+              access_pod_vlan_name = pod_info["name"] if pod_info.get("name") else None
+              campus_pod_vlan_name = svi["name"] if svi.get("name") else None
+              vlan_name = default(access_pod_vlan_name, campus_pod_vlan_name)
+              assert vlan_name, f"No name is configured for SVI {svi['id']}."
+              avd_svi["name"] = vlan_name
+
               # node shutdown
               if get(pod_info, "enabled"):
                   avd_svi["nodes"] = {
@@ -4803,7 +4808,7 @@
                       "interfaces": [],
                       "campus": campus_pod_details["campus"],
                       "campus_pod": campus_pod_details["campus_pod"],
-                      "fabric_name": f"{campus_pod_details['campus']}-{campus_pod_details['campus_pod']}", 
+                      "fabric_name": f"{campus_pod_details['campus']}-{campus_pod_details['campus_pod']}",
                       "campus_pod_details": campus_pod_details
                   }
                   # Set group
@@ -9724,8 +9729,8 @@
                   values:
                     - '{"fieldId":"campusVrfName"}'
                 extra_values_allowed: false
-            campusSviPodIpVirtualRouterSubnet:
-              id: campusSviPodIpVirtualRouterSubnet
+            accessPodIpVirtualRouterSubnet:
+              id: accessPodIpVirtualRouterSubnet
               name: ipVirtualRouterSubnet
               label: IP Virtual Router Subnet
               description: Define the VLAN subnet per Pod.  The first host IP address in the subnet will serve as the gateway for the subnet.
@@ -9740,11 +9745,11 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
-            campusSviPodEnabled:
-              id: campusSviPodEnabled
+            accessPodSviEnabled:
+              id: accessPodSviEnabled
               name: enabled
               label: Enabled
-              description: Enable/Disable the SVI per Pod. If no value is entered, defaults to the Enabled field above.
+              description: Enable/Disable the SVI.  If no value is entered, enabled will default to the value in the Enabled field above.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -9759,8 +9764,24 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
-            campusSviAssignedPodsDetails:
-              id: campusSviAssignedPodsDetails
+            accessPodSviName:
+              id: accessPodSviName
+              name: name
+              label: Name
+              description: Set Name per Pod. If no value is entered, the name defaults to the value in the Name field above.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            accessPodSviDetails:
+              id: accessPodSviDetails
               name: sviIpInfo
               label: SVI IP Info
               description: ''
@@ -9769,17 +9790,18 @@
               group_props:
                 members:
                   values:
-                    - campusSviPodIpVirtualRouterSubnet
-                    - campusSviPodEnabled
-            campusSviAssignedPods:
-              id: campusSviAssignedPods
+                    - accessPodIpVirtualRouterSubnet
+                    - accessPodSviEnabled
+                    - accessPodSviName
+            campusAssignedAccessPods:
+              id: campusAssignedAccessPods
               name: pods
               label: Pods
               description: Select the Access Pods this VLAN to be configured on
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
-                base_field_id: campusSviAssignedPodsDetails
+                base_field_id: accessPodSviDetails
                 display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: Access-Pod
@@ -9835,7 +9857,7 @@
                     - sviMulticast
                     - campusPodSviSviEosEosCli
                     - campusPodSviCampusSviVrf
-                    - campusSviAssignedPods
+                    - campusAssignedAccessPods
                     - campusPodSviEnabled
                     - campusPodIpVirtualRouterSubnet
             campusPodSvis:
@@ -10584,7 +10606,7 @@
                 tag_matcher_mode: TAG_MATCHER_FIELD_MODE_MULTI_DEVICE_TAG
                 tag_matcher_label: null
                 tag_filter_query: null
-                resolver_filtering_allowed: false
+                resolver_filtering_allowed: true
             campusBgpPeerDeviceTagMatcherGroup:
               id: campusBgpPeerDeviceTagMatcherGroup
               name: devicesGroup
@@ -10975,7 +10997,7 @@
                 tag_matcher_mode: TAG_MATCHER_FIELD_MODE_MULTI_DEVICE_TAG
                 tag_matcher_label: null
                 tag_filter_query: null
-                resolver_filtering_allowed: false
+                resolver_filtering_allowed: true
             campusStaticRouteDeviceTagMatcherGroup:
               id: campusStaticRouteDeviceTagMatcherGroup
               name: devicesGroup
@@ -17382,9 +17404,9 @@
                   "campusPodSviId",
                   "campusPodSviCampusSviVrf",
                   "campusPodSviEnabled",
-                  "campusSviAssignedPods",
-                  "campusPodIpVirtualRouterSubnet",
                   "campusPodSviName",
+                  "campusAssignedAccessPods",
+                  "campusPodIpVirtualRouterSubnet",
                   "campusPodSviDhcpHelpers",
                   "sviMulticast",
                   "campusPodSviSviEosEosCli"
@@ -17395,8 +17417,8 @@
                 "type":"INPUT",
                 "isPageLayout":true
               },
-              "campusSviAssignedPods":{
-                "key":"campusSviAssignedPods",
+              "campusAssignedAccessPods":{
+                "key":"campusAssignedAccessPods",
                 "type":"INPUT",
                 "showDefaultRow":false
               },
@@ -17455,10 +17477,8 @@
                   "False":"L3"
                 }
               },
-              "campusSviPodIpVirtualRouterSubnet":{
-                "key":"campusSviPodIpVirtualRouterSubnet",
-                "type":"INPUT",
-                "dependencyType":"AND",
+              "accessPodIpVirtualRouterSubnet":{
+                "key":"accessPodIpVirtualRouterSubnet",
                 "dependency":{
                   "campusServicesCampusPodType":{
                     "value":[
@@ -17466,7 +17486,9 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
               },
               "campusPodIpVirtualRouterSubnet":{
                 "key":"campusPodIpVirtualRouterSubnet",
@@ -17701,10 +17723,8 @@
                 "isPageLayout":false,
                 "showDefaultRow":false
               },
-              "campusSviPodEnabled":{
-                "key":"campusSviPodEnabled",
-                "type":"INPUT",
-                "dependencyType":"AND",
+              "accessPodSviEnabled":{
+                "key":"accessPodSviEnabled",
                 "dependency":{
                   "campusServicesCampusPodType":{
                     "value":[
@@ -17712,6 +17732,21 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT"
+              },
+              "l2CampusAssignedPodsTagQuery":{
+                "key":"l2CampusAssignedPodsTagQuery",
+                "dependency":{
+                  "campusServicesCampusPodType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "type":"INPUT",
+                "dependencyType":"AND"
               }
             }
