@@ -1370,13 +1370,15 @@
 
               # Set Dot1x defaults
               if not campus_pod_details["fabricConfigurations"].get("dot1x"):
-                  campus_pod_details["fabricConfigurations"]["dot1x"] = {
-                      "enable": True,
-                      "dynamicAuthorization": {},
-                      "lldpBypass": None,
-                      "macBasedAuthentication": {},
-                      "radiusAvPair": {}
-                  }
+                  campus_pod_details["fabricConfigurations"]["dot1x"] = {"enable": True}
+              if not campus_pod_details["fabricConfigurations"]["dot1x"].get("dynamicAuthorization"):
+                  campus_pod_details["fabricConfigurations"]["dot1x"]["dynamicAuthorization"] = {}
+              if not campus_pod_details["fabricConfigurations"]["dot1x"].get("macBasedAuthentication"):
+                  campus_pod_details["fabricConfigurations"]["dot1x"]["macBasedAuthentication"] = {}
+              if not campus_pod_details["fabricConfigurations"]["dot1x"].get("lldpBypass"):
+                  campus_pod_details["fabricConfigurations"]["dot1x"]["lldpBypass"] = None
+              if not campus_pod_details["fabricConfigurations"]["dot1x"].get("radiusAvPair"):
+                  campus_pod_details["fabricConfigurations"]["dot1x"]["radiusAvPair"] = {}
 
               access_pod_details = campus_pod_details["accessPods"].resolve(device=device_id)
               if access_pod_details:
@@ -4809,7 +4811,7 @@
                       "interfaces": [],
                       "campus": campus_pod_details["campus"],
                       "campus_pod": campus_pod_details["campus_pod"],
-                      "fabric_name": f"{campus_pod_details['campus']}-{campus_pod_details['campus_pod']}",
+                      "fabric_name": f"{campus_pod_details['campus']}-{campus_pod_details['campus_pod']}", 
                       "campus_pod_details": campus_pod_details
                   }
                   # Set group
@@ -8893,7 +8895,7 @@
               required: false
               type: INPUT_FIELD_TYPE_BOOLEAN
               boolean_props:
-                default_value: true
+                default_value: false
             campusPodDot1xLldpBypass:
               id: campusPodDot1xLldpBypass
               name: lldpBypass
@@ -14618,7 +14620,7 @@
                   {
                     "tagLabel":"Access-Pod",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -15375,7 +15377,7 @@
               "vrfRedistributeStaticRoutesToggle":{
                 "key":"vrfRedistributeStaticRoutesToggle",
                 "dependency":{
-
+                  
                 },
                 "dependencyType":"AND",
                 "type":"INPUT"
@@ -15393,7 +15395,7 @@
                   {
                     "tagLabel":"Campus-Pod",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ]
@@ -15619,7 +15621,7 @@
                   {
                     "tagLabel":"Campus-Pod",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -16056,7 +16058,7 @@
                   {
                     "tagLabel":"Access-Pod",
                     "suggestedValues":[
-
+                      
                     ]
                   }
                 ],
@@ -17762,5 +17764,25 @@
                 "key":"campusVrfBgpEosCli",
                 "type":"INPUT",
                 "isMultiLine":true
+              },
+              "vrfVtepDiagnosticDatacenters":{
+                "key":"vrfVtepDiagnosticDatacenters",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "vrfVtepDiagnosticDatacenterPods":{
+                "key":"vrfVtepDiagnosticDatacenterPods",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "vrfVtepDiagnosticCampusPods":{
+                "key":"vrfVtepDiagnosticCampusPods",
+                "type":"INPUT",
+                "showDefaultRow":false
+              },
+              "vrfVtepDiagnosticCampuses":{
+                "key":"vrfVtepDiagnosticCampuses",
+                "type":"INPUT",
+                "showDefaultRow":false
               }
             }
