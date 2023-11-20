@@ -2945,7 +2945,8 @@
 
 
           @ctx.benchmark
-          def get_tenant_vrf(vrf):
+          def get_tenant_vrf(vrf, switch_facts):
+              device_id = switch_facts['serial_number']
               avd_vrf = {"name": vrf["name"]}
               avd_vrf['vrf_id'] = vrf.get('vrfId')
               # mlag l3 peering
@@ -3283,7 +3284,7 @@
 
 
           @ctx.benchmark
-          def get_tenants(tenants, device_id):
+          def get_tenants(tenants, switch_facts):
               '''
               Convert studio services data model to avd network services data model
 
@@ -3303,7 +3304,7 @@
                   # Parse VRFs
                   for vrf in tenant['vrfs']:
                       # get vrf in avd format
-                      avd_vrf = get_tenant_vrf(vrf)
+                      avd_vrf = get_tenant_vrf(vrf, switch_facts)
                       # svis
                       if len(vrf.get("svis", [])) > 0:
                           avd_vrf["svis"] = []
@@ -3388,7 +3389,7 @@
 
               avd_vrfs = {}
               for i, vrf in enumerate(campus_services_details.get("vrfs", [])):
-                  avd_vrf = get_tenant_vrf(vrf)
+                  avd_vrf = get_tenant_vrf(vrf, switch_facts)
                   avd_vrf["vrf_id"] = i
                   avd_vrf["svis"] = []
                   avd_vrfs[vrf["name"]] = avd_vrf
@@ -5158,7 +5159,7 @@
 
           # Get tenant network services in AVD format
           for switch_facts in my_switch_facts_neighbors.values():
-              avd_tenants = get_tenants(tenants, switch_facts["serial_number"])
+              avd_tenants = get_tenants(tenants, switch_facts)
               switch_facts["network_services"] = avd_tenants
 
           # Get campus network services in AVD format
@@ -5170,6 +5171,8 @@
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = _vlans(switch_facts)
               switch_facts["filtered_tenants"] = _filtered_tenants(switch_facts)
+
+
 
           # Set topology facts ( in order to set transit p2p and port-channel links )
           for switch_facts in my_switch_facts_neighbors.values():
@@ -9768,7 +9771,7 @@
               id: accessPodSviName
               name: name
               label: Name
-              description: Set Name per Pod. If no value is entered, the name defaults to the value in the Name field above.
+              description: Set VLAN name per Pod. If no value is entered, the name defaults to the value in the Name field above.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -17419,8 +17422,9 @@
               },
               "campusAssignedAccessPods":{
                 "key":"campusAssignedAccessPods",
+                "showDefaultRow":false,
                 "type":"INPUT",
-                "showDefaultRow":false
+                "isPageLayout":false
               },
               "sviAssignedPods":{
                 "key":"sviAssignedPods",
@@ -17706,8 +17710,6 @@
               },
               "campusVrfL3InterfaceEosCli":{
                 "key":"campusVrfL3InterfaceEosCli",
-                "type":"INPUT",
-                "dependencyType":"AND",
                 "dependency":{
                   "campusVrfOspfDetailsEnabled":{
                     "value":[
@@ -17715,7 +17717,10 @@
                     ],
                     "mode":"SHOW"
                   }
-                }
+                },
+                "dependencyType":"AND",
+                "type":"INPUT",
+                "isMultiLine":true
               },
               "campusPodInbandManagementAccessPodResolver":{
                 "key":"campusPodInbandManagementAccessPodResolver",
@@ -17748,5 +17753,14 @@
                 },
                 "type":"INPUT",
                 "dependencyType":"AND"
+              },
+              "accessPodSviName":{
+                "key":"accessPodSviName",
+                "type":"INPUT"
+              },
+              "campusVrfBgpEosCli":{
+                "key":"campusVrfBgpEosCli",
+                "type":"INPUT",
+                "isMultiLine":true
               }
             }
