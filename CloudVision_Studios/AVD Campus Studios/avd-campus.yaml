@@ -4050,13 +4050,13 @@
                                   vlan_interface_config = _get_vlan_interface_config_for_mlag_peering(switch_facts, vrf)
                                   config["vlan_interfaces"][f"Vlan{vrf['mlag_ibgp_peering_vlan']}"] = vlan_interface_config
 
-                          # Add trunk group to port-channel
-                          if "MLAG_VRF_PEER" not in (config['port_channel_interfaces']
-                                                    [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
-                                                    ['trunk_groups']):
-                              (config['port_channel_interfaces']
-                              [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
-                              ['trunk_groups']).append("MLAG_VRF_PEER")
+                                  # Add trunk group to port-channel
+                                  if "MLAG_VRF_PEER" not in (config['port_channel_interfaces']
+                                                            [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
+                                                            ['trunk_groups']):
+                                      (config['port_channel_interfaces']
+                                      [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
+                                      ['trunk_groups']).append("MLAG_VRF_PEER")
 
               # ospf
               if vrf_ospf := router_ospf(switch_facts):
@@ -4811,7 +4811,7 @@
                       "interfaces": [],
                       "campus": campus_pod_details["campus"],
                       "campus_pod": campus_pod_details["campus_pod"],
-                      "fabric_name": f"{campus_pod_details['campus']}-{campus_pod_details['campus_pod']}", 
+                      "fabric_name": f"{campus_pod_details['campus']}-{campus_pod_details['campus_pod']}",
                       "campus_pod_details": campus_pod_details
                   }
                   # Set group
@@ -14620,7 +14620,7 @@
                   {
                     "tagLabel":"Access-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -15377,7 +15377,7 @@
               "vrfRedistributeStaticRoutesToggle":{
                 "key":"vrfRedistributeStaticRoutesToggle",
                 "dependency":{
-                  
+
                 },
                 "dependencyType":"AND",
                 "type":"INPUT"
@@ -15395,7 +15395,7 @@
                   {
                     "tagLabel":"Campus-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ]
@@ -15621,7 +15621,7 @@
                   {
                     "tagLabel":"Campus-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
@@ -16058,7 +16058,7 @@
                   {
                     "tagLabel":"Access-Pod",
                     "suggestedValues":[
-                      
+
                     ]
                   }
                 ],
