@@ -626,19 +626,24 @@
               return None
 
 
+          @ctx.benchmark
           def convert(text):
               return int(text) if text.isdigit() else text.lower()
 
 
-          def alphanum_key(key):
-              return [convert(c) for c in re.split('([0-9]+)', str(key))]
-
-
-          def natural_sort(iterable):
+          @ctx.benchmark
+          def natural_sort(iterable, sort_key=None):
               if iterable is None:
-                  return list()
-              return sorted(iterable, key=alphanum_key)
+                  return []
 
+              @ctx.benchmark
+              def alphanum_key(key):
+                  if sort_key is not None and isinstance(key, dict):
+                      return [convert(c) for c in re.split("([0-9]+)", str(key.get(sort_key, key)))]
+                  else:
+                      return [convert(c) for c in re.split("([0-9]+)", str(key))]
+
+              return sorted(iterable, key=alphanum_key)
 
           # ESI generators
           def generate_esi(esi_short, esi_prefix='0000:0000:'):
@@ -1554,13 +1559,15 @@
                       "type": "network_port",
                   }
                   for ethernet_interface_name in range_expand(network_port["switch_ports"]):
+                      # make network_port copy
+                      network_port_copy = deepcopy(network_port)
                       # Override switches and switch_ports to only render for a single interface
                       tmp_network_port = ChainMap(
                           {
                               "switch_ports": [ethernet_interface_name]
                               # "switches": [my_switch_facts["hostname"]],
                           },
-                          network_port,
+                          network_port_copy,
                       )
                       ethernet_interface = get_ethernet_interface_cfg(tmp_network_port, 0, connected_endpoint)
                       # Only add the interface to the ethernet_interfaces dictionary if it does not contain the default interface config
@@ -1720,9 +1727,9 @@
               return
           my_campus_pod_resolver = my_campus_resolver["campusPod"].resolve(device=my_device.id)
           # ctx.info(f"{my_campus_pod_resolver}")
-          if not my_campus_pod_resolver or not my_campus_pod_resolver.get("Access-Pod"):
+          if not my_campus_pod_resolver or not my_campus_pod_resolver.get("accessPod"):
               return
-          my_access_pod_resolver = my_campus_pod_resolver["Access-Pod"].resolve(device=my_device.id)
+          my_access_pod_resolver = my_campus_pod_resolver["accessPod"].resolve(device=my_device.id)
           # ctx.info(f"{my_access_pod_resolver}")
           if not my_access_pod_resolver or not my_access_pod_resolver.get("interfaces"):
               return
@@ -1734,21 +1741,21 @@
           # get my_switch_facts from tags
           my_switch_facts = get_switch_basics_from_tags(my_device.id)
 
-          ctx.info(f"My Switch Facts: {my_switch_facts}")
+          # ctx.info(f"My Switch Facts: {my_switch_facts}")
 
           # Convert port profiles to eos_designs AVD data model
           port_profiles = get_port_profiles(portProfiles)
-          ctx.info(f"Port Profiles Pre-Parent Profile Applied: {port_profiles}")
+          # ctx.info(f"Port Profiles Pre-Parent Profile Applied: {port_profiles}")
 
           # Merge port profiles
           port_profiles = merge_port_profiles(port_profiles)
-          ctx.info(f"Port Profiles Post-Parent Profile Applied: {port_profiles}")
+          # ctx.info(f"Port Profiles Post-Parent Profile Applied: {port_profiles}")
 
           # get my_switch_facts network_ports
           network_ports = []
 
           for interface_name in my_device._interfaces.keys():
-              resolved_interface = studios_interface_inputs.resolve(interface_name)
+              resolved_interface = studios_interface_inputs.resolve(interface_name, device=my_device.id)
               adapter = resolved_interface["adapterDetails"]
               if adapter and "Ethernet" in interface_name:
                   tmp_adapter = adapter
@@ -1758,11 +1765,11 @@
 
           # Convert network ports to eos_designs AVD data model
           network_ports = get_network_ports(network_ports)
-          ctx.info(f"Network Ports Pre-Profile Applied: {network_ports}")
+          # ctx.info(f"Network Ports Pre-Profile Applied: {network_ports}")
 
           # Apply port profiles to network ports
           network_ports = merge_network_ports(network_ports, port_profiles)
-          ctx.info(f"Network Ports Post-Profile Applied: {network_ports}")
+          # ctx.info(f"Network Ports Post-Profile Applied: {network_ports}")
 
           # Get structured config for ethernet_interfaces
           my_switch_ethernet_interfaces = ethernet_interfaces(network_ports)
@@ -1774,10 +1781,10 @@
               "port_channel_interfaces": convert_dicts(my_switch_port_channel_interfaces)
           }
 
-          ctx.info(f"Structured Config: {config}")
+          # ctx.info(f"Structured Config: {config}")
           %>
           ## port-channel interfaces
-          % for port_channel_interface in natural_sort(config.get("port_channel_interfaces")):
+          % for port_channel_interface in natural_sort(config.get("port_channel_interfaces"), sort_key="name"):
           interface ${ port_channel_interface["name"] }
           %     if port_channel_interface.get("description"):
              description ${ port_channel_interface["description"] }
@@ -1903,7 +1910,7 @@
           % endfor
           ## eos - ethernet interfaces ##
           <% print_ethernet = False %>
-          % for ethernet_interface in natural_sort(config.get("ethernet_interfaces")):
+          % for ethernet_interface in natural_sort(config.get("ethernet_interfaces"), sort_key="name"):
           %     if ethernet_interface.get("channel_group", {}).get("id") and ethernet_interface.get("channel_group", {}).get("mode"):
           <%        port_channel_interface_name = f"Port-Channel{ethernet_interface['channel_group']['id']}" %>
           ##%         if port_channel_interfaces | arista.avd.default([]) |
