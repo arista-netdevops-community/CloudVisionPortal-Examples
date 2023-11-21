@@ -626,19 +626,24 @@
               return None
 
 
+          @ctx.benchmark
           def convert(text):
               return int(text) if text.isdigit() else text.lower()
 
 
-          def alphanum_key(key):
-              return [convert(c) for c in re.split('([0-9]+)', str(key))]
-
-
-          def natural_sort(iterable):
+          @ctx.benchmark
+          def natural_sort(iterable, sort_key=None):
               if iterable is None:
-                  return list()
-              return sorted(iterable, key=alphanum_key)
+                  return []
 
+              @ctx.benchmark
+              def alphanum_key(key):
+                  if sort_key is not None and isinstance(key, dict):
+                      return [convert(c) for c in re.split("([0-9]+)", str(key.get(sort_key, key)))]
+                  else:
+                      return [convert(c) for c in re.split("([0-9]+)", str(key))]
+
+              return sorted(iterable, key=alphanum_key)
 
           # ESI generators
           def generate_esi(esi_short, esi_prefix='0000:0000:'):
@@ -1779,7 +1784,7 @@
           # ctx.info(f"Structured Config: {config}")
           %>
           ## port-channel interfaces
-          % for port_channel_interface in natural_sort(config.get("port_channel_interfaces")):
+          % for port_channel_interface in natural_sort(config.get("port_channel_interfaces"), sort_key="name"):
           interface ${ port_channel_interface["name"] }
           %     if port_channel_interface.get("description"):
              description ${ port_channel_interface["description"] }
@@ -1905,7 +1910,7 @@
           % endfor
           ## eos - ethernet interfaces ##
           <% print_ethernet = False %>
-          % for ethernet_interface in natural_sort(config.get("ethernet_interfaces")):
+          % for ethernet_interface in natural_sort(config.get("ethernet_interfaces"), sort_key="name"):
           %     if ethernet_interface.get("channel_group", {}).get("id") and ethernet_interface.get("channel_group", {}).get("mode"):
           <%        port_channel_interface_name = f"Port-Channel{ethernet_interface['channel_group']['id']}" %>
           ##%         if port_channel_interfaces | arista.avd.default([]) |
