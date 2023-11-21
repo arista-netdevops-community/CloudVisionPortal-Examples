@@ -14,13 +14,6 @@
           import json
           import os
           import re
-          import tagsearch_python.tagsearch_pb2_grpc as tsgr
-          import tagsearch_python.tagsearch_pb2 as tspb
-          from arista.tag.v2.tag_pb2 import Tag, \
-              TagKey, \
-              TagAssignment, \
-              TagAssignmentKey, \
-              TagAssignmentConfig
           from collections import ChainMap
           from copy import deepcopy
           from typing import Union
@@ -204,7 +197,13 @@
               }
           ]
 
+          # Turning on DEBUG_LEVEL will impact performance
+          DEBUG_LEVEL = 0
+          if DEBUG_LEVEL:
+              ctx.benchmarkingOn()
 
+
+          @ctx.benchmark
           def defined(value, test_value=None, var_type=None, fail_action=None, var_name=None, run_tests=False):
               if value in [None, "", {}, []]:
                   return False
@@ -213,6 +212,7 @@
                   return True
 
 
+          @ctx.benchmark
           def convert_dicts(dictionary, primary_key="name", secondary_key=None):
               """
               The `arista.avd.convert_dicts` filter will convert a dictionary containing nested dictionaries to a list of
@@ -293,6 +293,7 @@
                   return output
 
 
+          @ctx.benchmark
           def get(dictionary, key, default=None, required=False, org_key=None, separator="."):
               """
               Get a value from a dictionary or nested dictionaries.
@@ -338,6 +339,7 @@
                       return value
 
 
+          @ctx.benchmark
           def get_all(data, path: str, required: bool = False, org_path=None):
               """
               Get all values from data matching a data path.
@@ -392,6 +394,7 @@
               return []
 
 
+          @ctx.benchmark
           def get_item(list_of_dicts: list, key, value, default=None, required=False, case_sensitive=False, var_name=None):
               """
               Get one dictionary from a list of dictionaries by matching the given key and value
@@ -446,7 +449,7 @@
 
 
           from functools import reduce
-
+          @ctx.benchmark
           def merge(a, b, path=None):
               "merges b into a"
               if path is None: path = []
@@ -467,6 +470,7 @@
               return b
 
 
+          # @ctx.benchmark
           # def _strategy_keep(config, path, base, nxt):
           #     """prefer base, otherwise nxt"""
           #     if base is not None:
@@ -474,6 +478,7 @@
           #     return nxt
 
 
+          # @ctx.benchmark
           # def _strategy_prepend_unique(config, path, base, nxt):
           #     """prepend nxt items without duplicates in base to base."""
           #     nxt_as_set = set(nxt)
@@ -490,6 +495,7 @@
           # }
 
 
+          # @ctx.benchmark
           # def merge(base, *nxt_list, recursive=True, list_merge="append", destructive_merge=True):  #, schema: AvdSchema = None):
           #     if DEEPMERGE_IMPORT_ERROR:
           #         raise Exception("This studio requires python deepmerge to be installed") from DEEPMERGE_IMPORT_ERROR
@@ -533,6 +539,7 @@
           #     return base
 
 
+          @ctx.benchmark
           def strip_null_from_data(data, strip_values_tuple=(None,)):
               """
               strip_null_from_data Generic function to strip null entries regardless type of variable.
@@ -552,6 +559,7 @@
               return data
 
 
+          @ctx.benchmark
           def strip_empties_from_list(
               data,
               strip_values_tuple=(
@@ -585,6 +593,7 @@
               return new_data
 
 
+          @ctx.benchmark
           def strip_empties_from_dict(
               data,
               strip_values_tuple=(
@@ -618,6 +627,7 @@
               return new_data
 
 
+          @ctx.benchmark
           def str_to_bool(text):
               if str(text).strip().lower() in ["enable", "enabled", "yes"]:
                   return True
@@ -645,15 +655,19 @@
 
               return sorted(iterable, key=alphanum_key)
 
+
           # ESI generators
+          @ctx.benchmark
           def generate_esi(esi_short, esi_prefix='0000:0000:'):
               return esi_prefix + esi_short
 
 
+          @ctx.benchmark
           def generate_lacp_id(esi_short):
               return esi_short.replace(':', '.')
 
 
+          @ctx.benchmark
           def generate_route_target(esi_short):
               """
               generate_route_target Transform 3 octets ESI like 0303:0202:0101 to route-target
@@ -679,6 +693,7 @@
               return rt
 
 
+          @ctx.benchmark
           def range_expand(range_to_expand):
               if not (isinstance(range_to_expand, list) or isinstance(range_to_expand, str)):
                   raise AnsibleFilterError(
@@ -807,70 +822,14 @@
               return result
 
 
-          # returns dictionary of device to label value based on workspace tag assignments
-          def populate_single_value_dict(workspace_id, label):
-              sv_dict = {}
-              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
-              tvsr = tspb.TagValueSearchRequest(
-                  label=label,
-                  workspace_id=workspace_id,
-                  topology_studio_request=True
-              )
-              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
-                  query = f"{tag.label}:\"{tag.value}\""
-                  tagmr = tspb.TagMatchRequestV2(
-                      query=query,
-                      workspace_id=workspace_id,
-                      topology_studio_request=True
-                  )
-                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
-                  for match in tagmresp.matches:
-                      sv_dict[match.device.device_id] = tag.value
-              return sv_dict
-
-          # returns dictionary of device to label values based on workspace tag assignments
-          def populate_multi_value_dict(workspace_id, label):
-              mv_dict = {}
-              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
-              tvsr = tspb.TagValueSearchRequest(
-                  label=label,
-                  workspace_id=workspace_id,
-                  topology_studio_request=True
-              )
-              for tag in tsclient.GetTagValueSuggestions(tvsr).tags:
-                  query = f"{tag.label}:\"{tag.value}\""
-                  tagmr = tspb.TagMatchRequestV2(
-                      query=query,
-                      workspace_id=workspace_id,
-                      topology_studio_request=True
-                  )
-                  tagmresp = tsclient.GetTagMatchesV2(tagmr)
-                  for match in tagmresp.matches:
-                      mv_dict.setdefault(match.device.device_id, []).append(tag.value)
-              return mv_dict
-
-
-          def get_switch_basics_from_tags(device_id):
-              switch_facts = {"serial_number": device_id}
-              switch_facts['network_services'] = {}
-              tags_to_facts = {
-                  "hostname": "hostname",
-                  "model": "platform"
-              }
-
-              tsclient = ctx.getApiClient(tsgr.TagSearchStub)
-              for label in tags_to_facts.keys():
-                  if label == "hostname":
-                      for dev in ctx.topology.getDevices(deviceIds=[device_id]):
-                          if dev.hostName:
-                              switch_facts[tags_to_facts[label]] = dev.hostName
-                      continue
-                  elif label == "model":
-                      for dev in ctx.topology.getDevices(deviceIds=[device_id]):
-                          if dev.modelName:
-                              switch_facts[tags_to_facts[label]] = dev.modelName
-                      continue
-
+          @ctx.benchmark
+          def get_switch_basics(device_id):
+              dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
+              # Initialize switch_facts
+              switch_facts = {}
+              switch_facts['serial_number'] = device_id
+              switch_facts['hostname'] = dev.hostName
+              switch_facts['platform'] = dev.modelName
 
               # Set platform settings
               if not switch_facts.get('platform_settings'):
@@ -886,6 +845,7 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def get_port_profiles(port_profiles):
               '''
               Returns list of port profiles in AVD connected endpoints data model format
@@ -1108,6 +1068,7 @@
               return avd_port_profiles
 
 
+          @ctx.benchmark
           def merge_port_profiles(port_profiles):
               """
               Return list of merged "port_profiles" where "parent_profile" has been applied.
@@ -1127,6 +1088,7 @@
               return merged_port_profiles
 
 
+          @ctx.benchmark
           def get_network_ports(network_ports):
               '''
               Returns list of network_ports in AVD connected endpoints data model format
@@ -1352,6 +1314,7 @@
               return avd_network_ports
 
 
+          @ctx.benchmark
           def merge_network_ports(network_ports, port_profiles):
               """
               Return list of merged "network_ports" where "port_profile" has been applied.
@@ -1371,6 +1334,7 @@
               return merged_network_ports
 
 
+          @ctx.benchmark
           def get_adapter_dot1x(adapter: dict) -> Union[dict, None]:
               """
               Return dot1x for one adapter
@@ -1381,6 +1345,8 @@
 
               return adapter.get("dot1x")
 
+
+          @ctx.benchmark
           def get_adapter_ptp(adapter: dict) -> Union[dict, None]:
               """
               Return ptp for one adapter
@@ -1405,10 +1371,12 @@
               return ptp_config
 
 
+          @ctx.benchmark
           def platform_settings_feature_support_interface_storm_control() -> bool:
               return get(my_switch_facts, "platform_settings.feature_support.interface_storm_control", default=True) is True
 
 
+          @ctx.benchmark
           def get_adapter_storm_control(adapter: dict) -> Union[dict, None]:
               """
               Return storm_control for one adapter
@@ -1419,10 +1387,12 @@
               return None
 
 
+          @ctx.benchmark
           def platform_settings_feature_support_poe() -> bool:
               return get(my_switch_facts, "platform_settings.feature_support.poe", default=False) is True
 
 
+          @ctx.benchmark
           def get_adapter_poe(adapter: dict) -> Union[dict, None]:
               """
               Return storm_control for one adapter
@@ -1434,10 +1404,12 @@
               return None
 
 
+          @ctx.benchmark
           def platform_settings_feature_support_phone() -> bool:
               return get(my_switch_facts, "platform_settings.feature_support.phone", default=False) is True
 
 
+          @ctx.benchmark
           def get_adapter_phone(adapter: dict) -> Union[dict, None]:
               """
               Return phone for one adapter
@@ -1463,6 +1435,7 @@
               return None
 
 
+          @ctx.benchmark
           def get_adapter_mode(adapter: dict) -> Union[dict, None]:
               """
               Return interface mode for one adapter
@@ -1474,6 +1447,7 @@
               return adapter.get("mode")
 
 
+          @ctx.benchmark
           def get_ethernet_interface_cfg(adapter, node_index=None, connected_endpoint=None):
               """
               Return structured_config for one ethernet_interface
@@ -1547,6 +1521,7 @@
               return strip_null_from_data(ethernet_interface, strip_values_tuple=(None, "", {}, []))
 
 
+          @ctx.benchmark
           def ethernet_interfaces(network_ports) -> Union[dict, None]:
               """
               Return structured config for ethernet_interfaces
@@ -1580,6 +1555,7 @@
               return []
 
 
+          @ctx.benchmark
           def add_if_not_duplicate(candidate_port_channel_config, port_channel_interfaces) -> None:
               """
               This function assumes that port_channel_interfaces list DO NOT contain duplicate port-channel names.
@@ -1611,6 +1587,7 @@
               return
 
 
+          @ctx.benchmark
           def get_port_channel_interface_cfg(adapter: dict, port_channel_interface_name: str, channel_group_id: int, connected_endpoint: dict) -> dict:
               """
               Return structured_config for one port_channel_interface
@@ -1678,6 +1655,7 @@
               return strip_null_from_data(port_channel_interface)
 
 
+          @ctx.benchmark
           def port_channel_interfaces(network_ports) -> Union[dict, None]:
               """
               Return structured config for ethernet_interfaces
@@ -1713,6 +1691,8 @@
 
               return []
 
+
+          # Template mainline start
           # Check devices input is not None
           if not campus:
               return
@@ -1721,55 +1701,53 @@
           workspace_id = ctx.studio.workspaceId
 
           # Attempt to resolve for switch interfaces
-          my_campus_resolver = campus.resolve(device=my_device.id)
-          # ctx.info(f"{my_campus_resolver}")
-          if not my_campus_resolver or not my_campus_resolver.get("campusPod"):
+          my_campus_pod = campus.resolve(device=my_device.id)
+          if not my_campus_pod or not my_campus_pod.get("campusPod"):
               return
-          my_campus_pod_resolver = my_campus_resolver["campusPod"].resolve(device=my_device.id)
-          # ctx.info(f"{my_campus_pod_resolver}")
+          my_campus_pod_resolver = my_campus_pod["campusPod"].resolve(device=my_device.id)
           if not my_campus_pod_resolver or not my_campus_pod_resolver.get("accessPod"):
               return
-          my_access_pod_resolver = my_campus_pod_resolver["accessPod"].resolve(device=my_device.id)
-          # ctx.info(f"{my_access_pod_resolver}")
-          if not my_access_pod_resolver or not my_access_pod_resolver.get("interfaces"):
+          my_access_pod = my_campus_pod_resolver["accessPod"].resolve(device=my_device.id)
+          if not my_access_pod or not my_access_pod.get("interfaces"):
               return
-          studios_interface_inputs = my_access_pod_resolver["interfaces"]
-          if not studios_interface_inputs:
+          my_interfaces_resolver = my_access_pod["interfaces"]
+          if not my_interfaces_resolver:
               return
-          # ctx.info(f"{studios_interface_inputs}")
+          #Since it generates extensive output, showing the inputs for every interface of the device, activate it only when needed.
+          if DEBUG_LEVEL > 3:
+              ctx.info(f"Studios Interface Inputs: {json.dumps(vars(my_interfaces_resolver), sort_keys=True, indent=4)}")
 
           # get my_switch_facts from tags
-          my_switch_facts = get_switch_basics_from_tags(my_device.id)
-
-          # ctx.info(f"My Switch Facts: {my_switch_facts}")
+          my_switch_facts = get_switch_basics(my_device.id)
+          if DEBUG_LEVEL > 2:
+              ctx.info(f"my_switch_facts {my_device.id}: {json.dumps(my_switch_facts, sort_keys=True, indent=4)}")
 
           # Convert port profiles to eos_designs AVD data model
           port_profiles = get_port_profiles(portProfiles)
-          # ctx.info(f"Port Profiles Pre-Parent Profile Applied: {port_profiles}")
 
           # Merge port profiles
           port_profiles = merge_port_profiles(port_profiles)
-          # ctx.info(f"Port Profiles Post-Parent Profile Applied: {port_profiles}")
+          if DEBUG_LEVEL > 2:
+              ctx.info(f"Port Profiles {my_device.id}: {json.dumps(port_profiles, sort_keys=True, indent=4)}")
 
           # get my_switch_facts network_ports
           network_ports = []
 
           for interface_name in my_device._interfaces.keys():
-              resolved_interface = studios_interface_inputs.resolve(interface_name, device=my_device.id)
+              resolved_interface = my_interfaces_resolver.resolve(interface_name, device=my_device.id)
               adapter = resolved_interface["adapterDetails"]
               if adapter and "Ethernet" in interface_name:
                   tmp_adapter = adapter
                   tmp_adapter["name"] = interface_name
                   network_ports.append(tmp_adapter)
 
-
           # Convert network ports to eos_designs AVD data model
           network_ports = get_network_ports(network_ports)
-          # ctx.info(f"Network Ports Pre-Profile Applied: {network_ports}")
 
           # Apply port profiles to network ports
           network_ports = merge_network_ports(network_ports, port_profiles)
-          # ctx.info(f"Network Ports Post-Profile Applied: {network_ports}")
+          if DEBUG_LEVEL > 2:
+              ctx.info(f"Network Ports {my_device.id}: {json.dumps(network_ports, sort_keys=True, indent=4)}")
 
           # Get structured config for ethernet_interfaces
           my_switch_ethernet_interfaces = ethernet_interfaces(network_ports)
@@ -1781,7 +1759,10 @@
               "port_channel_interfaces": convert_dicts(my_switch_port_channel_interfaces)
           }
 
-          # ctx.info(f"Structured Config: {config}")
+          if DEBUG_LEVEL > 2:
+              ctx.info(f"Structured Config: {my_device.id}: {json.dumps(config, sort_keys=True, indent=4)}")
+
+          ctx.benchmarkDump()
           %>
           ## port-channel interfaces
           % for port_channel_interface in natural_sort(config.get("port_channel_interfaces"), sort_key="name"):
