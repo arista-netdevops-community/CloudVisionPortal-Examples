@@ -1554,13 +1554,15 @@
                       "type": "network_port",
                   }
                   for ethernet_interface_name in range_expand(network_port["switch_ports"]):
+                      # make network_port copy
+                      network_port_copy = deepcopy(network_port)
                       # Override switches and switch_ports to only render for a single interface
                       tmp_network_port = ChainMap(
                           {
                               "switch_ports": [ethernet_interface_name]
                               # "switches": [my_switch_facts["hostname"]],
                           },
-                          network_port,
+                          network_port_copy,
                       )
                       ethernet_interface = get_ethernet_interface_cfg(tmp_network_port, 0, connected_endpoint)
                       # Only add the interface to the ethernet_interfaces dictionary if it does not contain the default interface config
