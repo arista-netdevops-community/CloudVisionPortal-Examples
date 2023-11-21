@@ -1720,9 +1720,9 @@
               return
           my_campus_pod_resolver = my_campus_resolver["campusPod"].resolve(device=my_device.id)
           # ctx.info(f"{my_campus_pod_resolver}")
-          if not my_campus_pod_resolver or not my_campus_pod_resolver.get("Access-Pod"):
+          if not my_campus_pod_resolver or not my_campus_pod_resolver.get("accessPod"):
               return
-          my_access_pod_resolver = my_campus_pod_resolver["Access-Pod"].resolve(device=my_device.id)
+          my_access_pod_resolver = my_campus_pod_resolver["accessPod"].resolve(device=my_device.id)
           # ctx.info(f"{my_access_pod_resolver}")
           if not my_access_pod_resolver or not my_access_pod_resolver.get("interfaces"):
               return
@@ -1734,21 +1734,21 @@
           # get my_switch_facts from tags
           my_switch_facts = get_switch_basics_from_tags(my_device.id)
 
-          ctx.info(f"My Switch Facts: {my_switch_facts}")
+          # ctx.info(f"My Switch Facts: {my_switch_facts}")
 
           # Convert port profiles to eos_designs AVD data model
           port_profiles = get_port_profiles(portProfiles)
-          ctx.info(f"Port Profiles Pre-Parent Profile Applied: {port_profiles}")
+          # ctx.info(f"Port Profiles Pre-Parent Profile Applied: {port_profiles}")
 
           # Merge port profiles
           port_profiles = merge_port_profiles(port_profiles)
-          ctx.info(f"Port Profiles Post-Parent Profile Applied: {port_profiles}")
+          # ctx.info(f"Port Profiles Post-Parent Profile Applied: {port_profiles}")
 
           # get my_switch_facts network_ports
           network_ports = []
 
           for interface_name in my_device._interfaces.keys():
-              resolved_interface = studios_interface_inputs.resolve(interface_name)
+              resolved_interface = studios_interface_inputs.resolve(interface_name, device=my_device.id)
               adapter = resolved_interface["adapterDetails"]
               if adapter and "Ethernet" in interface_name:
                   tmp_adapter = adapter
@@ -1758,11 +1758,11 @@
 
           # Convert network ports to eos_designs AVD data model
           network_ports = get_network_ports(network_ports)
-          ctx.info(f"Network Ports Pre-Profile Applied: {network_ports}")
+          # ctx.info(f"Network Ports Pre-Profile Applied: {network_ports}")
 
           # Apply port profiles to network ports
           network_ports = merge_network_ports(network_ports, port_profiles)
-          ctx.info(f"Network Ports Post-Profile Applied: {network_ports}")
+          # ctx.info(f"Network Ports Post-Profile Applied: {network_ports}")
 
           # Get structured config for ethernet_interfaces
           my_switch_ethernet_interfaces = ethernet_interfaces(network_ports)
@@ -1774,7 +1774,7 @@
               "port_channel_interfaces": convert_dicts(my_switch_port_channel_interfaces)
           }
 
-          ctx.info(f"Structured Config: {config}")
+          # ctx.info(f"Structured Config: {config}")
           %>
           ## port-channel interfaces
           % for port_channel_interface in natural_sort(config.get("port_channel_interfaces")):
