@@ -1599,32 +1599,32 @@
                                   "peer_filter": "DOWNLINK-IPv4-NEIGHBORS"
                               }
                       # Create prefix lists
-                      config['prefix_lists']["PL-LOOPBACKS-EVPN-OVERLAY"] = {
-                          "sequence_numbers": {
-                              10: {
-                                  "action": f"permit {switch_facts['loopback_ipv4_pool']} eq 32"
-                              }
-                          }
-                      }
-                      if switch_facts.get('vtep_ip') is not None:
-                          config['prefix_lists']["PL-LOOPBACKS-EVPN-OVERLAY"]['sequence_numbers'][20] = {
-                              "action": f"permit {switch_facts['vtep_loopback_ipv4_pool']} eq 32"
-                          }
-                      if switch_facts.get('vtep_vvtep_ip') is not None \
-                              and switch_facts.get('evpn_services_l2_only') is not None \
-                              and switch_facts.get('evpn_services_l2_only') is False:
-                          config['prefix_lists']["PL-LOOPBACKS-EVPN-OVERLAY"]['sequence_numbers'][30] = {
-                              "action": f"permit {switch_facts['vtep_vvtep_ip']}"
-                          }
+                      #config['prefix_lists']["PL-LOOPBACKS-EVPN-OVERLAY"] = {
+                      #    "sequence_numbers": {
+                      #        10: {
+                      #            "action": f"permit {switch_facts['loopback_ipv4_pool']} eq 32"
+                      #        }
+                      #    }
+                      #}
+                      #if switch_facts.get('vtep_ip') is not None:
+                      #    config['prefix_lists']["PL-LOOPBACKS-EVPN-OVERLAY"]['sequence_numbers'][20] = {
+                      #        "action": f"permit {switch_facts['vtep_loopback_ipv4_pool']} eq 32"
+                      #    }
+                      #if switch_facts.get('vtep_vvtep_ip') is not None \
+                      #        and switch_facts.get('evpn_services_l2_only') is not None \
+                      #        and switch_facts.get('evpn_services_l2_only') is False:
+                      #    config['prefix_lists']["PL-LOOPBACKS-EVPN-OVERLAY"]['sequence_numbers'][30] = {
+                      #        "action": f"permit {switch_facts['vtep_vvtep_ip']}"
+                      #    }
                       # Create route-maps
-                      config['route_maps']["RM-CONN-2-BGP"] = {
-                          "sequence_numbers": {
-                              10: {
-                                  "type": "permit",
-                                  "match": ["ip address prefix-list PL-LOOPBACKS-EVPN-OVERLAY"]
-                              }
-                          }
-                      }
+                      #config['route_maps']["RM-CONN-2-BGP"] = {
+                      #    "sequence_numbers": {
+                      #        10: {
+                      #            "type": "permit",
+                      #            "match": ["ip address prefix-list PL-LOOPBACKS-EVPN-OVERLAY"]
+                      #        }
+                      #    }
+                      #}
                   if switch_facts['underlay_routing_protocol'] == "ospf":
                       config['router_ospf']['process_ids'] = {
                           switch_facts['underlay_ospf_process_id']: {
