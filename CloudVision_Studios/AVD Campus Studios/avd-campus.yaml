@@ -1714,8 +1714,12 @@
 
               # Check to see if the Access Pod has been selected for ptp config
               if ptp_enabled and switch_facts["type"] in ["leaf", "memberleaf"]:
-                  if not device_matches_resolver_query(campus_pod_details["fabricConfigurations"]["ptp"]["accessPods"], switch_facts['serial_number']):
-                      ptp_enabled = False
+                  ptp_enabled = False
+                  for tag_matcher in campus_pod_details["fabricConfigurations"]["ptp"]["devices"]:
+                      tag_query = tag_matcher['tagQuery']
+                      if switch_facts["serial_number"] in tag_query.inputs['devices']:
+                          ptp_enabled = True
+                          break
 
               # get ptp values at node type level
               default_priority1 = node_defaults["ptpDetails"]["priority1"]
@@ -3196,26 +3200,30 @@
 
 
           def get_tenant_svi(svi, switch_facts, campus_type=""):
+              # initialize pod_info
+              pod_info = {}
               device_id = switch_facts["serial_number"]
               avd_svi = {"id": svi["id"]}
               # Get devices
               devices = []
-              if get(svi, "devices"):
+              # Automatically add spine switches in an L2 campus
+              if campus_type and campus_type == "L2" and switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
+                  devices.append(device_id)
+              elif get(svi, "devices"):
                   for tag_matcher in svi["devices"]:
                       tag_query = tag_matcher['tagQuery']
                       devices += tag_query.inputs['devices']
-              else:
-                  if device_matches_resolver_query(svi['pods'], device_id):
-                      devices.append(device_id)
-                  elif campus_type == "L2" and switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
-                      devices.append(device_id)
+                      # Get pod info
+                      if switch_facts["serial_number"] in tag_query.inputs['devices']:
+                          pod_info = tag_matcher
+                          break
+
+
               # Assign devices
               avd_svi["devices"] = devices
 
               #vxlan
               avd_svi["vxlan"] = str_to_bool(svi.get("vxlan", "No"))
-              # Get pod info
-              pod_info = svi["pods"].resolve(device=device_id)["sviIpInfo"]
               # ip address virtual
               if avd_svi["vxlan"] and get(svi, 'ipAddressVirtual'):
                   avd_svi["ip_address_virtual"] = svi["ipAddressVirtual"]
@@ -3704,6 +3712,8 @@
                               interface_name = f"Vlan{svi['id']}"
                               ospf_interfaces.append(interface_name)
 
+                      if not get(vrf, "ospf.process_id") and vrf["name"] == "default" and switch_facts.get("underlay_ospf_process_id"):
+                          vrf["ospf"]["process_id"] = switch_facts["underlay_ospf_process_id"]
                       process_id = default(get(vrf, "ospf.process_id"), vrf.get("vrf_id"))
                       if not process_id:
                           raise Error(f"'ospf.process_id' or 'vrf_id' under vrf '{vrf['name']}")
@@ -4022,18 +4032,19 @@
                           loopback = vrf['vtep_diagnostic']['loopback']
                           loopback_description = f"{vrf['name']}_VTEP_DIAGNOSTICS"
                           loopback_ipv4_pool = vrf['vtep_diagnostic']['loopback_ip_range']
-                          loopback_ip_host_addresses = list(ipaddress.ip_network(loopback_ipv4_pool).hosts())
-                          loopback_ip = str(loopback_ip_host_addresses[int(switch_facts['id']) - 1])
-                          config['loopback_interfaces'][f"{loopback}"] = {
-                              "description": loopback_description,
-                              "shutdown": False,
-                              "vrf": vrf['name'],
-                              "ip_address": f"{loopback_ip}/32"
-                          }
-                          # Set virtual-source-nat-vrfs
-                          config['virtual_source_nat_vrfs'][vrf['name']] = {
-                              "ip_address": loopback_ip
-                          }
+                          if loopback_ipv4_pool:
+                              loopback_ip_host_addresses = list(ipaddress.ip_network(loopback_ipv4_pool).hosts())
+                              loopback_ip = str(loopback_ip_host_addresses[int(switch_facts['id']) - 1])
+                              config['loopback_interfaces'][f"{loopback}"] = {
+                                  "description": loopback_description,
+                                  "shutdown": False,
+                                  "vrf": vrf['name'],
+                                  "ip_address": f"{loopback_ip}/32"
+                              }
+                              # Set virtual-source-nat-vrfs
+                              config['virtual_source_nat_vrfs'][vrf['name']] = {
+                                  "ip_address": loopback_ip
+                              }
 
                       if switch_facts['network_services_l2'] and switch_facts['network_services_l3']:
                           # configure svis
@@ -4052,8 +4063,8 @@
 
                                   # Add trunk group to port-channel
                                   if "MLAG_VRF_PEER" not in (config['port_channel_interfaces']
-                                                            [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
-                                                            ['trunk_groups']):
+                                                          [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
+                                                          ['trunk_groups']):
                                       (config['port_channel_interfaces']
                                       [f"Port-Channel{switch_facts['mlag_port_channel_id']}"]
                                       ['trunk_groups']).append("MLAG_VRF_PEER")
@@ -4527,8 +4538,7 @@
                           # Support legacy data model by converting nested dict to list of dict
                           svis = convert_dicts(svis, "id")
                           for svi in natural_sort(svis, "id"):
-                              svi_tags = svi.get("tags", ["all"])
-                              if "all" in match_tags or set(svi_tags).intersection(match_tags):
+                              if switch_facts["serial_number"] in svi["devices"]:
                                   vlans.append(int(svi["id"]))
 
                       l2vlans = tenant.get("l2vlans", [])
@@ -4536,8 +4546,7 @@
                       l2vlans = convert_dicts(l2vlans, "id")
 
                       for l2vlan in natural_sort(l2vlans, "id"):
-                          l2vlan_tags = l2vlan.get("tags", ["all"])
-                          if "all" in match_tags or set(l2vlan_tags).intersection(match_tags):
+                          if switch_facts["serial_number"] in l2vlan["devices"]:
                               vlans.append(int(l2vlan["id"]))
 
                   switch_facts["vlans"] = list_compress(vlans)
@@ -8772,39 +8781,39 @@
                 static_options: null
                 dynamic_options: null
                 extra_values_allowed: false
-            campusPodPtpAccessPodsApply:
-              id: campusPodPtpAccessPodsApply
-              name: apply
-              label: Apply
+            campusPodPtpTagMatcher:
+              id: campusPodPtpTagMatcher
+              name: tagQuery
+              label: Tag Query
               description: ''
               required: false
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              boolean_props:
-                default_value: false
-            campusPodPtpAccessPodsGroup:
-              id: campusPodPtpAccessPodsGroup
-              name: ptpAccessPodGroup
-              label: PTP Access Pod Group
-              description: ''
+              type: INPUT_FIELD_TYPE_TAG_MATCHER
+              tag_matcher_props:
+                tag_matcher_mode: TAG_MATCHER_FIELD_MODE_SINGLE_DEVICE_TAG
+                tag_matcher_label: Access-Pod
+                tag_filter_query: null
+                resolver_filtering_allowed: true
+            campusPodPtpTagMatcherGroups:
+              id: campusPodPtpTagMatcherGroups
+              name: devicesGroup
+              label: Access Pods Group
+              description: Group of members for Access Pods
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
                 members:
                   values:
-                    - campusPodPtpAccessPodsApply
-            campusPodPtpAccessPods:
-              id: campusPodPtpAccessPods
-              name: accessPods
+                    - campusPodPtpTagMatcher
+            campusPodPtpTagMatchers:
+              id: campusPodPtpTagMatchers
+              name: devices
               label: Access Pods
-              description: Select the Access Pods on which to configure PTP
+              description: ''
               required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: campusPodPtpAccessPodsGroup
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: Access-Pod
-                tag_filter_query: null
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: campusPodPtpTagMatcherGroups
+                key: null
             campusPodPtp:
               id: campusPodPtp
               name: ptp
@@ -8818,7 +8827,7 @@
                     - campusPodPtpEnabled
                     - campusPodPtpProfile
                     - campusPodPtpDomain
-                    - campusPodPtpAccessPods
+                    - campusPodPtpTagMatchers
             campusPodIpLockingIpv4Enabled:
               id: campusPodIpLockingIpv4Enabled
               name: ipv4LockingEnabled
@@ -9734,83 +9743,6 @@
                   values:
                     - '{"fieldId":"campusVrfName"}'
                 extra_values_allowed: false
-            accessPodIpVirtualRouterSubnet:
-              id: accessPodIpVirtualRouterSubnet
-              name: ipVirtualRouterSubnet
-              label: IP Virtual Router Subnet
-              description: Define the VLAN subnet per Pod.  The first host IP address in the subnet will serve as the gateway for the subnet.
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-                extra_values_allowed: false
-            accessPodSviEnabled:
-              id: accessPodSviEnabled
-              name: enabled
-              label: Enabled
-              description: Enable/Disable the SVI.  If no value is entered, enabled will default to the value in the Enabled field above.
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options:
-                  values:
-                    - 'Yes'
-                    - 'No'
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-                extra_values_allowed: false
-            accessPodSviName:
-              id: accessPodSviName
-              name: name
-              label: Name
-              description: Set VLAN name per Pod. If no value is entered, the name defaults to the value in the Name field above.
-              required: false
-              type: INPUT_FIELD_TYPE_STRING
-              string_props:
-                default_value: null
-                is_secret: false
-                static_options: null
-                format: null
-                length: null
-                pattern: null
-                dynamic_options: null
-                extra_values_allowed: false
-            accessPodSviDetails:
-              id: accessPodSviDetails
-              name: sviIpInfo
-              label: SVI IP Info
-              description: ''
-              required: false
-              type: INPUT_FIELD_TYPE_GROUP
-              group_props:
-                members:
-                  values:
-                    - accessPodIpVirtualRouterSubnet
-                    - accessPodSviEnabled
-                    - accessPodSviName
-            campusAssignedAccessPods:
-              id: campusAssignedAccessPods
-              name: pods
-              label: Pods
-              description: Select the Access Pods this VLAN to be configured on
-              required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
-                base_field_id: accessPodSviDetails
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
-                input_tag_label: Access-Pod
-                tag_filter_query: null
             campusPodSviEnabled:
               id: campusPodSviEnabled
               name: enabled
@@ -9846,6 +9778,76 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            campusPodSviDeviceTagMatcher:
+              id: campusPodSviDeviceTagMatcher
+              name: tagQuery
+              label: Pods
+              description: Select an Access Pod
+              required: false
+              type: INPUT_FIELD_TYPE_TAG_MATCHER
+              tag_matcher_props:
+                tag_matcher_mode: TAG_MATCHER_FIELD_MODE_SINGLE_DEVICE_TAG
+                tag_matcher_label: Access-Pod
+                tag_filter_query: null
+                resolver_filtering_allowed: true
+            accessPodIpVirtualRouterSubnet:
+              id: accessPodIpVirtualRouterSubnet
+              name: ipVirtualRouterSubnet
+              label: IP Virtual Router Subnet
+              description: Define the VLAN subnet per Pod.  The first host IP address in the subnet will serve as the gateway for the subnet.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            accessPodSviEnabled:
+              id: accessPodSviEnabled
+              name: enabled
+              label: Enabled
+              description: Enable/Disable the SVI.  If no value is entered, enabled will default to the value in the Enabled field above.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            campusPodSviDeviceTagMatcherGroup:
+              id: campusPodSviDeviceTagMatcherGroup
+              name: devicesGroup
+              label: Devices Group
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - campusPodSviDeviceTagMatcher
+                    - accessPodIpVirtualRouterSubnet
+                    - accessPodSviEnabled
+            campusPodSviDeviceTagMatchers:
+              id: campusPodSviDeviceTagMatchers
+              name: devices
+              label: Pods
+              description: Select the Access Pods this VLAN to be configured on
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: campusPodSviDeviceTagMatcherGroup
+                key: null
             campusPodSviDetails:
               id: campusPodSviDetails
               name: sviDetails
@@ -9862,9 +9864,9 @@
                     - sviMulticast
                     - campusPodSviSviEosEosCli
                     - campusPodSviCampusSviVrf
-                    - campusAssignedAccessPods
                     - campusPodSviEnabled
                     - campusPodIpVirtualRouterSubnet
+                    - campusPodSviDeviceTagMatchers
             campusPodSvis:
               id: campusPodSvis
               name: svis
@@ -16032,49 +16034,6 @@
                 "dependencyType":"AND",
                 "type":"INPUT"
               },
-              "campusPodPtpAccessPodsApply":{
-                "key":"campusPodPtpAccessPodsApply",
-                "dependency":{
-                  "campusPodPtpEnabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                },
-                "dependencyType":"AND",
-                "type":"INPUT"
-              },
-              "campusPodPtpAccessPodsTagger":{
-                "type":"TAGGER",
-                "parentKey":"campusPodPtpAccessPodsGroup",
-                "key":"campusPodPtpAccessPodsTagger",
-                "name":"Switches",
-                "assignmentType":"SINGLE",
-                "prepopulate":false,
-                "tagType":"DEVICE",
-                "description":"View the switches where the VLAN will be configured.",
-                "columns":[
-                  {
-                    "tagLabel":"Access-Pod",
-                    "suggestedValues":[
-
-                    ]
-                  }
-                ],
-                "fieldOverrides":{
-                  "description":"For viewing purposes only. Do NOT change the values in this table."
-                },
-                "dependencyType":"AND",
-                "dependency":{
-                  "campusPodPtpEnabled":{
-                    "value":[
-                      true
-                    ],
-                    "mode":"SHOW"
-                  }
-                }
-              },
               "spinesPtpPriority1":{
                 "key":"spinesPtpPriority1",
                 "dependency":{
@@ -17410,7 +17369,7 @@
                   "campusPodSviCampusSviVrf",
                   "campusPodSviEnabled",
                   "campusPodSviName",
-                  "campusAssignedAccessPods",
+                  "campusPodSviDeviceTagMatchers",
                   "campusPodIpVirtualRouterSubnet",
                   "campusPodSviDhcpHelpers",
                   "sviMulticast",
@@ -17758,7 +17717,16 @@
               },
               "accessPodSviName":{
                 "key":"accessPodSviName",
-                "type":"INPUT"
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusServicesCampusPodType":{
+                    "value":[
+                      "L3"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               },
               "campusVrfBgpEosCli":{
                 "key":"campusVrfBgpEosCli",
@@ -17784,5 +17752,18 @@
                 "key":"vrfVtepDiagnosticCampuses",
                 "type":"INPUT",
                 "showDefaultRow":false
+              },
+              "campusPodPtpTagMatcher":{
+                "key":"campusPodPtpTagMatcher",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "campusPodPtpEnabled":{
+                    "value":[
+                      true
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
