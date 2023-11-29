@@ -1102,52 +1102,126 @@
 
 
           @ctx.benchmark
-          def update_tags(switch_facts):
+          def set_studio_outputs(switch_facts):
+              """
+              This sets the outputs of the Fabric Studio.
+              To be used as Inputs by other studios, such as Services Studios.
+              Currently the key/value store for passing the outputs is tags.
+              The following are the current outputs:
+                  - NetworkServices - device capability for L3 and/or L2 services
+                  - mlag_peer_link - device mlag peer link/port-channel
+                  - bgp_as - AS to indicate taht bgp is being used
+                  - router_id
+                  - Vtep - to indicate EVPN overlay is being used
+                  - Uplinks - the L2 uplinks
+                  - Downlinks - the L2 downlinks
+              """
               device_id = switch_facts['serial_number']
               dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
+
               # NodeId tag
               # Create/Update/Apply the NodeId tag
-              dev._assignTag(ctx, Tag('NodeId', str(switch_facts['id'])))
+              # dev._assignTag(ctx, Tag('NodeId', str(switch_facts['id'])))
+
+              # Role tag
+              role_dict = {"spine": "Spine", "leaf": "Leaf", "memberleaf": "Member-Leaf"}
+              if switch_facts.get("type"):
+                  dev._assignTag(ctx, Tag('Role', role_dict[switch_facts['type']]), replaceValue=True)
+              else:
+                  dev._unassignTag(ctx, Tag('Role', None))
               # Update network services tags
-              if switch_facts.get('network_services_l2'):
-                  # Create/Apply the following tag 'NetworkServices:L2'
-                  dev._assignTag(ctx, Tag('NetworkServices', 'L2'), replaceValue=False)
-              else:
-                  # Remove the following tag 'NetworkServices:L2'
-                  dev._unassignTag(ctx, Tag('NetworkServices', 'L2'))
-              if switch_facts.get('network_services_l3'):
-                  # Create/Apply the following tag 'NetworkServices:L3'
-                  dev._assignTag(ctx, Tag('NetworkServices', 'L3'), replaceValue=False)
-              else:
-                  # Remove the following tag 'NetworkServices:L3'
-                  dev._unassignTag(ctx, Tag('NetworkServices', 'L3'))
+              # if switch_facts.get('network_services_l3'):
+              #     dev._assignTag(ctx, Tag('NetworkServices', 'L3'), replaceValue=False)
+              # else:
+              #     dev._unassignTag(ctx, Tag('NetworkServices', 'L3'))
+              # if switch_facts.get('network_services_l2'):
+              #     dev._assignTag(ctx, Tag('NetworkServices', 'L2'), replaceValue=False)
+              # else:
+              #     dev._unassignTag(ctx, Tag('NetworkServices', 'L2'))
               # Update mlag_peer_link
-              if switch_facts.get('mlag') and switch_facts.get('mlag_port_channel_id'):
-                  mlag_peer_link = f"Port-Channel{switch_facts['mlag_port_channel_id']}"
-                  dev._assignTag(ctx, Tag('mlag_peer_link', mlag_peer_link))
-              else:
-                  device._unassignTag(ctx, Tag('mlag_peer_link', None))
+              # if switch_facts.get('mlag') and switch_facts.get('mlag_port_channel_id'):
+              #     mlag_peer_link = f"Port-Channel{switch_facts['mlag_port_channel_id']}"
+              #     dev._assignTag(ctx, Tag('mlag_peer_link', mlag_peer_link))
+              # else:
+              #     dev._unassignTag(ctx, Tag('mlag_peer_link', None))
 
               # Update routing tags
-              bgp_tags = {"bgp_as": switch_facts.get('bgp_as'), "router_id": switch_facts.get('router_id')}
-              if switch_facts.get('underlay_router') \
-                  and (switch_facts['underlay_routing_protocol'] == "ebgp"
-                      or switch_facts['overlay_routing_protocol'] == "ebgp"):
-                  # Set bgp as and router id tags
-                  for label, value in bgp_tags.items():
-                      dev._assignTag(ctx, Tag(str(label), str(value)))
-              else:
-                  # Remove possible bgp tags
-                  for label, value in bgp_tags.items():
-                      # Remove tags with same label that don't match proper value
-                      if value is None:
-                          dev._unassignTag(ctx, Tag(str(label), None))
+              # bgp_tags = {"bgp_as": switch_facts.get('bgp_as'), "router_id": switch_facts.get('router_id')}
+              # if switch_facts.get('underlay_router') \
+              #     and (switch_facts['underlay_routing_protocol'] == "bgp"
+              #         or switch_facts['overlay_routing_protocol'] == "bgp"):
+              #     # Set bgp as and router id tags
+              #     for label, value in bgp_tags.items():
+              #         dev._assignTag(ctx, Tag(str(label), str(value)))
+              # else:
+              #     # Remove possible bgp tags
+              #     for label, value in bgp_tags.items():
+              #         # Remove tags with same label that don't match proper value
+              #         if value is None:
+              #             dev._unassignTag(ctx, Tag(str(label), None))
               # Update Vtep tag
-              if switch_facts.get('vtep'):
-                  dev._assignTag(ctx, Tag('Vtep', 'True'))
+              # if switch_facts.get('vtep'):
+              #     dev._assignTag(ctx, Tag('Vtep', 'True'))
+              # else:
+              #     dev._unassignTag(ctx, Tag('Vtep', None))
+
+              # Required for services to inherit vlans over L2 trunks
+              # update_xlink_outputs(switch_facts, 'Uplinks')
+              # update_xlink_outputs(switch_facts, 'Downlinks')
+
+
+          @ctx.benchmark
+          def update_xlink_outputs(switch_facts, type: str):
+              """
+              This sets the Uplinks or Downlinks outputs of the Fabric Studio.
+              type is either Uplinks or Downlinks
+              """
+              tagvalue = []
+              device_id = switch_facts['serial_number']
+              dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
+              for link, sublinks in switch_facts.get(type, {}).items():
+                  if sublinks:
+                      for sublink in sublinks:
+                          tagvalue.append("%s-%s" % (link, sublink))
+                  else:
+                      tagvalue.append(link)
+              if not tagvalue:
+                  dev._unassignTag(ctx, Tag('%s' % type, None))
               else:
-                  dev._unassignTag(ctx, Tag('Vtep', None))
-              return
+                  dev._assignTag(ctx, Tag('%s' % type, ','.join(tagvalue)))
+
+
+          @ctx.benchmark
+          def set_uplinks_downlinks(switch_facts):
+              uplinks = {}
+              downlinks = {}
+              uplink_type = None
+              downlink_type = None
+              if switch_facts.get('type') == 'spine':
+                  uplink_type = None
+                  downlink_type = 'leaf'
+              elif switch_facts.get('type') == 'leaf':
+                  uplink_type = 'spine'
+                  downlink_type = 'memberleaf'
+              elif switch_facts.get('type') == 'memberleaf':
+                  uplink_type = 'leaf'
+                  downlink_type = None
+              for link, linkInfo in switch_facts.get('topology', {}).get(
+                      'links', {}).items():
+                  if linkInfo.get('type') != 'underlay_l2':
+                      continue
+                  if linkInfo.get('peer_type') == uplink_type:
+                      if (po := linkInfo.get('channel_group_id')):
+                          uplinks.setdefault('Po%s' % po, []).append(link)
+                      else:
+                          uplinks.setdefault(link)
+                  if linkInfo.get('peer_type') == downlink_type:
+                      if (po := linkInfo.get('channel_group_id')):
+                          downlinks.setdefault('Po%s' % po, []).append(link)
+                      else:
+                          downlinks.setdefault(link)
+              switch_facts['Uplinks'] = uplinks
+              switch_facts['Downlinks'] = downlinks
 
 
           @ctx.benchmark
@@ -4777,6 +4851,9 @@
                   node_id = campus_pod_details["spines"].resolve(device=device_id)["spinesInfo"].get("nodeId")
                   if node_id:
                       switch_facts['id'] =  node_id
+                  else:
+                      ctx.warning(f"Spine {switch_facts['hostname']} in {switch_facts['campus']} --> {switch_facts['campus_pod']} does not have an assigned Node Id.")
+                      return switch_facts
               elif device_matches_resolver_query(campus_pod_details["accessPods"], device_id):
                   access_pod_details_resolved, access_pod_ctx = campus_pod_details["accessPods"].resolveWithContext(device=device_id)
                   switch_facts["group"] = re.match(r"Access-Pod:(.*)", access_pod_ctx.query_str).group(1)
@@ -4786,17 +4863,23 @@
                       node_id = access_pod_details["leafs"].resolve(device=device_id)["leafsInfo"].get("nodeId")
                       if node_id:
                           switch_facts['id'] = node_id
+                      else:
+                          ctx.warning(f"Leaf {switch_facts['hostname']} in {switch_facts['campus']} --> {switch_facts['campus_pod']} -> {switch_facts['group']} does not have an assigned Node Id.")
+                          return switch_facts
                   elif device_matches_resolver_query(access_pod_details["memberLeafs"], device_id):
                       switch_facts["type"] = "memberleaf"
                       node_id = access_pod_details["memberLeafs"].resolve(device=device_id)["memberLeafsInfo"].get("nodeId")
                       if node_id:
                           switch_facts['id'] = node_id
+                      else:
+                          ctx.warning(f"Member-Leaf {switch_facts['hostname']} in {switch_facts['campus']} --> {switch_facts['campus_pod']} -> {switch_facts['group']} does not have an assigned Node Id.")
+                          return switch_facts
                   else:
-                      ctx.warning(f"{switch_facts['hostname']} is a member of {switch_facts['campus']} --> {switch_facts['campus_pod']} -> {switch_facts['group']} but does not have a role set.")
-                      return
+                      ctx.warning(f"No role set for {switch_facts['hostname']} in {switch_facts['campus']} --> {switch_facts['campus_pod']} -> {switch_facts['group']}.")
+                      return switch_facts
               else:
-                  ctx.warning(f"No role set for {switch_facts['hostname']}")
-                  return
+                  ctx.warning(f"No role set for {switch_facts['hostname']} in {switch_facts['campus']} --> {switch_facts['campus_pod']}.")
+                  return switch_facts
 
               # Process topology interfaces
               switch_facts["interfaces"] = get_device_interfaces(switch_facts)
@@ -4976,113 +5059,28 @@
               return switch_facts
 
 
+          @ctx.benchmark
           def get_switches_in_my_campus_pod(device_id):
               all_switch_facts = {}
               # Get Spines
               spines_details = campus_pod_details["spines"].resolveAllWithContext(strict=True)
               for spine_dev, _, _ in spines_details:
                   switch_facts_device = get_switch_basics(spine_dev)
-                  if switch_facts_device is None:
+                  if not switch_facts_device:
                       continue
                   all_switch_facts[spine_dev] = switch_facts_device
               # Get Leaf and Member Leafs
               access_pods_details = campus_pod_details["accessPods"].resolveAllWithContext(strict=True)
               for access_pod_dev, _, _ in access_pods_details:
                   switch_facts_device = get_switch_basics(access_pod_dev)
-                  if switch_facts_device is None:
+                  if not switch_facts_device:
                       continue
                   all_switch_facts[access_pod_dev] = switch_facts_device
 
               return all_switch_facts
 
 
-          def create_node_id_dict(switch_facts_neighbors):
-              id_pools = []
-              for switch_facts in switch_facts_neighbors.values():
-                  id_pool_exists = False
-                  for id_pool in id_pools:
-                      if (
-                          id_pool.get("fabric_name") == switch_facts["fabric_name"]
-                          and id_pool.get("dc_name") == switch_facts["campus"]
-                          and id_pool.get("pod_name") == switch_facts["campus_pod"]
-                          and id_pool.get("type") == switch_facts["avd_type"]
-                      ):
-                          id_pool_exists = True
-                          break
-                  if not id_pool_exists:
-                      id_pool = {
-                          "fabric_name": switch_facts["fabric_name"],
-                          "dc_name": switch_facts["campus"],
-                          "pod_name": switch_facts["campus_pod"],
-                          "type": switch_facts["avd_type"],
-                          "id_assignments": []
-                      }
-                  if switch_facts.get("id"):
-                      id_pool["id_assignments"].append(
-                          {
-                              "hostname": switch_facts["hostname"],
-                              "id": switch_facts["id"]
-                          }
-                      )
-                  if not id_pool_exists:
-                      id_pools.append(id_pool)
-
-              return id_pools
-
-
-          def get_node_id(id_pools, switch_facts):
-              id_pool = None
-              for id_data_id_pool in id_pools:
-                  if (
-                      id_data_id_pool.get("fabric_name") == switch_facts["fabric_name"]
-                      and id_data_id_pool.get("dc_name") == switch_facts["campus"]
-                      and id_data_id_pool.get("pod_name") == switch_facts["campus_pod"]
-                      and id_data_id_pool.get("type") == switch_facts["avd_type"]
-                      ):
-                      id_pool = id_data_id_pool
-                      break
-              if id_pool:
-                  if id_assignment := get_item(id_pool["id_assignments"], "hostname", switch_facts["hostname"]):
-                      # Found an ID, so return quickly.
-                      id_assignment["accessed"] = True
-                      return id_assignment["id"], id_pools
-
-                  existing_ids = set(map(lambda x: x.get("id"), id_pool["id_assignments"]))
-                  available_ids = set(range(1, len(existing_ids) + 2)) - existing_ids
-                  first_available_id = next(iter(available_ids))
-                  id_assignment = {
-                      "id": first_available_id,
-                      "hostname": switch_facts["hostname"],
-                      "accessed": True,
-                  }
-                  id_pool["id_assignments"].append(id_assignment)
-              else:
-                  first_available_id = None
-              return first_available_id, id_pools
-
-
-
-          def get_node_ids(id_pools):
-              # existing_node_ids
-              # Get node ids for spines
-              spines_details = campus_pod_details["spines"].resolveAllWithContext(strict=True)
-              for spine_dev, _, _ in spines_details:
-                  switch_facts = my_switch_facts_neighbors.get(spine_dev)
-                  if switch_facts:
-                      node_id, id_pools = get_node_id(id_pools, switch_facts)
-                      if node_id:
-                          switch_facts["id"] = node_id
-
-              # Get node ids for access-pods
-              access_pods_details = campus_pod_details["accessPods"].resolveAllWithContext(strict=True)
-              for access_pod_dev, _, _ in access_pods_details:
-                  switch_facts = my_switch_facts_neighbors.get(access_pod_dev)
-                  if switch_facts:
-                      node_id, id_pools = get_node_id(id_pools, switch_facts)
-                      if node_id:
-                          switch_facts["id"] = node_id
-
-
+          @ctx.benchmark
           def get_campus_pod_details(device_id, campus_resolver):
               # Process Studio inputs
               campus_resolved, campus_ctx = campus_resolver.resolveWithContext(device=device_id)
@@ -5091,16 +5089,17 @@
               campus_name = re.match(r"Campus:(.*)", campus_ctx.query_str).group(1)
               campus_details = campus_resolved.get('campusDetails', None)
               if campus_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus.")
+                  ctx.warning(f"The AVD Campus Fabric studio is applied to {switch_facts['hostname']} but {switch_facts['hostname']} is not a member of any Campus.")
                   return
 
               campus_pod_resolved, campus_pod_ctx = campus_details["campusPod"].resolveWithContext(device=device_id)
               if not campus_pod_resolved or not campus_pod_ctx.query_str:
+                  ctx.warning(f"The AVD Campus Fabric studio is applied to {switch_facts['hostname']} but {switch_facts['hostname']} in Campus:{campus_name} is not a member of any Campus-Pod.")
                   return
               campus_pod_name = re.match(r"Campus-Pod:(.*)", campus_pod_ctx.query_str).group(1)
               campus_pod_details = campus_pod_resolved.get('campusPodFacts', None)
               if campus_pod_details is None:
-                  ctx.warning(f"{switch_facts['hostname']} should be in a Campus-Pod")
+                  ctx.warning(f"The AVD Campus Fabric studio is applied to {switch_facts['hostname']} but {switch_facts['hostname']} in Campus:{campus_name} is not a member of any Campus-Pod.")
                   return
               campus_pod_details["campus"] = campus_name
               campus_pod_details["campus_pod"] = campus_pod_name
@@ -5129,61 +5128,81 @@
           my_switch_facts_neighbors = {}
           my_config = {}
 
-          # Get all switches in same campus pod as build switch
+          # Get campus pod inputs for build switch
           campus_pod_details = get_campus_pod_details(my_device.id, campus)
           if not campus_pod_details:
+              # Remove any studio generated tags
+              set_studio_outputs({"serial_number": my_device.id})
               return
 
+          # Get all switches in same campus pod as build switch
           my_switch_facts_neighbors = get_switches_in_my_campus_pod(my_device.id)
           if not my_switch_facts_neighbors:
+              # Remove any studio generated tags
+              set_studio_outputs({"serial_number": my_device.id})
               return
+
+          # Check that build switch is in my_switch_facts_neighbors
+          if my_device.id in my_switch_facts_neighbors:
+              my_switch_facts = my_switch_facts_neighbors[my_device.id]
+          else:
+              # Remove any studio generated tags
+              set_studio_outputs({"serial_number": my_device.id})
+              return
+
           dump_my_switch_facts(1)
 
           # Add 3rd party devices
           third_party_devices = get_switch_basics_for_third_party_devices(my_device.id)
           my_switch_facts_neighbors.update(third_party_devices)
 
-          # Get already assigned node ids and mappings
-          existing_node_ids = create_node_id_dict(my_switch_facts_neighbors)
+          # Remove devices that don't contain a node id
+          for sn, switch_facts in dict(my_switch_facts_neighbors).items():
+              if "id" not in switch_facts:
+                  del my_switch_facts_neighbors[sn]
 
-          # Set node ids for switches without a node id
-          get_node_ids(existing_node_ids)
+          # Check to see if build switch is in my_switch_facts
+          if my_device.id not in my_switch_facts_neighbors:
+              # Remove any studio generated tags
+              set_studio_outputs(my_switch_facts)
+              return
 
           # Set custom fabric settings
           set_custom_fabric_variables(advancedFabricSettings)
-          dump_my_switch_facts(3)
+          dump_my_switch_facts(2)
 
           # Set uplink info for all switch_facts in my_switch_facts_neighbors
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_uplink_info(switch_facts)
-          dump_my_switch_facts(4)
+          dump_my_switch_facts(3)
 
           # Set downlink info for all of my_switch_facts' neighbors
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_downlink_info(switch_facts)
-          dump_my_switch_facts(5)
+          dump_my_switch_facts(4)
 
           # Set switch_facts for all of my_switch_facts neighbors and my_switch_facts
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = set_switch_facts(switch_facts)
-          dump_my_switch_facts(6)
+          dump_my_switch_facts(5)
 
           # Get tenant network services in AVD format
           for switch_facts in my_switch_facts_neighbors.values():
               avd_tenants = get_tenants(tenants, switch_facts)
               switch_facts["network_services"] = avd_tenants
+          dump_my_switch_facts(6)
 
           # Get campus network services in AVD format
           for switch_facts in my_switch_facts_neighbors.values():
               avd_campus_tenants = get_campus_tenants(campusServices, switch_facts)
               switch_facts["network_services"] += avd_campus_tenants
+          dump_my_switch_facts(7)
 
           # Get network services applied to switch
           for switch_facts in my_switch_facts_neighbors.values():
               switch_facts = _vlans(switch_facts)
               switch_facts["filtered_tenants"] = _filtered_tenants(switch_facts)
-
-
+          dump_my_switch_facts(8)
 
           # Set topology facts ( in order to set transit p2p and port-channel links )
           for switch_facts in my_switch_facts_neighbors.values():
@@ -5246,10 +5265,10 @@
 
           config = my_config
 
-          # Update tags from my_switch_facts values
-          # update_tags(my_switch_facts)
+          set_uplinks_downlinks(my_switch_facts)
+          dump_my_switch_facts(10)
+          set_studio_outputs(my_switch_facts)
 
-          dump_my_switch_facts(11)
           ctx.benchmarkDump()
           %>
           % if config.get("address_locking"):
