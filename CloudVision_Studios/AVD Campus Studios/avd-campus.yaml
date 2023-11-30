@@ -1127,8 +1127,6 @@
               role_dict = {"spine": "Spine", "leaf": "Leaf", "memberleaf": "Member-Leaf"}
               if switch_facts.get("type"):
                   dev._assignTag(ctx, Tag('Role', role_dict[switch_facts['type']]), replaceValue=True)
-              else:
-                  dev._unassignTag(ctx, Tag('Role', None))
               # Update network services tags
               # if switch_facts.get('network_services_l3'):
               #     dev._assignTag(ctx, Tag('NetworkServices', 'L3'), replaceValue=False)
@@ -2336,6 +2334,7 @@
               #         break
               # Set routing
               config["service_routing_protocols_model"] = "multi-agent"
+              config["ip_routing"] = True
 
               # Set ptp
               if switch_facts.get("ptp") and switch_facts["ptp"].get("enabled") is True:
@@ -3194,7 +3193,7 @@
 
               # bgp cli
               if get(vrf, "bgp.eosCli"):
-                  avd_vrf["bgp"]["raw_eos_cli"] = vrf["bgp"]["eosCli"]
+                  avd_vrf["bgp"] = {"raw_eos_cli": vrf["bgp"]["eosCli"]}
 
               # ospf configuration
               if get(vrf, "ospfConfiguration"):
@@ -3303,9 +3302,9 @@
                   avd_svi["ip_address_virtual"] = svi["ipAddressVirtual"]
               # ip virtual router subnet
               elif not avd_svi["vxlan"] and get(pod_info, "ipVirtualRouterSubnet"):
-                  avd_svi["ip_virtual_router_subnet"] = pod_info["ipVirtualRouterSubnet"]
+                  avd_svi["ip_virtual_router_subnet"] = pod_info.get("ipVirtualRouterSubnet")
               elif not avd_svi["vxlan"]:
-                  avd_svi["ip_virtual_router_subnet"] = svi["ipVirtualRouterSubnet"]
+                  avd_svi["ip_virtual_router_subnet"] = svi.get("ipVirtualRouterSubnet")
 
               # name
               access_pod_vlan_name = pod_info["name"] if pod_info.get("name") else None
@@ -4144,7 +4143,7 @@
                                       ['trunk_groups']).append("MLAG_VRF_PEER")
 
               # ospf
-              if vrf_ospf := router_ospf(switch_facts):
+              if (switch_facts.get("router_id")) and (vrf_ospf := router_ospf(switch_facts)):
                   if config["router_ospf"].get("process_ids"):
                       config["router_ospf"]["process_ids"] += vrf_ospf["process_ids"]
                   else:
@@ -4159,22 +4158,24 @@
               def prepare_vtep_tenant_L3(tenant, switch_facts):
                   @ctx.benchmark
                   def prepare_vtep_tenant_vrf_general(tenant, vrf, switch_facts):
-                      # Set vrf rd
-                      vrf["route_distinguisher"] = get_vrf_rd(switch_facts, vrf)
-                      # Set vrf rt
-                      vrf['route_target'] = get_vrf_rt(switch_facts, vrf)
-                      # Set l3 multicast group
-                      if vrf.get("_evpn_l3_multicast_enabled") and tenant.get("evpn_l3_multicast"):
-                          mcast_pool = tenant["evpn_l3_multicast"]["evpn_underlay_l3_multicast_group_ipv4_pool"]
-                          offset = vrf['vni'] - 1 + tenant["evpn_l3_multicast"].get("evpn_underlay_l3_multicast_group_ipv4_pool_offset", 0)
-                          underlay_group_address = get_ip(mcast_pool, 32, offset, 0)
-                          vrf["multicast_group"] = underlay_group_address
+                      if switch_facts.get("underlay_routing_protocol"):
+                          # Set vrf rd
+                          vrf["route_distinguisher"] = get_vrf_rd(switch_facts, vrf)
+                          if switch_facts.get("overlay_routing_protocol"):
+                              # Set vrf rt
+                              vrf['route_target'] = get_vrf_rt(switch_facts, vrf)
+                              # Set l3 multicast group
+                              if vrf.get("_evpn_l3_multicast_enabled") and tenant.get("evpn_l3_multicast"):
+                                  mcast_pool = tenant["evpn_l3_multicast"]["evpn_underlay_l3_multicast_group_ipv4_pool"]
+                                  offset = vrf['vni'] - 1 + tenant["evpn_l3_multicast"].get("evpn_underlay_l3_multicast_group_ipv4_pool_offset", 0)
+                                  underlay_group_address = get_ip(mcast_pool, 32, offset, 0)
+                                  vrf["multicast_group"] = underlay_group_address
 
                   @ctx.benchmark
                   def prepare_vtep_tenant_vrf_svis(tenant, vrf, switch_facts):
                       # Set L3 vlans
                       for vlan in vrf.get("svis", []):
-                          if not vlan["vxlan"]:
+                          if not vlan["vxlan"] or not switch_facts.get("vtep"):
                               continue
                           # Set vlan rd
                           vlan['route_distinguisher'] = get_vlan_rd(switch_facts, vlan, tenant)
@@ -4204,7 +4205,7 @@
               def prepare_vtep_tenant_L2(tenant, switch_facts):
                   # Set L2 vlans
                   for vlan in tenant.get("l2vlans", []):
-                      if not vlan["vxlan"]:
+                      if not vlan["vxlan"] or not switch_facts.get("vtep"):
                           continue
                       vlan_evpn_l2_multicast_enabled = default(get(vlan, "evpn_l2_multicast.enabled"), get(tenant, "evpn_l2_multicast.enabled"))
                       if vlan_evpn_l2_multicast_enabled is True:
@@ -5131,23 +5132,17 @@
           # Get campus pod inputs for build switch
           campus_pod_details = get_campus_pod_details(my_device.id, campus)
           if not campus_pod_details:
-              # Remove any studio generated tags
-              set_studio_outputs({"serial_number": my_device.id})
               return
 
           # Get all switches in same campus pod as build switch
           my_switch_facts_neighbors = get_switches_in_my_campus_pod(my_device.id)
           if not my_switch_facts_neighbors:
-              # Remove any studio generated tags
-              set_studio_outputs({"serial_number": my_device.id})
               return
 
           # Check that build switch is in my_switch_facts_neighbors
           if my_device.id in my_switch_facts_neighbors:
               my_switch_facts = my_switch_facts_neighbors[my_device.id]
           else:
-              # Remove any studio generated tags
-              set_studio_outputs({"serial_number": my_device.id})
               return
 
           dump_my_switch_facts(1)
@@ -5163,8 +5158,6 @@
 
           # Check to see if build switch is in my_switch_facts
           if my_device.id not in my_switch_facts_neighbors:
-              # Remove any studio generated tags
-              set_studio_outputs(my_switch_facts)
               return
 
           # Set custom fabric settings
@@ -6654,6 +6647,11 @@
           %             endif
                 ${ aggregate_address_cli }
           %           endfor
+          %         endif
+          %         if config["router_bgp"]["vrfs"][vrf].get("eos_cli"):
+          %             for cli_statement in config["router_bgp"]["vrfs"][vrf]["eos_cli"].split("\n"):
+                ${cli_statement}
+          %             endfor
           %         endif
           %         if config["router_bgp"]["vrfs"][vrf].get("address_families") is not None:
           %           for  address_family in config["router_bgp"]["vrfs"][vrf]["address_families"].keys():
@@ -9386,7 +9384,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: Ethernet.+
                 dynamic_options: null
                 extra_values_allowed: false
             spinesInbandZtpEthernetInterfacesCollection:
@@ -9436,7 +9434,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: Ethernet.+
                 dynamic_options: null
                 extra_values_allowed: false
             leafsInbandZtpEthernetInterfacesCollection:
@@ -9486,7 +9484,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: Ethernet.+
                 dynamic_options: null
                 extra_values_allowed: false
             memberLeafsInbandZtpEthernetInterfacesCollection:
@@ -9670,6 +9668,24 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            campusPodSviDhcpHelpersSourceVrf:
+              id: campusPodSviDhcpHelpersSourceVrf
+              name: sourceVrf
+              label: Source VRF
+              description: VRF to originate DHCP relay packets to DHCP server. If not set, uses current VRF.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"campusVrfName"}'
+                extra_values_allowed: false
             campusPodSviDhcpHelpersGroup:
               id: campusPodSviDhcpHelpersGroup
               name: dhcpHelperDetails
@@ -9682,6 +9698,7 @@
                   values:
                     - campusPodSviDhcpHelpersServer
                     - campusPodSviDhcpHelpersSourceInterface
+                    - campusPodSviDhcpHelpersSourceVrf
             campusPodSviDhcpHelpers:
               id: campusPodSviDhcpHelpers
               name: dhcpHelpers
@@ -10020,7 +10037,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: Ethernet.+
                 dynamic_options: null
                 extra_values_allowed: false
             campusVrfL3InterfaceIpAddress:
@@ -11110,6 +11127,24 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            campusVrfDhcpHelpersHelperSourceVrf:
+              id: campusVrfDhcpHelpersHelperSourceVrf
+              name: sourceVrf
+              label: Source VRF
+              description: VRF to originate DHCP relay packets to DHCP server. If not set, uses current VRF.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"campusVrfName"}'
+                extra_values_allowed: false
             campusVrfDhcpHelpersDetails:
               id: campusVrfDhcpHelpersDetails
               name: dhcpHelperDetails
@@ -11122,6 +11157,7 @@
                   values:
                     - campusVrfDhcpHelpersHelperIp
                     - campusVrfDhcpHelpersHelperSourceInterface
+                    - campusVrfDhcpHelpersHelperSourceVrf
             campusVrfDhcpHelpers:
               id: campusVrfDhcpHelpers
               name: dhcpHelpers
@@ -11444,7 +11480,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: Ethernet.+
                 dynamic_options: null
                 extra_values_allowed: false
             vrfL3InterfaceIpAddress:
@@ -12491,6 +12527,24 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            sviDhcpHelperHelperSourceVrf:
+              id: sviDhcpHelperHelperSourceVrf
+              name: sourceVrf
+              label: Source VRF
+              description: VRF to originate DHCP relay packets to DHCP server. If not set, uses current VRF.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"vrfName"}'
+                extra_values_allowed: false
             sviDhcpHelperDetails:
               id: sviDhcpHelperDetails
               name: dhcpServerDetail
@@ -12503,6 +12557,7 @@
                   values:
                     - sviDhcpHelperHelperIp
                     - sviDhcpHelperHelperSourceInterface
+                    - sviDhcpHelperHelperSourceVrf
             sviDhcpHelpersDetails:
               id: sviDhcpHelpersDetails
               name: dhcpServerDetails
@@ -13038,6 +13093,24 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            vrfDhcpHelpersHelperSourceVrf:
+              id: vrfDhcpHelpersHelperSourceVrf
+              name: sourceVrf
+              label: Source VRF
+              description: VRF to originate DHCP relay packets to DHCP server. If not set, uses current VRF.
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"vrfName"}'
+                extra_values_allowed: false
             vrfDhcpHelpersDetails:
               id: vrfDhcpHelpersDetails
               name: dhcpHelperDetails
@@ -13050,6 +13123,7 @@
                   values:
                     - vrfDhcpHelpersHelperIp
                     - vrfDhcpHelpersHelperSourceInterface
+                    - vrfDhcpHelpersHelperSourceVrf
             vrfDhcpHelpers:
               id: vrfDhcpHelpers
               name: dhcpHelpers
