@@ -2162,108 +2162,6 @@
 
 
           @ctx.benchmark
-          def get_network_services_spine_switch(switch_facts, tenants):
-              '''
-              Get VLANs applied to spine switch via downstream neighbors
-              '''
-              if switch_facts["type"] != "spine":
-                  return switch_facts
-
-              spine = {
-                  "vlans": [],
-                  "tenants": {}
-              }
-
-              add_vrfs = {}  # Used to determine which services are applied to this switch
-              # Add VRF if node is found in any of vrf fields
-              for vrf in campus_details["services"]["vrfs"]:
-                  if switch_facts["network_services_l3"]:
-                      # Add all vrfs if add_all_vrfs flag is set to True
-                      if campus_pod_details["services"].get("applyAllVrfs", False) is True:
-                          add_vrfs[vrf['vrfName']] = {
-                              "svis": []
-                          }
-                          continue
-
-                      # if l3 interface is to be configured on switch
-                      if len(vrf.get('l3Interfaces').resolve(device=switch_facts['serial_number'])['interfaces']) > 0:
-                          add_vrfs[vrf['vrfName']] = {
-                              "svis": []
-                          }
-                          continue
-
-                      # Add VRF if there is a BGP neighbor for this node in vrf
-                      for bgp_peer in vrf.get("externalBgpPeers", []):
-                          # if bgp peer is to be configured on switch
-                          if device_matches_resolver_query(bgp_peer['devices'], switch_facts['serial_number']):
-                              add_vrfs[vrf['vrfName']] = {
-                                  "svis": []
-                              }
-                              break
-
-                      if add_vrfs.get(vrf['vrfName']):
-                          continue
-
-                      # Add VRF if there is a static route for this node in vrf
-                      for sr in vrf.get('staticRoutes', []):
-                          # if static route is to be configured on switch
-                          if device_matches_resolver_query(sr['devices'], switch_facts['serial_number']):
-                              add_vrfs[vrf['vrfName']] = {
-                                  "svis": []
-                              }
-                              break
-
-                      # Last check in loop is unnecessary
-                      # if add_vrfs.get(vrf['vrfName']):
-                      #     continue
-
-              # Filter only services applied to this switch
-              spine['tenants'].update({ "services": {"vrfs": add_vrfs, "l2vlans": []} })
-
-
-              if "l2ls" in switch_facts["campus_type"]:
-                  access_pods_checked = []
-                  for switch_id in switch_facts.get("downlink_switches_ids", []):
-                      tmp_switch_facts = my_switch_facts_neighbors.get(switch_id)
-                      if tmp_switch_facts is None or tmp_switch_facts["group"] in access_pods_checked:
-                          continue
-                      for vlan in tmp_switch_facts.get('vlans', []):
-                          if vlan not in spine['vlans']:
-                              spine['vlans'].append(vlan)
-
-                      # Only names/ids matter, user inputs within dictionaries dont matter
-                      # Get tenant info from downstream tenants
-                      for tenant in tmp_switch_facts.get('tenants', {}):
-                          if tenant not in spine['tenants']:
-                              spine['tenants'][tenant] = tmp_switch_facts["tenants"][tenant]
-                          else:
-                              # check if vrfs exist for tenant
-                              for vrf in tmp_switch_facts["tenants"][tenant].get("vrfs", {}):
-                                  if vrf not in spine['tenants'][tenant]["vrfs"]:
-                                      spine['tenants'][tenant]["vrfs"][vrf] = tmp_switch_facts["tenants"][tenant]["vrfs"][vrf]
-                                  else:
-                                      # check if svis exist
-                                      for svi in tmp_switch_facts["tenants"][tenant]["vrfs"][vrf].get("svis", {}):
-                                          if svi not in spine['tenants'][tenant]["vrfs"][vrf]["svis"]:
-                                              spine['tenants'][tenant]["vrfs"][vrf]["svis"].append(svi)
-
-                              for l2vlan in tmp_switch_facts["tenants"][tenant].get("l2vlans", {}):
-                                  if l2vlan not in spine['tenants'][tenant]["l2vlans"]:
-                                      spine['tenants'][tenant]["l2vlans"].append(l2vlan)
-
-                      access_pods_checked.append(tmp_switch_facts["group"])
-
-              switch_facts["tenants"]= spine.get("tenants")
-              switch_facts["vlans"] = spine.get("vlans")
-
-              # if switch_facts["serial_number"] == my_switch_facts["serial_number"]:
-              #     ctx.info(f"VRFs to be configured on switch: {list(add_vrfs.keys())}")
-              #     ctx.info(f"VLANs to be configured on switch: {spine['vlans']}")
-
-              return switch_facts
-
-
-          @ctx.benchmark
           def set_base_config(config, switch_facts):
               # hostname
               config["hostname"] = switch_facts["hostname"]
@@ -3435,7 +3333,7 @@
 
 
           @ctx.benchmark
-          def get_campus_tenants(campus_services_resolver, switch_facts):
+          def get_campus_tenants(switch_facts):
               '''
               Convert studio campus services data model to avd network services data model
               Args:
@@ -3443,19 +3341,10 @@
                   all_services: a dictionary that conforms to avd's network services data model
               '''
               avd_tenants = []
-              # device_id
-              device_id = switch_facts["serial_number"]
-              # Process Studio inputs
-              campus_services_resolved = campus_services_resolver.resolve(device=device_id)
-              if campus_services_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus input.  Make sure a 'Campus' tag is applied.")
+
+              if not campus_services_details:
                   return avd_tenants
-              campus_services_details = campus_services_resolved["campusServicesGroup"]
-              campus_pod_services_resolved = campus_services_details["campusPodsServices"].resolve(device=device_id)
-              if campus_pod_services_resolved is None:
-                  ctx.warning(f"{switch_facts['hostname']} did not resolve for the Campus-Pod input.  Make sure a 'Campus-Pod' tag is applied.")
-                  return avd_tenants
-              campus_pod_services_details = campus_pod_services_resolved["services"]
+
               # Add default vrf to campus_services vrfs if not present
               if "default" not in [vrf["name"] for vrf in campus_services_details.get("vrfs", [])]:
                   campus_services_details["vrfs"].insert(0, {"name":"default"})
@@ -5106,6 +4995,20 @@
               campus_pod_details["campus_pod"] = campus_pod_name
               return campus_pod_details
 
+
+          @ctx.benchmark
+          def get_campus_services_details(device_id, campus_services_resolver):
+              # Process Studio inputs
+              campus_services_resolved = campus_services_resolver.resolve(device=device_id)
+              if campus_services_resolved is None:
+                  return avd_tenants
+              campus_services_details = campus_services_resolved["campusServicesGroup"]
+              campus_pod_services_resolved = campus_services_details["campusPodsServices"].resolve(device=device_id)
+              if campus_pod_services_resolved is None:
+                  return avd_tenants
+              campus_pod_services_details = campus_pod_services_resolved["services"]
+              return campus_services_details, campus_pod_services_details
+
           # Template mainline start
           #
           # Check campus input is not None
@@ -5133,6 +5036,9 @@
           campus_pod_details = get_campus_pod_details(my_device.id, campus)
           if not campus_pod_details:
               return
+
+          # Get campus services for build switch (used in get_campus_tenants())
+          campus_services_details, campus_pod_services_details = get_campus_services_details(my_device.id, campusServices)
 
           # Get all switches in same campus pod as build switch
           my_switch_facts_neighbors = get_switches_in_my_campus_pod(my_device.id)
@@ -5187,7 +5093,7 @@
 
           # Get campus network services in AVD format
           for switch_facts in my_switch_facts_neighbors.values():
-              avd_campus_tenants = get_campus_tenants(campusServices, switch_facts)
+              avd_campus_tenants = get_campus_tenants(switch_facts)
               switch_facts["network_services"] += avd_campus_tenants
           dump_my_switch_facts(7)
 
