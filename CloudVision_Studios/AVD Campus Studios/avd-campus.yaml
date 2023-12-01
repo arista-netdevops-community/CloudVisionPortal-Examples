@@ -1500,7 +1500,8 @@
                       "mlagPeerL3IPv4Pool": "",
                       "mlagPeerLinkEosCli": "",
                       "mlagPeerInterfacesEosCli": "",
-                      "virtualRouterMacAddress": "00:1c:73:00:00:99"
+                      "virtualRouterMacAddress": "00:1c:73:00:00:99",
+                      "mlagDualPrimaryDetection": True
                   }
 
               # Set BGP defaults
@@ -1605,7 +1606,7 @@
                               switch_facts['mlag_peer_l3_vlan'] = switch_facts['mlag_peer_vlan']
                               switch_facts['mlag_peer_l3_ipv4_pool'] = switch_facts["mlag_peer_ipv4_pool"]
                               switch_facts['mlag_peer_l3_subnet_mask']= switch_facts["mlag_peer_subnet_mask"]
-
+                      switch_facts["mlag_dual_primary_detection"] = node_defaults["mlagDetails"]["mlagDualPrimaryDetection"]
                       switch_facts["mlag_lacp_mode"] = "active"
                       switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
                       switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
@@ -1898,6 +1899,16 @@
                           # inband management interface
                           switch_facts["inband_management_interface"] = "Vlan{}".format(switch_facts["inband_management_vlan"])
 
+                  inband_mgmt_ip = None
+                  if switch_facts.get("inband_management_role", "") == "child":
+                      inband_mgmt_ip = get_child_inband_management_ip(switch_facts)
+                  elif switch_facts.get("inband_management_subnet"):
+                      if switch_facts.get("mlag") and switch_facts["mlag_role"] == "secondary":
+                          inband_mgmt_ip = list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[2]
+                      else:
+                          inband_mgmt_ip = list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[1]
+                  if inband_mgmt_ip:
+                      switch_facts["inband_mgmt_ip"] = str(inband_mgmt_ip)
 
               # IP locking
               ip_locking_details = campus_pod_details["fabricConfigurations"].get("ipLocking")
@@ -2416,6 +2427,20 @@
               if switch_facts.get('reload_delay_non_mlag') is not None:
                   config['mlag_configuration']["reload_delay_non_mlag"] = switch_facts["reload_delay_non_mlag"]
 
+              if (switch_facts.get("mlag_dual_primary_detection")) \
+                      and (mlag_peer_sn := switch_facts.get('mlag_peer_serial_number')) \
+                      and (mlag_peer_switch_facts := my_switch_facts_neighbors.get(mlag_peer_sn)) \
+                      and (peer_inband_mgmt_ip := mlag_peer_switch_facts.get("inband_mgmt_ip")):
+                  if peer_inband_mgmt_ip:
+                      config['mlag_configuration'].update(
+                          {
+                              "peer_address_heartbeat": {
+                                  "peer_ip": mlag_peer_switch_facts["inband_mgmt_ip"].split("/")[0]
+                              },
+                              "dual_primary_detection_delay": 5,
+                          }
+                      )
+
               # Kept because we might add a knob later and enable this
               # Set route maps
               # Origin Incomplete for MLAG iBGP learned routes
@@ -2820,7 +2845,7 @@
                           "description": "L2LEAF_INBAND_MGMT",
                           "shutdown": False,
                           "mtu": switch_facts["p2p_uplinks_mtu"],
-                          "ip_address": get_child_inband_management_ip(switch_facts),
+                          "ip_address": switch_facts.get("inband_mgmt_ip"),
                           "gateway": switch_facts["inband_management_gateway"],
                           "type": "inband"
                       }
@@ -6887,6 +6912,15 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            leafMlagDualPrimaryDetection:
+              id: leafMlagDualPrimaryDetection
+              name: mlagDualPrimaryDetection
+              label: MLAG Dual Primary Detection
+              description: Enable / Disable MLAG dual primary detection.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: true
             leafMlagDetails:
               id: leafMlagDetails
               name: mlagDetails
@@ -6904,6 +6938,7 @@
                     - leafVirtualRouterMacAddress
                     - leafMlagPeerInterfacesEosCli
                     - leafMlagPeerLinkEosCli
+                    - leafMlagDualPrimaryDetection
             accessPodSpanningTreeMode:
               id: accessPodSpanningTreeMode
               name: spanningTreeMode
@@ -7516,6 +7551,15 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            spineMlagDualPrimaryDetection:
+              id: spineMlagDualPrimaryDetection
+              name: mlagDualPrimaryDetection
+              label: MLAG Dual Primary Detection
+              description: Enable / Disable MLAG dual primary detection.
+              required: false
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              boolean_props:
+                default_value: false
             spineMlagDetails:
               id: spineMlagDetails
               name: mlagDetails
@@ -7533,6 +7577,7 @@
                     - spineVirtualRouterMacAddress
                     - spineMlagPeerLinkEosCli
                     - spineMlagPeerInterfacesEosCli
+                    - spineMlagDualPrimaryDetection
             spineVtepLoopbackIPv4Pool:
               id: spineVtepLoopbackIPv4Pool
               name: vtepLoopbackIPv4Pool
@@ -15829,6 +15874,7 @@
                   "spineMlagPeerL3Vlan",
                   "spineMlagPeerL3IPv4Pool",
                   "spineVirtualRouterMacAddress",
+                  "spineMlagDualPrimaryDetection",
                   "spineMlagPeerInterfacesEosCli",
                   "spineMlagPeerLinkEosCli"
                 ]
@@ -17773,5 +17819,37 @@
                     "mode":"SHOW"
                   }
                 }
+              },
+              "spineMlagDualPrimaryDetection":{
+                "key":"spineMlagDualPrimaryDetection",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "spineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "leafMlagDetails":{
+                "key":"leafMlagDetails",
+                "type":"INPUT",
+                "order":[
+                  "leafMlagPeerVlan",
+                  "leafMlagPeerIPv4Pool",
+                  "leafMlagPeerL3Vlan",
+                  "leafMlagPeerL3IPv4Pool",
+                  "leafVirtualRouterMacAddress",
+                  "leafMlagDualPrimaryDetection",
+                  "leafMlagPeerInterfacesEosCli",
+                  "leafMlagPeerLinkEosCli"
+                ]
               }
             }
