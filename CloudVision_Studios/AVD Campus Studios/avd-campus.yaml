@@ -2963,9 +2963,9 @@
                   avd_vrf['vtep_diagnostic'] = {
                       "loopback": vrf["vtepDiagnostic"]["loopbackInterface"]
                   }
-                  campuses_vtep_diagnostic = vrf['vtepDiagnostic'].get('campuses').resolve(device=device_id)
-                  campus_pods_vtep_diagnostic = campuses_vtep_diagnostic['campusPods'].resolve(device=device_id)
-                  avd_vrf['vtep_diagnostic']["loopback_ip_range"] = campus_pods_vtep_diagnostic["ipv4Pool"]
+                  if (campuses_vtep_diagnostic := vrf['vtepDiagnostic'].get('campuses').resolve(device=device_id)) \
+                          and (campus_pods_vtep_diagnostic := campuses_vtep_diagnostic['campusPods'].resolve(device=device_id)):
+                      avd_vrf['vtep_diagnostic']["loopback_ip_range"] = campus_pods_vtep_diagnostic["ipv4Pool"]
 
               # l3 interfaces
               if get(vrf, "l3Interfaces") and device_matches_resolver_query(vrf["l3Interfaces"], device_id):
