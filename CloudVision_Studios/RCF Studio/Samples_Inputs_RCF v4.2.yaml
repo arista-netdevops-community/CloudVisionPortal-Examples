@@ -1,0 +1,43 @@
+path: []
+inputs:
+  codeUnits:
+    - unitContent: |
+        function DEFAULT_ROUTE() {
+           return prefix is 0.0.0.0/0 or prefix is ::/0;
+        }
+      unitName: COMMON
+    - unitContent: |
+        function AS_65535_IN() {
+           # Rejects default route, accepts all other routes
+           if DEFAULT_ROUTE() {
+           return false;
+           }
+           return true;
+        }
+
+
+        function AS_65535_OUT() {
+           # Add a community and advertise all routes
+           community add { 64500:200 };
+           return true;
+        }
+      unitName: AS_65535_FUNCTIONS
+    - unitContent: |
+        function ACCEPT_ALL() {
+          # Accepts all routes
+          return true;
+        }
+
+        function DENY_ALL() {
+          # Rejects all routes
+          return false;
+        }
+      unitName: MAP_RULE
+    - unitContent: |
+        function CHECK_MED() {
+           if med is 10 {
+           return true;
+           }
+        }
+      unitName: 'MED_CHECK '
+  deviceAssignment: []
