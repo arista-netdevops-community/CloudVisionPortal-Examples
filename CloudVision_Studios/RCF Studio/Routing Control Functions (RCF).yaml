@@ -4,38 +4,31 @@
     value:
       key:
         studio_id: 7a161847-e603-49e5-904d-dc02fbef0d4e
-        workspace_id: ''
-      display_name: RCF v4.2
-      description: Code Units Management Tool
+        workspace_id: 40063198-93c7-46ac-85b0-d79a8cd9578d
+      display_name: Routing Control Functions (RCF)
+      description: RCF Code Unit Management
       template:
         type: TEMPLATE_TYPE_MAKO
         body: |+
           <%
           # If the developer wants to see the container details of the script. 
-          # Defult debug setting is False. The info can be seen in `view build details` after clicking `review Workspace`
+          # Default debug setting is False. The info can be seen in `view build details` after clicking `review Workspace`
           debug = False
 
-          def output(content: str, indent=3, level=0):
+          def applyIndentation(content: str, indent=3, level=0):
               '''
-              return: format multiline strings
+              return: Formatted multiline strings with indentation
               '''
               contentList = content.splitlines()
               res = ''
+              indentation = ' ' * (indent * level)
               for l in contentList:
-                  indentation = ' ' * (indent * level)
                   newL = indentation + l + '\n'
                   res += newL
               return res.rstrip()
 
-          codeUnitsData = {}
-          for codeUnit in codeUnits:
-              codeUnitsData.update({codeUnit['unitName']:output(codeUnit['unitContent'], level=2)})
-
-          deviceToUnits = {}
-          for assign in deviceAssignment.inputs:
-              codeUnitsList = assign['inputs']['value']['assignedUnits']
-              device_id = assign['devices'][0]
-              deviceToUnits.update({device_id:codeUnitsList})
+          codeUnitsData = {codeUnit['unitName']:applyIndentation(codeUnit['unitContent'], level=2) for codeUnit in codeUnits}
+          deviceToUnits = {devCodeUnit['devices'][0]: devCodeUnit['inputs']['devAssignments']['devAssignedUnits'] for devCodeUnit in devCodeUnits.inputs}
           %>
 
           %if debug:
@@ -43,7 +36,7 @@
           ! ${deviceToUnits}
           %endif
 
-          %if ctx.getDevice().id in deviceToUnits.keys() and len(deviceToUnits[ctx.getDevice().id]) > 0:
+          %if ctx.getDevice().id in deviceToUnits and len(deviceToUnits[ctx.getDevice().id]) > 0:
           router general
              control-functions
           %   for unitName in deviceToUnits[ctx.getDevice().id]:
@@ -60,7 +53,7 @@
               id: 71bac242-81d9-4277-9789-3aa12259a742
               name: unitName
               label: Code Unit Name
-              description: Code Unit Name
+              description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -75,8 +68,8 @@
             3553abca-6b79-47e8-99e0-ea39a862172f:
               id: 3553abca-6b79-47e8-99e0-ea39a862172f
               name: unitContent
-              label: Code Unit Content
-              description: Routing Control Functions
+              label: Code Unit
+              description: An RCF code unit contains RCF function definitions. Define one or more functions here.
               required: false
               type: INPUT_FIELD_TYPE_STRING
               string_props:
@@ -91,8 +84,8 @@
             ad2e5bbf-d3dd-461a-8d25-4faf3c699e12:
               id: ad2e5bbf-d3dd-461a-8d25-4faf3c699e12
               name: value
-              label: Code Units Group
-              description: Group of members for Code Units
+              label: Code Unit and Content
+              description: ''
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -104,7 +97,7 @@
               id: a4c1199e-ced0-4ed4-80b6-b6900f03f905
               name: codeUnits
               label: Code Units
-              description: Code Unit Collections
+              description: Define all code units used across all devices
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -112,8 +105,8 @@
                 key: 71bac242-81d9-4277-9789-3aa12259a742
             fefcf5bc-5db6-4273-9d37-733267a0429d:
               id: fefcf5bc-5db6-4273-9d37-733267a0429d
-              name: assignedUnitName
-              label: Assign Code Units
+              name: code
+              label: Code Units
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_STRING
@@ -130,8 +123,8 @@
                 extra_values_allowed: false
             eea321af-f57c-43b5-9396-c1c3fbeaabb9:
               id: eea321af-f57c-43b5-9396-c1c3fbeaabb9
-              name: assignedUnits
-              label: Assign Code Units Collection
+              name: devAssignedUnits
+              label: Assigned Code Units
               description: ''
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
@@ -140,9 +133,9 @@
                 key: null
             f035492e-131f-4378-bb57-678ad28a1b5d:
               id: f035492e-131f-4378-bb57-678ad28a1b5d
-              name: value
-              label: Device Assignment Group
-              description: Group of members for Unit Assignment
+              name: devAssignments
+              label: Device Assignments
+              description: Assignments to a single devcie
               required: false
               type: INPUT_FIELD_TYPE_GROUP
               group_props:
@@ -151,9 +144,9 @@
                     - eea321af-f57c-43b5-9396-c1c3fbeaabb9
             2e151404-c66a-424e-bff8-ca912e09ad7b:
               id: 2e151404-c66a-424e-bff8-ca912e09ad7b
-              name: deviceAssignment
-              label: Device Assignment
-              description: Choose code units from the drop-down menu to assign them to one or more devices.
+              name: devCodeUnits
+              label: Device Code Units
+              description: Assign multiple code units to devices
               required: false
               type: INPUT_FIELD_TYPE_RESOLVER
               resolver_props:
