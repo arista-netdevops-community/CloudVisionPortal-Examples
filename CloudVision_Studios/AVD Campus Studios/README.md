@@ -67,7 +67,7 @@ The next step is to select the routing protocols to be used in the fabric.
 
 In an L3 campus, it is mandatory for users to select an `Underlay Routing Protocol`.  In an L2 campus, it is not mandatory for users to select an `Underlay Routing Protocol` but may still be useful for generating configuration for connectivity from the Spine switches to any core devices that are external to the Campus Pod fabric.
 
-If VXLAN is turned on, users may also wish to set the `Underlay Routing Protocol`.
+If VXLAN is turned on, users may also wish to set the `Overlay Routing Protocol`.
 
 #### Set Configuration Parameters for Spine switches ####
 Before actually adding Spine switches, it is necessary to set configuration parameters for the different protocols that will be configured on the Spines. For many of the configuration parameters, the default input values should suffice. However, every network is different, so users have the ability to modify default configuration values.
