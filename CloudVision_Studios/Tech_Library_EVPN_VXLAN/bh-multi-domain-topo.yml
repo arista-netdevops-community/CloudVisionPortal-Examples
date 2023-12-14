@@ -14,6 +14,11 @@ cvp:
   password: cvproot
   version: 2023.2.0
   instance: singlenode
+third-party:
+  # Define the global third-party node parameters
+  username: cvpadmin
+  password: arista123
+  version: byod-RC0
 # List of ACT nodes
 nodes:
   - A-LEAF1:
@@ -228,6 +233,9 @@ nodes:
   - ansible:
       ip_addr: 192.168.0.6
       node_type: generic
+  - byod:
+      node_type: third-party
+      ip_addr: 192.168.0.7
 links:
     - connection:
         - A-LEAF1:Ethernet1
