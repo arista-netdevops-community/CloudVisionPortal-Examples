@@ -3,8 +3,8 @@
   body:
     value:
       key:
-        studio_id: 7a161847-e603-49e5-904d-dc02fbef0d4e
-        workspace_id: 50d39f21-0cfd-40f2-90cb-a4a75e420b03
+        studio_id: 
+        workspace_id: 
       display_name: Routing Control Functions (RCF)
       description: RCF Code Unit Management
       template:
@@ -26,7 +26,10 @@
                   newL = indentation + l + '\n'
                   res += newL
               return res.rstrip()
-
+          # Corner case: if the root doesn't contain codeUnit and devCodeUnit after importing RCF studio then it won't throw error.
+          if not root:
+            return 
+          
           codeUnitsData = {codeUnit['unitName']:applyIndentation(codeUnit['unitContent'], level=2) for codeUnit in codeUnits}
           deviceToUnits = {devCodeUnit['devices'][0]: devCodeUnit['inputs']['devAssignments']['devAssignedUnits'] for devCodeUnit in devCodeUnits.inputs}
           %>
