@@ -9,29 +9,34 @@
       description: RCF Code Unit Management
       template:
         type: TEMPLATE_TYPE_MAKO
-        body: |+
+        body: |
           <%
           # If the developer wants to see the container details of the script. 
           # Default debug setting is False. The info can be seen in `view build details` after clicking `review Workspace`
           debug = False
 
           def applyIndentation(content: str, indent=3, level=0):
-              '''
-              return: formatted multiline strings with indentation
-              '''
-              contentList = content.splitlines()
-              res = ''
-              indentation = ' ' * (indent * level)
-              for l in contentList:
-                  newL = indentation + l + '\n'
-                  res += newL
-              return res.rstrip()
-          # Corner case: if the root doesn't contain codeUnit and devCodeUnit after importing RCF studio then it won't throw error.
-          if not root:
-            return 
-          
-          codeUnitsData = {codeUnit['unitName']:applyIndentation(codeUnit['unitContent'], level=2) for codeUnit in codeUnits}
-          deviceToUnits = {devCodeUnit['devices'][0]: devCodeUnit['inputs']['devAssignments']['devAssignedUnits'] for devCodeUnit in devCodeUnits.inputs}
+            '''
+            return: formatted multiline strings with indentation
+            '''
+            contentList = content.splitlines()
+            res = ''
+            indentation = ' ' * (indent * level)
+            for l in contentList:
+                newL = indentation + l + '\n'
+                res += newL
+            return res.rstrip()
+
+          codeUnitsData = {}
+          deviceToUnits = {}
+          # Collect infos from inputs.
+          try: 
+            codeUnitsData = {codeUnit['unitName']:applyIndentation(codeUnit['unitContent'], level=2) for codeUnit in codeUnits}
+            deviceToUnits = {devCodeUnit['devices'][0]: devCodeUnit['inputs']['devAssignments']['devAssignedUnits'] for devCodeUnit in devCodeUnits.inputs}
+          except:
+            #Corner case: if the root doesn't contain codeUnit and devCodeUnit keys for some reasons (somtime the CVP contains old workspace, and user imports same studio in the new workspace)
+            #             after importing RCF studio then it won't throw an error. In this case, as long as the user can add any value to the inputs, the studio works as normal.
+            pass
           %>
 
           %if debug:
