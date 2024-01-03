@@ -4,7 +4,7 @@
     value:
       key:
         studio_id: 7a161847-e603-49e5-904d-dc02fbef0d4e
-        workspace_id: 50d39f21-0cfd-40f2-90cb-a4a75e420b03
+        workspace_id: 9ece4469-e625-4ed8-b6e2-225da8913d17
       display_name: Routing Control Functions (RCF)
       description: RCF Code Unit Management
       template:
@@ -27,8 +27,14 @@
                   res += newL
               return res.rstrip()
 
-          codeUnitsData = {codeUnit['unitName']:applyIndentation(codeUnit['unitContent'], level=2) for codeUnit in codeUnits}
-          deviceToUnits = {devCodeUnit['devices'][0]: devCodeUnit['inputs']['devAssignments']['devAssignedUnits'] for devCodeUnit in devCodeUnits.inputs}
+          try:
+             codeUnitsData = {codeUnit['unitName']: applyIndentation(codeUnit['unitContent'], level=2)
+                              for codeUnit in codeUnits}
+             deviceToUnits = {devCodeUnit['devices'][0]: devCodeUnit['inputs']['devAssignments']['devAssignedUnits']
+                              for devCodeUnit in devCodeUnits.inputs}
+          except TypeError:
+             codeUnitsData = {}
+             deviceToUnits = {}
           %>
 
           %if debug:
