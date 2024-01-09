@@ -1234,13 +1234,22 @@
           @ctx.benchmark
           def get_mlag_peer(switch_facts):
               mlag_peer_switch_facts = None
-              device_id = switch_facts["serial_number"]
-              for tmp_switch_facts in my_switch_facts_neighbors.values():
-                  if switch_facts["type"] == tmp_switch_facts["type"] and \
-                          switch_facts["group"] == tmp_switch_facts["group"] and \
-                          switch_facts["serial_number"] != tmp_switch_facts["serial_number"]:
-                      mlag_peer_switch_facts = tmp_switch_facts
-                      break
+              if switch_facts["type"] != "memberleaf":
+                  for tmp_switch_facts in my_switch_facts_neighbors.values():
+                      if switch_facts["type"] == tmp_switch_facts["type"] and \
+                              switch_facts["group"] == tmp_switch_facts["group"] and \
+                              switch_facts["serial_number"] != tmp_switch_facts["serial_number"]:
+                          return tmp_switch_facts
+              elif switch_facts.get('access_pod_details'):
+                  for mlag_pair in switch_facts['access_pod_details']["memberLeafMlagPairs"]:
+                      mlag_primary_tag_query = mlag_pair['mlagPrimary']
+                      mlag_secondary_tag_query = mlag_pair['mlagSecondary']
+                      if switch_facts["serial_number"] in mlag_primary_tag_query.inputs['devices'] \
+                              and len(mlag_secondary_tag_query.inputs['devices']) == 1:
+                          return my_switch_facts_neighbors[mlag_secondary_tag_query.inputs['devices'][0]]
+                      elif switch_facts["serial_number"] in mlag_secondary_tag_query.inputs['devices'] \
+                              and len(mlag_primary_tag_query.inputs['devices']) == 1:
+                          return my_switch_facts_neighbors[mlag_primary_tag_query.inputs['devices'][0]]
 
               return mlag_peer_switch_facts
 
@@ -1299,7 +1308,7 @@
 
 
           @ctx.benchmark
-          def get_child_inband_management_ip(switch_facts):
+          def get_child_inband_management_ip(switch_facts, offset=0):
               validateIPNetwork(switch_facts["inband_management_subnet"], network_name=f"Inband Management Pool in {switch_facts['campus']} -> {switch_facts['campus_pod']}")
               ib_mgmt_subnet_length = ipaddress.ip_network(switch_facts["inband_management_subnet"]).prefixlen
               # Use same virtual ip, primary mlag switch ip, and secondary mlag switch ip on all gateways
@@ -1309,7 +1318,7 @@
               leaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'leaf'], sort_key="id")
               memberleaf_switches_in_pod = natural_sort([tmp_switch_facts for tmp_switch_facts in my_switch_facts_neighbors.values() if tmp_switch_facts['group'] == switch_facts['group'] and tmp_switch_facts['type'] == 'memberleaf'], sort_key="id")
               if "l2ls" in switch_facts["campus_type"]:
-                  index = switch_facts["id"] - 1
+                  index = switch_facts["id"] - 1 + offset
               elif "l3ls" in switch_facts["campus_type"]:
                   ib_hosts_in_pod = memberleaf_switches_in_pod
                   for i, tmp_switch_facts in enumerate(ib_hosts_in_pod):
@@ -1404,6 +1413,27 @@
 
 
           @ctx.benchmark
+          def set_mlag_switch_facts(switch_facts):
+              if switch_facts.get("mlag_support"):
+                  mlag_peer_switch_facts = get_mlag_peer(switch_facts)
+                  if mlag_peer_switch_facts is not None:
+                      if switch_facts["type"] == "memberleaf":
+                          ctx.info(f"{switch_facts['hostname']}'s MLAG Peer: {mlag_peer_switch_facts['hostname']}")
+                      switch_facts["mlag"] = True
+                  else:
+                      ctx.warning(f"Could not find an MLAG peer for {switch_facts['hostname']}")
+                      switch_facts["mlag"] = False
+
+                  if switch_facts["mlag"] and mlag_peer_switch_facts is not None:
+                      switch_facts["mlag_peer"] = mlag_peer_switch_facts["hostname"]
+                      switch_facts["mlag_peer_serial_number"] = mlag_peer_switch_facts["serial_number"]
+              else:
+                  switch_facts["mlag"] = False
+
+              return switch_facts
+
+
+          @ctx.benchmark
           def set_switch_facts(switch_facts):
               # device_id from switch_facts
               device_id = switch_facts["serial_number"]
@@ -1463,7 +1493,9 @@
                       switch_facts["overlay_routing_protocol"] = campus_pod_details["campusPodRoutingProtocols"]["campusPodOverlayRoutingProtocol"].lower()
                   else:
                       switch_facts["overlay_routing_protocol"] = ""
-
+              else:
+                  switch_facts["underlay_routing_protocol"] = ""
+                  switch_facts["overlay_routing_protocol"] = ""
               # Get MLAG ip addressing and bgp numbering formulas
               switch_facts["fabric_ip_addressing"] = fabric_variables["fabric_ip_addressing"]
               switch_facts["fabric_bgp_numbering"] = fabric_variables["fabric_bgp_numbering"]
@@ -1499,6 +1531,7 @@
                       "mlagPeerIPv4Pool": "169.254.0.0/31",
                       "mlagPeerL3IPv4Pool": "",
                       "mlagPeerLinkEosCli": "",
+                      "mlagDomainId": "MLAG",
                       "mlagPeerInterfacesEosCli": "",
                       "virtualRouterMacAddress": "00:1c:73:00:00:99",
                       "mlagDualPrimaryDetection": True
@@ -1572,96 +1605,85 @@
                   switch_facts["virtual_router_mac_address"] = node_defaults["mlagDetails"]["virtualRouterMacAddress"]
 
               # Get mlag settings
-              if switch_facts["mlag_support"]:
-                  mlag_peer_switch_facts = get_mlag_peer(switch_facts)
-                  if mlag_peer_switch_facts is not None:
-                      switch_facts["mlag"] = True
+              if (switch_facts.get("mlag_peer_serial_number")) and (mlag_peer_switch_facts := my_switch_facts_neighbors.get(switch_facts['mlag_peer_serial_number'])):
+                  if switch_facts["underlay_router"]:
+                      switch_facts["mlag_l3"] = True
                   else:
-                      ctx.warning(f"Could not find an MLAG peer for {switch_facts['hostname']}")
-                      switch_facts["mlag"] = False
-
-                  if switch_facts["mlag"] and mlag_peer_switch_facts is not None:
-                      switch_facts["mlag_peer"] = mlag_peer_switch_facts["hostname"]
-
-                      switch_facts["mlag_peer_serial_number"] = mlag_peer_switch_facts["serial_number"]
-
-                      switch_facts["mlag_group"] = switch_facts["group"]
-
-                      if switch_facts["underlay_router"]:
-                          switch_facts["mlag_l3"] = True
+                      switch_facts["mlag_l3"] = False
+                  mlag_domain_id = node_defaults["mlagDetails"].get("mlagDomainId", "").strip()
+                  if not mlag_domain_id:
+                      mlag_domain_id = "MLAG"
+                  if mlag_domain_id == "Use Group Name":
+                      mlag_domain_id = switch_facts["group"]
+                  switch_facts["mlag_group"] = mlag_domain_id
+                  switch_facts["mlag_peer_vlan"] =  node_defaults["mlagDetails"]["mlagPeerVlan"]
+                  switch_facts["mlag_peer_ipv4_pool"] = node_defaults["mlagDetails"]["mlagPeerIPv4Pool"]
+                  switch_facts["mlag_peer_subnet_mask"] = 31
+                  if switch_facts.get("underlay_router"):
+                      # Set mlag_peer_l3_vlan if there is value set in studio input
+                      if node_defaults['mlagDetails']['mlagPeerL3Vlan'] is not None \
+                              and node_defaults['mlagDetails']['mlagPeerL3IPv4Pool'].strip() != "":
+                          switch_facts['mlag_peer_l3_vlan'] = node_defaults['mlagDetails']['mlagPeerL3Vlan']
+                          switch_facts['mlag_peer_l3_ipv4_pool'] = node_defaults['mlagDetails']['mlagPeerL3IPv4Pool']
+                          switch_facts['mlag_peer_l3_subnet_mask'] = 31
                       else:
-                          switch_facts["mlag_l3"] = False
+                          switch_facts['mlag_peer_l3_vlan'] = switch_facts['mlag_peer_vlan']
+                          switch_facts['mlag_peer_l3_ipv4_pool'] = switch_facts["mlag_peer_ipv4_pool"]
+                          switch_facts['mlag_peer_l3_subnet_mask']= switch_facts["mlag_peer_subnet_mask"]
+                  switch_facts["mlag_dual_primary_detection"] = node_defaults["mlagDetails"]["mlagDualPrimaryDetection"]
+                  switch_facts["mlag_lacp_mode"] = "active"
+                  switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
+                  switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
 
-                      switch_facts["mlag_peer_vlan"] =  node_defaults["mlagDetails"]["mlagPeerVlan"]
-                      switch_facts["mlag_peer_ipv4_pool"] = node_defaults["mlagDetails"]["mlagPeerIPv4Pool"]
-                      switch_facts["mlag_peer_subnet_mask"] = 31
+                  # switch_facts["mlag_ibgp_origin_incomplete"] = True
+
+                  if int(switch_facts["id"]) < int(mlag_peer_switch_facts["id"]):
+                      switch_facts["mlag_primary_id"] = int(switch_facts["id"])
+                      switch_facts["mlag_secondary_id"] = int(mlag_peer_switch_facts["id"])
+                      switch_facts["mlag_role"] = "primary"
+
+                      switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
+                                                                  switch_facts["mlag_peer_subnet_mask"], "primary"))
+
+                      switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
+                                                                      switch_facts["mlag_peer_subnet_mask"], "secondary"))
+
                       if switch_facts.get("underlay_router"):
-                          # Set mlag_peer_l3_vlan if there is value set in studio input
-                          if node_defaults['mlagDetails']['mlagPeerL3Vlan'] is not None \
-                                  and node_defaults['mlagDetails']['mlagPeerL3IPv4Pool'].strip() != "":
-                              switch_facts['mlag_peer_l3_vlan'] = node_defaults['mlagDetails']['mlagPeerL3Vlan']
-                              switch_facts['mlag_peer_l3_ipv4_pool'] = node_defaults['mlagDetails']['mlagPeerL3IPv4Pool']
-                              switch_facts['mlag_peer_l3_subnet_mask'] = 31
-                          else:
-                              switch_facts['mlag_peer_l3_vlan'] = switch_facts['mlag_peer_vlan']
-                              switch_facts['mlag_peer_l3_ipv4_pool'] = switch_facts["mlag_peer_ipv4_pool"]
-                              switch_facts['mlag_peer_l3_subnet_mask']= switch_facts["mlag_peer_subnet_mask"]
-                      switch_facts["mlag_dual_primary_detection"] = node_defaults["mlagDetails"]["mlagDualPrimaryDetection"]
-                      switch_facts["mlag_lacp_mode"] = "active"
-                      switch_facts["reload_delay_mlag"] = switch_facts['platform_settings']['reload_delay']['mlag']
-                      switch_facts["reload_delay_non_mlag"] = switch_facts['platform_settings']['reload_delay']['non_mlag']
+                          switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                          switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
 
-                      # switch_facts["mlag_ibgp_origin_incomplete"] = True
+                          switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                              switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
 
-                      if int(switch_facts["id"]) < int(mlag_peer_switch_facts["id"]):
-                          switch_facts["mlag_primary_id"] = int(switch_facts["id"])
-                          switch_facts["mlag_secondary_id"] = int(mlag_peer_switch_facts["id"])
-                          switch_facts["mlag_role"] = "primary"
+                  else:
+                      switch_facts["mlag_primary_id"] = int(mlag_peer_switch_facts["id"])
+                      switch_facts["mlag_secondary_id"] = int(switch_facts["id"])
+                      switch_facts["mlag_role"] = "secondary"
 
-                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
-                                                                    switch_facts["mlag_peer_subnet_mask"], "primary"))
+                      switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
+                          switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_peer_subnet_mask"], "secondary"))
 
-                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
-                                                                         switch_facts["mlag_peer_subnet_mask"], "secondary"))
-
-                          if switch_facts.get("underlay_router"):
-                              switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                           switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
-
-                              switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                                switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
-
-                      else:
-                          switch_facts["mlag_primary_id"] = int(mlag_peer_switch_facts["id"])
-                          switch_facts["mlag_secondary_id"] = int(switch_facts["id"])
-                          switch_facts["mlag_role"] = "secondary"
-
-                          switch_facts["mlag_ip"] = str(get_mlag_ip(switch_facts,
-                              switch_facts["mlag_peer_ipv4_pool"], switch_facts["mlag_peer_subnet_mask"], "secondary"))
-
-                          switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
-                                                                         switch_facts["mlag_peer_subnet_mask"], "primary"))
+                      switch_facts["mlag_peer_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_ipv4_pool"],
+                                                                      switch_facts["mlag_peer_subnet_mask"], "primary"))
 
 
-                          if switch_facts.get("underlay_router"):
+                      if switch_facts.get("underlay_router"):
 
 
-                              switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                           switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
+                          switch_facts["mlag_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                          switch_facts["mlag_peer_l3_subnet_mask"], "secondary"))
 
-                              switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
-                                                                                switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
+                          switch_facts["mlag_peer_l3_ip"] = str(get_mlag_ip(switch_facts, switch_facts["mlag_peer_l3_ipv4_pool"],
+                                                                              switch_facts["mlag_peer_l3_subnet_mask"], "primary"))
 
-                      # Set mlag interfaces
-                      # Set from topology studio
-                      switch_facts["mlag_interfaces"], switch_facts["mlag_peer_switch_interfaces"] = set_mlag_interfaces_from_topology(switch_facts)
+                  # Set mlag interfaces
+                  # Set from topology studio
+                  switch_facts["mlag_interfaces"], switch_facts["mlag_peer_switch_interfaces"] = set_mlag_interfaces_from_topology(switch_facts)
 
-                      if len(switch_facts.get("mlag_interfaces", [])) > 0:
-                          switch_facts["mlag_interfaces_cli"] = node_defaults["mlagDetails"].get("mlagPeerInterfacesEosCli")
-                          switch_facts["mlag_peer_link_cli"] = node_defaults["mlagDetails"].get("mlagPeerLinkEosCli")
+                  if len(switch_facts.get("mlag_interfaces", [])) > 0:
+                      switch_facts["mlag_interfaces_cli"] = node_defaults["mlagDetails"].get("mlagPeerInterfacesEosCli")
+                      switch_facts["mlag_peer_link_cli"] = node_defaults["mlagDetails"].get("mlagPeerLinkEosCli")
 
-              else:
-                  switch_facts["mlag"] = False
 
               # Get router related facts
               if switch_facts["underlay_router"] and node_defaults.get("routerIdPool"):
@@ -1886,7 +1908,8 @@
                       switch_facts["advertise_inband_ztp_vlan"] = True
                   # Set boot vlan for L2 child switches
                   if ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] in ["leaf", "memberleaf"]) or \
-                          ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in [ "memberleaf"]):
+                          ("l3ls" in switch_facts["campus_type"] and switch_facts["type"] in [ "memberleaf"]) or \
+                          ("l2ls" in switch_facts["campus_type"] and switch_facts["type"] == "spine" and not switch_facts["network_services_l3"]):
 
                       if switch_facts.get("inband_management_vlan") and switch_facts.get("inband_management_subnet"):
                           switch_facts["inband_management_role"] = "child"
@@ -1901,7 +1924,10 @@
 
                   inband_mgmt_ip = None
                   if switch_facts.get("inband_management_role", "") == "child":
-                      inband_mgmt_ip = get_child_inband_management_ip(switch_facts)
+                      offset = 0
+                      if ("l2ls" in switch_facts["campus_type"] and spines_l2_only and switch_facts["type"] != "spine"):
+                          offset = 2
+                      inband_mgmt_ip = get_child_inband_management_ip(switch_facts, offset=offset)
                   elif switch_facts.get("inband_management_subnet"):
                       if switch_facts.get("mlag") and switch_facts["mlag_role"] == "secondary":
                           inband_mgmt_ip = list(ipaddress.ip_network(switch_facts["inband_management_subnet"]).hosts())[2]
@@ -1971,7 +1997,7 @@
 
               for interface in ctx.topology.getDevices(deviceIds=[device_id])[0].getInterfaces():
                   peer_device, peer_interface = interface.getPeerInfo()
-                  if peer_device and "Ethernet" in interface.name and "Ethernet" in peer_interface.name:
+                  if peer_device and "Ethernet" in interface.name and "Management" not in peer_interface.name:
                       interfaces.append({
                           "interface_name": interface.name,
                           "peer_interface_name": peer_interface.name,
@@ -2003,6 +2029,11 @@
                           mlag_interfaces.append(interface["interface_name"])
                           mlag_peer_interfaces.append(interface["peer_interface_name"])
 
+                      # Member leaf case
+                      elif neighbor['serial_number'] == switch_facts["mlag_peer_serial_number"]:
+                          mlag_interfaces.append(interface["interface_name"])
+                          mlag_peer_interfaces.append(interface["peer_interface_name"])
+
               return mlag_interfaces, mlag_peer_interfaces
 
 
@@ -2018,7 +2049,6 @@
 
               device_id = switch_facts['serial_number']
 
-              leafs_upstream = None  #  Used to account for topologies where a member leaf uplinks to another memberleaf
               memberleafs_downstream = None  #  Used to account for topologies where a member leaf uplinks to another memberleaf
 
               for interface in natural_sort(switch_facts["interfaces"], sort_key="interface_name"):
@@ -2033,8 +2063,6 @@
                       elif switch_facts['type'] == "memberleaf":
                           if neighbor['type'] in ["leaf", "memberleaf"]:
                               uplink_info_tuples.append((interface['interface_name'], neighbor['hostname'], neighbor['serial_number'], interface["peer_interface_name"]))
-                              if neighbor["type"] == "leaf":
-                                  leafs_upstream = True
                               if neighbor["type"] == "memberleaf":
                                   memberleafs_downstream = True
 
@@ -2042,10 +2070,14 @@
               # to account for topologies where a memberleaf uplinks to another memberleaf,
               # cycle through memberleafs' uplinks to remove false memberleaf to memberleaf uplinks
               neighbors_to_remove = []
-              if switch_facts['type'] == "memberleaf" and leafs_upstream and memberleafs_downstream:
+              if switch_facts['type'] == "memberleaf" and memberleafs_downstream:
                   for uplink_info_tuple in uplink_info_tuples:
                       uplink_switch_facts = my_switch_facts_neighbors.get(uplink_info_tuple[2])
-                      if uplink_switch_facts and uplink_switch_facts["type"] == "memberleaf":
+                      if (
+                              (uplink_switch_facts["serial_number"] == switch_facts.get("mlag_peer_serial_number", ""))
+                              or
+                              (uplink_switch_facts and uplink_switch_facts["type"] == "memberleaf" and switch_facts["id"] < uplink_switch_facts["id"])
+                              ):
                           neighbors_to_remove.append(uplink_info_tuple)
               for neighbor_tuple in neighbors_to_remove:
                   uplink_info_tuples.remove(neighbor_tuple)
@@ -2054,6 +2086,15 @@
               uplink_switches = [uplink_info_tuple[1] for uplink_info_tuple in uplink_info_tuples]
               uplink_switches_ids = [uplink_info_tuple[2] for uplink_info_tuple in uplink_info_tuples]
               uplink_switch_interfaces = [uplink_info_tuple[3] for uplink_info_tuple in uplink_info_tuples]
+              unique_uplink_switches_ids = set(uplink_switches_ids)
+              if switch_facts.get("uplink_type", "") == "port-channel":
+                  assert len(unique_uplink_switches_ids) <= 2, f"{switch_facts['hostname']} has too many uplink neighbors in the fabric for an L2 port-channel: {uplink_switches_ids}"
+                  if len(unique_uplink_switches_ids) == 2:
+                      primary_neighbor = my_switch_facts_neighbors[unique_uplink_switches_ids.pop()]
+                      secondary_neighbor_id = unique_uplink_switches_ids.pop()
+                      assert primary_neighbor.get("mlag") and primary_neighbor["mlag_peer_serial_number"] == secondary_neighbor_id, \
+                             f"{switch_facts['hostname']} must have only 1 logical uplink neighbor in the fabric for an L2 port-channel: {uplink_switches_ids}"
+
               return uplink_interfaces, uplink_switches, uplink_switches_ids, uplink_switch_interfaces
 
 
@@ -2143,19 +2184,35 @@
                       if uplink_switch_facts.get("mlag") is not None and uplink_switch_facts.get("mlag") is True:
                           link_facts["channel_description"] = uplink_switch_facts["mlag_group"]
 
-                      if switch_facts.get("mlag") is not None and switch_facts.get("mlag") is True:
+                      if switch_facts.get("mlag"):
                           link_facts["peer_channel_description"] = switch_facts["mlag_group"]
 
-                      if switch_facts.get("mlag_role") is not None and switch_facts["mlag_role"] == "secondary":
-                          mlag_peer_switch_facts =  my_switch_facts_neighbors[switch_facts["mlag_peer_serial_number"]]
+                          mlag_peer_switch_facts = my_switch_facts_neighbors[switch_facts["mlag_peer_serial_number"]]
+                          if (
+                                  # check that the uplink switch is in this switch's mlag peer's uplink switches
+                                  uplink_switch_id in mlag_peer_switch_facts["uplink_switches_ids"]) \
+                                  or (
+                                      # check that the uplink switch's mlag peer is in this switch's mlag peers uplink switches
+                                      (uplink_switch_mlag_peer_sn := uplink_switch_facts.get('mlag_peer_serial_number'))
+                                      and (uplink_switch_mlag_peer_sn in mlag_peer_switch_facts["uplink_switches_ids"])
+                                  ):
+                              link_facts["mlag"] = True
+
+                          if not len(mlag_peer_switch_facts.get("uplink_interfaces", [])) and switch_facts['serial_number'] == my_switch_facts["serial_number"]:
+                              ctx.warning(
+                                  (
+                                      f"No uplink interfaces detected for {mlag_peer_switch_facts['hostname']}. "
+                                      f"Be sure that all uplink interfaces for {mlag_peer_switch_facts['hostname']} "
+                                      "are properly set in the Inventory and Topology studio."
+                                  )
+                              )
+
+                      if link_facts.get("mlag") and switch_facts["mlag_role"] == "secondary":
                           link_facts["channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_interfaces"][0]))
                           link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', mlag_peer_switch_facts["uplink_switch_interfaces"][0]))
-                      elif uplink_switch_facts.get("mlag"):
+                      else:
                           link_facts["channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_interfaces"][0]))
                           link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_switch_interfaces"][0]))
-                      else:
-                          link_facts["channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_interfaces"][i]))
-                          link_facts["peer_channel_group_id"] = "".join(re.findall(r'\d', switch_facts["uplink_switch_interfaces"][i]))
 
                       if switch_facts.get("ptp") is not None and switch_facts["ptp"].get("enabled") is True:
                           link_facts["ptp"] = {"enable": True}
@@ -2517,6 +2574,17 @@
                           link["vlans"] = neighbor_link_info.get("vlans")
                           link["channel_group_id"] = neighbor_link_info.get("peer_channel_group_id")
                           link["peer_channel_group_id"] = neighbor_link_info.get("channel_group_id")
+                          if switch_facts["mlag"] \
+                                  and (
+                                  # check that this switch's mlag peer is in the downstream switch's uplink switches
+                                  (switch_facts["mlag_peer_serial_number"] in neighbor_switch_facts["uplink_switches_ids"])
+                                  # check that this switch's mlag peer is in the downstream switch's mlag peer's uplink switches
+                                  or (
+                                    (neighbor_switch_mlag_peer_switch_facts := my_switch_facts_neighbors.get(neighbor_switch_facts.get('mlag_peer_serial_number')))
+                                      and (switch_facts["mlag_peer_serial_number"] in neighbor_switch_mlag_peer_switch_facts.get("uplink_switches_ids", []))
+                                      )
+                                  ):
+                              link["mlag"] = True
                           link["channel_description"] = neighbor_link_info.get("peer_channel_description")
                           # multicast/pim
                           link["underlay_multicast"] = neighbor_link_info.get("underlay_multicast")
@@ -2607,9 +2675,8 @@
                       }
                       if link.get("port_channel_eos_cli"):
                           port_channel["eos_cli"] = link["port_channel_eos_cli"]
-                      if switch_facts.get("mlag"):
+                      if link.get("mlag"):
                           port_channel["mlag"] = link["channel_group_id"]
-
                       if link.get('vlans'):
                           port_channel['vlans'] = list_compress(link['vlans'])
 
@@ -2868,15 +2935,18 @@
                   for tmp_switch_facts in my_switch_facts_neighbors.values():
                       if switch_facts["serial_number"] in tmp_switch_facts.get("inband_management_parents", []):
                           inband_management_data["role"] = "parent"
-                          if tmp_switch_facts["inband_management_subnet"] not in inband_management_data["subnets"]:
+                          if (ib_mgmt_subnet := tmp_switch_facts.get("inband_management_subnet")) and (ib_mgmt_subnet not in inband_management_data["subnets"]):
                               inband_management_data["vlans"].append(tmp_switch_facts["inband_management_vlan"])
                               inband_management_data["subnets"].append(tmp_switch_facts["inband_management_subnet"])
                               inband_management_data["ip_helpers_details"].append(tmp_switch_facts.get("inband_management_ip_helpers"))
 
-                  if switch_facts.get("inband_management_vlan") and switch_facts["inband_management_vlan"] not in inband_management_data["vlans"]:
-                      inband_management_data["vlans"].append(switch_facts["inband_management_vlan"])
-                      inband_management_data["subnets"].append(switch_facts["inband_management_subnet"])
-                      inband_management_data["ip_helpers_details"].append(switch_facts.get("inband_management_ip_helpers"))
+                  if (ib_mgmt_vlan := switch_facts.get("inband_management_vlan")) and (ib_mgmt_vlan not in inband_management_data["vlans"]):
+                      if (ib_mgmt_subnet := switch_facts.get("inband_management_subnet")):
+                          inband_management_data["vlans"].append(ib_mgmt_vlan)
+                          inband_management_data["subnets"].append(ib_mgmt_subnet)
+                          inband_management_data["ip_helpers_details"].append(switch_facts.get("inband_management_ip_helpers"))
+                      else:
+                          ctx.warning(f"No inband management subnet provided for VLAN {ib_mgmt_vlan} in {switch_facts['campus']} -> {switch_facts['campus_pod']}")
 
                   if inband_management_data.get("role", "") == "parent" or len(inband_management_data["vlans"]) > 0:
                       # parent-vrfs
@@ -3203,7 +3273,7 @@
               # Get devices
               devices = []
               # Automatically add spine switches in an L2 campus
-              if campus_type and campus_type == "L2" and switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
+              if campus_type and campus_type == "L2" and (switch_facts["type"] == "spine" or switch_facts["network_services_l2"] and switch_facts["network_services_l3"]):
                   devices.append(device_id)
               elif get(svi, "devices"):
                   for tag_matcher in svi["devices"]:
@@ -4740,6 +4810,15 @@
 
 
           @ctx.benchmark
+          def set_inband_ztp_interfaces(switch_facts, key):
+              if switch_facts.get("platform"):
+                  for inband_ztp_interfaces_group in advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"][key]:
+                      if re.search(inband_ztp_interfaces_group['platform'], switch_facts['platform'], re.IGNORECASE):
+                          inband_ztp_interfaces = inband_ztp_interfaces_group["inbandZtpInterfaces"]
+                          return range_expand(inband_ztp_interfaces)
+
+
+          @ctx.benchmark
           def get_switch_basics(device_id):
               dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
               # Initialize switch_facts
@@ -4773,6 +4852,7 @@
                   access_pod_details_resolved, access_pod_ctx = campus_pod_details["accessPods"].resolveWithContext(device=device_id)
                   switch_facts["group"] = re.match(r"Access-Pod:(.*)", access_pod_ctx.query_str).group(1)
                   access_pod_details = access_pod_details_resolved["accessPodFacts"]
+                  switch_facts["access_pod_details"] = access_pod_details
                   if device_matches_resolver_query(access_pod_details["leafs"], device_id):
                       switch_facts["type"] = "leaf"
                       node_id = access_pod_details["leafs"].resolve(device=device_id)["leafsInfo"].get("nodeId")
@@ -4899,9 +4979,8 @@
                       custom_node_properties['uplink_type'] = spine_defaults['spineUplinkType'].lower()
 
                   # Set inband ztp interfaces
-                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["spinesInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["spinesInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
-                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+                  if inband_ztp_interfaces := set_inband_ztp_interfaces(switch_facts, "spinesInbandZtpInterfaces"):
+                      switch_facts["inband_ztp_interfaces"] = inband_ztp_interfaces
 
               elif switch_facts["type"] == "leaf":
                   leaf_defaults = campus_pod_details['nodeTypeProperties']['defaultLeafProperties']
@@ -4931,15 +5010,17 @@
                       custom_node_properties['uplink_type'] = leaf_defaults['leafUplinkType'].lower()
 
                   # Set inband ztp interfaces
-                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["leafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
-                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+                  if inband_ztp_interfaces := set_inband_ztp_interfaces(switch_facts, "leafsInbandZtpInterfaces"):
+                      switch_facts["inband_ztp_interfaces"] = inband_ztp_interfaces
 
               elif switch_facts["type"] == "memberleaf":
+                  member_leaf_defaults = campus_pod_details['nodeTypeProperties']['defaultMemberLeafProperties']
+                  # Set custom MLAG support role
+                  if member_leaf_defaults.get('memberLeafMlagSupportDefault', '').strip() != "":
+                      custom_node_properties['mlag_support'] = True if member_leaf_defaults['memberLeafMlagSupportDefault'] == "Yes" else False
                   # Set inband ztp interfaces
-                  if device_matches_resolver_query(advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"], device_id):
-                      inband_ztp_interfaces = advanced_fabric_settings['inbandZtp']["inbandZtpInterfaces"]["memberLeafsInbandZtpInterfaces"].resolve(device=device_id)["inbandZtpInterfacesGroup"]["inbandZtpInterfaces"]
-                      switch_facts["inband_ztp_interfaces"] = range_expand(inband_ztp_interfaces)
+                  if inband_ztp_interfaces := set_inband_ztp_interfaces(switch_facts, "memberLeafsInbandZtpInterfaces"):
+                      switch_facts["inband_ztp_interfaces"] = inband_ztp_interfaces
 
               # Set node properties
               switch_facts["connected_endpoints"] = default(custom_node_properties.get("connected_endpoints"), node_type_defaults[switch_facts["campus_type"]][switch_facts["type"]]["connected_endpoints"])
@@ -4996,6 +5077,8 @@
 
           @ctx.benchmark
           def get_campus_pod_details(device_id, campus_resolver):
+              # Used for logging
+              dev = ctx.topology.getDevices(deviceIds=[device_id])[0]
               # Process Studio inputs
               campus_resolved, campus_ctx = campus_resolver.resolveWithContext(device=device_id)
               if not campus_resolved or not campus_ctx.query_str:
@@ -5003,17 +5086,17 @@
               campus_name = re.match(r"Campus:(.*)", campus_ctx.query_str).group(1)
               campus_details = campus_resolved.get('campusDetails', None)
               if campus_details is None:
-                  ctx.warning(f"The AVD Campus Fabric studio is applied to {switch_facts['hostname']} but {switch_facts['hostname']} is not a member of any Campus.")
+                  ctx.warning(f"The AVD Campus Fabric studio is applied to {dev.hostName} but {dev.hostName} is not a member of any Campus.")
                   return
 
               campus_pod_resolved, campus_pod_ctx = campus_details["campusPod"].resolveWithContext(device=device_id)
               if not campus_pod_resolved or not campus_pod_ctx.query_str:
-                  ctx.warning(f"The AVD Campus Fabric studio is applied to {switch_facts['hostname']} but {switch_facts['hostname']} in Campus:{campus_name} is not a member of any Campus-Pod.")
+                  ctx.warning(f"The AVD Campus Fabric studio is applied to {dev.hostName} but {dev.hostName} in Campus:{campus_name} is not a member of any Campus-Pod.")
                   return
               campus_pod_name = re.match(r"Campus-Pod:(.*)", campus_pod_ctx.query_str).group(1)
               campus_pod_details = campus_pod_resolved.get('campusPodFacts', None)
               if campus_pod_details is None:
-                  ctx.warning(f"The AVD Campus Fabric studio is applied to {switch_facts['hostname']} but {switch_facts['hostname']} in Campus:{campus_name} is not a member of any Campus-Pod.")
+                  ctx.warning(f"The AVD Campus Fabric studio is applied to {dev.hostName} but {dev.hostName} in Campus:{campus_name} is not a member of any Campus-Pod.")
                   return
               campus_pod_details["campus"] = campus_name
               campus_pod_details["campus_pod"] = campus_pod_name
@@ -5077,6 +5160,14 @@
 
           dump_my_switch_facts(1)
 
+          # Check to see if spines are l2 only devices (used for inband management ip address selection - specifically matters in l2 only spine designs)
+          spines_l2_only = False
+          for switch_facts in dict(my_switch_facts_neighbors).values():
+              if switch_facts["type"] == "spine":
+                  if switch_facts.get("network_services_l2") and not switch_facts.get("network_services_l3"):
+                      spines_l2_only = True
+                  break
+
           # Add 3rd party devices
           third_party_devices = get_switch_basics_for_third_party_devices(my_device.id)
           my_switch_facts_neighbors.update(third_party_devices)
@@ -5093,6 +5184,11 @@
           # Set custom fabric settings
           set_custom_fabric_variables(advancedFabricSettings)
           dump_my_switch_facts(2)
+
+          # Get mlag_peer (need to do this before setting uplinks
+          # for untraditional member leaf topologies)
+          for switch_facts in my_switch_facts_neighbors.values():
+              switch_facts = set_mlag_switch_facts(switch_facts)
 
           # Set uplink info for all switch_facts in my_switch_facts_neighbors
           for switch_facts in my_switch_facts_neighbors.values():
@@ -6864,6 +6960,25 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            leafMlagDomainId:
+              id: leafMlagDomainId
+              name: mlagDomainId
+              label: MLAG Domain ID
+              description: 'Enter an MLAG Domain ID name. If "Use Group Name" is selected, the name of the Access-Pod the switch belongs to will be used as the Domain ID. Default value is "MLAG". WARNING: Once set, changing this value in EVPN networks can cause the blacklisting of active hosts.'
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: MLAG
+                is_secret: false
+                static_options:
+                  values:
+                    - MLAG
+                    - Use Group Name
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: true
             leafVirtualRouterMacAddress:
               id: leafVirtualRouterMacAddress
               name: virtualRouterMacAddress
@@ -6935,6 +7050,7 @@
                     - leafMlagPeerIPv4Pool
                     - leafMlagPeerL3Vlan
                     - leafMlagPeerL3IPv4Pool
+                    - leafMlagDomainId
                     - leafVirtualRouterMacAddress
                     - leafMlagPeerInterfacesEosCli
                     - leafMlagPeerLinkEosCli
@@ -7503,6 +7619,25 @@
                 pattern: null
                 dynamic_options: null
                 extra_values_allowed: false
+            spineMlagDomainId:
+              id: spineMlagDomainId
+              name: mlagDomainId
+              label: MLAG Domain ID
+              description: 'Enter an MLAG Domain ID name. If "Use Group Name" is selected, the name of the Campus and Campus Pod the switch is member of will be used to form the Domain ID. Default value is "MLAG". WARNING: Once set, changing this value in EVPN networks can cause the blacklisting of active hosts.'
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: MLAG
+                is_secret: false
+                static_options:
+                  values:
+                    - MLAG
+                    - Use Group Name
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: true
             spineVirtualRouterMacAddress:
               id: spineVirtualRouterMacAddress
               name: virtualRouterMacAddress
@@ -7574,6 +7709,7 @@
                     - spineMlagPeerIPv4Pool
                     - spineMlagPeerL3Vlan
                     - spineMlagPeerL3IPv4Pool
+                    - spineMlagDomainId
                     - spineVirtualRouterMacAddress
                     - spineMlagPeerLinkEosCli
                     - spineMlagPeerInterfacesEosCli
@@ -7879,6 +8015,52 @@
                 input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
                 input_tag_label: device
                 tag_filter_query: null
+            accessPodMlagPrimary:
+              id: accessPodMlagPrimary
+              name: mlagPrimary
+              label: MLAG Primary
+              description: 'Select a member leaf to be the primary side of an MLAG pair'
+              required: false
+              type: INPUT_FIELD_TYPE_TAG_MATCHER
+              tag_matcher_props:
+                tag_matcher_mode: TAG_MATCHER_FIELD_MODE_SINGLE_DEVICE_TAG
+                tag_matcher_label: device
+                tag_filter_query: null
+                resolver_filtering_allowed: true
+            accessPodMlagSecondary:
+              id: accessPodMlagSecondary
+              name: mlagSecondary
+              label: MLAG Secondary
+              description: 'Select a member leaf to be the secondary side of an MLAG pair'
+              required: false
+              type: INPUT_FIELD_TYPE_TAG_MATCHER
+              tag_matcher_props:
+                tag_matcher_mode: TAG_MATCHER_FIELD_MODE_SINGLE_DEVICE_TAG
+                tag_matcher_label: device
+                tag_filter_query: null
+                resolver_filtering_allowed: true
+            accessPodMlagPairsGroup:
+              id: accessPodMlagPairsGroup
+              name: accessPodMlagPairsGroup
+              label: Member Leaf MLAG Pairs Group
+              description: Group of members for Member Leaf MLAG Pairs
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - accessPodMlagPrimary
+                    - accessPodMlagSecondary
+            accessPodMlagPairsCollection:
+              id: accessPodMlagPairsCollection
+              name: memberLeafMlagPairs
+              label: Member Leaf MLAG Pairs
+              description: 'Designate specific member leafs to form MLAG pairs'
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: accessPodMlagPairsGroup
+                key: null
             accessPodFacts:
               id: accessPodFacts
               name: accessPodFacts
@@ -7891,6 +8073,7 @@
                   values:
                     - leafsResolver
                     - memberLeafsResolver
+                    - accessPodMlagPairsCollection
             accessPods:
               id: accessPods
               name: accessPods
@@ -8244,6 +8427,36 @@
                     - leafL3NetworkServicesDefault
                     - leafUnderlayRouterDefault
                     - leafUplinkTypeDefault
+            memberLeafMlagSupportDefault:
+              id: memberLeafMlagSupportDefault
+              name: memberLeafMlagSupportDefault
+              label: MLAG Support
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options:
+                  values:
+                    - 'Yes'
+                    - 'No'
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            defaultMemberLeafProperties:
+              id: defaultMemberLeafProperties
+              name: defaultMemberLeafProperties
+              label: Default Member Leaf Properties
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - memberLeafMlagSupportDefault
             nodeTypeProperties:
               id: nodeTypeProperties
               name: nodeTypeProperties
@@ -8256,6 +8469,7 @@
                   values:
                     - defaultSpineProperties
                     - defaultLeafProperties
+                    - defaultMemberLeafProperties
             campusPodUnderlayRoutingProtocol:
               id: campusPodUnderlayRoutingProtocol
               name: campusPodUnderlayRoutingProtocol
@@ -9347,6 +9561,22 @@
               collection_props:
                 base_field_id: spinesInbandZtpEthernetInterfaces
                 key: ''
+            spinesInbandZtpPlatform:
+              id: spinesInbandZtpPlatform
+              name: platform
+              label: Platform
+              description: 'Enter the model name of the spine switches to set inband ztp interfaces for'
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
             spinesInbandZtpEthernetInterfacesGroup:
               id: spinesInbandZtpEthernetInterfacesGroup
               name: inbandZtpInterfacesGroup
@@ -9358,19 +9588,17 @@
                 members:
                   values:
                     - spinesInbandZtpEthernetInterfacesCollection
-            spinesInbandZtpEthernetInterfacesResolver:
-              id: spinesInbandZtpEthernetInterfacesResolver
+                    - spinesInbandZtpPlatform
+            spinesInbandZtpInterfacesPlatformDetails:
+              id: spinesInbandZtpInterfacesPlatformDetails
               name: spinesInbandZtpInterfaces
-              label: Spines Interfaces
-              description: Select spine switches whose downstream interfaces will be configured.
+              label: Spines Inband ZTP Interfaces
+              description: ''
               required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
                 base_field_id: spinesInbandZtpEthernetInterfacesGroup
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
-                tag_filter_query: null
+                key: spinesInbandZtpPlatform
             leafsInbandZtpEthernetInterfaces:
               id: leafsInbandZtpEthernetInterfaces
               name: interfaces
@@ -9397,6 +9625,22 @@
               collection_props:
                 base_field_id: leafsInbandZtpEthernetInterfaces
                 key: ''
+            leafsInbandZtpPlatform:
+              id: leafsInbandZtpPlatform
+              name: platform
+              label: Platform
+              description: 'Enter the model name of the leaf switches to set inband ztp interfaces for'
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
             leafsInbandZtpEthernetInterfacesGroup:
               id: leafsInbandZtpEthernetInterfacesGroup
               name: inbandZtpInterfacesGroup
@@ -9408,19 +9652,17 @@
                 members:
                   values:
                     - leafsInbandZtpEthernetInterfacesCollection
-            leafsInbandZtpEthernetInterfacesResolver:
-              id: leafsInbandZtpEthernetInterfacesResolver
+                    - leafsInbandZtpPlatform
+            leafsInbandZtpInterfacesPlatformDetails:
+              id: leafsInbandZtpInterfacesPlatformDetails
               name: leafsInbandZtpInterfaces
-              label: Leafs Interfaces
-              description: Select leaf switches whose downstream interfaces will be configured.
+              label: Leafs Inband ZTP Interfaces
+              description: ''
               required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
                 base_field_id: leafsInbandZtpEthernetInterfacesGroup
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
-                tag_filter_query: null
+                key: leafsInbandZtpPlatform
             memberLeafsInbandZtpEthernetInterfaces:
               id: memberLeafsInbandZtpEthernetInterfaces
               name: interfaces
@@ -9447,6 +9689,22 @@
               collection_props:
                 base_field_id: memberLeafsInbandZtpEthernetInterfaces
                 key: ''
+            memberLeafsInbandZtpPlatform:
+              id: memberLeafsInbandZtpPlatform
+              name: platform
+              label: Platform
+              description: 'Enter the model name of the member leaf switches to set inband ztp interfaces for'
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
             memberLeafsInbandZtpEthernetInterfacesGroup:
               id: memberLeafsInbandZtpEthernetInterfacesGroup
               name: inbandZtpInterfacesGroup
@@ -9458,19 +9716,17 @@
                 members:
                   values:
                     - memberLeafsInbandZtpEthernetInterfacesCollection
-            memberLeafsInbandZtpEthernetInterfacesResolver:
-              id: memberLeafsInbandZtpEthernetInterfacesResolver
+                    - memberLeafsInbandZtpPlatform
+            memberLeafsInbandZtpInterfacesPlatformDetails:
+              id: memberLeafsInbandZtpInterfacesPlatformDetails
               name: memberLeafsInbandZtpInterfaces
-              label: Member Leafs Interfaces
-              description: Select member-leaf switches whose downstream interfaces will be configured.
+              label: Member Leafs Inband ZTP Interfaces
+              description: ''
               required: false
-              type: INPUT_FIELD_TYPE_RESOLVER
-              resolver_props:
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
                 base_field_id: memberLeafsInbandZtpEthernetInterfacesGroup
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
-                tag_filter_query: null
+                key: memberLeafsInbandZtpPlatform
             inbandZtpEthernetInterfaces:
               id: inbandZtpEthernetInterfaces
               name: inbandZtpInterfaces
@@ -9481,9 +9737,9 @@
               group_props:
                 members:
                   values:
-                    - spinesInbandZtpEthernetInterfacesResolver
-                    - leafsInbandZtpEthernetInterfacesResolver
-                    - memberLeafsInbandZtpEthernetInterfacesResolver
+                    - spinesInbandZtpInterfacesPlatformDetails
+                    - leafsInbandZtpInterfacesPlatformDetails
+                    - memberLeafsInbandZtpInterfacesPlatformDetails
             portChannelInterfaceInbandZtpLacpFallbackMode:
               id: portChannelInterfaceInbandZtpLacpFallbackMode
               name: mode
@@ -9672,7 +9928,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: ^\S*$
                 dynamic_options: null
                 extra_values_allowed: false
             sviPimEnabled:
@@ -12442,7 +12698,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: ^\S*$
                 dynamic_options: null
                 extra_values_allowed: false
             sviDhcpHelperHelperIp:
@@ -13628,7 +13884,7 @@
                 static_options: null
                 format: null
                 length: null
-                pattern: null
+                pattern: ^\S*$
                 dynamic_options: null
                 extra_values_allowed: false
             l2VlanVxlan:
@@ -13879,7 +14135,8 @@
                 "type":"INPUT",
                 "order":[
                   "leafsResolver",
-                  "memberLeafsResolver"
+                  "memberLeafsResolver",
+                  "accessPodMlagPairsCollection"
                 ]
               },
               "accessPodBgpEosCli":{
@@ -15873,6 +16130,7 @@
                   "spineMlagPeerIPv4Pool",
                   "spineMlagPeerL3Vlan",
                   "spineMlagPeerL3IPv4Pool",
+                  "spineMlagDomainId",
                   "spineVirtualRouterMacAddress",
                   "spineMlagDualPrimaryDetection",
                   "spineMlagPeerInterfacesEosCli",
@@ -16575,36 +16833,6 @@
                 "key":"memberLeafsResolver",
                 "type":"INPUT",
                 "showDefaultRow":false
-              },
-              "spinesInbandZtpEthernetInterfacesResolver":{
-                "key":"spinesInbandZtpEthernetInterfacesResolver",
-                "showDefaultRow":false,
-                "fieldOverrides":{
-                  "label":"Spines",
-                  "description":"Enter a tag query to select spine switches",
-                  "addButtonLabel":"Spines"
-                },
-                "type":"INPUT"
-              },
-              "leafsInbandZtpEthernetInterfacesResolver":{
-                "key":"leafsInbandZtpEthernetInterfacesResolver",
-                "showDefaultRow":false,
-                "fieldOverrides":{
-                  "label":"Leafs",
-                  "description":"Enter a tag query to select leaf switches",
-                  "addButtonLabel":"Leafs"
-                },
-                "type":"INPUT"
-              },
-              "memberLeafsInbandZtpEthernetInterfacesResolver":{
-                "key":"memberLeafsInbandZtpEthernetInterfacesResolver",
-                "showDefaultRow":false,
-                "fieldOverrides":{
-                  "label":"Member-Leafs",
-                  "description":"Enter a tag query to select member-leaf switches",
-                  "addButtonLabel":"Member-Leafs"
-                },
-                "type":"INPUT"
               },
               "inbandZtpSettings":{
                 "key":"inbandZtpSettings",
@@ -17846,10 +18074,521 @@
                   "leafMlagPeerIPv4Pool",
                   "leafMlagPeerL3Vlan",
                   "leafMlagPeerL3IPv4Pool",
+                  "leafMlagDomainId",
                   "leafVirtualRouterMacAddress",
                   "leafMlagDualPrimaryDetection",
                   "leafMlagPeerInterfacesEosCli",
                   "leafMlagPeerLinkEosCli"
                 ]
+              },
+              "spineMlagDomainId":{
+                "key":"spineMlagDomainId",
+                "type":"INPUT",
+                "dependency":{
+                  "campusType":{
+                    "value":[
+                      "L2"
+                    ],
+                    "mode":"SHOW"
+                  },
+                  "spineMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
+              },
+              "spinesInbandZtpEthernetInterfacesGroup":{
+                "key":"spinesInbandZtpEthernetInterfacesGroup",
+                "type":"INPUT",
+                "order":[
+                  "spinesInbandZtpPlatform",
+                  "spinesInbandZtpEthernetInterfacesCollection"
+                ]
+              },
+              "leafsInbandZtpEthernetInterfacesGroup":{
+                "key":"leafsInbandZtpEthernetInterfacesGroup",
+                "type":"INPUT",
+                "order":[
+                  "leafsInbandZtpPlatform",
+                  "leafsInbandZtpEthernetInterfacesCollection"
+                ]
+              },
+              "memberLeafsInbandZtpEthernetInterfacesGroup":{
+                "key":"memberLeafsInbandZtpEthernetInterfacesGroup",
+                "type":"INPUT",
+                "order":[
+                  "memberLeafsInbandZtpPlatform",
+                  "memberLeafsInbandZtpEthernetInterfacesCollection"
+                ]
+              },
+              "memberLeafsInbandZtpInterfacesPlatformDetails":{
+                "key":"memberLeafsInbandZtpInterfacesPlatformDetails",
+                "isPageLayout":true,
+                "fieldOverrides":{
+                  "addButtonLabel":"Platform"
+                },
+                "type":"INPUT"
+              },
+              "leafsInbandZtpInterfacesPlatformDetails":{
+                "key":"leafsInbandZtpInterfacesPlatformDetails",
+                "isPageLayout":true,
+                "fieldOverrides":{
+                  "addButtonLabel":"Platform"
+                },
+                "type":"INPUT"
+              },
+              "spinesInbandZtpInterfacesPlatformDetails":{
+                "key":"spinesInbandZtpInterfacesPlatformDetails",
+                "isPageLayout":true,
+                "fieldOverrides":{
+                  "addButtonLabel":"Platform"
+                },
+                "type":"INPUT"
+              },
+              "accessPodMlagPrimary":{
+                "key":"accessPodMlagPrimary",
+                "type":"INPUT",
+                "dependency":{
+                  "memberLeafMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                },
+                "dependencyType":"AND"
+              },
+              "accessPodMlagSecondary":{
+                "key":"accessPodMlagSecondary",
+                "type":"INPUT",
+                "dependencyType":"AND",
+                "dependency":{
+                  "memberLeafMlagSupportDefault":{
+                    "value":[
+                      "Yes"
+                    ],
+                    "mode":"SHOW"
+                  }
+                }
               }
             }
+
+- service: arista.studio.v1.AutofillActionConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: studio-avd-campus-fabric
+        workspace_id: ''
+        input_field_id: campusType
+      description: Autofill Node IDs for all devices in this Campus Pod
+      action_id: "action-avd-campus-fabric-autofill-nodeid"
+
+- service: arista.studio.v1.AutofillActionConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: studio-avd-campus-fabric
+        workspace_id: ''
+        input_field_id: spinesNodeId
+      description: Autofill Spine Node ID
+      action_id: "action-avd-campus-fabric-autofill-nodeid"
+
+- service: arista.studio.v1.AutofillActionConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: studio-avd-campus-fabric
+        workspace_id: ''
+        input_field_id: leafsNodeId
+      description: Autofill Leaf Node ID
+      action_id: "action-avd-campus-fabric-autofill-nodeid"
+
+- service: arista.studio.v1.AutofillActionConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: studio-avd-campus-fabric
+        workspace_id: ''
+        input_field_id: memberLeafsNodeId
+      description: Autofill Member Leaf Node ID
+      action_id: "action-avd-campus-fabric-autofill-nodeid"
+
+- service: arista.action.v1.ActionConfigService
+  method: Set
+  body:
+    value:
+      key:
+        id: action-avd-campus-fabric-autofill-nodeid
+      language: ACTION_LANGUAGE_PYTHON_3
+      core:
+        name: Generate Campus Node IDs
+        type: ACTION_TYPE_STUDIO_AUTOFILL
+        description: Autofill Campus Studio Node IDs
+        dynamic_args:
+          values:
+            InputPath:
+              default:
+                value: ''
+              deprecated: null
+              description: ''
+              hidden: false
+              required: true
+            StudioID:
+              default:
+                value: ''
+              deprecated: null
+              description: ''
+              hidden: false
+              required: true
+            WorkspaceID:
+              default:
+                value: ''
+              deprecated: null
+              description: ''
+              hidden: false
+              required: true
+      body: |
+        # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
+        # Arista Networks, Inc. Confidential and Proprietary.
+        # Subject to Arista Networks, Inc.'s EULA.
+        # FOR INTERNAL USE ONLY. NOT FOR DISTRIBUTION.
+
+        import re
+        import os
+        from typing import Dict, List, Tuple
+        # pylint: disable=import-error
+        from cloudvision.cvlib import (
+            ActionFailed,
+            extractStudioInfoFromArgs,
+            InputUpdateException,
+            InputRequestException,
+            setStudioInputs,
+            getStudioInputs
+        )
+
+        def convert(text):
+           return int(text) if text.isdigit() else text.lower()
+
+        def natural_sort(iterable, sort_key=None):
+           if iterable is None:
+              return []
+           def alphanum_key(key):
+              if sort_key is not None and isinstance(key, dict):
+                 return [convert(c) for c in re.split("([0-9]+)", str(key.get(sort_key, key)))]
+              return [convert(c) for c in re.split("([0-9]+)", str(key))]
+           return sorted(iterable, key=alphanum_key)
+
+        class id_allocator:
+           def __init__(self, start: int=1, end: int=65000):
+              self.range_start = start
+              self.range_end = end
+              self.available = set(range(start, end + 1))
+              self.allocated = set()
+
+           def allocate(self, alloc_id: int=None) -> int:
+              if alloc_id is not None:
+                 if self.range_start <= alloc_id <= self.range_end:
+                    if alloc_id not in self.allocated:
+                       self.allocated.add(alloc_id)
+                       self.available.remove(alloc_id)
+                    return alloc_id
+                 raise ValueError(f"Id {alloc_id} is outside the available range")
+              if not self.available:
+                 raise ValueError("no more Ids available")
+
+              allocated_id = min(self.available)
+              self.available.remove(allocated_id)
+              self.allocated.add(allocated_id)
+              return allocated_id
+
+           def free(self, free_id: int):
+              if self.range_start <= free_id <= self.range_end:
+                 self.available.add(free_id)
+                 if free_id in self.allocated:
+                    self.allocated.remove(free_id)
+              else:
+                 raise ValueError(f"Id {free_id} is outside the available range")
+
+           def get_available(self) -> List:
+              return list(self.available)
+
+           def get_allocated(self) -> List:
+              return list(self.allocated)
+
+        class Params:
+           def __init__(self, stdID: str, wrkID: str, path: list):
+              self.stdID = stdID
+              self.wrkID = wrkID
+              self.path = path
+           def __copy__(self):
+              return Params(self.stdID, self.wrkID, self.path)
+
+        nodeIdSettings = []
+
+        def get_value_from_tags(tags: str) -> str:
+           """
+           Return the value in single-tag resolver
+           """
+           return tags.get('query').split(':')[1]
+
+        def get_inputpath_device(input_path: List, cpod_details: Dict) -> (str, str):
+           """
+           Return the device-type and device referenced by the input_path,
+           if the input_path specifies one device
+           """
+           if 'spines' in input_path:
+              memberType = 'spines'
+              index = int(input_path[input_path.index('spines')+1])
+              members = cpod_details.get('inputs').get('campusPodFacts').get('spines')
+              member = members[index]
+              device = get_value_from_tags(member.get('tags'))
+              return memberType, device
+           if 'accessPodFacts' in input_path:
+              apod_index = int(input_path[input_path.index('accessPods')+1])
+              memberType = input_path[input_path.index('accessPodFacts')+1]
+              index = int(input_path[input_path.index(memberType)+1])
+              apod = cpod_details.get('inputs').get('campusPodFacts').get('accessPods')[apod_index]
+              members = apod.get('inputs').get('accessPodFacts').get(memberType)
+              member = members[index]
+              device = get_value_from_tags(member.get('tags'))
+              return memberType, device
+           return None, None
+
+        def get_spines_from_cpod(cpod_details: Dict,
+           id_alloc: id_allocator) -> Dict:
+           """
+           Return a dictionary of spine nodeIds already allocated in campus pod
+           """
+           spines_nodeIds = {}
+           cpodSpines = cpod_details.get('inputs').get('campusPodFacts').get('spines')
+           if not cpodSpines:
+              return spines_nodeIds
+           for spine in cpodSpines:
+              if not (inputs := spine.get('inputs')) or not (tags := spine.get('tags')):
+                 continue
+              spine_nodeId = inputs.get('spinesInfo').get('nodeId')
+              spine_dev = get_value_from_tags(tags)
+              spines_nodeIds[spine_dev] = spine_nodeId
+              if spine_nodeId:
+                 id_alloc.allocate(spine_nodeId)
+           return spines_nodeIds
+
+        def generate_spine_nodeIds(spines_nodeIds: Dict, id_alloc: id_allocator,
+           device: str=None) -> Dict:
+           """
+           Return a dictionary of spine nodeIds fully allocated in campus pod
+               - { <device>: <nodeId>, ... }
+           """
+           for spine, nodeId in spines_nodeIds.items():
+              if not nodeId:
+                 if device and spine != device:
+                    continue
+                 spines_nodeIds[spine] = id_alloc.allocate()
+           return spines_nodeIds
+
+        def get_members_from_apod(apod_facts: Dict, apod_name: Dict, apod_members: Dict,
+           id_alloc: id_allocator, memberType: str) -> Dict:
+           """
+           Return a two level dictionary of access pod nodeIds already allocated,
+           in a campus pod, for a access pod memberType, ie. leafs or memberLeafs
+               - { <access_pod_name>: { <device>: <nodeId>, ... }, ... }
+           """
+           for apod_member in apod_facts.get(memberType):
+              if not (inputs := apod_member.get('inputs')) or not (tags := apod_member.get('tags')):
+                 continue
+              if memberInfo := inputs.get(memberType + 'Info'):
+                 member_nodeId = memberInfo.get('nodeId')
+              else:
+                 member_nodeId = None
+              member_device = get_value_from_tags(tags)
+              apod_members.setdefault(apod_name, {})[member_device] = member_nodeId
+              if member_nodeId:
+                 id_alloc.allocate(member_nodeId)
+           return apod_members
+
+        def generate_apod_nodeIds(apod_members: Dict, id_alloc: id_allocator,
+           device: str=None) -> Dict:
+           """
+           Return a dictionary of access pod nodeIds fully allocated in campus pod,
+           for a access pod memberType, ie. leafs or memberLeafs.
+               - { <device>: <nodeId>, ... }
+           For unfilled nodeIds, generate based on access pod sorted alphanumberically
+           """
+           member_nodeIds = {}
+           apod_members = {key: dict(natural_sort(
+                            apod_members[key].items())) for key in natural_sort(
+                               apod_members)}
+           for _, members in apod_members.items():
+              for member, nodeId in members.items():
+                 if not nodeId:
+                    if device and member != device:
+                       continue
+                    members[member] = id_alloc.allocate()
+                 member_nodeIds[member] = members[member]
+           return member_nodeIds
+
+        def get_nodeIds(device: str, campusType: str, cpod_details: Dict) -> Dict:
+           """
+           Return a dictionary of nodeIds allocated in campus pod.
+           If device is specified, generate nodeId only for that device
+           """
+           # for an L2 campus allocate both leafs and mleafs from the same allocator
+           sid_alloc = id_allocator()
+           if campusType == 'L2':
+              lid_alloc = id_allocator()
+              mid_alloc = lid_alloc
+           else:
+              lid_alloc = id_allocator()
+              mid_alloc = id_allocator()
+
+           # spines
+           spine_nodeIds = get_spines_from_cpod(cpod_details, sid_alloc)
+           spine_nodeIds = generate_spine_nodeIds(spine_nodeIds, sid_alloc, device)
+
+           # leafs and memberLeafs
+           #   - get all members of all apods
+           #   - for an L2 campus get both leafs and mleafs
+           leaf_members = {}
+           mleaf_members = {}
+           apods = cpod_details.get('inputs').get('campusPodFacts').get('accessPods')
+           for apod in apods:
+              if not (apod_details := apod.get('inputs')):
+                 continue
+              if not (apod_facts := apod_details.get('accessPodFacts')):
+                 continue
+              if not (apod_tags := apod.get('tags')):
+                 continue
+              if not (apod_name := get_value_from_tags(apod_tags)):
+                 continue
+              leaf_members = get_members_from_apod(apod_facts, apod_name, leaf_members,
+                                                 lid_alloc, 'leafs')
+              mleaf_members = get_members_from_apod(apod_facts, apod_name, mleaf_members,
+                                                 mid_alloc, 'memberLeafs')
+           leaf_nodeIds = generate_apod_nodeIds(leaf_members, lid_alloc, device)
+           mleaf_nodeIds = generate_apod_nodeIds(mleaf_members, mid_alloc, device)
+           member_nodeIds = spine_nodeIds | leaf_nodeIds | mleaf_nodeIds
+           return member_nodeIds
+
+        def set_nodeId(params: Params, nodeId: int):
+           """
+           Set the nodeId for the input path device in the inputs
+           """
+           nodeIdSettings.append((params.path, nodeId))
+
+        def sendNodeIdSettings(stdID: str, wrkID: str, inputs: List[Tuple]):
+           """
+           Send the nodeId settings to the Inputs Service
+           """
+           try:
+              # pylint: disable=undefined-variable
+              setStudioInputs(ctx.getApiClient, stdID, wrkID, inputs)
+           except InputUpdateException as error:
+              raise ActionFailed(("Failed to update input associated with nodeIds. "
+                                  "Please assign them manually.")) from error
+
+        def set_spineIds(params: Params, cpod_details: Dict, relevant_nodeIds: Dict):
+           """
+           Set the nodeId for the spines in the inputs
+           """
+           base_path = params.path[:-2]
+           local_params = params.__copy__()
+           cpodSpines = cpod_details.get('inputs').get('campusPodFacts').get('spines')
+           for idx, spine in enumerate(cpodSpines):
+              if not (inputs := spine.get('inputs')) or not (tags := spine.get('tags')):
+                 continue
+              nodeId = inputs.get('spinesInfo').get('nodeId')
+              if relevant_nodeIds and nodeId:
+                 continue
+              if not relevant_nodeIds and not nodeId:
+                 continue
+              dev = get_value_from_tags(tags)
+              nodeId = relevant_nodeIds.get(dev)
+              local_params.path = base_path + ['spines', str(idx), 'inputs',
+                                               'spinesInfo', 'nodeId']
+              set_nodeId(local_params, nodeId)
+
+        def set_members_in_apod(params: Params, relevant_nodeIds: Dict,
+                                apod_facts: Dict, apodIdx: int, memberType: str):
+           """
+           Set the nodeId for the access pod members of type in the inputs
+           """
+           base_path = params.path[:-2]
+           local_params = params.__copy__()
+           for idx, apod_member in enumerate(apod_facts.get(memberType)):
+              if not (inputs := apod_member.get('inputs')) or not (tags := apod_member.get('tags')):
+                 continue
+              if memberInfo := inputs.get(memberType + 'Info'):
+                 nodeId = memberInfo.get('nodeId')
+              else:
+                 nodeId = None
+              if relevant_nodeIds and nodeId:
+                 continue
+              if not relevant_nodeIds and not nodeId:
+                 continue
+              dev = get_value_from_tags(tags)
+              nodeId = relevant_nodeIds.get(dev)
+              local_params.path = base_path + ['accessPods', str(apodIdx), 'inputs',
+                                               'accessPodFacts', memberType, str(idx),
+                                               'inputs', memberType + 'Info', 'nodeId']
+              set_nodeId(local_params, nodeId)
+
+        def set_apodIds(params: Params, cpod_details: Dict, relevant_nodeIds: Dict):
+           """
+           Set the nodeId for the leafs and mleafs in the inputs
+           """
+           apods = cpod_details.get('inputs').get('campusPodFacts').get('accessPods')
+           for idx, apod in enumerate(apods):
+              if not (apod_details := apod.get('inputs')):
+                 continue
+              if not (apod_facts := apod_details.get('accessPodFacts')):
+                 continue
+              set_members_in_apod(params, relevant_nodeIds, apod_facts, idx, 'leafs')
+              set_members_in_apod(params, relevant_nodeIds, apod_facts, idx, 'memberLeafs')
+
+        def main():
+           if os.environ.get("TEST_ONLY"):
+              return
+           # pylint: disable=undefined-variable
+           stdID, wrkID, input_path = extractStudioInfoFromArgs(ctx.action.args)
+           try:
+              inputs = getStudioInputs(ctx.getApiClient, stdID, wrkID)
+           except InputRequestException as error:
+              raise ActionFailed((f"Failed to get input associated with {stdID}.")) from error
+
+           # only care about the campus pod of input path device
+           campus_index = int(input_path[input_path.index('campus')+1])
+           cpod_index = int(input_path[input_path.index('campusPod')+1])
+           campus_details = inputs.get('campus')[campus_index]
+           cpod_details = campus_details.get('inputs').get('campusDetails').get(
+                                 'campusPod')[cpod_index]
+           campusType = cpod_details.get('inputs').get('campusPodFacts').get('design').get('campusType')
+           device_type, device = get_inputpath_device(input_path, cpod_details)
+           if device_type and device_type not in ['leafs', 'memberLeafs', 'spines']:
+              raise ActionFailed((f"Invalid input device type {device_type}."))
+
+           # get nodeIds related to input path device, generate if nodeId is missing
+           # use campusType not set as a signal to clear nodeIds
+           relevant_nodeIds = {}
+           if campusType:
+              relevant_nodeIds = get_nodeIds(device, campusType, cpod_details)
+
+           # set or clear nodeIds
+           params = Params(stdID, wrkID, input_path)
+           if device:
+              nodeId = relevant_nodeIds.get(device)
+              set_nodeId(params, nodeId)
+           else:
+              set_spineIds(params, cpod_details, relevant_nodeIds)
+              set_apodIds(params, cpod_details, relevant_nodeIds)
+
+           if nodeIdSettings:
+              sendNodeIdSettings(stdID, wrkID, nodeIdSettings)
+
+        if __name__ == "__main__":
+           main()
