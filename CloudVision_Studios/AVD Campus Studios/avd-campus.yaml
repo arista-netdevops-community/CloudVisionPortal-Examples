@@ -1417,8 +1417,6 @@
               if switch_facts.get("mlag_support"):
                   mlag_peer_switch_facts = get_mlag_peer(switch_facts)
                   if mlag_peer_switch_facts is not None:
-                      if switch_facts["type"] == "memberleaf":
-                          ctx.info(f"{switch_facts['hostname']}'s MLAG Peer: {mlag_peer_switch_facts['hostname']}")
                       switch_facts["mlag"] = True
                   else:
                       ctx.warning(f"Could not find an MLAG peer for {switch_facts['hostname']}")
@@ -4907,7 +4905,6 @@
                   # Get interface info for 3rd party devices by checking if this switch is a neighbor of other Arista switches in this campus
                   for peer_switch_facts in my_switch_facts_neighbors.values():
                       for peer_interface in peer_switch_facts.get("interfaces"):
-                          # ctx.info(f"{peer_switch_facts['hostname']}: {peer_interface['interface_name']} --> {peer_interface['peer_serial_number']}")
                           if third_party_device["serial_number"] == peer_interface["peer_serial_number"]:
                               third_party_device["interfaces"].append({
                                   "interface_name": peer_interface["peer_interface_name"],
@@ -9593,7 +9590,7 @@
               id: spinesInbandZtpInterfacesPlatformDetails
               name: spinesInbandZtpInterfaces
               label: Spines Inband ZTP Interfaces
-              description: ''
+              description: 'Specify ZTP interfaces for different models of spine switches'
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -9657,7 +9654,7 @@
               id: leafsInbandZtpInterfacesPlatformDetails
               name: leafsInbandZtpInterfaces
               label: Leafs Inband ZTP Interfaces
-              description: ''
+              description: 'Specify ZTP interfaces for different models of leaf switches'
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
@@ -9721,7 +9718,7 @@
               id: memberLeafsInbandZtpInterfacesPlatformDetails
               name: memberLeafsInbandZtpInterfaces
               label: Member Leafs Inband ZTP Interfaces
-              description: ''
+              description: 'Specify ZTP interfaces for different models of member leaf switches'
               required: false
               type: INPUT_FIELD_TYPE_COLLECTION
               collection_props:
