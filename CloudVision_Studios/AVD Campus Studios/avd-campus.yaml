@@ -1560,12 +1560,15 @@
               if switch_facts["network_services_l2"]:
                   switch_facts["spanning_tree_mode"] = node_defaults["spanningTreeDetails"].get("spanningTreeMode", "").lower()
                   if switch_facts["type"] == "spine":
-                      if "l2ls" in switch_facts["campus_type"]:
-                          switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("spineSpanningTreePriority") if node_defaults["spanningTreeDetails"].get("spineSpanningTreePriority") is not None else 4096
+                      if switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
+                          switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("spineSpanningTreePriority") if node_defaults["spanningTreeDetails"].get("spineSpanningTreePriority") else 4096
                       else:
                           switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("spineSpanningTreePriority")
                   elif switch_facts["type"] == "leaf":
-                      switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("leafSpanningTreePriority")
+                      if switch_facts["network_services_l2"] and switch_facts["network_services_l3"]:
+                          switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("leafSpanningTreePriority") if node_defaults["spanningTreeDetails"].get("leafSpanningTreePriority") else 4096
+                      else:
+                          switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("leafSpanningTreePriority")
                   elif switch_facts["type"] == "memberleaf":
                       switch_facts["spanning_tree_priority"] = node_defaults["spanningTreeDetails"].get("memberLeafSpanningTreePriority")
 
