@@ -1,0 +1,1540 @@
+path: []
+inputs:
+  fabric_vars:
+    - inputs:
+        fabric:
+          connected_endpoints:
+            - inputs:
+                connected_endpoints_group:
+                  yaml: |
+                    ---
+                    servers:
+                      - name: HostA
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet7, Ethernet7 ]
+                            switches: [ A-LEAF1, A-LEAF2 ]
+                            vlans: 10
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostA
+                              mode: active
+
+                      - name: HostB
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet8, Ethernet8 ]
+                            switches: [ A-LEAF1, A-LEAF2 ]
+                            vlans: 30
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostB
+                              mode: active
+
+                      - name: HostC
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet7 ]
+                            switches: [ A-LEAF3 ]
+                            vlans: 50
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostC
+
+                      - name: HostD
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet8, Ethernet8 ]
+                            switches: [ A-LEAF3, A-LEAF4 ]
+                            vlans: 10
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostD
+                              mode: active
+                            
+                      - name: HostE
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet7 ]
+                            switches: [ A-LEAF4 ]
+                            vlans: 30
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostE
+
+                      - name: HostF
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet7, Ethernet7 ]
+                            switches: [ A-LEAF5, A-LEAF6 ]
+                            vlans: 70
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostF
+                              mode: active
+              tags:
+                query: 'AVD_DC_Name:domain-a '
+            - inputs:
+                connected_endpoints_group:
+                  yaml: |
+                    ---
+                    servers:
+                      - name: HostG
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet7, Ethernet7 ]
+                            switches: [ B-LEAF1, B-LEAF2 ]
+                            vlans: 20
+                            mode: access
+                            spanning_tree_portfast: edge
+                            link_tracking:
+                              enabled: true
+                              name: CORE-LINKS
+                            port_channel:
+                              description: HostG
+                              mode: active
+                            ethernet_segment:
+                              short_esi: 0001:0002:0007
+
+                      - name: HostH
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet8, Ethernet8 ]
+                            switches: [ B-LEAF1, B-LEAF2 ]
+                            vlans: 40
+                            mode: access
+                            spanning_tree_portfast: edge
+                            link_tracking:
+                              enabled: true
+                              name: CORE-LINKS
+                            port_channel:
+                              description: HostH
+                              mode: active
+                            ethernet_segment:
+                              short_esi: 0001:0002:0008
+
+                      - name: HostI
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet7 ]
+                            switches: [ B-LEAF3 ]
+                            vlans: 60
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostI
+                      
+                      - name: HostJ
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet8, Ethernet8 ]
+                            switches: [ B-LEAF3, B-LEAF4 ]
+                            vlans: 10
+                            mode: access
+                            spanning_tree_portfast: edge
+                            link_tracking:
+                              enabled: true
+                              name: CORE-LINKS
+                            ethernet_segment:
+                              short_esi: 0003:0004:0008
+                            port_channel:
+                              description: HostJ
+                              mode: active
+
+                      - name: HostK
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet7 ]
+                            switches: [ B-LEAF4 ]
+                            vlans: 70
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostK
+
+                      - name: HostL
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet3 ]
+                            switches: [ B-SW1 ]
+                            vlans: 40
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostL
+                        
+                      - name: HostM
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet4 ]
+                            switches: [ B-SW1 ]
+                            vlans: 80
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostM
+
+                    network_ports:
+                      - switches:
+                          - B-LEAF5
+                          - B-LEAF6
+                        switch_ports:
+                          - Ethernet7
+                        enabled: true
+                        mode: trunk
+                        vlans: "40,80"
+                        spanning_tree_portfast: edge
+                        link_tracking:
+                          enabled: true
+                          name: CORE-LINKS
+                        ethernet_segment:
+                          short_esi: 0005:0006:0007
+                          redundancy: single-active
+                          designated_forwarder_algorithm: preference
+                          designated_forwarder_preferences: 
+                            - 2000
+                            - 1000
+                          dont_preempt: true
+                        description: AA_TO_B-SW1
+              tags:
+                query: AVD_DC_Name:domain-b
+            - inputs:
+                connected_endpoints_group:
+                  yaml: |
+                    ---
+                    servers:
+                      - name: HostN
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet7, Ethernet7 ]
+                            switches: [ C-LEAF1, C-LEAF2 ]
+                            vlans: 10
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostN
+                              mode: active
+
+                      - name: HostO
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet7 ]
+                            switches: [ C-LEAF3 ]
+                            vlans: 20
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostO
+
+                      - name: HostP
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet8, Ethernet8 ]
+                            switches: [ C-LEAF3, C-LEAF4 ]
+                            vlans: 60
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostP
+                              mode: active
+
+                      - name: HostQ
+                        adapters:
+                          - endpoint_ports: [ Ethernet1 ]
+                            switch_ports: [ Ethernet7 ]
+                            switches: [ C-LEAF4 ]
+                            vlans: 50
+                            mode: access
+                            spanning_tree_portfast: edge
+                            description: HostQ
+
+                      - name: HostR
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet7, Ethernet7 ]
+                            switches: [ C-LEAF5, C-LEAF6 ]
+                            vlans: 20
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostR
+                              mode: active
+                      
+                      - name: HostS
+                        adapters:
+                          - endpoint_ports: [ Ethernet1, Ethernet2 ]
+                            switch_ports: [ Ethernet8, Ethernet8 ]
+                            switches: [ C-LEAF5, C-LEAF6 ]
+                            vlans: 60
+                            mode: access
+                            spanning_tree_portfast: edge
+                            port_channel:
+                              description: HostS
+                              mode: active
+              tags:
+                query: AVD_DC_Name:domain-c
+          dc_vars:
+            - inputs:
+                dc:
+                  pod_vars:
+                    - inputs:
+                        dc:
+                          role_vars:
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    spine:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 1.1.1.0/24
+                                        bgp_as: 65100
+                                        raw_eos_cli: |
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                      nodes: 
+                                        - name: A-SPINE1
+                                          id: 201 
+                                          mgmt_ip: 192.168.0.11/24 
+                                        - name: A-SPINE2
+                                          id: 202
+                                          mgmt_ip: 192.168.0.12/24
+                                        - name: A-SPINE3
+                                          id: 203
+                                          mgmt_ip: 192.168.0.13/24 
+                                        - name: A-SPINE4
+                                          id: 204
+                                          mgmt_ip: 192.168.0.14/24
+                              tags:
+                                query: AVD_Role:spine
+                            - inputs:
+                                role:
+                                  device_vars:
+                                    - inputs:
+                                        device:
+                                          yaml: |-
+                                            evpn_multicast: false
+                                            underlay_multicast: false
+                                      tags:
+                                        query: device:SN-A-LEAF7 OR device:SN-A-LEAF8
+                                  yaml: |-
+                                    l3leaf:
+                                      defaults:
+                                        platform: vEOS-lab
+                                        loopback_ipv4_pool: 1.1.1.0/24
+                                        loopback_ipv4_offset: 0
+                                        vtep_loopback_ipv4_pool: 2.2.1.0/24 
+                                        uplink_interfaces: ['Ethernet1', 'Ethernet2', 'Ethernet3', 'Ethernet4'] 
+                                        uplink_switches: ['A-SPINE1', 'A-SPINE2', 'A-SPINE3', 'A-SPINE4']
+                                        uplink_ipv4_pool: 192.168.1.0/24
+                                        mlag_interfaces: ['Ethernet5', 'Ethernet6']
+                                        mlag_peer_vlan_structured_config: 
+                                          mtu: 1500 
+                                        mlag_peer_ipv4_pool: 169.254.0.0/31
+                                        mlag_peer_l3_ipv4_pool: 192.0.0.0/31
+                                        mlag_port_channel_id: 1000
+                                        mlag_domain_id: "100"
+                                        mlag_ibgp_origin_incomplete: true
+                                        virtual_router_mac_address: 00:1c:73:00:00:01
+                                        spanning_tree_priority: 0
+                                        spanning_tree_mode: mstp
+                                        filter:
+                                          tenants:
+                                            - Prod
+                                            - Dev
+                                        # can remove agent KernelFib command, not in tech library
+                                        raw_eos_cli: |
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                      node_groups: 
+                                        - group: DOMAIN_A_LA
+                                          bgp_as: 65112
+                                          filter:
+                                            only_vlans_in_use: true
+                                          nodes:
+                                            - name: A-LEAF1
+                                              id: 1
+                                              mgmt_ip: 192.168.0.101/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet1
+                                                - Ethernet1
+                                                - Ethernet1
+                                                - Ethernet1
+                                            - name: A-LEAF2
+                                              id: 2
+                                              mgmt_ip: 192.168.0.102/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet2
+                                                - Ethernet2
+                                                - Ethernet2
+                                                - Ethernet2
+                                        - group: DOMAIN_A_LB
+                                          bgp_as: 65134
+                                          filter:
+                                            only_vlans_in_use: true
+                                          nodes:
+                                            - name: A-LEAF3
+                                              id: 3
+                                              mgmt_ip: 192.168.0.103/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet3
+                                                - Ethernet3
+                                                - Ethernet3
+                                                - Ethernet3
+                                            - name: A-LEAF4
+                                              id: 4
+                                              mgmt_ip: 192.168.0.104/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet4
+                                                - Ethernet4
+                                                - Ethernet4
+                                                - Ethernet4
+                                        - group: DOMAIN_A_LC
+                                          bgp_as: 65156
+                                          filter:
+                                            only_vlans_in_use: true
+                                          nodes:
+                                            - name: A-LEAF5
+                                              id: 5
+                                              mgmt_ip: 192.168.0.105/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet5
+                                                - Ethernet5
+                                                - Ethernet5
+                                                - Ethernet5
+                                            - name: A-LEAF6
+                                              id: 6
+                                              mgmt_ip: 192.168.0.106/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet6
+                                                - Ethernet6
+                                                - Ethernet6
+                                                - Ethernet6
+                                        - group: DOMAIN_A_EVPNGW
+                                          bgp_as: 65178
+                                          filter:
+                                            tenants:
+                                              - EVPNGW
+                                          evpn_gateway:
+                                            # Specific BGP EVPN Gateway functionality for route types 2 (MAC-IP), 3 (IMET) and 5 (IP-PREFIX) can be enabled separately as needed.
+                                            evpn_l2:
+                                              enabled: true
+                                            evpn_l3:
+                                              enabled: true
+                                              inter_domain: true
+                                            remote_peers:
+                                              - hostname: BB1
+                                                bgp_as: 65500
+                                                ip_address: 1.1.0.1
+                                              - hostname: BB2
+                                                bgp_as: 65500
+                                                ip_address: 1.1.0.2
+                                          nodes:
+                                            - name: A-LEAF7
+                                              id: 7
+                                              mgmt_ip: 192.168.0.107/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet7
+                                                - Ethernet7
+                                                - Ethernet7
+                                                - Ethernet7
+                                            - name: A-LEAF8
+                                              id: 8
+                                              mgmt_ip: 192.168.0.108/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet8
+                                                - Ethernet8
+                                                - Ethernet8
+                                                - Ethernet8
+                              tags:
+                                query: AVD_Role:l3leaf
+                          yaml: null
+                      tags:
+                        query: AVD_POD_Name:pod-a
+                  yaml: |-
+                    ---
+                    fabric_name: FABRIC 
+
+                    underlay_routing_protocol: ebgp
+                    overlay_routing_protocol: ebgp
+
+                    # underlay_multicast: true
+                    # evpn_multicast: true
+
+                    fabric_ip_addressing:
+                      mlag:
+                        algorithm: same_subnet
+
+                    bgp_peer_groups:
+                      evpn_overlay_core:
+                        structured_config:
+                          local_as: 65500
+                          remove_private_as:
+                            replace_as: true
+
+                    l3_edge:
+                      # Define a new IP pool that will be used to asign IP addreses to L3 Edge interfaces.
+                      p2p_links_ip_pools:
+                        A_IP_pool: 172.16.1.0/24
+                      # Define a new link profile which will match the IP pool, the used ASNs and include the defined interface into underlay routing
+                      p2p_links_profiles:
+                        DCI_A_profile:
+                          ip_pool: A_IP_pool
+                          as: 
+                          - 65178 
+                          - 65500
+                          include_in_underlay_protocol: true
+                      # Define each P2P L3 link and link the nodes, the interfaces and the profile used.
+                      p2p_links:
+                      - id: 1
+                        nodes: [A-LEAF7, BB1]
+                        interfaces: [Ethernet7, Ethernet1]
+                        profile: DCI_A_profile
+                      - id: 2
+                        nodes: [A-LEAF7, BB2]
+                        interfaces: [Ethernet8, Ethernet1]
+                        profile: DCI_A_profile
+                      - id: 3
+                        nodes: [A-LEAF8, BB1]
+                        interfaces: [Ethernet7, Ethernet2]
+                        profile: DCI_A_profile
+                      - id: 4
+                        nodes: [A-LEAF8, BB2]
+                        interfaces: [Ethernet8, Ethernet2]
+                        profile: DCI_A_profile
+              tags:
+                query: AVD_DC_Name:domain-a
+            - inputs:
+                dc:
+                  pod_vars:
+                    - inputs:
+                        dc:
+                          role_vars:
+                            - inputs:
+                                role:
+                                  device_vars:
+                                    - inputs:
+                                        device:
+                                          yaml: |
+                                            ---
+
+                                            custom_structured_configuration_router_bgp:
+                                              neighbors:
+                                              - ip_address: 172.16.2.1
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB1_UNDERLAY
+                                              - ip_address: 172.16.2.3
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB2_UNDERLAY
+                                              address_family_ipv4:
+                                                peer_groups:
+                                                  - name: IPv4-REMOTE-UNDERLAY-PEERS
+                                                    activate: true
+                                      tags:
+                                        query: device:SN-B-LEAF7
+                                    - inputs:
+                                        device:
+                                          yaml: |
+                                            ---
+
+                                            custom_structured_configuration_router_bgp:
+                                              neighbors:
+                                              - ip_address: 172.16.2.5
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB1_UNDERLAY
+                                              - ip_address: 172.16.2.7
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB2_UNDERLAY
+                                              address_family_ipv4:
+                                                peer_groups:
+                                                  - name: IPv4-REMOTE-UNDERLAY-PEERS
+                                                    activate: true
+                                      tags:
+                                        query: device:SN-B-LEAF8
+                                    - inputs:
+                                        device:
+                                          yaml: |
+                                            ---
+
+                                            evpn_multicast: false
+                                            underlay_multicast: false
+
+                                            bgp_peer_groups: 
+                                              evpn_overlay_peers:
+                                                # structured_config:
+                                                #   route_map_in: RM-AS65200-EVPN-IN
+                                                #   route_map_out: RM-AS65200-EVPN-OUT
+                                              evpn_overlay_core:
+                                                structured_config:
+                                                  local_as: 65500
+                                                  remove_private_as:
+                                                    replace_as: true
+                                                  route_map_in: RM-AS65000-EVPN-IN
+                                                  route_map_out: RM-AS65000-EVPN-OUT
+                                                  route_reflector_client: true
+
+                                            custom_structured_configuration_community_lists:
+                                              - name: CL-LOCAL-DOMAIN-ORIGINATED 
+                                                action: "permit 65200:65200"
+                                              - name: CL-REMOTE-DOMAIN-ORIGINATED
+                                                action: "permit 65000:65000"
+
+                                            custom_structured_configuration_route_maps:
+                                              - name: RM-AS65000-EVPN-IN
+                                                sequence_numbers:
+                                                  - sequence: 10
+                                                    type: "permit"
+                                                    set:
+                                                      - "community 65000:65000 additive"
+                                              - name: RM-AS65000-EVPN-OUT
+                                                sequence_numbers:
+                                                  - sequence: 5
+                                                    type: "deny"
+                                                    match:
+                                                      - "community CL-REMOTE-DOMAIN-ORIGINATED"
+                                                  - sequence: 10
+                                                    type: "permit"
+                                              - name: RM-AS65200-EVPN-IN
+                                                sequence_numbers:
+                                                  - sequence: 10
+                                                    type: "permit"
+                                                    match:
+                                                      - "community CL-REMOTE-DOMAIN-ORIGINATED"
+                                                    set:
+                                                      - "local-preference 0"
+                                                  - sequence: 20
+                                                    type: "permit"
+                                                    set:
+                                                      - "community 65200:65200 additive"
+                                              - name: RM-AS65200-EVPN-OUT
+                                                sequence_numbers:
+                                                  - sequence: 5
+                                                    type: "deny"
+                                                    match: 
+                                                      - "community CL-LOCAL-DOMAIN-ORIGINATED"
+                                                  - sequence: 10
+                                                    type: "permit"
+                                      tags:
+                                        query: device:SN-B-LEAF7 OR device:SN-B-LEAF8
+                                  yaml: |-
+                                    l3leaf:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 1.1.2.0/24
+                                        loopback_ipv4_offset: 0
+                                        vtep_loopback_ipv4_pool: 2.2.2.0/24
+                                        uplink_interfaces: ['Ethernet1', 'Ethernet2', 'Ethernet3', 'Ethernet4'] 
+                                        uplink_switches: ['B-SPINE1', 'B-SPINE2', 'B-SPINE3', 'B-SPINE4']
+                                        uplink_structured_config:
+                                          ip_address: "unnumbered Loopback0"
+                                        uplink_ipv4_pool: 192.168.1.0/24
+                                        virtual_router_mac_address: 00:1c:73:00:00:01
+                                        spanning_tree_root_super: true
+                                        spanning_tree_mode: rapid-pvst
+                                        bgp_as: 65200
+                                        isis_system_id_prefix: '0000.0000'
+                                        link_tracking:
+                                          enabled: true
+                                          groups:
+                                            - name: CORE-LINKS
+                                        filter:
+                                          tenants:
+                                            - Prod
+                                            - Dev
+                                        raw_eos_cli: |
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                      nodes:
+                                        - name: B-LEAF1
+                                          id: 1
+                                          filter:
+                                            only_vlans_in_use: true
+                                          mgmt_ip: 192.168.0.111/24
+                                          uplink_switch_interfaces: 
+                                            - Ethernet1
+                                            - Ethernet1
+                                            - Ethernet1
+                                            - Ethernet1
+                                        - name: B-LEAF2
+                                          id: 2
+                                          filter:
+                                            only_vlans_in_use: true
+                                          mgmt_ip: 192.168.0.112/24
+                                          uplink_switch_interfaces:
+                                            - Ethernet2
+                                            - Ethernet2
+                                            - Ethernet2
+                                            - Ethernet2
+                                        - name: B-LEAF3
+                                          id: 3
+                                          filter:
+                                            only_vlans_in_use: true
+                                          mgmt_ip: 192.168.0.113/24
+                                          uplink_switch_interfaces: 
+                                            - Ethernet3
+                                            - Ethernet3
+                                            - Ethernet3
+                                            - Ethernet3
+                                        - name: B-LEAF4
+                                          id: 4
+                                          filter:
+                                            only_vlans_in_use: true
+                                          mgmt_ip: 192.168.0.114/24
+                                          uplink_switch_interfaces:
+                                            - Ethernet4
+                                            - Ethernet4
+                                            - Ethernet4
+                                            - Ethernet4
+                                        - name: B-LEAF5
+                                          id: 5
+                                          filter:
+                                            only_vlans_in_use: true
+                                          mgmt_ip: 192.168.0.115/24
+                                          uplink_switch_interfaces: 
+                                            - Ethernet5
+                                            - Ethernet5
+                                            - Ethernet5
+                                            - Ethernet5
+                                        - name: B-LEAF6
+                                          id: 6
+                                          filter:
+                                            only_vlans_in_use: true
+                                          mgmt_ip: 192.168.0.116/24
+                                          uplink_switch_interfaces:
+                                            - Ethernet6
+                                            - Ethernet6
+                                            - Ethernet6
+                                            - Ethernet6
+                                      node_groups:       
+                                        - group: DOMAIN_B_EVPNGW
+                                          bgp_as: 65200
+                                          mlag: false
+                                          filter:
+                                            tenants:
+                                              - EVPNGW
+                                          evpn_gateway:
+                                        # Specific BGP EVPN Gateway functionality for route types 2 (MAC-IP), 3 (IMET) and 5 (IP-PREFIX) can be enabled separately as needed.
+                                            evpn_l2:
+                                              enabled: true
+                                            evpn_l3:
+                                              enabled: true
+                                              inter_domain: true
+                                            remote_peers:
+                                              - hostname: BB1
+                                                bgp_as: 65500
+                                                ip_address: 1.1.0.1
+                                              - hostname: BB2
+                                                bgp_as: 65500
+                                                ip_address: 1.1.0.2
+                                          raw_eos_cli: |
+                                            dhcp relay
+                                              mlag peer-link requests disabled
+                                            agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                          nodes:
+                                            - name: B-LEAF7
+                                              id: 7
+                                              mgmt_ip: 192.168.0.117/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet7
+                                                - Ethernet7
+                                                - Ethernet7
+                                                - Ethernet7
+                                            - name: B-LEAF8
+                                              id: 8
+                                              mgmt_ip: 192.168.0.118/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet8
+                                                - Ethernet8
+                                                - Ethernet8
+                                                - Ethernet8
+                              tags:
+                                query: AVD_Role:l3leaf
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    spine:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 1.1.2.0/24
+                                        isis_system_id_prefix: '0000.0000'
+                                        bgp_as: 65200
+                                        raw_eos_cli: |
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                      nodes: 
+                                        - name: B-SPINE1
+                                          id: 201 
+                                          mgmt_ip: 192.168.0.15/24 
+                                        - name: B-SPINE2
+                                          id: 202
+                                          mgmt_ip: 192.168.0.16/24
+                                        - name: B-SPINE3
+                                          id: 203
+                                          mgmt_ip: 192.168.0.17/24 
+                                        - name: B-SPINE4
+                                          id: 204
+                                          mgmt_ip: 192.168.0.18/24
+                              tags:
+                                query: AVD_Role:spine
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    l2leaf:
+                                      defaults:
+                                        platform: vEOS-lab
+                                        uplink_interfaces: ['Ethernet1', 'Ethernet2']
+                                        uplink_switches: ['B-LEAF5','B-LEAF6']
+                                        spanning_tree_mode: rapid-pvst
+                                        raw_eos_cli: |
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                      nodes:
+                                        - name: B-SW1
+                                          id: 1
+                                          mgmt_ip: 192.168.0.119/24
+                                          uplink_switch_interfaces:
+                                            - Ethernet7
+                                            - Ethernet7
+                              tags:
+                                query: AVD_Role:l2leaf
+                          yaml: null
+                      tags:
+                        query: AVD_POD_Name:pod-b
+                  yaml: |
+                    ---
+                    fabric_name: FABRIC 
+
+                    underlay_routing_protocol: isis
+                    overlay_routing_protocol: ibgp
+
+                    isis_area_id: 49.1111
+                    evpn_short_esi_prefix: '0000:000b:'
+
+                    #underlay_multicast: true
+
+                    p2p_uplinks_mtu: 1500
+
+                    bgp_peer_groups:
+                      evpn_overlay_core:
+                        structured_config:
+                          local_as: 65500
+                          remove_private_as:
+                            replace_as: true
+
+                    l3_edge:
+                      # Define a new IP pool that will be used to asign IP addreses to L3 Edge interfaces.
+                      p2p_links_ip_pools:
+                        - name: B_IP_pool
+                          ipv4_pool: 172.16.2.0/24
+                      # Define a new link profile which will match the IP pool, the used ASNs and include the defined interface into underlay routing
+                      p2p_links_profiles:
+                        DCI_B_profile:
+                          ip_pool: B_IP_pool
+                          include_in_underlay_protocol: false
+                      # Define each P2P L3 link and link the nodes, the interfaces and the profile used.
+                      p2p_links:
+                      - id: 1
+                        nodes: [B-LEAF7, BB1]
+                        as: [65200, 65500]
+                        interfaces: [Ethernet7, Ethernet3]
+                        profile: DCI_B_profile
+                      - id: 2
+                        nodes: [B-LEAF7, BB2]
+                        as: [65200, 65500]
+                        interfaces: [Ethernet8, Ethernet3]
+                        profile: DCI_B_profile
+                      - id: 3
+                        nodes: [B-LEAF8, BB1]
+                        as: [65200, 65500]
+                        interfaces: [Ethernet7, Ethernet4]
+                        profile: DCI_B_profile
+                      - id: 4
+                        nodes: [B-LEAF8, BB2]
+                        as: [65200, 65500]
+                        interfaces: [Ethernet8, Ethernet4]
+                        profile: DCI_B_profile
+
+                    custom_templates:
+                      - vxlan-mcast-overlay.j2
+                      - domain-b-af-evpn.j2
+              tags:
+                query: AVD_DC_Name:domain-b
+            - inputs:
+                dc:
+                  pod_vars:
+                    - inputs:
+                        dc:
+                          role_vars:
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |-
+                                    ---
+                                    spine:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 1.1.3.0/24
+                                        vtep_loopback_ipv4_pool: 10.3.3.0/24
+                                        virtual_router_mac_address: 00:1c:73:00:00:01 
+                                        bgp_as: 65300
+                                        raw_eos_cli: |
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                      nodes: 
+                                        - name: C-SPINE1
+                                          id: 201 
+                                          mgmt_ip: 192.168.0.19/24 
+                                        - name: C-SPINE2
+                                          id: 202
+                                          mgmt_ip: 192.168.0.20/24
+                              tags:
+                                query: AVD_Role:spine
+                            - inputs:
+                                role:
+                                  device_vars:
+                                    - inputs:
+                                        device:
+                                          yaml: |-
+                                            evpn_multicast: false
+                                            underlay_multicast: false
+
+                                            custom_structured_configuration_vlan_interfaces:
+                                              - name: 'Vlan4094'
+                                                mtu: 1500
+                                      tags:
+                                        query: device:SN-C-LEAF7 OR device:SN-C-LEAF8
+                                    - inputs:
+                                        device:
+                                          yaml: |
+                                            ---
+
+                                            custom_structured_configuration_router_bgp:
+                                              neighbors:
+                                              - ip_address: 172.16.3.1
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB1_UNDERLAY
+                                              - ip_address: 172.16.3.3
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB2_UNDERLAY
+                                              address_family_ipv4:
+                                                peer_groups:
+                                                  - name: IPv4-REMOTE-UNDERLAY-PEERS
+                                                    activate: true
+                                      tags:
+                                        query: device:SN-C-LEAF7
+                                    - inputs:
+                                        device:
+                                          yaml: |
+                                            ---
+
+                                            custom_structured_configuration_router_bgp:
+                                              neighbors:
+                                              - ip_address: 172.16.3.5
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB1_UNDERLAY
+                                              - ip_address: 172.16.3.7
+                                                peer_group: IPv4-REMOTE-UNDERLAY-PEERS
+                                                description: BB2_UNDERLAY
+                                              address_family_ipv4:
+                                                peer_groups:
+                                                  - name: IPv4-REMOTE-UNDERLAY-PEERS
+                                                    activate: true
+                                      tags:
+                                        query: device:SN-C-LEAF8
+                                  yaml: |-
+                                    ---
+
+                                    l3leaf:
+                                      defaults:
+                                        platform: vEOS-lab 
+                                        loopback_ipv4_pool: 1.1.3.0/24
+                                        loopback_ipv4_offset: 0
+                                        vtep_loopback_ipv4_pool: 2.2.3.0/24 
+                                        uplink_interfaces: ['Ethernet1', 'Ethernet2'] 
+                                        uplink_switches: ['C-SPINE1', 'C-SPINE2']
+                                        uplink_ipv4_pool: 192.168.1.0/24
+                                        mlag_interfaces: ['Ethernet5', 'Ethernet6'] 
+                                        mlag_peer_ipv4_pool: 169.254.0.0/31
+                                        mlag_peer_l3_ipv4_pool: 192.0.0.0/31
+                                        mlag_port_channel_id: 1000
+                                        mlag_domain_id: "100"
+                                        virtual_router_mac_address: 00:1c:73:00:00:01
+                                        spanning_tree_priority: 4096 
+                                        spanning_tree_mode: rapid-pvst
+                                        evpn_services_l2_only: true
+                                        raw_eos_cli: |
+                                          dhcp relay
+                                            mlag peer-link requests disabled
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                        filter:
+                                          tenants:
+                                            - Prod
+                                            - Dev
+                                      node_groups: 
+                                        - group: DOMAIN_C_LA
+                                          bgp_as: 65312
+                                          filter:
+                                            only_vlans_in_use: true 
+                                          nodes:
+                                            - name: C-LEAF1
+                                              id: 1
+                                              mgmt_ip: 192.168.0.121/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet1
+                                                - Ethernet1
+                                            - name: C-LEAF2
+                                              id: 2
+                                              mgmt_ip: 192.168.0.122/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet2
+                                                - Ethernet2
+                                        - group: DOMAIN_C_LB
+                                          bgp_as: 65334
+                                          filter:
+                                            only_vlans_in_use: true
+                                          nodes:
+                                            - name: C-LEAF3
+                                              id: 3
+                                              mgmt_ip: 192.168.0.123/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet3
+                                                - Ethernet3
+                                            - name: C-LEAF4
+                                              id: 4
+                                              mgmt_ip: 192.168.0.124/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet4
+                                                - Ethernet4
+                                        - group: DOMAIN_C_LC
+                                          bgp_as: 65356
+                                          filter:
+                                            only_vlans_in_use: true
+                                          nodes:
+                                            - name: C-LEAF5
+                                              id: 5
+                                              mgmt_ip: 192.168.0.125/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet5
+                                                - Ethernet5
+                                            - name: C-LEAF6
+                                              id: 6
+                                              mgmt_ip: 192.168.0.126/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet6
+                                                - Ethernet6
+                                        - group: DOMAIN_C_EVPNGW
+                                          bgp_as: 65378
+                                          filter:
+                                            tenants:
+                                              - EVPNGW
+                                          evpn_services_l2_only: false
+                                          evpn_gateway:
+                                            # Specific BGP EVPN Gateway functionality for route types 2 (MAC-IP), 3 (IMET) and 5 (IP-PREFIX) can be enabled separately as needed.
+                                            evpn_l2:
+                                              enabled: true
+                                            evpn_l3:
+                                              enabled: true
+                                              inter_domain: true
+                                            remote_peers:
+                                              - hostname: BB1
+                                                bgp_as: 65500
+                                                ip_address: 1.1.0.1
+                                              - hostname: BB2
+                                                bgp_as: 65500
+                                                ip_address: 1.1.0.2
+                                          nodes:
+                                            - name: C-LEAF7
+                                              id: 7
+                                              mgmt_ip: 192.168.0.127/24
+                                              uplink_switch_interfaces: 
+                                                - Ethernet7
+                                                - Ethernet7
+                                            - name: C-LEAF8
+                                              id: 8
+                                              mgmt_ip: 192.168.0.128/24
+                                              uplink_switch_interfaces:
+                                                - Ethernet8
+                                                - Ethernet8
+                              tags:
+                                query: AVD_Role:l3leaf
+                          yaml: null
+                      tags:
+                        query: AVD_POD_Name:pod-c
+                  yaml: |
+                    ---
+                    fabric_name: FABRIC 
+
+                    underlay_routing_protocol: ospf
+                    overlay_routing_protocol: ebgp
+
+                    vtep_vvtep_ip: 10.3.3.255/32
+
+                    # underlay_multicast: true
+                    # evpn_multicast: true
+
+                    bgp_peer_groups: 
+                      evpn_overlay_core:
+                        structured_config:
+                          local_as: 65500
+                          remove_private_as:
+                            replace_as: true
+
+                    fabric_ip_addressing:
+                      mlag:
+                        algorithm: same_subnet
+                        
+                    # # L3 Edge port definitions. This can be any port in the entire Fabric, where IP interfaces are defined.
+                    l3_edge:
+                      # Define a new IP pool that will be used to asign IP addreses to L3 Edge interfaces.
+                      p2p_links_ip_pools:
+                        - name: C_IP_pool 
+                          ipv4_pool: 172.16.3.0/24
+                      # Define a new link profile which will match the IP pool, the used ASNs and include the defined interface into underlay routing
+                      p2p_links_profiles:
+                        - name: DCI_C_profile
+                          ip_pool: C_IP_pool
+                          include_in_underlay_protocol: false
+                      # Define each P2P L3 link and link the nodes, the interfaces and the profile used.
+                      p2p_links:
+                      - nodes: [C-LEAF7, BB1]
+                        id: 1
+                        interfaces: [Ethernet7, Ethernet5]
+                        as: [65378, 65500]
+                        profile: DCI_C_profile
+                      - nodes: [C-LEAF7, BB2]
+                        id: 2
+                        interfaces: [Ethernet8, Ethernet6]
+                        as: [65378, 65500]
+                        profile: DCI_C_profile
+                      - nodes: [C-LEAF8, BB1]
+                        id: 3
+                        interfaces: [Ethernet7, Ethernet7]
+                        as: [65378, 65500]
+                        profile: DCI_C_profile
+                      - nodes: [C-LEAF8, BB2]
+                        id: 4
+                        interfaces: [Ethernet8, Ethernet8]
+                        as: [65378, 65500]
+                        profile: DCI_C_profile
+
+
+                    custom_templates:
+                      - vxlan-mcast-overlay.j2
+              tags:
+                query: AVD_DC_Name:domain-c
+            - inputs:
+                dc:
+                  pod_vars:
+                    - inputs:
+                        dc:
+                          role_vars:
+                            - inputs:
+                                role:
+                                  device_vars: []
+                                  yaml: |
+                                    ---
+
+                                    custom_structured_configuration_router_bgp:
+                                      listen_ranges:
+                                        - prefix: 1.1.0.0/16
+                                          peer_group: EVPN-OVERLAY-PEERS
+                                          remote_as: 65500
+
+                                    backbone:
+                                      defaults:
+                                        platform: vEOS-lab
+                                        loopback_ipv4_pool: 1.1.0.0/24
+                                        bgp_as: 65500
+                                        raw_eos_cli: |
+                                          agent KernelFib environment KERNELFIB_PROGRAM_ALL_ECMP='true'
+                                      nodes: 
+                                        - name: BB1
+                                          id: 1 
+                                          mgmt_ip: 192.168.0.9/24 
+                                        - name: BB2
+                                          id: 2
+                                          mgmt_ip: 192.168.0.10/24
+                              tags:
+                                query: AVD_Role:backbone
+                          yaml: null
+                      tags:
+                        query: AVD_POD_Name:pod-bb
+                  yaml: |
+                    ---
+                    underlay_routing_protocol: ebgp
+                    overlay_routing_protocol: ibgp
+
+                    switchport_default:
+                      mode: routed
+
+                    bgp_peer_groups:
+                      evpn_overlay_peers:
+                        structured_config:
+                          next_hop_unchanged: true
+                          route_reflector_client: true
+                      ipv4_underlay_peers:
+                        structured_config:
+                          route_reflector_client: true
+
+                    l3_edge:
+                      # Define a new link profile which will match the IP pool, the used ASNs and include the defined interface into underlay routing
+                      p2p_links_profiles:
+                        DCI_A_profile:
+                          as: 
+                          - 65500
+                          - 65178 
+                          include_in_underlay_protocol: true
+                        DCI_B_profile:
+                          as:
+                          - 65500
+                          - 65200
+                          include_in_underlay_protocol: true
+                        DCI_C_profile:
+                          as:
+                          - 65500
+                          - 65378
+                          include_in_underlay_protocol: true
+                      # Define each P2P L3 link and link the nodes, the interfaces and the profile used.
+                      p2p_links:
+                      - id: 1
+                        nodes: [BB1, A-LEAF7]
+                        interfaces: [Ethernet1, Ethernet7]
+                        profile: DCI_A_profile
+                        ip:
+                          - 172.16.1.1/31
+                          - 172.16.1.0/31
+                      - id: 2
+                        nodes: [BB2, A-LEAF7]
+                        interfaces: [Ethernet1, Ethernet8]
+                        profile: DCI_A_profile
+                        ip:
+                          - 172.16.1.3/31
+                          - 172.16.1.2/31
+                      - id: 3
+                        nodes: [BB1, A-LEAF8]
+                        interfaces: [Ethernet2, Ethernet7]
+                        profile: DCI_A_profile
+                        ip:
+                          - 172.16.1.5/31
+                          - 172.16.1.4/31
+                      - id: 4
+                        nodes: [BB2, A-LEAF8]
+                        interfaces: [Ethernet2, Ethernet8]
+                        profile: DCI_A_profile
+                        ip:
+                          - 172.16.1.7/31
+                          - 172.16.1.6/31
+                      - id: 1
+                        nodes: [BB1, B-LEAF7]
+                        interfaces: [Ethernet3, Ethernet7]
+                        profile: DCI_B_profile
+                        ip:
+                          - 172.16.2.1/31
+                          - 172.16.2.0/31
+                      - id: 2
+                        nodes: [BB2, B-LEAF7]
+                        interfaces: [Ethernet3, Ethernet8]
+                        profile: DCI_B_profile
+                        ip:
+                          - 172.16.2.3/31
+                          - 172.16.2.2/31
+                      - id: 3
+                        nodes: [BB1, B-LEAF8]
+                        interfaces: [Ethernet4, Ethernet7]
+                        profile: DCI_B_profile
+                        ip:
+                          - 172.16.2.5/31
+                          - 172.16.2.4/31
+                      - id: 4
+                        nodes: [BB2, B-LEAF8]
+                        interfaces: [Ethernet4, Ethernet8]
+                        profile: DCI_B_profile
+                        ip:
+                          - 172.16.2.7/31
+                          - 172.16.2.6/31
+                      - id: 1
+                        nodes: [BB1, C-LEAF7]
+                        interfaces: [Ethernet5, Ethernet7]
+                        profile: DCI_C_profile
+                        ip:
+                          - 172.16.3.1/31
+                          - 172.16.3.0/31
+                      - id: 2
+                        nodes: [BB2, C-LEAF7]
+                        interfaces: [Ethernet5, Ethernet8]
+                        profile: DCI_C_profile
+                        ip:
+                          - 172.16.3.3/31
+                          - 172.16.3.2/31
+                      - id: 3
+                        nodes: [BB1, C-LEAF8]
+                        interfaces: [Ethernet6, Ethernet7]
+                        profile: DCI_C_profile
+                        ip:
+                          - 172.16.3.5/31
+                          - 172.16.3.4/31
+                      - id: 4
+                        nodes: [BB2, C-LEAF8]
+                        interfaces: [Ethernet6, Ethernet8]
+                        profile: DCI_C_profile
+                        ip:
+                          - 172.16.3.7/31
+                          - 172.16.3.6/31
+              tags:
+                query: AVD_DC_Name:backbone
+          network_services:
+            - inputs:
+                network_services_group:
+                  yaml: |
+                    ---
+
+                    tenants: 
+                      - name: EVPNGW
+                        mac_vrf_vni_base: 10000
+                        bgp_peer_groups:
+                          - name: IPv4-REMOTE-UNDERLAY-PEERS
+                            nodes:
+                              - B-LEAF7
+                              - B-LEAF8
+                              - C-LEAF7
+                              - C-LEAF8
+                            remote_as: 65500
+                            shutdown: false
+                        vrfs:
+                          - name: Prod
+                            vrf_vni: 50001
+                            vtep_diagnostic: 
+                              loopback: 101
+                              loopback_ip_range: 10.101.101.0/27
+                            mlag_ibgp_peering_ipv4_pool: 192.0.0.0/31
+                            mlag_ibgp_peering_vlan: 3001
+                            redistribute_mlag_ibgp_peering_vrfs: false
+                            svis: 
+                              - id: 10
+                                name: Blue
+                                profile: VLAN10
+                              - id: 20
+                                name: Green
+                                profile: VLAN20
+                              - id: 30
+                                name: Orange
+                                profile: VLAN30
+                              - id: 40
+                                name: Purple
+                                profile: VLAN40
+                          - name: Dev
+                            vrf_vni: 50002
+                            vtep_diagnostic:
+                              loopback: 102
+                              loopback_ip_range: 10.102.102.0/27
+                            mlag_ibgp_peering_ipv4_pool: 192.0.0.0/31
+                            mlag_ibgp_peering_vlan: 3002
+                            redistribute_mlag_ibgp_peering_vrfs: false
+                            svis:
+                              - id: 50
+                                name: Yellow
+                                profile: VLAN50
+                              - id: 60
+                                name: Red
+                                profile: VLAN60
+                              - id: 70
+                                name: Brown
+                                profile: VLAN70
+                              - id: 80
+                                name: Black
+                                profile: VLAN80
+                      - name: Prod
+                        mac_vrf_vni_base: 10000
+                        # evpn_l3_multicast:
+                        #   enabled: true
+                        #   evpn_underlay_l3_multicast_group_ipv4_pool: 232.1.1.1/24
+                        #   evpn_underlay_l3_multicast_group_ipv4_pool_offset: -49999
+                        vrfs:
+                          - name: Prod
+                            vrf_vni: 50001
+                            vtep_diagnostic: 
+                              loopback: 101
+                              loopback_ip_range: 10.101.101.0/27
+                            mlag_ibgp_peering_ipv4_pool: 192.0.0.0/31
+                            mlag_ibgp_peering_vlan: 3001
+                            redistribute_mlag_ibgp_peering_vrfs: false
+                            svis: 
+                              - id: 10
+                                name: Blue
+                                profile: VLAN10
+                              - id: 20
+                                name: Green
+                                profile: VLAN20
+                              - id: 30
+                                name: Orange
+                                profile: VLAN30
+                              - id: 40
+                                name: Purple
+                                profile: VLAN40
+                      - name: Dev
+                        mac_vrf_vni_base: 10000
+                        # evpn_l3_multicast:
+                        #   enabled: true
+                        #   evpn_underlay_l3_multicast_group_ipv4_pool: 232.2.2.1/24
+                        #   evpn_underlay_l3_multicast_group_ipv4_pool_offset: -50000
+                        vrfs:
+                          - name: Dev
+                            vrf_vni: 50002
+                            vtep_diagnostic:
+                              loopback: 102
+                              loopback_ip_range: 10.102.102.0/27
+                            mlag_ibgp_peering_ipv4_pool: 192.0.0.0/31
+                            mlag_ibgp_peering_vlan: 3002
+                            redistribute_mlag_ibgp_peering_vrfs: false
+                            svis:
+                              - id: 50
+                                name: Yellow
+                                profile: VLAN50
+                              - id: 60
+                                name: Red
+                                profile: VLAN60
+                              - id: 70
+                                name: Brown
+                                profile: VLAN70
+                              - id: 80
+                                name: Black
+                                profile: VLAN80
+                            
+                    svi_profiles:
+                      - profile: global-svi-profile
+                        mtu: 9014
+                        enabled: true
+                      - profile: VLAN10
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.10.10.1/24
+                      - profile: VLAN20
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.20.20.1/24
+                      - profile: VLAN30
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.30.30.1/24
+                      - profile: VLAN40
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.40.40.1/24
+                      - profile: VLAN50
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.50.50.1/24
+                      - profile: VLAN60
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.60.60.1/24
+                      - profile: VLAN70
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.70.70.1/24
+                      - profile: VLAN80
+                        parent_profile: global-svi-profile
+                        ip_address_virtual: 10.80.80.1/24
+              tags:
+                query: 'AVD_Role:l3leaf '
+          yaml: |-
+            node_type_keys:
+
+              - key: spine
+                type: spine
+                default_evpn_role: server
+                default_ptp_priority1: 20
+
+              - key: l3leaf
+                type: l3leaf
+                connected_endpoints: true
+                default_evpn_role: client
+                default_ptp_priority1: 30
+                mlag_support: true
+                network_services:
+                  l2: true
+                  l3: true
+                vtep: true
+
+              - key: l2leaf
+                type: l2leaf
+                connected_endpoints: true
+                mlag_support: true
+                network_services:
+                  l2: true
+                underlay_router: false
+                uplink_type: port-channel
+
+              - key: super_spine
+                type: super-spine
+
+              - key: overlay_controller
+                type: overlay-controller
+                default_evpn_role: server
+              
+              - key: backbone
+                type: backbone
+                default_evpn_role: server
+              
+              - key: l3spine
+                type: l3spine
+                connected_endpoints: true
+                default_overlay_routing_protocol: none
+                default_underlay_routing_protocol: none
+                mlag_support: true
+                network_services:
+                  l2: true
+                  l3: true
+                vtep: true
+                default_evpn_role: client
+
+              - key: leaf
+                type: leaf
+                connected_endpoints: true
+                mlag_support: true
+                network_services:
+                  l2: true
+                underlay_router: false
+                uplink_type: port-channel
+      tags:
+        query: AVD_Fabric_Name:datacenter
+  yaml: |-
+    mgmt_interface_vrf: default
+
+    name_servers:
+      - 10.255.0.2
+
+    ntp:
+      servers:
+        - name: 0.pool.ntp.org
+
+    local_users: 
+      - name: admin
+        privilege: 15
+        role: network-admin
+        no_password: true
+      - name: cvpadmin
+        privilege: 15
+        role: network-admin
+        sha512_password: $6$JIWpYntS5KpTMCGF$el6rGKnDYPqxKeMcJGutPctkOMiHrV/bej1DTmdTR8jEnuV/gQbTYa76slNHP1vwyN8Gq2kbNsMmXUwVhkwjy1
+
+    cvp_instance_ips:
+      - 192.168.0.5
+    cvp_token_file: /tmp/token
+
+    aaa_authorization:
+      exec:
+        default: local
+
+    bgp_graceful_restart:
+      enabled: true
+      restart_time: 300
+
+    bgp_distance:
+      external_routes: 20
+      internal_routes: 200
+      local_routes: 200
+
+    default_evpn_encapsulation: vxlan
+
+    evpn_import_pruning: true
+
+    mlag_ibgp_peering_vrfs:
+      base_vlan: 3000
+
+    mac_address_table:
+      aging_time: 1800
+
+    arp:
+      aging:
+        timeout_default: 1500
+
+    p2p_uplinks_mtu: 1500
