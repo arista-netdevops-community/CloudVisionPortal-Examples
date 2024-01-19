@@ -1,0 +1,222 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: 07a5eccd-fb4b-4dd7-9400-4e5e5b759fad
+        workspace_id: 612a68a5-76ad-4379-9106-639878e5dbbb
+      display_name: Connectivity Monitoring Hosts Default GW
+      description: Configure and assign host endpoints for monitoring by EOS probes.
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |
+          <%
+            from cloudvision import cvlib
+
+            inputErrors = []
+            if not networkConfig:
+              return
+            cfg, rctx = networkConfig.resolveWithContext()
+          %>
+          %if len(cfg.config.monitoredHosts) > 0:
+          monitor connectivity
+            no shutdown
+          %endif
+          %for i, hostCfg in enumerate(cfg.config.monitoredHosts):
+            <%
+              details = None
+              for definition in hosts:
+                if definition.name == hostCfg.host:
+                  details = definition
+                  break
+              if not details:
+                message = f'Unknown host {hostCfg.host!r}, you must reference a valid host from {[h.name for h in hosts]}'
+                inputPath = ["networkConfig", str(rctx.index), "config", "monitoredHosts", str(i)]
+                fieldId = "hostConfiguration"
+                members = ["host"]
+                inputErrors.append(cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=members))
+            %>
+            %if details:
+            host ${details.name}
+              ip ${details.ipAddr}
+            %if details.description:
+              description
+              ${details.description}
+            %endif
+            %if details.url:
+              url ${details.url}
+            %endif
+            %endif
+          %endfor
+          <%
+          if inputErrors:
+              raise cvlib.InputErrorException(inputErrors=inputErrors) from None
+          %>
+      input_schema:
+        fields:
+          values:
+            8caaf891-0e30-4a49-a013-83bc701a626c:
+              id: 8caaf891-0e30-4a49-a013-83bc701a626c
+              name: name
+              label: Name
+              description: ''
+              required: true
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            26cdc684-b848-47bc-ba27-fce32be56404:
+              id: 26cdc684-b848-47bc-ba27-fce32be56404
+              name: ipAddr
+              label: IPv4 or IPv6 Address
+              description: ''
+              required: true
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: ip
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            a9f90341-f1a3-4bc9-a47f-6558aea53f2b:
+              id: a9f90341-f1a3-4bc9-a47f-6558aea53f2b
+              name: description
+              label: Description
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: min..140
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            20f2bc23-a0fe-4205-943f-f181c282273d:
+              id: 20f2bc23-a0fe-4205-943f-f181c282273d
+              name: url
+              label: HTTP Endpoint
+              description: Enter an optional URL that monitors whether the host has a reachable web server or not
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: url
+                length: null
+                pattern: null
+                dynamic_options: null
+                extra_values_allowed: false
+            526f19e8-aa75-49a3-8cb9-cc837661a99a:
+              id: 526f19e8-aa75-49a3-8cb9-cc837661a99a
+              name: host
+              label: Host
+              description: The defintion of a single host
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 8caaf891-0e30-4a49-a013-83bc701a626c
+                    - 26cdc684-b848-47bc-ba27-fce32be56404
+                    - a9f90341-f1a3-4bc9-a47f-6558aea53f2b
+                    - 20f2bc23-a0fe-4205-943f-f181c282273d
+            54d6e482-2279-4e56-ba48-440e540e9e3f:
+              id: 54d6e482-2279-4e56-ba48-440e540e9e3f
+              name: hosts
+              label: Hosts
+              description: Define a host that an EOS device will monitor as an endpoint.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: 526f19e8-aa75-49a3-8cb9-cc837661a99a
+                key: null
+            10ab6f2b-6dd6-4765-ab29-af1647b600bf:
+              id: 10ab6f2b-6dd6-4765-ab29-af1647b600bf
+              name: host
+              label: Host
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_STRING
+              string_props:
+                default_value: null
+                is_secret: false
+                static_options: null
+                format: null
+                length: null
+                pattern: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"8caaf891-0e30-4a49-a013-83bc701a626c"}'
+                extra_values_allowed: false
+            hostConfiguration:
+              id: hostConfiguration
+              name: hostConfiguration
+              label: Host Configuration
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 10ab6f2b-6dd6-4765-ab29-af1647b600bf
+            37ba9fbb-a8ae-493c-9114-b86c23173894:
+              id: 37ba9fbb-a8ae-493c-9114-b86c23173894
+              name: monitoredHosts
+              label: Monitored Hosts
+              description: Assign hosts to this group for EOS device monitoring.
+              required: false
+              type: INPUT_FIELD_TYPE_COLLECTION
+              collection_props:
+                base_field_id: hostConfiguration
+                key: ''
+            60e83d6d-d530-4365-844a-146b94763bd6:
+              id: 60e83d6d-d530-4365-844a-146b94763bd6
+              name: config
+              label: Device Configuration
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 37ba9fbb-a8ae-493c-9114-b86c23173894
+            1194fe06-ee3c-423e-bf6a-01b4f42f1647:
+              id: 1194fe06-ee3c-423e-bf6a-01b4f42f1647
+              name: networkConfig
+              label: Host Monitoring
+              description: Enable the Connectivity Monitoring agent on devices and assign hosts to monitor.
+              required: false
+              type: INPUT_FIELD_TYPE_RESOLVER
+              resolver_props:
+                base_field_id: 60e83d6d-d530-4365-844a-146b94763bd6
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+            root:
+              id: root
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              type: INPUT_FIELD_TYPE_GROUP
+              group_props:
+                members:
+                  values:
+                    - 54d6e482-2279-4e56-ba48-440e540e9e3f
+                    - 1194fe06-ee3c-423e-bf6a-01b4f42f1647
+        layout:
+          value: '{}'
