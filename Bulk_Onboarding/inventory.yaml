@@ -1,0 +1,43 @@
+all:
+  children:
+    AVD_LAB:
+      children:
+        CVP:
+          hosts:
+            cv_server:
+# DC1 Fabric
+        WB_FABRIC:
+          children:
+            WB_SPINES:
+              hosts:
+                spine1:
+                  ansible_host: 192.0.2.67
+                spine2:
+                  ansible_host: 192.0.2.66
+                spine3:
+                  ansible_host: 192.0.2.70
+                spine4:
+                  ansible_host: 192.0.2.71
+            WB_LEAFS:
+              children:
+                WB_LEAF1:
+                  hosts:
+                    leaf1:
+                      ansible_host: 192.0.2.64
+                WB_LEAF2:
+                  hosts:
+                    leaf2:
+                      ansible_host: 192.0.2.65
+          vars:
+            ansible_connection: httpapi
+            ansible_network_os: eos
+            ansible_become: yes
+            ansible_become_method: enable
+            ansible_httpapi_use_ssl: true
+            ansible_httpapi_validate_certs: false
+        WB_TENANTS_NETWORKS:
+          children:
+            WB_LEAFS:
+        WB_SERVERS:
+          children:
+            WB_LEAFS:

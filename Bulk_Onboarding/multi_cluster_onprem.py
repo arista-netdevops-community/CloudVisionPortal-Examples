@@ -61,7 +61,7 @@ for dev in devices:
         {"cmd": "copy terminal: file:/tmp/standby-token", "input": standby_token['data']},
         "configure",
         "daemon TerminAttr",
-        "exec /usr/bin/TerminAttr  -cvopt primary.addr=192.0.2.779:9910,192.0.2.78:9910,192.0.2.79:9910 -cvopt primary.auth=token,/tmp/token -cvopt primary.vrf=MGMT -cvopt standby.addr=192.0.2.200:9910,192.0.2.201:9910,192.0.2.202:9910 -cvopt standby.auth=token-secure,/tmp/standby-token -cvopt standby.vrf=MGMT -taillogs",
+        "exec /usr/bin/TerminAttr -cvopt primary.addr=192.0.2.779:9910,192.0.2.78:9910,192.0.2.79:9910 -cvopt primary.auth=token,/tmp/token -cvopt primary.vrf=MGMT -cvopt standby.addr=192.0.2.200:9910,192.0.2.201:9910,192.0.2.202:9910 -cvopt standby.auth=token-secure,/tmp/standby-token -cvopt standby.vrf=MGMT -taillogs",
         "shutdown",
         "no shutdown"
     ])
