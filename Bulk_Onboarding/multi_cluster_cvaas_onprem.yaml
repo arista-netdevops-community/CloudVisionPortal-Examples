@@ -1,0 +1,131 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    cvaas_api: https://www.arista.io/api/v3/services/admin.Enrollment/AddEnrollmentToken
+    cvaas_token: "{{lookup('file', 'cvaas.tok')}}"
+    cvp_device_api: "https://192.0.2.79/cvpservice/enroll/createToken"
+    cvp_token: "{{lookup('file', 'onprem.tok')}}"
+  tasks:
+  - name: "Generating TerminAttr onboarding token on CVaaS instance"
+    tags: [build]
+    ansible.builtin.uri:
+      url: "{{ cvaas_api }}"
+      method: POST
+      headers:
+        Accept: "application/json"
+        Cookie: "access_token={{ cvaas_token }}"
+      validate_certs: no
+      return_content: yes
+      body: '{"enrollmentToken": {"reenrollDevices": ["*"], "validFor": "720h"}}'
+    register: cv_onboarding_token
+    until: cv_onboarding_token.status == 200
+    retries: 10
+    delay: 2
+  # Writing cvaas token to file
+  - name: "Parsing CVaaS token"
+    tags: [build]
+    set_fact:
+      cv_onboarding_token: "{{ cv_onboarding_token.content | list | join }}"
+  - name: "Writing CVaaS token to file"
+    tags: [build]
+    copy:
+      content: "{{ cv_onboarding_token[0].enrollmentToken.token }}"
+      dest: "./cv-onboarding-token"
+  - name: "Generating TerminAttr onboarding token on onprem instance - active"
+    tags: [build]
+    ansible.builtin.uri:
+      url: "{{ cvp_device_api }}"
+      method: POST
+      headers:
+        Accept: "application/json"
+        Cookie: "access_token={{ cvp_token }}"
+      validate_certs: no
+      return_content: yes
+      body: '{"reenrollDevices": ["*"], "duration": "720h"}'
+    register: token
+    until: token.status == 200
+    retries: 10
+    delay: 2
+  # Writing onprem token to file
+  - name: debug token
+    tags: [build]
+    debug: var=token
+  - name: "Parsing CVP on-prem token"
+    tags: [build]
+    set_fact:
+      token: "{{ token.content | list | join }}"
+  - name: "Writing on-prem token to file"
+    tags: [build]
+    copy:
+      content: "{{ token.data }}"
+      dest: "./token"
+
+- hosts: WB_FABRIC
+  vars:
+    ansible_user: arista
+    ansible_password: arista
+    ansible_connection: network_cli
+    ansible_httpapi_use_ssl: True
+    ansible_httpapi_validate_certs: False
+    ansible_network_os: eos
+    ansible_httpapi_port: 443
+    ansible_python_interpreter: $(which python3)
+  tasks:
+  - name: "Copy onboarding tokens"
+    tags: [copy]
+    ansible.builtin.uri:
+      url: "https://{{ansible_user}}:{{ansible_password}}@{{hostvars[inventory_hostname].ansible_host}}/command-api"
+      method: POST
+      headers:
+        Accept: "application/json"
+      validate_certs: no
+      return_content: yes
+      force_basic_auth: true
+      body:
+        jsonrpc: "2.0"
+        method: "runCmds"
+        params:
+          version: 1
+          cmds:
+          - "enable"
+          - cmd: "copy terminal: file:/tmp/token"
+            input: "{{lookup('file', './token')}}"
+          - cmd: "copy terminal: file:/tmp/cv-onboarding-token"
+            input: "{{lookup('file', './cv-onboarding-token')}}"
+          format: json
+          timestamps: false
+          autoComplete: false
+          expandAliases: false
+          stopOnError: false
+          streaming: false
+          includeErrorDetail: false
+        id: EapiExplorer-1
+      body_format: json
+    register: cv_onboarding_token
+    until: cv_onboarding_token.status == 200
+    retries: 10
+    delay: 2
+# ======= Alternative copy tokens via network-cli ======
+  # - name: remove previous tokens
+  #   eos_command:
+  #     commands:
+  #       - "enable"
+  # - name: Copy on-prem token
+  #   net_put:
+  #       src: "/Users/tamas/go/src/github.com/netdevops-examples/ansible/avd-evpn-l3ls-v3/token"
+  #       dest: "/tmp/token"
+  # - name: Copy cvaas token
+  #   net_put:
+  #       src: "/Users/tamas/go/src/github.com/netdevops-examples/ansible/avd-evpn-l3ls-v3/cv-onboarding-token"
+  #       dest: "/tmp/cv-onboarding-token"
+
+  - name: restart TerminAttr
+    eos_command:
+      commands:
+        - "enable"
+        - "configure"
+        - "daemon TerminAttr"
+        - "exec /usr/bin/TerminAttr -cvopt cvaas.addr=apiserver.arista.io:443 -cvopt cvaas.auth=token-secure,/tmp/cv-onboarding-token -cvopt onprem.addr=192.0.2.79:9910 -cvopt onprem.auth=token,/tmp/token -taillogs"
+        - "shutdown"
+        - "no shutdown"
