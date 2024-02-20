@@ -1,0 +1,92 @@
+path: []
+inputs:
+  profileOfProfiles:
+    - profileOfProfilesName: TRUNK
+      vlanProfile: TRUNK
+    - profileOfProfilesName: ROUTED
+      vlanProfile: ROUTED
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges: []
+                  loopbackInterfaces:
+                    - description: mgt address eos9
+                      ipPrefix: 14.14.14.2
+                      memberNumberCollection:
+                        - '3'
+                      number: 2
+                      vrf: null
+                    - description: mgt address eos3
+                      ipPrefix: 14.14.14.3
+                      memberNumberCollection:
+                        - '1'
+                      number: 2
+                      vrf: null
+                    - description: mgt address eos4
+                      ipPrefix: 14.14.14.4
+                      memberNumberCollection:
+                        - '2'
+                      number: 2
+                      vrf: null
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:8F426BFC97B29EF3598C7150EA01BB75
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:4A8C2317429164977975DE8D250C9BE1
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:470AC4D5A1580DB15D2103ACEF18EE6F
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:601F9CA9DEF3699A6C278BC241C5EADB
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:E408D1D62A32E371C694ACBE5523B927
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:6C25B9088049A3390FDDC67A203CD656
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:L3DC-Switches
+      tags:
+        query: 'device:eos9,eos3,eos4 '
+  vlanProfiles:
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      vlanName: null
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED $1
+      profileIpAddressVirtual: null
+      vlanName: null
