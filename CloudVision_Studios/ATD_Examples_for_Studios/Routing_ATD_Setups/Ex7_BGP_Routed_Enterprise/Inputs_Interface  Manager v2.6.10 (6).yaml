@@ -1,0 +1,130 @@
+path: []
+inputs:
+  profileOfProfiles: []
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges: []
+                  loopbackInterfaces:
+                    - description: eos9 red
+                      ipPrefix: 14.14.14.2
+                      memberNumberCollection:
+                        - '1'
+                      number: 2
+                      vrf: DC-red
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:470AC4D5A1580DB15D2103ACEF18EE6F
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:6C25B9088049A3390FDDC67A203CD656
+                  vlanInterfaces: []
+              tags:
+                query: Switch-Group:L3DC_End_Devices
+      tags:
+        query: device:eos9
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: group-member-notation
+                  interfaceRanges: []
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:270569E99D881DAC035A1A0B7CAE0C42
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:A378E919650FFBC42EA80AD177EDD02E
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:EA5AB75EB06B0CA310F287427DC59C14
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:22418D797D6F03B91964D989EEDBD335
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:316F24DEE57455C90D08469C2BCAD718
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:A2D5552ED2FE7AA8BD2716018109A551
+                  vlanInterfaces:
+                    - defaultGatewayNextHop: null
+                      description: vSVI_v15
+                      enabled: true
+                      ipPrefix: 1.2.3.0/31
+                      memberNumberCollection:
+                        - '1'
+                        - '3'
+                      secIp: []
+                      virtualRouterAddress: 15.15.15.1/24
+                      vlanId: '15'
+                      vrf: Enterprise-red
+                    - defaultGatewayNextHop: 15.15.15.1
+                      description: eos12_IP
+                      enabled: true
+                      ipPrefix: 15.15.15.4/24
+                      memberNumberCollection:
+                        - '2'
+                      secIp: []
+                      virtualRouterAddress: null
+                      vlanId: '15'
+                      vrf: null
+                  vlans:
+                    - memberNumberCollection:
+                        - all-switches
+                      privateVlanType: null
+                      state: null
+                      trunkGroup: null
+                      vlanId: '15'
+                      vlanName: v15
+              tags:
+                query: Switch-Group:L2DC
+      tags:
+        query: Campus:Ex7-L2DC-eos11-eos12-eos13
+  vlanProfiles:
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: trunk
+      name: TRUNK
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      vlanName: null
+    - allowedVlans: null
+      bpduGuardEnabled: false
+      dhcpHelpers: []
+      ipaddress: null
+      mode: routed
+      name: ROUTED
+      nativeVlanId: 1
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: ROUTED $1
+      profileIpAddressVirtual: null
+      vlanName: null
