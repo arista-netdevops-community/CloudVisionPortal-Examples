@@ -1,0 +1,110 @@
+path: []
+inputs:
+  tenants:
+    - macVrfVniBase: 10000
+      name: red
+      vlanAwareBundles: []
+      vlans:
+        - dhcpServerDetails: []
+          eTreeDetails:
+            etreeEnable: false
+            leafExportRouteTargetOffset: 10000
+          eTreeRootSwitches:
+            - inputs:
+                role: Root
+              tags:
+                query: device:B8A980D04B38728648CE96120976BEFE
+          l3OrL2: false
+          mtu: 9214
+          name: red
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos11
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos1
+              tags:
+                query: device:eos1,eos11,eos6
+          vlanId: 319
+          vrf: null
+          vxlan: true
+      vrfs: []
+    - macVrfVniBase: 10000
+      name: gray
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: false
+          mtu: 9214
+          name: gray
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos4
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+              tags:
+                query: device:eos3,eos4,eos6
+          vlanId: 320
+          vrf: null
+          vxlan: true
+      vrfs: []
+    - macVrfVniBase: 10000
+      name: yellow
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eosCli: []
+          l3OrL2: false
+          mtu: 9214
+          name: yellow
+          overrideVariables: {}
+          sviIpAddresses: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname:
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos3
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos6
+                    - inputs:
+                        apply: true
+                      tags:
+                        query: device:eos1
+              tags:
+                query: device:eos1,eos3,eos6
+          vlanId: 501
+          vxlan: true
+      vrfs: []
