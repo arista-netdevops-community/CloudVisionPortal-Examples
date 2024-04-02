@@ -1,0 +1,593 @@
+path: []
+inputs:
+  campus:
+    - inputs:
+        campusDetails:
+          campusPod:
+            - inputs:
+                campusPodFacts:
+                  accessPodDefaults: {}
+                  accessPods:
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 1
+                              tags:
+                                query: device:SN-Campus-A-LEAF1
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 2
+                              tags:
+                                query: device:SN-Campus-A-LEAF2
+                          memberLeafMlagPairs: []
+                          memberLeafs: []
+                      tags:
+                        query: Access-Pod:A1
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 3
+                              tags:
+                                query: device:SN-Campus-A-LEAF3
+                          memberLeafMlagPairs: []
+                          memberLeafs: []
+                      tags:
+                        query: Access-Pod:A2
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 4
+                              tags:
+                                query: device:SN-Campus-A-LEAF5
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 5
+                              tags:
+                                query: device:SN-Campus-A-LEAF6
+                          memberLeafMlagPairs: []
+                          memberLeafs:
+                            - inputs:
+                                memberLeafsInfo:
+                                  nodeId: 6
+                              tags:
+                                query: device:SN-Campus-A-SW1
+                            - inputs:
+                                memberLeafsInfo:
+                                  nodeId: 7
+                              tags:
+                                query: device:SN-Campus-A-SW2
+                            - inputs:
+                                memberLeafsInfo:
+                                  nodeId: 8
+                              tags:
+                                query: device:SN-Campus-A-SW3
+                      tags:
+                        query: Access-Pod:A3
+                  campusPodRoutingProtocols: {}
+                  design:
+                    campusType: L2
+                    vxlanOverlay: false
+                  fabricConfigurations:
+                    inbandManagementDetails:
+                      accessPods: []
+                      inbandManagementSubnet: null
+                  nodeTypeProperties:
+                    defaultSpineProperties:
+                      spineMlagSupportDefault: 'Yes'
+                      spineUplinkType: null
+                  spineDefaults:
+                    mlagDetails:
+                      mlagDomainId: MLAG
+                      mlagPeerIPv4Pool: 169.254.0.0/31
+                      mlagPeerL3IPv4Pool: null
+                      mlagPeerL3Vlan: 4093
+                      mlagPeerVlan: 4094
+                      virtualRouterMacAddress: 00:1c:73:00:00:99
+                    routerIdPool: 172.16.1.0/24
+                  spines:
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 1
+                      tags:
+                        query: device:SN-Campus-A-SPINE1
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 2
+                      tags:
+                        query: device:SN-Campus-A-SPINE2
+                  thirdPartyDevices: []
+              tags:
+                query: Campus-Pod:A
+            - inputs:
+                campusPodFacts:
+                  accessPodDefaults:
+                    bgpDetails:
+                      bgpAsns: 65100-65199
+                    routerIdPool: 172.16.2.0/24
+                    uplinkIpv4Pool: 172.15.2.0/24
+                    uplinkIpv4SubnetMask: 31
+                    vtepLoopbackIPv4Pool: 172.16.1.0/24
+                  accessPods:
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 1
+                              tags:
+                                query: device:SN-Campus-B-LEAF1
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 2
+                              tags:
+                                query: device:SN-Campus-B-LEAF2
+                          memberLeafMlagPairs: []
+                          memberLeafs: []
+                      tags:
+                        query: Access-Pod:B1
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 3
+                              tags:
+                                query: device:SN-Campus-B-LEAF3
+                          memberLeafMlagPairs: []
+                          memberLeafs: []
+                      tags:
+                        query: Access-Pod:B2
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 4
+                              tags:
+                                query: device:SN-Campus-B-LEAF5
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 5
+                              tags:
+                                query: device:SN-Campus-B-LEAF6
+                          memberLeafMlagPairs: []
+                          memberLeafs:
+                            - inputs:
+                                memberLeafsInfo:
+                                  nodeId: 1
+                              tags:
+                                query: device:SN-Campus-B-SW1
+                            - inputs:
+                                memberLeafsInfo:
+                                  nodeId: 2
+                              tags:
+                                query: device:SN-Campus-B-SW2
+                            - inputs:
+                                memberLeafsInfo:
+                                  nodeId: 3
+                              tags:
+                                query: device:SN-Campus-B-SW3
+                      tags:
+                        query: Access-Pod:B3
+                  campusPodRoutingProtocols:
+                    campusPodUnderlayRoutingProtocol: OSPF
+                  design:
+                    campusType: L3
+                    vxlanOverlay: false
+                  fabricConfigurations:
+                    inbandManagementDetails:
+                      accessPods:
+                        - inputs:
+                            inbandManagementDetails:
+                              inbandManagementSubnet: null
+                          tags:
+                            query: Access-Pod:B1
+                        - inputs:
+                            inbandManagementDetails:
+                              inbandManagementSubnet: null
+                          tags:
+                            query: Access-Pod:B2
+                        - inputs:
+                            inbandManagementDetails:
+                              inbandManagementSubnet: null
+                          tags:
+                            query: Access-Pod:B3
+                  nodeTypeProperties:
+                    defaultLeafProperties:
+                      leafUplinkType: P2P
+                  spineDefaults:
+                    bgpDetails:
+                      bgpAsns: '65100'
+                    routerIdPool: 172.16.2.0/24
+                  spines:
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 1
+                      tags:
+                        query: device:SN-Campus-B-SPINE1
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 2
+                      tags:
+                        query: device:SN-Campus-B-SPINE2
+                  thirdPartyDevices: []
+              tags:
+                query: Campus-Pod:B
+            - inputs:
+                campusPodFacts:
+                  accessPodDefaults: {}
+                  accessPods: []
+                  campusPodRoutingProtocols: {}
+                  design:
+                    campusType: L2 Only
+                    vxlanOverlay: false
+                  fabricConfigurations: {}
+                  nodeTypeProperties: {}
+                  spineDefaults: {}
+                  spines:
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 1
+                      tags:
+                        query: device:SN-Campus-C-LEAF1
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 2
+                      tags:
+                        query: device:SN-Campus-C-LEAF2
+                  thirdPartyDevices: []
+              tags:
+                query: Campus-Pod:C1
+            - inputs:
+                campusPodFacts:
+                  accessPodDefaults: {}
+                  accessPods: []
+                  campusPodRoutingProtocols: {}
+                  design:
+                    campusType: L2 Only
+                    vxlanOverlay: false
+                  fabricConfigurations: {}
+                  nodeTypeProperties: {}
+                  spineDefaults: {}
+                  spines:
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 3
+                      tags:
+                        query: device:SN-Campus-C-LEAF3
+                  thirdPartyDevices: []
+              tags:
+                query: Campus-Pod:C2
+            - inputs:
+                campusPodFacts:
+                  accessPodDefaults: {}
+                  accessPods:
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 1
+                              tags:
+                                query: device:SN-Campus-C-SW1
+                          memberLeafMlagPairs: []
+                          memberLeafs: []
+                      tags:
+                        query: Access-Pod:SW1
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 2
+                              tags:
+                                query: device:SN-Campus-C-SW2
+                          memberLeafMlagPairs: []
+                          memberLeafs: []
+                      tags:
+                        query: Access-Pod:SW2
+                    - inputs:
+                        accessPodFacts:
+                          leafs:
+                            - inputs:
+                                leafsInfo:
+                                  nodeId: 3
+                              tags:
+                                query: device:SN-Campus-C-SW3
+                          memberLeafMlagPairs: []
+                          memberLeafs: []
+                      tags:
+                        query: Access-Pod:SW3
+                  campusPodRoutingProtocols: {}
+                  design:
+                    campusType: L2 Only
+                    vxlanOverlay: false
+                  fabricConfigurations: {}
+                  nodeTypeProperties: {}
+                  spineDefaults: {}
+                  spines:
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 1
+                      tags:
+                        query: device:SN-Campus-C-LEAF5
+                    - inputs:
+                        spinesInfo:
+                          nodeId: 2
+                      tags:
+                        query: device:SN-Campus-C-LEAF6
+                  thirdPartyDevices: []
+              tags:
+                query: Campus-Pod:C3
+      tags:
+        query: Campus:ABC
+  campusServices:
+    - inputs:
+        campusServicesGroup:
+          campusPodsServices:
+            - inputs:
+                services:
+                  campusType: L2
+                  svis:
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:A1
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:A3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 10
+                      ipVirtualRouterSubnet: 10.10.10.0/24
+                      multicast: {}
+                      name: BLUE
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:A1
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:A3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 30
+                      ipVirtualRouterSubnet: 10.10.30.0/24
+                      multicast: {}
+                      name: ORANGE
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:A2
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 50
+                      ipVirtualRouterSubnet: 10.10.50.0/24
+                      multicast: {}
+                      name: YELLOW
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:A3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 70
+                      ipVirtualRouterSubnet: 10.10.70.0/24
+                      multicast: {}
+                      name: BROWN
+                      vrf: null
+              tags:
+                query: Campus-Pod:A
+            - inputs:
+                services:
+                  campusType: L3
+                  svis:
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: 10.10.20.0/24
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:B1
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 20
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: GREEN
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: 10.10.40.0/24
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:B1
+                        - enabled: null
+                          ipVirtualRouterSubnet: 10.10.41.0/24
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:B3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 40
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: PURPLe
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: 10.10.60.0/24
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:B2
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 60
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: RED
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: 10.10.11.0/24
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:B3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 10
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: BLUE
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: 10.10.71.0/24
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:B3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 70
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: BROWN
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: 10.10.80.0/24
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:B3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 80
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: BLACK
+                      vrf: null
+              tags:
+                query: Campus-Pod:B
+            - inputs:
+                services:
+                  campusType: null
+                  svis: []
+              tags:
+                query: Campus-Pod:C
+            - inputs:
+                services:
+                  campusType: L2 Only
+                  svis:
+                    - devices: []
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 10
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: BLUE
+                      vrf: null
+              tags:
+                query: Campus-Pod:C1
+            - inputs:
+                services:
+                  campusType: L2 Only
+                  svis:
+                    - devices: []
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 20
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: GREEN
+                      vrf: null
+              tags:
+                query: Campus-Pod:C2
+            - inputs:
+                services:
+                  campusType: L2 Only
+                  svis:
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:SW2
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 50
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: YELLOW
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:SW3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 20
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: GREEN
+                      vrf: null
+                    - devices:
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:SW1
+                        - enabled: null
+                          ipVirtualRouterSubnet: null
+                          tagQuery:
+                            tags:
+                              query: Access-Pod:SW3
+                      dhcpHelpers: []
+                      enabled: null
+                      eosCli: null
+                      id: 60
+                      ipVirtualRouterSubnet: null
+                      multicast: {}
+                      name: RED
+                      vrf: null
+              tags:
+                query: Campus-Pod:C3
+          vrfs: []
+      tags:
+        query: Campus:ABC
+  tenants: []
