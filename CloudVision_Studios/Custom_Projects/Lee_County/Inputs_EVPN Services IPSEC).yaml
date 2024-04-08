@@ -1,0 +1,68 @@
+path: []
+inputs:
+  tenants:
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: IPSec-VRF
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: IPSec-VRF
+          nodes:
+            - inputs:
+                sviIpInfo:
+                  ipAddress: 192.168.101.0/31
+                  virtualIpAddress: null
+              tags:
+                query: device:SN-jc-pe-01
+            - inputs:
+                sviIpInfo:
+                  ipAddress: 192.168.102.0/31
+                  virtualIpAddress: null
+              tags:
+                query: device:SN-jc-pe-02
+            - inputs:
+                sviIpInfo:
+                  ipAddress: 192.168.103.0/31
+                  virtualIpAddress: null
+              tags:
+                query: device:SN-eocDc-pe-01
+            - inputs:
+                sviIpInfo:
+                  ipAddress: 192.168.104.0/31
+                  virtualIpAddress: null
+              tags:
+                query: device:SN-eocDc-pe-02
+          overrideVariables: {}
+          sviIpAddresses:
+            virtualAddressConfigType: false
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Network:Transport-Network Edge-Router-Domain:ALL-PEs
+          vlanId: 3
+          vrf: IPSec-VRF
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          bgp: {}
+          devices: []
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: IPSec-VRF
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 5000
