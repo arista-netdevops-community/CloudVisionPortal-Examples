@@ -1,0 +1,567 @@
+veos:
+    # Define the global vEOS node parameters
+    username: arista
+    password: arista123
+    version: 4.31.1F
+
+cvp:
+  # Define the global CVP node parameters
+  username: root
+  password: cvproot
+  version: 2024.1.0
+  instance: singlenode
+
+generic:
+  # Define the global generic node parameters
+  version: rocky-8-5
+  username: arista
+  password: arista123
+
+third-party:
+  # Define the global third-party node parameters
+  username: cvpadmin
+  password: arista123
+  version: byod-rc1
+
+# ------------------------- #
+# Node list
+# ------------------------- #
+nodes:
+  - cloud-eos-01:
+      ip_addr: 192.168.0.6
+      node_type: third-party
+
+  - cloud-eos-02:
+      ip_addr: 192.168.0.7
+      node_type: third-party
+
+  - cloud-eos-03:
+      ip_addr: 192.168.0.8
+      node_type: third-party
+
+  - cloud-eos-04:
+      ip_addr: 192.168.0.9
+      node_type: third-party
+
+  - jc-iperf1:
+      ip_addr: 192.168.0.101
+      node_type: generic
+
+  - eocDc-iperf1:
+      ip_addr: 192.168.0.102
+      node_type: generic
+
+  - jc-host1:
+      ip_addr: 192.168.0.113
+      node_type: veos
+
+  - eocDc-host1:
+      ip_addr: 192.168.0.123
+      node_type: veos
+
+  - jc-host2:
+      ip_addr: 192.168.0.124
+      node_type: veos
+
+  - jc-pe-01:
+      ip_addr: 192.168.0.11
+      node_type: veos
+
+  - jc-pe-02:
+      ip_addr: 192.168.0.12
+      node_type: veos
+
+  - jc-ce-01:
+      ip_addr: 192.168.0.13
+      node_type: veos
+
+  - jc-ce-02:
+      ip_addr: 192.168.0.14
+      node_type: veos
+
+  - cape-pe-01:
+      ip_addr: 192.168.0.17
+      node_type: veos
+
+  - cape-pe-02:
+      ip_addr: 192.168.0.18
+      node_type: veos
+
+  - as-pe-01:
+      ip_addr: 192.168.0.19
+      node_type: veos
+
+  - as-pe-02:
+      ip_addr: 192.168.0.20
+      node_type: veos
+
+  - eocDc-pe-01:
+      ip_addr: 192.168.0.21
+      node_type: veos
+
+  - eocDc-pe-02:
+      ip_addr: 192.168.0.22
+      node_type: veos
+
+  - eocDc-ce-01:
+      ip_addr: 192.168.0.23
+      node_type: veos
+
+  - eocDc-ce-02:
+      ip_addr: 192.168.0.24
+      node_type: veos
+
+  - jc-fw-01:
+      ip_addr: 192.168.0.28
+      node_type: veos
+
+  - rr-01:
+      ip_addr: 192.168.0.31
+      node_type: veos
+
+  - rr-02:
+      ip_addr: 192.168.0.32
+      node_type: veos
+
+  - cape-ce-01:
+      ip_addr: 192.168.0.33
+      node_type: veos
+
+  - as-ce-01:
+      ip_addr: 192.168.0.34
+      node_type: veos
+
+  - campus-pe-01:
+      ip_addr: 192.168.0.41
+      node_type: veos
+
+  - campus-pe-02:
+      ip_addr: 192.168.0.42
+      node_type: veos
+  - campus-pe-03:
+      ip_addr: 192.168.0.43
+      node_type: veos
+
+  - campus-pe-04:
+      ip_addr: 192.168.0.44
+      node_type: veos
+
+  - campus-ce-01:
+      ip_addr: 192.168.0.45
+      node_type: veos
+
+  - campus-ce-02:
+      ip_addr: 192.168.0.46
+      node_type: veos
+
+  - pw-pe-01:
+      ip_addr: 192.168.0.51
+      node_type: veos
+
+  - pw-pe-02:
+      ip_addr: 192.168.0.52
+      node_type: veos
+
+  - pw-pe-03:
+      ip_addr: 192.168.0.53
+      node_type: veos
+
+  - pw-pe-04:
+      ip_addr: 192.168.0.54
+      node_type: veos
+
+  - pw-ce-01:
+      ip_addr: 192.168.0.55
+      node_type: veos
+
+  - pw-ce-02:
+      ip_addr: 192.168.0.56
+      node_type: veos
+
+  - eoc-p-01:
+      ip_addr: 192.168.0.201
+      node_type: veos
+
+  - eoc-p-02:
+      ip_addr: 192.168.0.202
+      node_type: veos
+
+  - jc-p-01:
+      ip_addr: 192.168.0.203
+      node_type: veos
+
+  - jc-p-02:
+      ip_addr: 192.168.0.204
+      node_type: veos
+
+  - cape-p-01:
+      ip_addr: 192.168.0.205
+      node_type: veos
+
+  - cape-p-02:
+      ip_addr: 192.168.0.206
+      node_type: veos
+
+  - as-p-01:
+      ip_addr: 192.168.0.207
+      node_type: veos
+
+  - as-p-02:
+      ip_addr: 192.168.0.208
+      node_type: veos
+
+  - cvp:
+      ip_addr: 192.168.0.5
+      node_type: cvp
+      auto_configuration: false
+
+links:
+# ------------------------- #
+# Host connections
+# ------------------------- #
+  - connection:
+    - jc-iperf1:Ethernet1
+    - jc-ce-02:Ethernet6
+  - connection:
+    - jc-host1:Ethernet1
+    - jc-ce-01:Ethernet6
+  - connection:
+    - jc-host2:Ethernet1
+    - jc-fw-01:Ethernet3
+  - connection:
+    - jc-ce-01:Ethernet7
+    - jc-fw-01:Ethernet1
+  - connection:
+    - jc-ce-02:Ethernet7
+    - jc-fw-01:Ethernet2
+  - connection:
+    - eocDc-host1:Ethernet1
+    - eocDc-ce-01:Ethernet7
+  - connection:
+    - eocDc-iperf1:Ethernet1
+    - eocDc-ce-02:Ethernet7
+
+
+# --------------------------#
+# CE connections            #
+# ------------------------- #
+  #########################
+  # CE eocDCce-01         #
+  #########################
+  - connection:
+    - eocDc-ce-01:Ethernet1
+    - eocDc-pe-01:Ethernet1
+  - connection:
+    - eocDc-ce-01:Ethernet2
+    - eocDc-pe-01:Ethernet2
+  - connection:
+    - eocDc-ce-01:Ethernet3
+    - eocDc-pe-01:Ethernet3
+  - connection:
+    - eocDc-ce-01:Ethernet4
+    - eocDc-pe-01:Ethernet4
+  #########################
+  # CE eocDCce-02         #
+  #########################
+  - connection:
+    - eocDc-ce-02:Ethernet1
+    - eocDc-pe-02:Ethernet1
+  - connection:
+    - eocDc-ce-02:Ethernet2
+    - eocDc-pe-02:Ethernet2
+  - connection:
+    - eocDc-ce-02:Ethernet3
+    - eocDc-pe-02:Ethernet3
+  - connection:
+    - eocDc-ce-02:Ethernet4
+    - eocDc-pe-02:Ethernet4
+  #########################
+  # CE campus-ce-01       #
+  #########################
+  - connection:
+    - campus-ce-01:Ethernet1
+    - campus-pe-01:Ethernet1
+  - connection:
+    - campus-ce-01:Ethernet2
+    - campus-pe-02:Ethernet1
+  - connection:
+    - campus-ce-01:Ethernet3
+    - campus-pe-01:Ethernet2
+  - connection:
+    - campus-ce-01:Ethernet4
+    - campus-pe-02:Ethernet2
+  #########################
+  # CE campus-ce-02       #
+  #########################
+  - connection:
+    - campus-ce-02:Ethernet1
+    - campus-pe-03:Ethernet1
+  - connection:
+    - campus-ce-02:Ethernet2
+    - campus-pe-04:Ethernet1
+  - connection:
+    - campus-ce-02:Ethernet3
+    - campus-pe-03:Ethernet2
+  - connection:
+    - campus-ce-02:Ethernet4
+    - campus-pe-04:Ethernet2
+  #########################
+  # CE pw-ce-01           #
+  #########################
+  - connection:
+    - pw-ce-01:Ethernet1
+    - pw-pe-01:Ethernet1
+  - connection:
+    - pw-ce-01:Ethernet2
+    - pw-pe-02:Ethernet1
+  - connection:
+    - pw-ce-01:Ethernet3
+    - pw-pe-01:Ethernet2
+  - connection:
+    - pw-ce-01:Ethernet4
+    - pw-pe-02:Ethernet2
+  #########################
+  # CE pw-ce-02           #
+  #########################
+  - connection:
+    - pw-ce-02:Ethernet1
+    - pw-pe-03:Ethernet1
+  - connection:
+    - pw-ce-02:Ethernet2
+    - pw-pe-04:Ethernet1
+  - connection:
+    - pw-ce-02:Ethernet3
+    - pw-pe-03:Ethernet2
+  - connection:
+    - pw-ce-02:Ethernet4
+    - pw-pe-04:Ethernet2
+  #########################
+  # CE jc-ce-01           #
+  #########################
+  - connection:
+    - jc-ce-01:Ethernet1
+    - jc-pe-01:Ethernet1
+  - connection:
+    - jc-ce-01:Ethernet2
+    - jc-pe-01:Ethernet2
+  - connection:
+    - jc-ce-01:Ethernet3
+    - jc-pe-01:Ethernet3
+  - connection:
+    - jc-ce-01:Ethernet4
+    - jc-pe-01:Ethernet4
+  #########################
+  # CE jc-ce-02           #
+  #########################
+  - connection:
+    - jc-ce-02:Ethernet1
+    - jc-pe-02:Ethernet1
+  - connection:
+    - jc-ce-02:Ethernet2
+    - jc-pe-02:Ethernet2
+  - connection:
+    - jc-ce-02:Ethernet3
+    - jc-pe-02:Ethernet3
+  - connection:
+    - jc-ce-02:Ethernet4
+    - jc-pe-02:Ethernet4
+  #########################
+  # CE as-ce-01           #
+  #########################
+  - connection:
+    - as-ce-01:Ethernet1
+    - as-pe-01:Ethernet1
+  - connection:
+    - as-ce-01:Ethernet2
+    - as-pe-02:Ethernet1
+  - connection:
+    - as-ce-01:Ethernet3
+    - as-pe-01:Ethernet2
+  - connection:
+    - as-ce-01:Ethernet4
+    - as-pe-02:Ethernet2
+  - connection:
+    - as-ce-01:Ethernet5
+    - as-pe-01:Ethernet3
+  - connection:
+    - as-ce-01:Ethernet6
+    - as-pe-02:Ethernet3
+  - connection:
+    - as-ce-01:Ethernet7
+    - as-pe-01:Ethernet4
+  - connection:
+    - as-ce-01:Ethernet8
+    - as-pe-02:Ethernet4
+  #########################
+  # CE cape-ce-01         #
+  #########################
+  - connection:
+    - cape-ce-01:Ethernet1
+    - cape-pe-01:Ethernet1
+  - connection:
+    - cape-ce-01:Ethernet2
+    - cape-pe-02:Ethernet1
+  - connection:
+    - cape-ce-01:Ethernet3
+    - cape-pe-01:Ethernet2
+  - connection:
+    - cape-ce-01:Ethernet4
+    - cape-pe-02:Ethernet2
+  - connection:
+    - cape-ce-01:Ethernet5
+    - cape-pe-01:Ethernet3
+  - connection:
+    - cape-ce-01:Ethernet6
+    - cape-pe-02:Ethernet3
+  - connection:
+    - cape-ce-01:Ethernet7
+    - cape-pe-01:Ethernet4
+  - connection:
+    - cape-ce-01:Ethernet8
+    - cape-pe-02:Ethernet4
+
+
+# ------------------------- #
+# RR connections
+# ------------------------- #
+  - connection:
+    - eoc-p-01:Ethernet7
+    - rr-01:Ethernet11
+  - connection:
+    - eoc-p-02:Ethernet7
+    - rr-01:Ethernet10
+  - connection:
+    - jc-p-01:Ethernet7
+    - rr-02:Ethernet11
+  - connection:
+    - rr-02:Ethernet10
+    - jc-p-02:Ethernet7
+
+# ------------------------- #
+# PE to P connections
+# ------------------------- #
+  - connection:
+    - jc-p-01:Ethernet3
+    - jc-pe-01:Ethernet9
+  - connection:
+    - jc-p-02:Ethernet3
+    - jc-pe-01:Ethernet7
+  - connection:
+    - eocDc-pe-01:Ethernet8
+    - eoc-p-02:Ethernet5
+  - connection:
+    - eoc-p-01:Ethernet5
+    - eocDc-pe-01:Ethernet9
+  - connection:
+    - eoc-p-01:Ethernet6
+    - eocDc-pe-02:Ethernet8
+  - connection:
+    - eoc-p-02:Ethernet6
+    - eocDc-pe-02:Ethernet9
+  - connection:
+    - cape-pe-01:Ethernet5
+    - cape-p-01:Ethernet1
+  - connection:
+    - cape-pe-01:Ethernet6
+    - cape-p-02:Ethernet1
+  - connection:
+    - cape-pe-02:Ethernet5
+    - cape-p-01:Ethernet2
+  - connection:
+    - cape-pe-02:Ethernet6
+    - cape-p-02:Ethernet2
+  - connection:
+    - as-pe-01:Ethernet5
+    - as-p-01:Ethernet1
+  - connection:
+    - as-pe-01:Ethernet6
+    - as-p-02:Ethernet1
+  - connection:
+    - as-pe-02:Ethernet5
+    - as-p-01:Ethernet2
+  - connection:
+    - as-pe-02:Ethernet6
+    - as-p-02:Ethernet2
+  - connection:
+    - campus-pe-01:Ethernet5
+    - eoc-p-01:Ethernet1
+  - connection:
+    - campus-pe-02:Ethernet5
+    - eoc-p-02:Ethernet1
+  - connection:
+    - campus-pe-01:Ethernet6
+    - campus-pe-02:Ethernet6
+  - connection:
+    - eoc-p-01:Ethernet2
+    - campus-pe-04:Ethernet5
+  - connection:
+    - eoc-p-02:Ethernet2
+    - campus-pe-03:Ethernet5
+  - connection:
+    - campus-pe-04:Ethernet6
+    - campus-pe-03:Ethernet6
+  - connection:
+    - pw-pe-01:Ethernet5
+    - jc-p-01:Ethernet1
+  - connection:
+    - pw-pe-02:Ethernet5
+    - jc-p-02:Ethernet1
+  - connection:
+    - pw-pe-01:Ethernet6
+    - pw-pe-02:Ethernet6
+  - connection:
+    - pw-pe-01:Ethernet7
+    - pw-pe-04:Ethernet5
+  - connection:
+    - pw-pe-02:Ethernet7
+    - pw-pe-03:Ethernet5
+  - connection:
+    - pw-pe-04:Ethernet6
+    - pw-pe-03:Ethernet6
+# P to P connections
+  - connection:
+    - eoc-p-01:Ethernet9
+    - eoc-p-02:Ethernet9
+  - connection:
+    - jc-p-01:Ethernet5
+    - jc-p-02:Ethernet5
+  - connection:
+    - jc-pe-02:Ethernet9
+    - jc-p-02:Ethernet4
+  - connection:
+    - cape-p-01:Ethernet3
+    - cape-p-02:Ethernet3
+  - connection:
+    - as-p-01:Ethernet3
+    - as-p-02:Ethernet3
+  - connection:
+    - eoc-p-01:Ethernet8
+    - jc-p-01:Ethernet8
+  - connection:
+    - jc-pe-02:Ethernet8
+    - jc-p-01:Ethernet4
+  - connection:
+    - eoc-p-02:Ethernet8
+    - cape-p-01:Ethernet8
+  - connection:
+    - as-p-01:Ethernet4
+    - cape-p-02:Ethernet4
+  - connection:
+    - as-p-02:Ethernet6
+    - jc-p-02:Ethernet6
+
+# ------------------------- #
+# CloudEOS connections
+# ------------------------- #
+  - connection:
+    - cloud-eos-01:Ethernet1
+    - jc-pe-01:Ethernet5
+  - connection:
+    - cloud-eos-02:Ethernet1
+    - jc-pe-02:Ethernet5
+  - connection:
+    - cloud-eos-03:Ethernet1
+    - eocDc-pe-01:Ethernet5
+  - connection:
+    - cloud-eos-04:Ethernet1
+    - eocDc-pe-02:Ethernet5
