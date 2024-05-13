@@ -229,24 +229,26 @@ links:
     - jc-host2:Ethernet1
     - jc-fw-01:Ethernet3
   - connection:
-    - jc-ce-01:Ethernet7
-    - jc-fw-01:Ethernet1
-  - connection:
-    - jc-ce-02:Ethernet7
-    - jc-fw-01:Ethernet2
-  - connection:
     - eocDc-host1:Ethernet1
     - eocDc-ce-01:Ethernet7
   - connection:
     - eocDc-iperf1:Ethernet1
     - eocDc-ce-02:Ethernet7
 
-
 # --------------------------#
 # CE connections            #
 # ------------------------- #
   #########################
-  # CE eocDCce-01         #
+  # CE jc-fw-01           #
+  #########################
+  - connection:
+    - jc-fw-01:Ethernet1
+    - jc-pe-01:Ethernet6
+  - connection:
+    - jc-fw-01:Ethernet2
+    - jc-pe-02:Ethernet6
+  #########################
+  # CE eocDC-ce-01        #
   #########################
   - connection:
     - eocDc-ce-01:Ethernet1
@@ -370,28 +372,28 @@ links:
   #########################
   - connection:
     - as-ce-01:Ethernet1
-    - as-pe-02:Ethernet1
-  - connection:
-    - as-ce-01:Ethernet2
     - as-pe-01:Ethernet1
   - connection:
-    - as-ce-01:Ethernet3
-    - as-pe-02:Ethernet2
+    - as-ce-01:Ethernet2
+    - as-pe-02:Ethernet1
   - connection:
-    - as-ce-01:Ethernet4
+    - as-ce-01:Ethernet3
     - as-pe-01:Ethernet2
   - connection:
-    - as-ce-01:Ethernet5
-    - as-pe-02:Ethernet3
+    - as-ce-01:Ethernet4
+    - as-pe-02:Ethernet2
   - connection:
-    - as-ce-01:Ethernet6
+    - as-ce-01:Ethernet5
     - as-pe-01:Ethernet3
   - connection:
+    - as-ce-01:Ethernet6
+    - as-pe-02:Ethernet3
+  - connection:
     - as-ce-01:Ethernet7
-    - as-pe-02:Ethernet4
+    - as-pe-01:Ethernet4
   - connection:
     - as-ce-01:Ethernet8
-    - as-pe-01:Ethernet4
+    - as-pe-02:Ethernet4
   #########################
   # CE cape-ce-01         #
   #########################
@@ -420,22 +422,21 @@ links:
     - cape-ce-01:Ethernet8
     - cape-pe-02:Ethernet4
 
-
 # ------------------------- #
 # RR connections
 # ------------------------- #
   - connection:
-    - eoc-p-01:Ethernet7
-    - rr-01:Ethernet11
-  - connection:
-    - eoc-p-02:Ethernet7
     - rr-01:Ethernet10
+    - eoc-p-02:Ethernet7
   - connection:
-    - jc-p-01:Ethernet7
-    - rr-02:Ethernet11
+    - rr-01:Ethernet11
+    - eoc-p-01:Ethernet7
   - connection:
     - rr-02:Ethernet10
     - jc-p-02:Ethernet7
+  - connection:
+    - rr-02:Ethernet11
+    - jc-p-01:Ethernet7
 
 # ------------------------- #
 # PE to P connections
