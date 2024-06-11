@@ -1,0 +1,99 @@
+{
+  "dashboards": [
+    {
+      "key": "e037bc29-7b85-41d8-b875-17913a40774f",
+      "createdAt": [
+        853737833,
+        1597
+      ],
+      "createdBy": "tplugor",
+      "metaData": {
+        "schemaVersion": "3",
+        "legacyKey": "",
+        "legacyVersion": "",
+        "fromPackage": ""
+      },
+      "name": "Devices Interfaces Tags",
+      "description": "",
+      "widgets": [
+        {
+          "id": "5381d776-32cc-41f5-84fc-c628b42c3fdb",
+          "name": "",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 22,
+            "height": 12
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let data = `analytics:/tags/elements/interfaces/*/label/*`\nlet result = newDict()\nfor k, v in data {\n    if k == _device+\"_\"+_interface {\n        for tagKey,tagValue in v{\n            result[tagKey] = newDict()\n            result[tagKey][\"Value\"] = dictKeys(merge(tagValue))[0]\n        }\n    }\n}\nresult",
+            "graphConfig": {
+              "columns": {
+                "key": {
+                  "columnTitle": "Interface Tag"
+                }
+              }
+            },
+            "visualization": "table"
+          },
+          "location": "main",
+          "parent": ""
+        },
+        {
+          "id": "2a3e0eb1-797e-4fd7-9113-c2a3f2be6d30",
+          "name": "",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 12,
+            "height": 2
+          },
+          "type": "input-widget",
+          "inputs": {
+            "defaultValue": "SN-as-ce-01",
+            "inputName": "device",
+            "inputSource": "devices",
+            "selectedCustomTags": [],
+            "tagLabel": "device",
+            "tags": "Role:Edge-Router "
+          },
+          "location": "inputs",
+          "parent": ""
+        },
+        {
+          "id": "516bc557-f090-4505-b7ef-d46845d0ebd6",
+          "name": "",
+          "position": {
+            "x": 12,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 12,
+            "height": 2
+          },
+          "type": "variable-widget",
+          "inputs": {
+            "defaultValue": "",
+            "inputName": "interface",
+            "inputType": "SingleSelect",
+            "selectData": {
+              "manualOptions": [],
+              "createOptionsUsingAql": true,
+              "query": "let interface_list = `<_device>:/Sysdb/interface/status/all/intfStatus`\nlet interface_dict = merge(interface_list)\nlet temp_list = newDict()\nlet data = `analytics:/tags/elements/interfaces/*/label/*`\nlet result = newDict()\nfor k, v in data {\n    if strContains(k,_device){\n        for tagKey,tagValue in v{\n            result[tagKey] = newDict()\n            result[tagKey][\"Value\"] = dictKeys(merge(tagValue))[0]\n            \n            \n        }\n        if dictHasKey(v,\"Link-Type\") {\n                let temp = dictKeys(merge(v[\"Link-Type\"]))[0]\n                let intfName = dictKeys(merge(v[\"name\"]))[0]\n                if temp != \"Customer\"{\n                    dictRemove(interface_dict,intfName)\n            }}\n    }\n}\ninterface_dict"
+            },
+            "variableType": "String"
+          },
+          "location": "inputs",
+          "parent": ""
+        }
+      ],
+      "lastUpdated": 1715660823144,
+      "lastUpdatedBy": "bhayes"
+    }
+  ]
+}
