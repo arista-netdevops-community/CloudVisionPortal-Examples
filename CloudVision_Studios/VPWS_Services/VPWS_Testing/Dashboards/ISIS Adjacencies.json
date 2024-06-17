@@ -1,0 +1,151 @@
+{
+  "dashboards": [
+    {
+      "key": "3ea03792-d44f-4421-b5ef-03ed9c41b4e5",
+      "createdAt": [
+        38300492,
+        1598
+      ],
+      "createdBy": "tplugor",
+      "metaData": {
+        "schemaVersion": "3",
+        "legacyKey": "",
+        "legacyVersion": "",
+        "fromPackage": ""
+      },
+      "name": "ISIS Adjacencies (All)",
+      "description": "",
+      "widgets": [
+        {
+          "id": "a7d1a0d2-ec4c-4fee-8dd0-647d0654c9b9",
+          "name": "",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "dimensions": {
+            "width": 24,
+            "height": 16
+          },
+          "type": "aql-query-widget",
+          "inputs": {
+            "expression": "let devices = `*:/Smash/routing/isis/adjacency/default/adjacencyListL2`\ndevices\nlet neighbors_ts = `*:/Sysdb/l2discovery/lldp/status/local/1/portStatus/*/remoteSystem/*`[0] | recmap(3, merge(_value) | fields(\"msap\", \"index\", \"sysDesc\", \"sysName\", \"portDesc\", \"ethAddr\", \"name\") )\nneighbors_ts\n\nlet output = newDict()\nlet id = 0\nlet intf_info = newDict()\nfor devKey, devVal in devices{\n    for intf_id, intf_data in merge(devVal){\n        \n        intf_info[id] = newDict()\n        intf_info[id][\"Device\"] = devKey\n        intf_info[id][\"Interface\"]= intf_data[\"key\"][\"intfId\"]\n        intf_info[id][\"Uptime\"] = now() - time(intf_data[\"upTime\"] * 1000000000)\n        intf_info[id][\"Neighbor Ipv4 Address\"] = intf_data[\"neighborIpv4Address\"]\n        intf_info[id][\"Adjacency State\"] = intf_data[\"adjacencyState\"][\"Name\"]\n        for n_idx, neighbor in neighbors_ts[devKey][intf_data[\"key\"][\"intfId\"]] {\n            if neighbor[\"sysName\"][\"isSet\"] {\n                intf_info[id][\"neighbor\"] = neighbor[\"sysName\"][\"value\"][\"value\"]\n            } else {\n                intf_info[id][\"neighbor\"] = \"undetermined\"\n            }\n            intf_info[id][\"Neighbor Interface\"] = neighbor[\"msap\"][\"portIdentifier\"][\"portId\"]\n            let id = id + 1\n        }\n        #intf_info[\"adjacencyState\"][\"Name\"] =  adjacency_state|fields(\"Name\")\n        \n        \n    }\n    #let id = id + 1\n}\nintf_info",
+            "graphConfig": {
+              "defaultSort": {
+                "key": "key"
+              },
+              "columns": {
+                "Adjacency State": {
+                  "showDotIndicator": true,
+                  "colorMappings": [
+                    {
+                      "type": "value",
+                      "options": {
+                        "up": {
+                          "color": "green",
+                          "index": 0
+                        },
+                        "down": {
+                          "color": "red",
+                          "index": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "key": {
+                  "hide": true
+                },
+                "Device": {
+                  "mapToHostname": true
+                }
+              },
+              "columnOrders": {
+                "key": 1,
+                "Adjacency State": 7,
+                "Last Received Hello Time": 3,
+                "neighbor": 4,
+                "Neighbor Interface": 5,
+                "Neighbor Ipv4 Address": 6,
+                "Uptime": 8,
+                "Device": 2,
+                "Interface": 3
+              }
+            },
+            "visualization": "table"
+          },
+          "location": "main",
+          "styles": {
+            "hideTitle": false,
+            "backgroundColor": "",
+            "hideHorizontalBar": false,
+            "titleSize": 14
+          },
+          "parent": ""
+        },
+        {
+          "id": "be786a2f-ef45-4e4b-9f20-2507e6f4824d",
+          "name": "",
+          "position": {
+            "x": 0,
+            "y": 16
+          },
+          "dimensions": {
+            "width": 10,
+            "height": 16
+          },
+          "type": "topology-widget",
+          "inputs": {
+            "displayMode": "logical",
+            "displayModeDefault": "logical",
+            "overlay": "operStatus",
+            "selectedCustomTags": [],
+            "showActiveEvents": false,
+            "showContainerTypes": false,
+            "showLegend": true,
+            "showManagement": false,
+            "showOverlaySelect": false,
+            "showVxlanTunnels": false,
+            "tags": "",
+            "useDeviceImages": false
+          },
+          "location": "main",
+          "parent": ""
+        },
+        {
+          "id": "e8b9ce20-90ab-4204-aed0-be5a6ae239e2",
+          "name": "",
+          "position": {
+            "x": 10,
+            "y": 16
+          },
+          "dimensions": {
+            "width": 14,
+            "height": 13
+          },
+          "type": "events-widget",
+          "inputs": {
+            "eventTypeFilter": [],
+            "selectedCustomTags": [],
+            "severityFilter": [
+              "INFO",
+              "WARNING",
+              "ERROR",
+              "CRITICAL"
+            ],
+            "showAcked": false,
+            "showActiveOnly": false,
+            "tags": "",
+            "viewMode": "Events Summary By Device",
+            "deviceHealthTag": "",
+            "deviceHealthGroupByTag": false
+          },
+          "location": "main",
+          "parent": ""
+        }
+      ],
+      "lastUpdated": 1715883992107,
+      "lastUpdatedBy": "redmonds"
+    }
+  ]
+}
