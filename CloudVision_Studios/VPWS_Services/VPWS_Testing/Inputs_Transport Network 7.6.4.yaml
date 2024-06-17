@@ -1,0 +1,944 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            evpnAndVxlan: true
+            iBgpListenRange: 0.0.0.0/3
+            mplsLabelDistributionProtocol: SR
+            overlayIBgpPeerGroupName: LOCAL-EVPN-PEERS
+            overlayType: MPLS
+            rrBGPDynamicNeighbors: true
+            srTiFla: Enabled
+          commonMlagConfig: {}
+          coreRouters: []
+          enableOverlay: true
+          erDomains:
+            - inputs:
+                erDomain:
+                  bgpDefaults:
+                    bgpSettings:
+                      bgpDefaultSettings:
+                        bgpDistance: 200 200 200
+                        maximumPaths: 4
+                        noBgpDefaultIPv4Unicast: true
+                  communityLists: []
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: cape-pe-02-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-6M-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: jc-pe-02-e9
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-6M-pe-01
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-6M-pe-01
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocDC-pe-01-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-campus-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-02
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-campus-pe-01
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-campus-pe-01
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocDC-pe-02-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-campus-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-01-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-campus-pe-02
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-campus-pe-02
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocDC-pe-02-e7
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-campus-pe-03
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-04-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-campus-pe-03
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-campus-pe-03
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocndc-pe-01-e7
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-campus-pe-04
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-03-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-campus-pe-04
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-campus-pe-04
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocDC-pe-02-e9
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-cape-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: cape-pe-02-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-cape-pe-01
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-cape-pe-01
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: 6m-pe-01-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-cape-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: cape-pe-01-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-cape-pe-02
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-cape-pe-02
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: leetran-pe-01-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-eocDc-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-01-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-eocDc-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-04-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet7@SN-eocDc-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocDC-pe-02-e8
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet8@SN-eocDc-pe-01
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-eocDc-pe-01
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: rr-01-e11
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-eocDc-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-02-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-eocDc-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: campus-pe-03-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet7@SN-eocDc-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocDC-pe-01-e8
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet8@SN-eocDc-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: cape-pe-01-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet9@SN-eocDc-pe-02
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-eocDc-pe-02
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-01-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-jc-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: leetran-pe-02-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet9@SN-jc-pe-01
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-jc-pe-01
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-02-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-jc-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: jc-pe-01-e8
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet8@SN-jc-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: 6m-pe-01-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet9@SN-jc-pe-02
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-jc-pe-02
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: leetran-pe-02-e4
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet4@SN-leeTran-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: rr-02-e11
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-leeTran-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: eocDC-pe-01-e9
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-leeTran-pe-01
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-leeTran-pe-01
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: leetran-pe-02-e4
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet4@SN-leeTran-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: rr-02-e11
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-leeTran-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: jc-pe-01-e9
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-leeTran-pe-02
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-leeTran-pe-02
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: jc-pe-01-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-pw-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-02-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-pw-pe-01
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-04-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet7@SN-pw-pe-01
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-pw-pe-01
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: jc-pe-02-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-pw-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-01-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-pw-pe-02
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-03-e5
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet7@SN-pw-pe-02
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-pw-pe-02
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-02-e7
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-pw-pe-03
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-04-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-pw-pe-03
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-pw-pe-03
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: null
+                              peerGroup: LOCAL-EVPN-PEERS
+                              vrf: null
+                          erBgpNetworks: {}
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-01-e7
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet5@SN-pw-pe-04
+                            - inputs:
+                                erneighborDetails:
+                                  description: pw-pe-03-e6
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: null
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: true
+                              tags:
+                                query: interface:Ethernet6@SN-pw-pe-04
+                          interfaces: []
+                          loopback1: {}
+                          mlag: false
+                          mlagGroup: {}
+                          nodeSegmentIndexGroup: {}
+                          staticRoutes: []
+                      tags:
+                        query: device:SN-pw-pe-04
+                  igpAndBgpRedistribution: {}
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      asnSettings: {}
+                      bgpOptions: {}
+                      dciOptions: {}
+                      description: null
+                      eBgpAuthKey: null
+                      erAddressFamily: null
+                      erMsAddressFamily:
+                        - addressFamily: rt
+                      familyRouteTargetOptions: {}
+                      listenRange: []
+                      peerGroupCliInput: []
+                      peerGroupName: LOCAL-EVPN-PEERS
+                      routeMapIn: []
+                      routeMapInName: null
+                      routeMapOut: []
+                      routeMapOutName: null
+                  prefixLists: []
+                  rrHostnames:
+                    - rrHostname: rr-01
+                    - rrHostname: rr-02
+              tags:
+                query: Edge-Router-Domain:ALL-PEs
+          globalBgpSettings:
+            4ByteAsn: true
+          rrs:
+            - inputs:
+                rrInterfaceParams:
+                  clusterId: 99.99.99.99
+                  familyRouteTargetOptions:
+                    defaultRouteTarget: default-route-target only
+                  rrDownlink:
+                    - inputs:
+                        rrNeighborParams:
+                          description: eocDC-pe-02-e5
+                          rrIpUnnumbered: true
+                          rrIpv6Address: null
+                          rrIpv6SubnetMask: 127
+                          rrOspfArea: '0'
+                          rripAddress: null
+                          rrspeed: null
+                          rrsubnetMask: 31
+                      tags:
+                        query: interface:Ethernet10@SN-rr-01
+                    - inputs:
+                        rrNeighborParams:
+                          description: eocDC-pe-01-e5
+                          rrIpUnnumbered: true
+                          rrIpv6Address: null
+                          rrIpv6SubnetMask: 127
+                          rrOspfArea: '0'
+                          rripAddress: null
+                          rrspeed: null
+                          rrsubnetMask: 31
+                      tags:
+                        query: interface:Ethernet11@SN-rr-01
+              tags:
+                query: device:SN-rr-01
+            - inputs:
+                rrInterfaceParams:
+                  clusterId: 99.99.99.99
+                  familyRouteTargetOptions:
+                    defaultRouteTarget: default-route-target only
+                  rrDownlink:
+                    - inputs:
+                        rrNeighborParams:
+                          description: leetran-pe-02-e5
+                          rrIpUnnumbered: true
+                          rrIpv6Address: null
+                          rrIpv6SubnetMask: 127
+                          rrOspfArea: '0'
+                          rripAddress: null
+                          rrspeed: null
+                          rrsubnetMask: 31
+                      tags:
+                        query: interface:Ethernet10@SN-rr-02
+                    - inputs:
+                        rrNeighborParams:
+                          description: leetran-pe-01-e5
+                          rrIpUnnumbered: true
+                          rrIpv6Address: null
+                          rrIpv6SubnetMask: 127
+                          rrOspfArea: '0'
+                          rripAddress: null
+                          rrspeed: null
+                          rrsubnetMask: 31
+                      tags:
+                        query: interface:Ethernet11@SN-rr-02
+              tags:
+                query: device:SN-rr-02
+          underlayRoutingGroup:
+            bfd: true
+            bgpPeerGroupName: Enterprise-Routing-Underlay-BGP
+            igpProcessId: 1
+            protocols:
+              - protocolsIgp: ISIS
+      tags:
+        query: Network:Transport-Network
