@@ -1,0 +1,546 @@
+path: []
+inputs:
+  pods:
+    - inputs:
+        pod:
+          commonBGPConfig:
+            EvpnLocalAs: 65200
+            evpnAndVxlan: true
+            iBgpListenRange: 10.0.0.0/24
+            overlayIBgpPeerGroupName: REMOTE-EVPN-PEERS
+            overlayType: VXLAN
+            rrBGPDynamicNeighbors: true
+            vxlanEncapType: ipv4
+            vxlanSourceInterface: Loopback1
+          commonMlagConfig: {}
+          coreRouters:
+            - inputs:
+                coreLinkDetails:
+                  bgpDefaults: {}
+                  coreCommunityLists: []
+                  coreeBgpNeighbors:
+                    - coreneighborIp: null
+                      corepeerGroup: REMOTE-BGP-UNDERLAY
+                      corevrf: null
+                      description: null
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.0
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet1@SN-BB-1
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.2
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet2@SN-BB-1
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.8
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet3@SN-BB-1
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.10
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet4@SN-BB-1
+                  corenodeSegmentIndexGroup: {}
+                  corepeerGroups:
+                    - coreAddressFamily: null
+                      coreEBgpAuthKey: null
+                      coreMsAddressFamily:
+                        - addressFamily: ipv4
+                      corePeerGroupCliInput: []
+                      coreRedistributionRouteMap: []
+                      coreRouteMapInName: null
+                      coreRouteMapOutName: null
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredciOptions: {}
+                      coredescription: null
+                      corepeerGroupName: REMOTE-BGP-UNDERLAY
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                      listenRange:
+                        - beginAsnRange: 65200
+                          endAsnRange: 65200
+                          ipPrefix: 10.0.1.0/24
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  igpAndBgpRedistribution: {}
+                  interfaces: []
+              tags:
+                query: device:BB-1
+            - inputs:
+                coreLinkDetails:
+                  bgpDefaults: {}
+                  coreCommunityLists: []
+                  coreeBgpNeighbors:
+                    - coreneighborIp: null
+                      corepeerGroup: REMOTE-BGP-UNDERLAY
+                      corevrf: null
+                      description: null
+                  coreneighbor:
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.4
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet1@SN-BB-2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.6
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet2@SN-BB-2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.12
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet3@SN-BB-2
+                    - inputs:
+                        coreneighborDetails:
+                          coreIpUnnumbered: false
+                          coreIpv6Address: null
+                          coreIpv6SubnetMask: 127
+                          coreOspfArea: '0'
+                          coreipAddress: 10.0.1.14
+                          corespeed: null
+                          coresubnetMask: 31
+                          description: null
+                      tags:
+                        query: interface:Ethernet4@SN-BB-2
+                  corenodeSegmentIndexGroup: {}
+                  corepeerGroups:
+                    - coreAddressFamily: null
+                      coreEBgpAuthKey: null
+                      coreMsAddressFamily:
+                        - addressFamily: ipv4
+                      corePeerGroupCliInput: []
+                      coreRedistributionRouteMap: []
+                      coreRouteMapInName: null
+                      coreRouteMapOutName: null
+                      coreasnSettings: {}
+                      corebgpoptions: {}
+                      coredciOptions: {}
+                      coredescription: null
+                      corepeerGroupName: REMOTE-BGP-UNDERLAY
+                      corerouteMapIn: []
+                      corerouteMapOut: []
+                      listenRange:
+                        - beginAsnRange: 65200
+                          endAsnRange: 65200
+                          ipPrefix: 10.0.1.0/24
+                  coreprefixLists: []
+                  corestaticRoutes: []
+                  igpAndBgpRedistribution: {}
+                  interfaces: []
+              tags:
+                query: device:BB-2
+          enableOverlay: true
+          erDomains:
+            - inputs:
+                erDomain:
+                  bgpDefaults:
+                    bgpSettings:
+                      networks:
+                        - addressFamily: ipv4
+                          network: 10.0.0.6/32
+                        - addressFamily: ipv4
+                          network: 10.2.0.6/32
+                        - addressFamily: ipv4
+                          network: 10.0.0.7/32
+                  communityLists: []
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: 10.0.1.0
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: 10.0.1.4
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: null
+                              peerGroup: REMOTE-EVPN-PEERS
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.1
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet1@SN-Campus-Pod-A-GW-1
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.5
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet2@SN-Campus-Pod-A-GW-1
+                      tags:
+                        query: device:Campus-Pod-A-GW-1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: 10.0.1.2
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: 10.0.1.6
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: null
+                              peerGroup: REMOTE-EVPN-PEERS
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.3
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet1@SN-Campus-Pod-A-GW-2
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.7
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet2@SN-Campus-Pod-A-GW-2
+                      tags:
+                        query: device:Campus-Pod-A-GW-2
+                  igpAndBgpRedistribution:
+                    redistribution:
+                      bgpSettings:
+                        iPv4: false
+                        iPv6: false
+                        redistributeConnected: false
+                        redistributeIgp: false
+                        redistributeStatic: false
+                      igpToBgpRouteMap: []
+                      igpToBgpRouteMapName: null
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      asnSettings:
+                        localAs: 65200
+                      bgpOptions: {}
+                      dciOptions:
+                        addressFamilyEvpnNextHopSelf: Inter-Domain
+                        defaultEncapsulation: VXLAN
+                        evpnDomain: remote
+                      description: null
+                      eBgpAuthKey: null
+                      erAddressFamily: null
+                      erMsAddressFamily:
+                        - addressFamily: ipv4
+                      listenRange: []
+                      peerGroupCliInput: []
+                      peerGroupName: REMOTE-BGP-UNDERLAY
+                      routeMapIn: []
+                      routeMapInName: null
+                      routeMapOut: []
+                      routeMapOutName: null
+                    - RedistributionRouteMap: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                        updateSource: Loopback0
+                      dciOptions:
+                        addressFamilyEvpnNextHopSelf: Inter-Domain
+                        defaultEncapsulation: VXLAN
+                        evpnDomain: remote
+                      description: EVPN GW
+                      eBgpAuthKey: null
+                      erAddressFamily: null
+                      erMsAddressFamily:
+                        - addressFamily: evpn
+                      listenRange: []
+                      peerGroupCliInput: []
+                      peerGroupName: REMOTE-EVPN-PEERS
+                      routeMapIn: []
+                      routeMapInName: null
+                      routeMapOut: []
+                      routeMapOutName: null
+                  prefixLists:
+                    - erAddressFamily: ipv4
+                      prefixListName: GW-LOOPBACKS-ONLY
+                      seqNums:
+                        - permitDeny: permit
+                          prefix: 10.0.1.6/32
+                          prefixLength: exact-route
+                          seqNum: 10
+                        - permitDeny: permit
+                          prefix: 10.0.1.7/32
+                          prefixLength: exact-route
+                          seqNum: 20
+                        - permitDeny: permit
+                          prefix: 10.2.0.6/32
+                          prefixLength: exact-route
+                          seqNum: 30
+                  rrHostnames:
+                    - rrHostname: BB-1
+                    - rrHostname: BB-2
+              tags:
+                query: Edge-Router-Domain:POD-A
+            - inputs:
+                erDomain:
+                  bgpDefaults: {}
+                  communityLists: []
+                  erDetails:
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: 10.0.1.8
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: 10.0.1.12
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: null
+                              peerGroup: REMOTE-EVPN-PEERS
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.9
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet1@SN-Campus-Pod-B-GW-1
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.13
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet2@SN-Campus-Pod-B-GW-1
+                      tags:
+                        query: device:Campus-Pod-B-GW-1
+                    - inputs:
+                        erLinkDetails:
+                          eBgNeighbors:
+                            - description: null
+                              neighborIp: 10.0.1.10
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: 10.0.1.14
+                              peerAsn: 65200
+                              peerGroup: REMOTE-BGP-UNDERLAY
+                              vrf: null
+                            - description: null
+                              neighborIp: null
+                              peerGroup: REMOTE-EVPN-PEERS
+                              vrf: null
+                          erneighbors:
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.11
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet1@SN-Campus-Pod-B-GW-2
+                            - inputs:
+                                erneighborDetails:
+                                  description: null
+                                  erIpv6Address: null
+                                  erIpv6SubnetMask: 127
+                                  erOspfArea: '0'
+                                  eripAddress: 10.0.1.15
+                                  erspeed: null
+                                  ersubnetMask: 31
+                                  ipUnnumbered: false
+                              tags:
+                                query: interface:Ethernet2@SN-Campus-Pod-B-GW-2
+                      tags:
+                        query: device:Campus-Pod-B-GW-2
+                  igpAndBgpRedistribution:
+                    redistribution:
+                      bgpSettings:
+                        iPv4: false
+                        iPv6: false
+                        redistributeConnected: false
+                        redistributeIgp: false
+                        redistributeStatic: false
+                      igpSettings:
+                        iPv4: false
+                        iPv6: false
+                        ospfDefaultInformationOrginate: Always-Send
+                        redistributeBgp: false
+                        redistributeConnected: false
+                        redistributeStatic: false
+                  peerGroups:
+                    - RedistributionRouteMap: []
+                      asnSettings:
+                        localAs: 65200
+                      bgpOptions: {}
+                      dciOptions: {}
+                      description: BGP-UNDERLAY
+                      eBgpAuthKey: null
+                      erAddressFamily: null
+                      erMsAddressFamily:
+                        - addressFamily: ipv4
+                      listenRange: []
+                      peerGroupCliInput: []
+                      peerGroupName: REMOTE-BGP-UNDERLAY
+                      routeMapIn: []
+                      routeMapInName: null
+                      routeMapOut: []
+                      routeMapOutName: null
+                    - RedistributionRouteMap: []
+                      asnSettings: {}
+                      bgpOptions:
+                        bfd: false
+                        bgpDefaultInformationOriginate: Disabled
+                        ospfDefaultInformationOriginate: Disabled
+                        redistributeConnectedRoutes: false
+                        redistributeRoutes: false
+                        redistributeStaticRoutes: false
+                        updateSource: Loopback0
+                      dciOptions:
+                        addressFamilyEvpnNextHopSelf: Inter-Domain
+                        defaultEncapsulation: VXLAN
+                        evpnDomain: remote
+                      description: EVPN GW
+                      eBgpAuthKey: null
+                      erAddressFamily: null
+                      erMsAddressFamily:
+                        - addressFamily: evpn
+                      listenRange: []
+                      peerGroupCliInput: []
+                      peerGroupName: REMOTE-EVPN-PEERS
+                      routeMapIn: []
+                      routeMapInName: null
+                      routeMapOut: []
+                      routeMapOutName: null
+                  prefixLists: []
+                  rrHostnames:
+                    - rrHostname: BB-1
+                    - rrHostname: BB-2
+              tags:
+                query: Edge-Router-Domain:POD-B
+          rrs:
+            - inputs:
+                rrInterfaceParams:
+                  clusterId: 10.1.0.1
+                  rrDownlink: []
+              tags:
+                query: device:BB-1
+            - inputs:
+                rrInterfaceParams:
+                  clusterId: 10.1.0.1
+                  rrDownlink: []
+              tags:
+                query: device:BB-2
+          underlayRoutingGroup:
+            bgpPeerGroupName: REMOTE-BGP-UNDERLAY
+            igp: BGP
+            igpProcessId: 100
+            redistributeConnected: false
+            redistributeStatic: false
+      tags:
+        query: Network:BB

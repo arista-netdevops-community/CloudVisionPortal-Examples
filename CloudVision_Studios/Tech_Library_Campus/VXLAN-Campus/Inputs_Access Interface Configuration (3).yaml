@@ -1,0 +1,183 @@
+path: []
+inputs:
+  campus:
+    - inputs:
+        campusPod:
+          - inputs:
+              accessPod:
+                - inputs:
+                    interfaces:
+                      - inputs:
+                          adapterDetails:
+                            description: BLUE HOST A
+                            mode: access
+                            portProfile: null
+                            spanningTree: {}
+                            vlans:
+                              vlans: '101'
+                        tags:
+                          query: interface:Ethernet7@SN-Campus-Pod-A-LEAF-1A
+                      - inputs:
+                          adapterDetails:
+                            description: ORANGE HOST B
+                            mode: access
+                            portProfile: PORT-CHANNEL
+                            spanningTree: {}
+                            vlans:
+                              vlans: '102'
+                        tags:
+                          query: interface:Ethernet8@SN-Campus-Pod-A-LEAF-1A
+                      - inputs:
+                          adapterDetails:
+                            description: ORANGE HOST B
+                            mode: access
+                            portProfile: PORT-CHANNEL
+                            spanningTree: {}
+                            vlans:
+                              vlans: '102'
+                        tags:
+                          query: interface:Ethernet8@SN-Campus-Pod-A-LEAF-1B
+                  tags:
+                    query: Access-Pod:1
+                - inputs:
+                    interfaces:
+                      - inputs:
+                          adapterDetails:
+                            description: HOST-C-YELLOW
+                            mode: access
+                            vlans:
+                              vlans: '103'
+                        tags:
+                          query: interface:Ethernet7@SN-Campus-Pod-A-LEAF-2A
+                  tags:
+                    query: Access-Pod:2
+                - inputs:
+                    interfaces:
+                      - inputs:
+                          adapterDetails:
+                            description: Host4 and Host 5
+                            mode: null
+                            portProfile: TRUNK
+                            vlans: {}
+                        tags:
+                          query: interface:Ethernet3@SN-Campus-Pod-A-LEAF-3C
+                      - inputs:
+                          adapterDetails:
+                            description: HOST-F-RED
+                            mode: access
+                            vlans:
+                              vlans: '104'
+                        tags:
+                          query: interface:Ethernet3@SN-Campus-Pod-A-LEAF-3E
+                  tags:
+                    query: Access-Pod:3
+            tags:
+              query: Campus-Pod:A
+          - inputs:
+              accessPod:
+                - inputs:
+                    interfaces:
+                      - inputs:
+                          adapterDetails:
+                            description: HOST-G-GREEN
+                            mode: access
+                            portProfile: null
+                            vlans:
+                              vlans: '205'
+                        tags:
+                          query: interface:Ethernet7@SN-Campus-Pod-B-LEAF-1A
+                      - inputs:
+                          adapterDetails:
+                            description: HOST-H-PURPLE
+                            mode: access
+                            portProfile: PORT-CHANNEL
+                            vlans:
+                              vlans: '206'
+                        tags:
+                          query: interface:Ethernet8@SN-Campus-Pod-B-LEAF-1A
+                      - inputs:
+                          adapterDetails:
+                            description: HOST-H-PURPLE
+                            mode: access
+                            portProfile: PORT-CHANNEL
+                            vlans:
+                              vlans: '206'
+                        tags:
+                          query: interface:Ethernet8@SN-Campus-Pod-B-LEAF-1B
+                  tags:
+                    query: Access-Pod:1
+                - inputs:
+                    interfaces:
+                      - inputs:
+                          adapterDetails:
+                            description: HOST-I-RED
+                            mode: access
+                            vlans:
+                              vlans: '204'
+                        tags:
+                          query: interface:Ethernet7@SN-Campus-Pod-B-LEAF-2A
+                  tags:
+                    query: Access-Pod:2
+                - inputs:
+                    interfaces:
+                      - inputs:
+                          adapterDetails:
+                            description: Host 4 and Host 5
+                            mode: null
+                            portProfile: TRUNK
+                            vlans: {}
+                        tags:
+                          query: interface:Ethernet3@SN-Campus-Pod-B-LEAF-3C
+                      - inputs:
+                          adapterDetails:
+                            description: HOST-L-PURPLE
+                            mode: access
+                            vlans:
+                              vlans: '206'
+                        tags:
+                          query: interface:Ethernet3@SN-Campus-Pod-B-LEAF-3E
+                  tags:
+                    query: Access-Pod:3
+            tags:
+              query: Campus-Pod:B
+      tags:
+        query: Campus:VXLAN-CAMPUS
+  portProfiles:
+    - description: PORT CHANNEL
+      dot1x: {}
+      enabled: null
+      eosCli: null
+      flowControl: {}
+      mode: null
+      name: PORT-CHANNEL
+      parentProfile: null
+      phone: {}
+      poe: {}
+      portChannel:
+        description: PORT CHANNEL DESCR.
+        mlag: 'Yes'
+        portChannel: 'Yes'
+        portChannelMode: active
+      ptp: {}
+      qosProfile: null
+      spanningTree: {}
+      speed: null
+      stormControl: {}
+      vlans: {}
+    - description: TRUNK
+      dot1x: {}
+      enabled: null
+      eosCli: null
+      flowControl: {}
+      mode: trunk
+      name: TRUNK
+      parentProfile: null
+      phone: {}
+      poe: {}
+      portChannel: {}
+      ptp: {}
+      qosProfile: null
+      spanningTree: {}
+      speed: null
+      stormControl: {}
+      vlans: {}
