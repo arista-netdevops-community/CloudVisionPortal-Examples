@@ -9,7 +9,15 @@
 
 ## Push configlets
 
-Run with `uv run pyavd_push_configlet.py --token-file token.tok --apiserver 192.0.2.1`
+Run with
+
+`uv run pyavd_push_configlet.py --token-file token.tok --apiserver <your CVP cluster IP>`
+
+e.g.:
+
+`uv run pyavd_push_configlet.py --token-file token.tok --apiserver 192.0.2.1`
+
+where `192.0.2.1` is the IP address of your CVP node
 
 ### Help
 

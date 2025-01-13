@@ -21,9 +21,7 @@ from pyavd._cv.client.exceptions import CVClientException
 
 from pyavd._cv.workflows.create_workspace_on_cv import create_workspace_on_cv
 from pyavd._cv.workflows.deploy_configs_to_cv import deploy_configs_to_cv
-from pyavd._cv.workflows.deploy_cv_pathfinder_metadata_to_cv import deploy_cv_pathfinder_metadata_to_cv
 from pyavd._cv.workflows.deploy_studio_inputs_to_cv import deploy_studio_inputs_to_cv
-from pyavd._cv.workflows.deploy_tags_to_cv import deploy_tags_to_cv
 from pyavd._cv.workflows.finalize_change_control_on_cv import finalize_change_control_on_cv
 from pyavd._cv.workflows.finalize_workspace_on_cv import finalize_workspace_on_cv
 from pyavd._cv.workflows.models import (
@@ -33,9 +31,7 @@ from pyavd._cv.workflows.models import (
     CVDevice,
     CVEosConfig,
     CVInterfaceTag,
-    CVPathfinderMetadata,
     CVStudioInputs,
-    CVTimeOuts,
     CVWorkspace,
     DeployToCvResult,
 )
@@ -43,7 +39,6 @@ from pyavd._cv.workflows.verify_devices_on_cv import verify_devices_on_cv
 
 import argparse
 import logging
-import yaml
 
 async def deploy_to_cv(
     cloudvision: CloudVision,
@@ -53,10 +48,7 @@ async def deploy_to_cv(
     device_tags: list[CVDeviceTag] | None = None,
     interface_tags: list[CVInterfaceTag] | None = None,
     studio_inputs: list[CVStudioInputs] | None = None,
-    cv_pathfinder_metadata: list[CVPathfinderMetadata] | None = None,
-    skip_missing_devices: bool = False,
-    strict_tags: bool = True,
-    timeouts: CVTimeOuts | None = None,  # pylint: disable=unused-argument # noqa: ARG001
+    skip_missing_devices: bool = False
 ) -> DeployToCvResult:
 
     logging.info("deploy_to_cv:")
@@ -69,8 +61,6 @@ async def deploy_to_cv(
         configs = []
     if studio_inputs is None:
         studio_inputs = []
-    if cv_pathfinder_metadata is None:
-        cv_pathfinder_metadata = []
     try:
         async with CVClient(servers=cloudvision._servers, token=cloudvision._token, verify_certs=cloudvision._verify_certs) as cv_client:
             logging.info("Creating workspace")
