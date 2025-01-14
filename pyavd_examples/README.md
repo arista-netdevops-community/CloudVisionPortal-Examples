@@ -11,20 +11,22 @@
 
 Run with
 
-`uv run pyavd_push_configlet.py --token-file token.tok --apiserver <your CVP cluster IP>`
+`uv run pyavd_push_configlet.py --token-file token.tok --apiserver <your CVP cluster IP> -cc <'pending approval|approved|running|completed|deleted|failed'>`
 
 e.g.:
 
-`uv run pyavd_push_configlet.py --token-file token.tok --apiserver 192.0.2.1`
+CVP On-prem example: `uv run pyavd_push_configlet.py --token-file token.tok --apiserver 192.0.2.1 -cc 'pending approval'`
 
 where `192.0.2.1` is the IP address of your CVP node
+
+CVaaS example: `uv run pyavd_push_configlet.py --token-file token.tok --apiserver www.arista.io -cc 'completed'`
 
 ### Help
 
 ```shell
 uv run pyavd_push_configlet.py -h
 Reading inline script metadata from: pyavd_push_configlet.py
-usage: pyavd_push_configlet.py [-h] --token-file token_file --apiserver www.arista.io [--log-level LOGLEVEL] [--dryrun dryrun] [--cc cc]
+usage: pyavd_push_configlet.py [-h] --token-file token_file --apiserver www.arista.io [--log-level LOGLEVEL] [--cc cc]
 
 Pushes Static Configlets to CloudVision using Static Config Studios
 
@@ -32,11 +34,12 @@ options:
   -h, --help            show this help message and exit
   --token-file token_file
                         Location on disk for service account token
-  --apiserver www.arista.io
-                        endpoint for CVP/CVaaS cluster (must be the www endpoint)
-  --log-level LOGLEVEL  Logging level for output. This can be any standard Python logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL). Only the DEBUG and INFO levels are
-                        used in this script at present.
-  --cc cc               Change control state state: ('pending approval', 'approved', 'running', 'completed', 'deleted', 'failed')
+  --apiserver www.arista.io|192.0.2.10
+                        endpoint for CVP on-prem cluster or CVaaS tenant (must be the www endpoint in case of CVaaS)
+  --log-level LOGLEVEL  Logging level for output. This can be any standard Python logging level (DEBUG, INFO, WARNING,
+                        ERROR, CRITICAL). Only the DEBUG and INFO levels are used in this script at present.
+  --cc cc               Change control state state: ('pending approval', 'approved', 'running', 'completed',
+                        'deleted', 'failed')
 
 ```
 

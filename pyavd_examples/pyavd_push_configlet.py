@@ -136,9 +136,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--apiserver",
         required=True,
-        metavar="www.arista.io",
+        metavar="www.arista.io|192.0.2.10",
         dest="apiserver_url",
-        help="endpoint for CVP/CVaaS cluster (must be the www endpoint)",
+        help="endpoint for CVP on-prem cluster or CVaaS tenant (must be the www endpoint in case of CVaaS)",
     )
     parser.add_argument(
         "--log-level",
@@ -151,10 +151,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--cc",
-        required=False,
+        required=True,
         metavar="cc",
         help="Change control state state: ('pending approval', 'approved', 'running', 'completed', 'deleted', 'failed')",
-        default=None,
+        default='pending approval',
         type=str,
     )
     args = parser.parse_args()
