@@ -18,24 +18,17 @@ import asyncio
 
 from pyavd._cv.client import CVClient
 from pyavd._cv.client.exceptions import CVClientException
-from pyavd._cv.client.configlet import ConfigletMixin
 
 from pyavd._cv.workflows.create_workspace_on_cv import create_workspace_on_cv
-from pyavd._cv.workflows.deploy_configs_to_cv import deploy_configs_to_cv
-from pyavd._cv.workflows.deploy_studio_inputs_to_cv import deploy_studio_inputs_to_cv
-from pyavd._cv.workflows.deploy_tags_to_cv import deploy_tags_to_cv
 from pyavd._cv.workflows.finalize_change_control_on_cv import finalize_change_control_on_cv
 from pyavd._cv.workflows.finalize_workspace_on_cv import finalize_workspace_on_cv
 from pyavd._cv.workflows.models import (
     CloudVision,
     CVChangeControl,
     CVDeviceTag,
-    CVDevice,
     CVEosConfig,
     CVInterfaceTag,
-    CVPathfinderMetadata,
     CVStudioInputs,
-    CVTimeOuts,
     CVWorkspace,
     DeployToCvResult,
 )
@@ -43,7 +36,6 @@ from pyavd._cv.workflows.verify_devices_on_cv import verify_devices_on_cv
 
 import argparse
 import logging
-import yaml
 
 async def deploy_to_cv(
     cloudvision: CloudVision,
@@ -54,8 +46,6 @@ async def deploy_to_cv(
     interface_tags: list[CVInterfaceTag] | None = None,
     studio_inputs: list[CVStudioInputs] | None = None,
     skip_missing_devices: bool = False,
-    strict_tags: bool = True,
-    timeouts: CVTimeOuts | None = None,  # pylint: disable=unused-argument # noqa: ARG001
 ) -> DeployToCvResult:
 
     logging.info("deploy_to_cv:")
@@ -146,10 +136,10 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--cc",
-        required=False,
-        metavar="cc",
+        required=True,
+        metavar="'pending approval|approved|running|completed|deleted|failed'",
         help="Change control state state: ('pending approval', 'approved', 'running', 'completed', 'deleted', 'failed')",
-        default="pending approval",
+        default='pending approval',
         type=str,
     )
     args = parser.parse_args()
