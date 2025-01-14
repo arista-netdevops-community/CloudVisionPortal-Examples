@@ -38,7 +38,8 @@ options:
                         endpoint for CVP on-prem cluster or CVaaS tenant (must be the www endpoint in case of CVaaS)
   --log-level LOGLEVEL  Logging level for output. This can be any standard Python logging level (DEBUG, INFO, WARNING,
                         ERROR, CRITICAL). Only the DEBUG and INFO levels are used in this script at present.
-  --cc cc               Change control state state: ('pending approval', 'approved', 'running', 'completed',
+  --cc 'pending approval|approved|running|completed|deleted|failed'
+                        Change control state state: ('pending approval', 'approved', 'running', 'completed',
                         'deleted', 'failed')
 
 ```

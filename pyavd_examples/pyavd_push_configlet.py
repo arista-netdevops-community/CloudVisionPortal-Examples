@@ -152,7 +152,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--cc",
         required=True,
-        metavar="cc",
+        metavar="'pending approval|approved|running|completed|deleted|failed'",
         help="Change control state state: ('pending approval', 'approved', 'running', 'completed', 'deleted', 'failed')",
         default='pending approval',
         type=str,
