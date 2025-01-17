@@ -1,5 +1,7 @@
 # pyavd examples
 
+> `Disclaimer`: Please note that while these examples are provided to showcase the flexibility and power of the pyavd library, these are not supported by Arista TAC. Use of these examples is intended for organizations who are confident in their ability to adapt and maintain the workflows shown here.
+
 > Note Some functions might change in newer versions of pyavd. The examples in this folder were tested with `pyavd=>5.0.0;<=5.2.0`
 
 ## Requirements
