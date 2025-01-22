@@ -110,3 +110,13 @@ INFO:pyavd._cv.workflows.finalize_workspace_on_cv:finalize_workspace_on_cv: CVWo
 INFO:pyavd._cv.client.workspace:wait_for_workspace_response: Got response for request 'req-a51698f6-30d7-4247-b29b-e2f631769ffc': Response(status=ResponseStatus.SUCCESS, message='Submitted successfully. No change control was created because no config or software changes were created.')
 INFO:pyavd._cv.workflows.finalize_workspace_on_cv:finalize_workspace_on_cv: CVWorkspace(name='AVD 2024-11-14 17:11:18.016915', description=None, id='ws-b0769970-4285-46b9-bf10-e6ff16220f58', requested_state='submitted', force=False, state='submitted', change_control_id=None)
 ```
+
+## Backup studio inputs
+
+### Example run
+
+```shell
+uv run pyavd_backup_studio_inputs.py --apiserver 192.0.2.1 --token-file token.tok
+```
+
+> Note After the script has finished, a separate yaml file with the studio inputs of each studio will be generated.
