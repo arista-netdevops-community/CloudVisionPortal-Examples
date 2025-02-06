@@ -65,6 +65,9 @@ async def backup_studios(cloudvision: CloudVision):
     async with CloudVision as cv_client:
         result = await get_studio_inputs_all(cv_client)
         for studio in result:
+            # filter out SCS inputs
+            if studio['studio_id'] == "studio-static-configlet":
+                continue
             with open(f"{studio['studio_id']}.yaml", "w") as f:
                 yaml.dump(studio['inputs'], f)
 
