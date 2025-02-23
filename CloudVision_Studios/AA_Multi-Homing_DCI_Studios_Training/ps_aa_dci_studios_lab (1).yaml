@@ -1,0 +1,618 @@
+#
+# TELUS Studios DCI Lab
+#
+cvp:
+  # Define the global CVP node parameters
+  # Note: The password must be "cvproot" and can only be changed after the node is deployed.
+  username: root
+  password: cvproot
+  version: 2024.3.0
+  instance: singlenode
+
+veos:
+  # Define the global vEOS node parameters
+  username: cvpadmin
+  password: arista123
+  version: 4.33.1.1F
+
+generic:
+  # Define global generic node parameters
+  username: cvpadmin
+  password: arista123
+  version: ubuntu-2204-lts
+
+tools-server:
+  # Define global generic node parameters
+  username: cvpadmin
+  password: arista123
+  version: rocky-8-5
+
+# List of ACT nodes
+nodes:
+  # The ip_addr is the mgmt IP that will be used in the lab. It is not the IP you will access
+  # it with. That IP will be shown in the ACT UI after the lab is deployed and running. This is
+  # a /24 network.
+
+  ###########
+  ### CVP ###
+  ###########
+  - cvp:
+      ip_addr: 192.168.197.5
+      node_type: cvp
+      auto_configuration: true
+      instance_type: large
+      onboard_device: true
+      ntp_ip: 0.pool.ntp.org #optional
+      firstname: Act #optional
+      lastname: AutoConfig #optional
+      email: "auto_config_act@arista.com" # optional
+
+  - avd:
+      ip_addr: 192.168.197.6
+      node_type: tools-server
+
+  ###############
+  ### Spines  ###
+  ###############
+  - DC1SP01:
+      ip_addr: 192.168.197.101
+      node_type: veos
+      serial_number: SN-DC1SP01
+      ports:
+        - Ethernet1-12/1
+
+  - DC1SP02:
+      ip_addr: 192.168.197.102
+      node_type: veos
+      serial_number: SN-DC1SP02
+      ports:
+        - Ethernet1-12/1
+
+  - DC2SP01:
+      ip_addr: 192.168.197.103
+      node_type: veos
+      serial_number: SN-DC2SP01
+      ports:
+        - Ethernet1-12/1
+
+  - DC2SP02:
+      ip_addr: 192.168.197.104
+      node_type: veos
+      serial_number: SN-DC2SP02
+      ports:
+        - Ethernet1-12/1
+
+  - DC3SP01:
+      ip_addr: 192.168.197.105
+      node_type: veos
+      serial_number: SN-DC3SP01
+      ports:
+        - Ethernet1-12/1
+
+  - DC3SP02:
+      ip_addr: 192.168.197.106
+      node_type: veos
+      serial_number: SN-DC3SP02
+      ports:
+        - Ethernet1-12/1
+
+  - DC4SP01:
+      ip_addr: 192.168.197.107
+      node_type: veos
+      serial_number: SN-DC4SP01
+      ports:
+        - Ethernet1-12/1
+
+  - DC4SP02:
+      ip_addr: 192.168.197.108
+      node_type: veos
+      serial_number: SN-DC4SP02
+      ports:
+        - Ethernet1-12/1
+  ##############
+  ### Leaves ###
+  ##############
+  - DC1LE01:
+      ip_addr: 192.168.197.203
+      node_type: veos
+      serial_number: SN-DC1LE01
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC1LE02:
+      ip_addr: 192.168.197.204
+      node_type: veos
+      serial_number: SN-DC1LE02
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC1LE03:
+      ip_addr: 192.168.197.205
+      node_type: veos
+      serial_number: SN-DC1LE03
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC1LE04:
+      ip_addr: 192.168.197.206
+      node_type: veos
+      serial_number: SN-DC1LE04
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC2LE01:
+      ip_addr: 192.168.197.207
+      node_type: veos
+      serial_number: SN-DC2LE01
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC2LE02:
+      ip_addr: 192.168.197.208
+      node_type: veos
+      serial_number: SN-DC2LE02
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC2LE03:
+      ip_addr: 192.168.197.209
+      node_type: veos
+      serial_number: SN-DC2LE03
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC2LE04:
+      ip_addr: 192.168.197.210
+      node_type: veos
+      serial_number: SN-DC2LE04
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC3LE01:
+      ip_addr: 192.168.197.211
+      node_type: veos
+      serial_number: SN-DC3LE01
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC3LE02:
+      ip_addr: 192.168.197.212
+      node_type: veos
+      serial_number: SN-DC3LE02
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+  - DC3LE03:
+      ip_addr: 192.168.197.213
+      node_type: veos
+      serial_number: SN-DC3LE03
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC3LE04:
+      ip_addr: 192.168.197.214
+      node_type: veos
+      serial_number: SN-DC3LE04
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+  - DC4LE01:
+      ip_addr: 192.168.197.215
+      node_type: veos
+      serial_number: SN-DC4LE01
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC4LE02:
+      ip_addr: 192.168.197.216
+      node_type: veos
+      serial_number: SN-DC4LE02
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+  - DC4LE03:
+      ip_addr: 192.168.197.217
+      node_type: veos
+      serial_number: SN-DC4LE03
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  - DC4LE04:
+      ip_addr: 192.168.197.218
+      node_type: veos
+      serial_number: SN-DC4LE04
+      ports:
+        - Ethernet1-10
+        - Ethernet49-56/1
+
+  #############
+  ### Hosts ###
+  #############
+  - DC1-HOST1:
+      ip_addr: 192.168.197.220
+      node_type: veos
+      serial_number: SN-DC1-HOST1
+      ports:
+        - Ethernet1-8
+
+  - DC1-ISP1:
+      ip_addr: 192.168.197.221
+      node_type: veos
+      serial_number: SN-DC1-ISP
+      ports:
+        - Ethernet1-8
+
+  - DC1-ISP2:
+      ip_addr: 192.168.197.222
+      node_type: veos
+      serial_number: SN-DC1-ISP2
+      ports:
+        - Ethernet1-8
+
+  - DC2-HOST1:
+      ip_addr: 192.168.197.223
+      node_type: veos
+      serial_number: SN-DC2-HOST1
+      ports:
+        - Ethernet1-8
+
+  - DC2-ISP1:
+      ip_addr: 192.168.197.224
+      node_type: veos
+      serial_number: SN-DC2-ISP1
+      ports:
+        - Ethernet1-8
+
+  - DC2-ISP2:
+      ip_addr: 192.168.197.225
+      node_type: veos
+      serial_number: SN-DC2-ISP2
+      ports:
+        - Ethernet1-8
+
+  - DC3-HOST1:
+      ip_addr: 192.168.197.226
+      node_type: veos
+      serial_number: SN-DC3-HOST1
+      ports:
+        - Ethernet1-8
+
+  - DC3-ISP1:
+      ip_addr: 192.168.197.227
+      node_type: veos
+      serial_number: SN-DC3-ISP1
+      ports:
+        - Ethernet1-8
+
+  - DC3-ISP2:
+      ip_addr: 192.168.197.228
+      node_type: veos
+      serial_number: SN-DC3-ISP2
+      ports:
+        - Ethernet1-8
+
+  - DC4-HOST1:
+      ip_addr: 192.168.197.229
+      node_type: veos
+      serial_number: SN-DC4-HOST1
+      ports:
+        - Ethernet1-8
+
+  - DC4-ISP1:
+      ip_addr: 192.168.197.230
+      node_type: veos
+      serial_number: SN-DC4-ISP1
+      ports:
+       - Ethernet1-8
+
+  - DC4-ISP2:
+      ip_addr: 192.168.197.231
+      node_type: veos
+      serial_number: SN-DC4-ISP2
+      ports:
+       - Ethernet1-8
+
+#############
+### Links ###
+#############
+links:
+    # leaf to spine links
+    # DC1 spine 1
+    - connection:
+        - DC1SP01:Ethernet1/1
+        - DC1LE01:Ethernet49/1
+    - connection:
+        - DC1SP01:Ethernet2/1
+        - DC1LE02:Ethernet49/1
+    - connection:
+        - DC1SP01:Ethernet3/1
+        - DC1LE03:Ethernet49/1
+    - connection:
+        - DC1SP01:Ethernet4/1
+        - DC1LE04:Ethernet49/1
+
+    # leaf to spine links
+    # DC2 spine 1
+    - connection:
+        - DC2SP01:Ethernet1/1
+        - DC2LE01:Ethernet49/1
+    - connection:
+        - DC2SP01:Ethernet2/1
+        - DC2LE02:Ethernet49/1
+    - connection:
+        - DC2SP01:Ethernet3/1
+        - DC2LE03:Ethernet49/1
+    - connection:
+        - DC2SP01:Ethernet4/1
+        - DC2LE04:Ethernet49/1
+
+    # leaf to spine links
+    # DC3 spine 1
+    - connection:
+        - DC3SP01:Ethernet1/1
+        - DC3LE01:Ethernet49/1
+    - connection:
+        - DC3SP01:Ethernet2/1
+        - DC3LE02:Ethernet49/1
+    - connection:
+        - DC3SP01:Ethernet3/1
+        - DC3LE03:Ethernet49/1
+    - connection:
+        - DC3SP01:Ethernet4/1
+        - DC3LE04:Ethernet49/1
+
+    # leaf to spine links
+    # DC4 spine 1
+    - connection:
+        - DC4SP01:Ethernet1/1
+        - DC4LE01:Ethernet49/1
+    - connection:
+        - DC4SP01:Ethernet2/1
+        - DC4LE02:Ethernet49/1
+    - connection:
+        - DC4SP01:Ethernet3/1
+        - DC4LE03:Ethernet49/1
+    - connection:
+        - DC4SP01:Ethernet4/1
+        - DC4LE04:Ethernet49/1
+
+    # leaf to spine links
+    # DC1 spine 2
+    - connection:
+        - DC1SP02:Ethernet1/1
+        - DC1LE01:Ethernet50/1
+    - connection:
+        - DC1SP02:Ethernet2/1
+        - DC1LE02:Ethernet50/1
+    - connection:
+        - DC1SP02:Ethernet3/1
+        - DC1LE03:Ethernet50/1
+    - connection:
+        - DC1SP02:Ethernet4/1
+        - DC1LE04:Ethernet50/1
+
+    # leaf to spine links
+    # DC2 spine 2
+    - connection:
+        - DC2SP02:Ethernet1/1
+        - DC2LE01:Ethernet50/1
+    - connection:
+        - DC2SP02:Ethernet2/1
+        - DC2LE02:Ethernet50/1
+    - connection:
+        - DC2SP02:Ethernet3/1
+        - DC2LE03:Ethernet50/1
+    - connection:
+        - DC2SP02:Ethernet4/1
+        - DC2LE04:Ethernet50/1
+
+    # leaf to spine links
+    # DC3 spine 2
+    - connection:
+        - DC3SP02:Ethernet1/1
+        - DC3LE01:Ethernet50/1
+    - connection:
+        - DC3SP02:Ethernet2/1
+        - DC3LE02:Ethernet50/1
+    - connection:
+        - DC3SP02:Ethernet3/1
+        - DC3LE03:Ethernet50/1
+    - connection:
+        - DC3SP02:Ethernet4/1
+        - DC3LE04:Ethernet50/1
+
+    # leaf to spine links
+    # DC4 spine 2
+    - connection:
+        - DC4SP02:Ethernet1/1
+        - DC4LE01:Ethernet50/1
+    - connection:
+        - DC4SP02:Ethernet2/1
+        - DC4LE02:Ethernet50/1
+    - connection:
+        - DC4SP02:Ethernet3/1
+        - DC4LE03:Ethernet50/1
+    - connection:
+        - DC4SP02:Ethernet4/1
+        - DC4LE04:Ethernet50/1
+
+
+    # DC1 HOST links
+    # HOST 1
+    - connection:
+        - DC1-HOST1:Ethernet1
+        - DC1LE03:Ethernet1
+    - connection:
+        - DC1-HOST1:Ethernet2
+        - DC1LE03:Ethernet2
+    - connection:
+        - DC1-HOST1:Ethernet3
+        - DC1LE04:Ethernet1
+    - connection:
+        - DC1-HOST1:Ethernet4
+        - DC1LE04:Ethernet2
+
+    # ISP1
+    - connection:
+        - DC1-ISP1:Ethernet1
+        - DC1LE01:Ethernet9
+    - connection:
+        - DC1-ISP1:Ethernet2
+        - DC1LE02:Ethernet9
+
+    - connection:
+        - DC1-ISP2:Ethernet1
+        - DC1LE01:Ethernet10
+    - connection:
+        - DC1-ISP2:Ethernet2
+        - DC1LE02:Ethernet10
+
+    - connection:
+        - DC1-ISP1:Ethernet3
+        - DC1-ISP2:Ethernet3
+
+    # DC2 HOST links
+    # HOST 1
+    - connection:
+        - DC2-HOST1:Ethernet1
+        - DC2LE03:Ethernet1
+    - connection:
+        - DC2-HOST1:Ethernet2
+        - DC2LE03:Ethernet2
+    - connection:
+        - DC2-HOST1:Ethernet3
+        - DC2LE04:Ethernet1
+    - connection:
+        - DC2-HOST1:Ethernet4
+        - DC2LE04:Ethernet2
+
+    # ISP1
+    - connection:
+        - DC2-ISP1:Ethernet1
+        - DC2LE01:Ethernet9
+    - connection:
+        - DC2-ISP1:Ethernet2
+        - DC2LE02:Ethernet9
+
+    - connection:
+        - DC2-ISP2:Ethernet1
+        - DC2LE01:Ethernet10
+    - connection:
+        - DC2-ISP2:Ethernet2
+        - DC2LE02:Ethernet10
+
+    - connection:
+        - DC2-ISP1:Ethernet3
+        - DC2-ISP2:Ethernet3
+
+    # DC3 HOST links
+    # HOST 1
+    - connection:
+        - DC3-HOST1:Ethernet1
+        - DC3LE03:Ethernet1
+    - connection:
+        - DC3-HOST1:Ethernet2
+        - DC3LE03:Ethernet2
+    - connection:
+        - DC3-HOST1:Ethernet3
+        - DC3LE04:Ethernet1
+    - connection:
+        - DC3-HOST1:Ethernet4
+        - DC3LE04:Ethernet2
+
+    # ISP1
+    - connection:
+        - DC3-ISP1:Ethernet1
+        - DC3LE01:Ethernet9
+    - connection:
+        - DC3-ISP1:Ethernet2
+        - DC3LE02:Ethernet9
+
+    - connection:
+        - DC3-ISP2:Ethernet1
+        - DC3LE01:Ethernet10
+    - connection:
+        - DC3-ISP2:Ethernet2
+        - DC3LE02:Ethernet10
+
+    - connection:
+        - DC3-ISP1:Ethernet3
+        - DC3-ISP2:Ethernet3
+
+    # DC4 HOST links
+    # HOST 1
+    - connection:
+        - DC4-HOST1:Ethernet1
+        - DC4LE03:Ethernet1
+    - connection:
+        - DC4-HOST1:Ethernet2
+        - DC4LE03:Ethernet2
+    - connection:
+        - DC4-HOST1:Ethernet3
+        - DC4LE04:Ethernet1
+    - connection:
+        - DC4-HOST1:Ethernet4
+        - DC4LE04:Ethernet2
+
+    # ISP1
+    - connection:
+        - DC4-ISP1:Ethernet1
+        - DC4LE01:Ethernet9
+    - connection:
+        - DC4-ISP1:Ethernet2
+        - DC4LE02:Ethernet9
+
+    - connection:
+        - DC4-ISP2:Ethernet1
+        - DC4LE01:Ethernet10
+    - connection:
+        - DC4-ISP2:Ethernet2
+        - DC4LE02:Ethernet10
+
+    - connection:
+        - DC4-ISP1:Ethernet3
+        - DC4-ISP2:Ethernet3
+    # dci
+    - connection:
+        - DC1LE01:Ethernet2
+        - DC2LE01:Ethernet2
+
+    - connection:
+        - DC1LE02:Ethernet2
+        - DC2LE02:Ethernet2
+
+    - connection:
+        - DC2LE01:Ethernet3
+        - DC4LE01:Ethernet3
+
+    - connection:
+        - DC2LE02:Ethernet3
+        - DC4LE02:Ethernet3     
+
+    - connection:
+        - DC3LE01:Ethernet4
+        - DC4LE01:Ethernet4
+
+    - connection:
+        - DC3LE02:Ethernet4
+        - DC4LE02:Ethernet4   
+
+    - connection:
+        - DC3LE01:Ethernet5
+        - DC1LE01:Ethernet5
+
+    - connection:
+        - DC3LE02:Ethernet5
+        - DC1LE02:Ethernet5 
