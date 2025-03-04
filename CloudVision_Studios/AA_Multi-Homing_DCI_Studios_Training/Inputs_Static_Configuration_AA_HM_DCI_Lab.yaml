@@ -469,7 +469,8 @@ inputs:
       displayName: Antartica
       query: REGION:Antartica
       matchPolicy: 2
-      configletIds: []
+      configletIds:
+        - 8713da98-1200-4866-9c56-e9dec2df2656
       childAssignmentIds:
         - 888c6565-6541-46ec-8a63-862bfc0e1513
         - 1b840b4f-6074-4fe5-998f-f7c9392b36d2
@@ -1048,6 +1049,37 @@ inputs:
         nanos: 402651049
       lastModifiedBy: cvpadmin
       size: '885'
+    - configletId: 8713da98-1200-4866-9c56-e9dec2df2656
+      digest: a79f778ef7850094a4a17088e9eb208efd8a0c641d8508287c03967f3acc6811
+      description: ''
+      displayName: Common_All
+      migratedFrom: ''
+      body: |
+        switchport default mode routed
+        load-interval default 5
+        !
+        interface defaults
+           ethernet
+              shutdown
+        !
+        no logging console
+        logging synchronous level debugging
+        logging format timestamp high-resolution
+        logging level MKA notifications
+        !
+        no ip icmp redirect
+        !
+        banner login
+        This is a private system.
+
+        Any unauthorized access or use is prohibited
+        EOF
+        !
+      lastModifiedAt:
+        seconds: '1740250796'
+        nanos: 857903086
+      lastModifiedBy: cvpadmin
+      size: '348'
     - configletId: b26f9e1d-33a8-46bf-87ea-9eb5f0c96bb8
       digest: c408c67aae8c1f8fa2544e04f56104832d59329f88eb0ab8bd950a8f999c685f
       description: ''
