@@ -1,0 +1,2372 @@
+path: []
+inputs:
+  aclNames: []
+  hideAndShowProfiles:
+    hideProperties:
+      hideAclProperties: Hide
+      hideDot1XProperties: Hide
+      hideIgmpProperties: Hide
+      hideIpLockingProperties: Hide
+      hideIpSecProperties: Hide
+      hideLoggingProperties: Hide
+      hideMacSecProperties: Show
+      hideMultiCastProprties: Hide
+      hideMultiHomingProperties: Show
+      hidePoeProperties: Hide
+      hidePortChannelProprties: Show
+      hidePortSecurityProperties: Hide
+      hidePtpProperties: Hide
+      hideQosProperties: Show
+      hideStormControlProperties: Hide
+      natProperties: Hide
+      taggingProperties: Show
+  macSecProfiles:
+    - cipher: aes256-gcm
+      devices:
+        - inputs:
+            deviceGroup:
+              configureMacSecGlobally: true
+          tags:
+            query: 'BORDER:DC1 '
+        - inputs:
+            deviceGroup:
+              configureMacSecGlobally: true
+          tags:
+            query: 'BORDER:DC2 '
+        - inputs:
+            deviceGroup:
+              configureMacSecGlobally: true
+          tags:
+            query: 'BORDER:DC3 '
+        - inputs:
+            deviceGroup:
+              configureMacSecGlobally: true
+          tags:
+            query: 'BORDER:DC4 '
+      eapolMacDestination: null
+      fips: false
+      key: 0abc1234 7 1446405858517C7C7C
+      l2ProtocolEthernetFlowControl: null
+      l2ProtocolLldp: bypass unauthorized
+      license: null
+      macSecProfileName: Inter_DCI_MACSEC
+      mkaSessionGroup:
+        mkaReKeyPeriod: 30
+      ptp: null
+      replayProtection: null
+      sak: {}
+      trafficUnprotected: null
+  multiHomingProfiles:
+    - autoEsi: true
+      autoRtAndLacpSysId: true
+      devices:
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 1 100
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC3LE03 '
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 101 200
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC3LE04 '
+      esi: null
+      ethernetSegmentRouteTarget: null
+      lacpSysId: null
+      multiHomingProfileName: MH_LE_03/04_DC1
+      redundancyMode: all-active
+      seedIpAddressForAutoEsi: 100.64.1.3
+    - autoEsi: true
+      autoRtAndLacpSysId: true
+      devices:
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 1 100
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC2LE03 '
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 101 200
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC2LE04 '
+      esi: null
+      ethernetSegmentRouteTarget: null
+      lacpSysId: null
+      multiHomingProfileName: MH_LE_03/04_DC2
+      redundancyMode: all-active
+      seedIpAddressForAutoEsi: 100.64.2.3
+    - autoEsi: true
+      autoRtAndLacpSysId: true
+      devices:
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 1 100
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC3LE03 '
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 101 200
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC3LE04 '
+      esi: null
+      ethernetSegmentRouteTarget: null
+      lacpSysId: null
+      multiHomingProfileName: MH_LE_03/04_DC3
+      redundancyMode: all-active
+      seedIpAddressForAutoEsi: 100.64.3.3
+    - autoEsi: true
+      autoRtAndLacpSysId: true
+      devices:
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 1 100
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC4LE03 '
+        - inputs:
+            devicesGroup:
+              lacpPortIdRange: 101 200
+              noStpVlanIdRange: null
+              stpSuperRoot: true
+          tags:
+            query: 'device:SN-DC4LE04 '
+      esi: null
+      ethernetSegmentRouteTarget: null
+      lacpSysId: null
+      multiHomingProfileName: MH_LE_03/04_DC4
+      redundancyMode: all-active
+      seedIpAddressForAutoEsi: 100.64.4.3
+  portChannelProfiles:
+    - autoPortChannelNumbering: true
+      channelGroupNumber: null
+      lacpEnabled: enabled
+      lacpFallback: null
+      lacpTimerFast: true
+      membersPerPortChannel: 1
+      mlagEnabled: null
+      portChannelProfileName: Auto_PC_Numbering_1_Member
+    - autoPortChannelNumbering: true
+      channelGroupNumber: null
+      lacpEnabled: enabled
+      lacpFallback: null
+      lacpTimerFast: true
+      membersPerPortChannel: 2
+      mlagEnabled: null
+      portChannelProfileName: Auto_PC_Numbering_2_Members
+    - autoPortChannelNumbering: true
+      channelGroupNumber: null
+      lacpEnabled: enabled
+      lacpFallback: null
+      lacpTimerFast: true
+      membersPerPortChannel: 4
+      mlagEnabled: null
+      portChannelProfileName: Auto_PC_Numbering_4_Members
+  profileOfProfiles:
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: null
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: null
+      portSecurityProfile: null
+      profileOfProfilesName: INTER_DCI_MACSEC_RTD
+      ptpProfile: null
+      qosInstance: null
+      stormControlProfile: null
+      taggingProfile: Tenant2
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: Routed_Port
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: null
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: null
+      portSecurityProfile: null
+      profileOfProfilesName: Internet_Uplink
+      ptpProfile: null
+      qosInstance: null
+      stormControlProfile: null
+      taggingProfile: Tenant2
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: Routed_Port_BGP_Session_Tracker
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: null
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: Auto_PC_Numbering_4_Members
+      portSecurityProfile: null
+      profileOfProfilesName: Host_Port_Channel
+      ptpProfile: null
+      qosInstance: null
+      stormControlProfile: null
+      taggingProfile: Hosts
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: Trunk
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: null
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: null
+      portSecurityProfile: null
+      profileOfProfilesName: Vlan_Interface_Host
+      ptpProfile: null
+      qosInstance: null
+      stormControlProfile: null
+      taggingProfile: Tenant2
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: VLAN_Interface
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: MH_LE_03/04_DC1
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: Auto_PC_Numbering_2_Members
+      portSecurityProfile: null
+      profileOfProfilesName: DC1_LE_03/04_MH_PC
+      ptpProfile: null
+      qosInstance: Best_Effort
+      stormControlProfile: null
+      taggingProfile: Storage_Switch
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: Trunk_BGP_Session_Tracker
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: MH_LE_03/04_DC2
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: Auto_PC_Numbering_2_Members
+      portSecurityProfile: null
+      profileOfProfilesName: DC2_LE_03/04_MH_PC
+      ptpProfile: null
+      qosInstance: Best_Effort
+      stormControlProfile: null
+      taggingProfile: Storage_Switch
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: Trunk_BGP_Session_Tracker
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: MH_LE_03/04_DC3
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: Auto_PC_Numbering_2_Members
+      portSecurityProfile: null
+      profileOfProfilesName: DC3_LE_03/04_MH_PC
+      ptpProfile: null
+      qosInstance: Best_Effort
+      stormControlProfile: null
+      taggingProfile: Tenant2
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: Trunk_BGP_Session_Tracker
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: MH_LE_03/04_DC4
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: Auto_PC_Numbering_2_Members
+      portSecurityProfile: null
+      profileOfProfilesName: DC4_LE_03/04_MH_PC
+      ptpProfile: null
+      qosInstance: Best_Effort
+      stormControlProfile: null
+      taggingProfile: Storage_Switch
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: Trunk_BGP_Session_Tracker
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: null
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: null
+      portSecurityProfile: null
+      profileOfProfilesName: Vlan_Interfaces_Internet
+      ptpProfile: null
+      qosInstance: null
+      stormControlProfile: null
+      taggingProfile: External_Connection
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: VLAN_Interface
+    - aclIn: null
+      aclOut: null
+      dot1XProfile: null
+      igmpProfile: null
+      ipLockingProfile: null
+      ipSecProfile: null
+      loggingProfile: null
+      macSecProfile: null
+      multiHomingProfile: null
+      natProfile: null
+      pimProfile: null
+      poeProfile: null
+      portChannelProfile: null
+      portSecurityProfile: null
+      profileOfProfilesName: Vlan_Interfaces_Storage
+      ptpProfile: null
+      qosInstance: null
+      stormControlProfile: null
+      taggingProfile: Storage_Switch
+      v6AclIn: null
+      v6AclOut: null
+      vlanProfile: VLAN_Interface
+  qosProfiles:
+    - classMaps:
+        - acl: null
+          classMapName: Match_Storage_Vlan_3
+          match: ip
+          matchValue: null
+          type: qos
+      classification: []
+      devices: []
+      instanceName: Best_Effort
+      nextHopGroups: []
+      policyMaps:
+        - classDefault: '1'
+          pbr: []
+          policyMapName: CS1_TC0
+          policyMapclassMaps:
+            - classMapSettings:
+                dscp: cs1
+                trafficClass: '0'
+              pmclassMap: Match_Storage_Vlan_3
+          type: qos
+      rewriteRules: []
+      serviceProfiles: []
+      trafficClassToQueue: []
+  sites:
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions: {}
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC2_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et2
+                      ipPrefix: 205.206.192.32/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC2_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et5
+                      ipPrefix: 205.206.192.40/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC3_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et2
+                      ipPrefix: 205.206.192.34/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC3_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et5
+                      ipPrefix: 205.206.192.42/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: et9
+                      ipPrefix: 207.219.61.104/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: et10
+                      ipPrefix: 207.219.61.108/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: et9
+                      ipPrefix: 207.219.61.106/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: et10
+                      ipPrefix: 207.219.61.110/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC1LE01
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC1LE02
+                  tunnelInterfaces: []
+                  vlanInterfaces: []
+                  vlans: []
+              tags:
+                query: BORDER:DC1
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions:
+                    hideAndShowOptionsGroup:
+                      hideLoopbackInterfaces: Hide Entire Section
+                      hidePorts: Show
+                      hideSvIsAndMgtInterfaces: Show
+                      hideTunnelInterfaces: Hide Entire Section
+                      hideVlans: Hide Entire Section
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: Storage_Switch_Member_PC1
+                      enabled: true
+                      esi: null
+                      interfaceName: e1, e2
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - all-switches
+                      mlagEnabled: null
+                      portChannelDescription: Storage_Switch_MH_PC
+                      profileOfProfileName: DC1_LE_03/04_MH_PC
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC1LE03
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC1LE04
+                  tunnelInterfaces: []
+                  vlanInterfaces:
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.1.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.1.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.1.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '101'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.1.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '101'
+                      vrf: Tenant3
+                  vlans: []
+              tags:
+                query: STORAGE:DC1
+      tags:
+        query: DC:DC1
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions: {}
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC1_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et2
+                      ipPrefix: 205.206.192.33/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC4_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et3
+                      ipPrefix: 205.206.192.69/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC1_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et2
+                      ipPrefix: 205.206.192.35/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC4_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et3
+                      ipPrefix: 205.206.192.71/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e9
+                      ipPrefix: 207.219.62.104/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e10
+                      ipPrefix: 207.219.62.108/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e9
+                      ipPrefix: 207.219.62.106/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e10
+                      ipPrefix: 207.219.62.110/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC2LE01
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC2LE02
+                  tunnelInterfaces: []
+                  vlanInterfaces: []
+                  vlans: []
+              tags:
+                query: BORDER:DC2
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions:
+                    hideAndShowOptionsGroup:
+                      hideLoopbackInterfaces: Hide Entire Section
+                      hidePorts: Show
+                      hideSvIsAndMgtInterfaces: Show
+                      hideTunnelInterfaces: Hide Entire Section
+                      hideVlans: Hide Entire Section
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: Storage_Switch_Member_PC1
+                      enabled: true
+                      esi: null
+                      interfaceName: e1, e2
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - all-switches
+                      mlagEnabled: null
+                      portChannelDescription: Storage_Switch_MH_PC
+                      profileOfProfileName: DC2_LE_03/04_MH_PC
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC2LE03
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC2LE04
+                  tunnelInterfaces: []
+                  vlanInterfaces:
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.2.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.2.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.2.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.2.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.2.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.2.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.2.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '102'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.2.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '102'
+                      vrf: Tenant3
+                  vlans: []
+              tags:
+                query: STORAGE:DC2
+      tags:
+        query: DC:DC2
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions: {}
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC4_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et4
+                      ipPrefix: 205.206.192.97/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC1_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et5
+                      ipPrefix: 205.206.192.41/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC4_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et4
+                      ipPrefix: 205.206.192.99/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC1_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et5
+                      ipPrefix: 205.206.192.43/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e9
+                      ipPrefix: 207.219.63.104/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e10
+                      ipPrefix: 207.219.63.108/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e9
+                      ipPrefix: 207.219.63.106/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e10
+                      ipPrefix: 207.219.63.110/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC3LE01
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC3LE02
+                  tunnelInterfaces: []
+                  vlanInterfaces: []
+                  vlans: []
+              tags:
+                query: BORDER:DC3
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions:
+                    hideAndShowOptionsGroup:
+                      hideLoopbackInterfaces: Hide Entire Section
+                      hidePorts: Show
+                      hideSvIsAndMgtInterfaces: Show
+                      hideTunnelInterfaces: Hide Entire Section
+                      hideVlans: Hide Entire Section
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: Storage_Switch_Member_PC1
+                      enabled: true
+                      esi: null
+                      interfaceName: e1,e2
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - all-switches
+                      mlagEnabled: null
+                      portChannelDescription: Storage_Switch_MH_PC
+                      profileOfProfileName: DC3_LE_03/04_MH_PC
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC3LE03
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC3LE04
+                  tunnelInterfaces: []
+                  vlanInterfaces:
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.3.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.3.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.3.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.3.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.3.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.3.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.3.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '103'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.3.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '103'
+                      vrf: Tenant3
+                  vlans: []
+              tags:
+                query: STORAGE:DC3
+      tags:
+        query: DC:DC3
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions: {}
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC2_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et3
+                      ipPrefix: 205.206.192.68/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC3_LE01
+                      enabled: true
+                      esi: null
+                      interfaceName: et4
+                      ipPrefix: 205.206.192.96/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC2_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et3
+                      ipPrefix: 205.206.192.70/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: TO_DC3_LE02
+                      enabled: true
+                      esi: null
+                      interfaceName: et4
+                      ipPrefix: 205.206.192.98/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: INTER_DCI_MACSEC_RTD
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e9
+                      ipPrefix: 207.219.64.104/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e10
+                      ipPrefix: 207.219.64.108/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP1_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e9
+                      ipPrefix: 207.219.64.106/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: ISP2_Internet_VRF
+                      enabled: true
+                      esi: null
+                      interfaceName: e10
+                      ipPrefix: 207.219.64.110/31
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: null
+                      profileOfProfileName: Internet_Uplink
+                      speed: null
+                      vlansAllowed: null
+                      vrf: Internet
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC4LE01
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC4LE02
+                  tunnelInterfaces: []
+                  vlanInterfaces: []
+                  vlans: []
+              tags:
+                query: BORDER:DC4
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions:
+                    hideAndShowOptionsGroup:
+                      hideLoopbackInterfaces: Hide Entire Section
+                      hidePorts: Show
+                      hideSvIsAndMgtInterfaces: Show
+                      hideTunnelInterfaces: Hide Entire Section
+                      hideVlans: Hide Entire Section
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: Storage_Switch_Member_PC1Storage_Switch
+                      enabled: true
+                      esi: null
+                      interfaceName: e1,e2
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - all-switches
+                      mlagEnabled: null
+                      portChannelDescription: Storage_Switch_MH_PC
+                      profileOfProfileName: DC4_LE_03/04_MH_PC
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC4LE03
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC4LE04
+                  tunnelInterfaces: []
+                  vlanInterfaces:
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Internet
+                      secIp: []
+                      virtualRouterAddress: 192.168.1.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.4.2/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.4.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.4.3/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: 192.168.4.1
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.4.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant2
+                      enabled: true
+                      ipAddressVirtual: 192.168.4.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.4.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '104'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: null
+                      description: Storage_Tenant3
+                      enabled: true
+                      ipAddressVirtual: 192.168.4.1/24
+                      ipPrefix: null
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interfaces_Storage
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '104'
+                      vrf: Tenant3
+                  vlans: []
+              tags:
+                query: STORAGE:DC4
+      tags:
+        query: DC:DC4
+    - inputs:
+        sitesGroup:
+          devices:
+            - inputs:
+                devicesGroup:
+                  all: all-switches
+                  groupMemberNotation: stack-notation
+                  hideAndShowOptions:
+                    hideAndShowOptionsGroup:
+                      hideLoopbackInterfaces: Hide Entire Section
+                      hidePorts: Show
+                      hideSvIsAndMgtInterfaces: Show
+                      hideTunnelInterfaces: Hide Entire Section
+                      hideVlans: Hide Entire Section
+                  interfaceRanges:
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: DC1_Host_Members_of_PC1
+                      enabled: true
+                      esi: null
+                      interfaceName: e1,e2,e3,e4
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '1'
+                      mlagEnabled: null
+                      portChannelDescription: DC1_Host_PC1
+                      profileOfProfileName: Host_Port_Channel
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: DC2_Host_Members_of_PC1
+                      enabled: true
+                      esi: null
+                      interfaceName: e1,e2,e3,e4
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '2'
+                      mlagEnabled: null
+                      portChannelDescription: DC2_Host_PC1
+                      profileOfProfileName: Host_Port_Channel
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: DC3_Host_Members_of_PC1
+                      enabled: true
+                      esi: null
+                      interfaceName: e1,e2,e3,e4
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '3'
+                      mlagEnabled: null
+                      portChannelDescription: DC3_Host_PC1
+                      profileOfProfileName: Host_Port_Channel
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                    - accessVlan: null
+                      autoPortChannelNumbering: false
+                      channelGroup: null
+                      defaultGw: null
+                      description: DC4_Host_Members_of_PC1
+                      enabled: true
+                      esi: null
+                      interfaceName: e1,e2,e3,e4
+                      ipPrefix: null
+                      ipv6Prefix: null
+                      lacpEnabled: null
+                      memberNumberCollection:
+                        - '4'
+                      mlagEnabled: null
+                      portChannelDescription: DC4_Host_PC1
+                      profileOfProfileName: Host_Port_Channel
+                      speed: null
+                      vlansAllowed: null
+                      vrf: null
+                  loopbackInterfaces: []
+                  management0: Management0
+                  management1: Management1
+                  stack:
+                    - inputs:
+                        stackMember: '1'
+                      tags:
+                        query: device:SN-DC1-HOST1
+                    - inputs:
+                        stackMember: '2'
+                      tags:
+                        query: device:SN-DC2-HOST1
+                    - inputs:
+                        stackMember: '3'
+                      tags:
+                        query: device:SN-DC3-HOST1
+                    - inputs:
+                        stackMember: '4'
+                      tags:
+                        query: device:SN-DC4-HOST1
+                  tunnelInterfaces: []
+                  vlanInterfaces:
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.1.1
+                      description: Internet_Access
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                        - '2'
+                        - '3'
+                        - '4'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '2'
+                      vrf: Internet
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.1.1
+                      description: DC1_Tenant3
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.2.1
+                      description: DC2_Tenant3
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.2.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.3.1
+                      description: DC3_Tenant3
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.3.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '3'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.4.1
+                      description: DC4_Tenant3
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.4.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '4'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '3'
+                      vrf: Tenant3
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.1.1
+                      description: DC1_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.2.1
+                      description: DC2_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.2.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.3.1
+                      description: DC3_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.3.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '3'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.4.1
+                      description: DC4_Tenant1
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.4.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '4'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '4'
+                      vrf: Tenant1
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.1.1
+                      description: DC1_Tenant2
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.1.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '1'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '101'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.2.1
+                      description: DC2_Tenant2
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.2.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '2'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '102'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.3.1
+                      description: DC3_Tenant2
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.3.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '3'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '103'
+                      vrf: Tenant2
+                    - autoState: true
+                      defaultGatewayNextHop: 192.168.4.1
+                      description: DC4_Tenant2
+                      enabled: true
+                      ipAddressVirtual: null
+                      ipPrefix: 192.168.4.4/24
+                      ipv6AddressVirtual: null
+                      ipv6Prefix: null
+                      memberNumberCollection:
+                        - '4'
+                      mgtVrfRouting: false
+                      profileOfProfileName: Vlan_Interface_Host
+                      secIp: []
+                      virtualRouterAddress: null
+                      virtualRouterIpv6Address: null
+                      vlanId: '104'
+                      vrf: Tenant2
+                  vlans: []
+              tags:
+                query: HOST:True
+      tags:
+        query: HOST:True
+  taggingProfiles:
+    - taggingProfileName: DCI_Underlay
+      taggingSettings:
+        descriptionTag: 'Yes'
+        linkTypeTag: DCI_Underlay
+        profileTag: 'Yes'
+    - taggingProfileName: Hosts
+      taggingSettings:
+        descriptionTag: 'Yes'
+        linkTypeTag: HOST
+        profileTag: 'Yes'
+    - taggingProfileName: Storage_Switch
+      taggingSettings:
+        descriptionTag: 'Yes'
+        linkTypeTag: Storage
+        profileTag: 'Yes'
+    - taggingProfileName: External_Connection
+      taggingSettings:
+        descriptionTag: 'Yes'
+        linkTypeTag: External_Connection
+        profileTag: 'Yes'
+    - taggingProfileName: Tenant2
+      taggingSettings:
+        descriptionTag: 'Yes'
+        linkTypeTag: Tenant2
+        profileTag: 'Yes'
+  vlanProfiles:
+    - allowedVlans: null
+      bgpSessionTrackerName: null
+      bpduFilterEnabled: false
+      bpduGuardEnabled: false
+      command: null
+      dhcpHelpers: []
+      enableDhcpCollector: false
+      ipaddress: null
+      l2SubInterfaceProperties: {}
+      linkTracking: {}
+      mode: routed
+      name: Routed_Port
+      nativeVlanId: 1
+      phoneTrunk: null
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      reversePathForwardingMode: null
+      rootGuardEnabled: false
+      sflow: null
+      speed: null
+      virtualRouterMacAddress: null
+      vlanName: null
+      vlanTranslation: []
+    - allowedVlans: null
+      bgpSessionTrackerName: null
+      bpduFilterEnabled: false
+      bpduGuardEnabled: false
+      command: null
+      dhcpHelpers: []
+      enableDhcpCollector: false
+      ipaddress: null
+      l2SubInterfaceProperties: {}
+      linkTracking: {}
+      mode: trunk
+      name: Trunk
+      nativeVlanId: 999
+      phoneTrunk: null
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      reversePathForwardingMode: null
+      rootGuardEnabled: false
+      sflow: null
+      speed: null
+      virtualRouterMacAddress: null
+      vlanName: null
+      vlanTranslation: []
+    - allowedVlans: null
+      bgpSessionTrackerName: SPINE
+      bpduFilterEnabled: false
+      bpduGuardEnabled: false
+      command: null
+      dhcpHelpers: []
+      enableDhcpCollector: false
+      ipaddress: null
+      l2SubInterfaceProperties: {}
+      linkTracking: {}
+      mode: trunk
+      name: Trunk_BGP_Session_Tracker
+      nativeVlanId: 1
+      phoneTrunk: null
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      reversePathForwardingMode: null
+      rootGuardEnabled: false
+      sflow: null
+      speed: null
+      virtualRouterMacAddress: null
+      vlanName: null
+      vlanTranslation: []
+    - allowedVlans: null
+      bgpSessionTrackerName: SPINE
+      bpduFilterEnabled: false
+      bpduGuardEnabled: false
+      command: null
+      dhcpHelpers: []
+      enableDhcpCollector: false
+      ipaddress: null
+      l2SubInterfaceProperties: {}
+      linkTracking: {}
+      mode: routed
+      name: Routed_Port_BGP_Session_Tracker
+      nativeVlanId: 1
+      phoneTrunk: null
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      reversePathForwardingMode: null
+      rootGuardEnabled: false
+      sflow: null
+      speed: null
+      virtualRouterMacAddress: null
+      vlanName: null
+      vlanTranslation: []
+    - allowedVlans: null
+      bgpSessionTrackerName: null
+      bpduFilterEnabled: false
+      bpduGuardEnabled: false
+      command: null
+      dhcpHelpers: []
+      enableDhcpCollector: false
+      ipaddress: null
+      l2SubInterfaceProperties: {}
+      linkTracking: {}
+      mode: routed
+      name: VLAN_Interface
+      nativeVlanId: 1
+      phoneTrunk: null
+      phoneVlanId: 0
+      portFastEnabled: false
+      profileDescription: null
+      profileIpAddressVirtual: null
+      reversePathForwardingMode: null
+      rootGuardEnabled: false
+      sflow: null
+      speed: null
+      virtualRouterMacAddress: null
+      vlanName: null
+      vlanTranslation: []

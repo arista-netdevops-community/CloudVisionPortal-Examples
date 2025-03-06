@@ -1,0 +1,604 @@
+path: []
+inputs:
+  evpnGatewayVteps: []
+  tenants:
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Internet_DC1
+      vlanAwareBundles: []
+      vlans: []
+      vrfs:
+        - additionalRouteTargets: []
+          bgp: {}
+          devices:
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: BORDER:DC1
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: STORAGE:DC1
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Internet
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 1001
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Internet_DC2
+      vlanAwareBundles: []
+      vlans: []
+      vrfs:
+        - additionalRouteTargets: []
+          bgp: {}
+          devices:
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: BORDER:DC2
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: STORAGE:DC2
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Internet
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 1002
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Internet_DC3
+      vlanAwareBundles: []
+      vlans: []
+      vrfs:
+        - additionalRouteTargets: []
+          bgp: {}
+          devices:
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: BORDER:DC3
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: STORAGE:DC3
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Internet
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 1003
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Internet_DC4
+      vlanAwareBundles: []
+      vlans: []
+      vrfs:
+        - additionalRouteTargets: []
+          bgp: {}
+          devices:
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: BORDER:DC4
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: STORAGE:DC4
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Internet
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 1004
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Tenant1_Same_Vlan-ID
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant1_Vlan4
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True
+          vlanId: 4
+          vrf: Tenant1
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          bgp: {}
+          devices:
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: Vtep:True
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Tenant1
+          natSourceDetails: {}
+          overrideVariables:
+            routeTarget: '3001:3001'
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 3001
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Tenant2_Different_Vlan-IDs
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant2_Vlan101
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC1
+          vlanId: 101
+          vrf: Tenant2
+          vxlan: true
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant2_Vlan102
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC2
+          vlanId: 102
+          vrf: Tenant2
+          vxlan: true
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant2_Vlan103
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC3
+          vlanId: 103
+          vrf: Tenant2
+          vxlan: true
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant2_Vlan104
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC4
+          vlanId: 104
+          vrf: Tenant2
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets: []
+          bgp: {}
+          devices:
+            - inputs:
+                devices:
+                  hostname: []
+              tags:
+                query: Vtep:True
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Tenant2
+          natSourceDetails: {}
+          overrideVariables:
+            routeTarget: '2004:2004'
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 2004
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Tenant3_DC1
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant3_DC1_Vlan3
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC1
+          vlanId: 3
+          vrf: Tenant3
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets:
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC1
+              routeTarget: '65002:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC1
+              routeTarget: '65003:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC1
+              routeTarget: '65004:2001'
+              type: import
+          bgp: {}
+          devices: []
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Tenant3
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 2001
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Tenant3_DC2
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant3_DC2_Vlan3
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC2
+          vlanId: 3
+          vrf: Tenant3
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets:
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC2
+              routeTarget: '65001:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC2
+              routeTarget: '65003:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC2
+              routeTarget: '65004:2001'
+              type: import
+          bgp: {}
+          devices: []
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Tenant3
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 2001
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Tenant3_DC3
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant3_DC3_Vlan3
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC3
+          vlanId: 3
+          vrf: Tenant3
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets:
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC3
+              routeTarget: '65001:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC3
+              routeTarget: '65002:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC3
+              routeTarget: '65004:2001'
+              type: import
+          bgp: {}
+          devices: []
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Tenant3
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 2001
+    - evpnMulticast: {}
+      macVrfVniBase: 10000
+      name: Tenant3_DC4
+      vlanAwareBundles: []
+      vlans:
+        - arp: {}
+          bgpEosCli: null
+          dhcpServerDetails: []
+          eTreeDetails: {}
+          eTreeRootSwitches: []
+          enableVlanIpVersion: {}
+          eosCli: []
+          evpnMulticast: {}
+          l3OrL2: true
+          mtu: 9214
+          name: Tenant3_DC4_Vlan3
+          nodes: []
+          overrideVariables: {}
+          redistributeLearned: false
+          sviIpAddresses:
+            virtualAddressConfigType: true
+          sviIpAddressesV6: {}
+          switches:
+            - inputs:
+                switch:
+                  hostname: []
+              tags:
+                query: Vtep:True AND DC:DC4
+          vlanId: 3
+          vrf: Tenant3
+          vxlan: true
+      vrfs:
+        - additionalRouteTargets:
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC4
+              routeTarget: '65001:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC4
+              routeTarget: '65002:2001'
+              type: import
+            - addressFamily: evpn
+              devices:
+                - inputs:
+                    devices:
+                      hostname: []
+                  tags:
+                    query: Vtep:True AND DC:DC4
+              routeTarget: '65003:2001'
+              type: import
+          bgp: {}
+          devices: []
+          enableVrfIpVersion: {}
+          evpnMulticast: {}
+          externalBgpPeers: []
+          iBgpDetails: {}
+          l3Interfaces: []
+          name: Tenant3
+          natSourceDetails: {}
+          overrideVariables: {}
+          redistributeStaticRoutes: false
+          staticRoutes: []
+          vni: 2001
+  vlanBasedMacVrfAttributeFormats:
+    macVrfRouteDistinguisherFormat: Router-ID:VNI
+    macVrfRouteTargetFormat: Upper-2B-ASN:VNI
+  vrfAttributeFormats:
+    vrfRouteDistinguisherFormat: Router-ID:VNI
+    vrfRouteTargetFormat: Upper-2B-ASN:VNI
