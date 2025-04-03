@@ -23,10 +23,23 @@ from pyavd._cv.api.arista.studio.v1 import (
     InputsServiceStub,
     InputsStreamRequest,
 )
+from pyavd._cv.api.arista.configlet.v1 import (
+    Configlet,
+    ConfigletKey,
+    ConfigletAssignment,
+    ConfigletAssignmentKey,
+    ConfigletAssignmentServiceStub,
+    ConfigletAssignmentStreamRequest,
+    ConfigletStreamRequest,
+    ConfigletServiceStub,
+    Filter
+)
+
 import argparse
 import logging
 
 from pyavd._cv.client import CVClient
+from pyavd._cv.client.exceptions import get_cv_client_exception
 
 async def get_studio_inputs_all(
         CVClient,
@@ -61,13 +74,114 @@ async def get_studio_inputs_all(
 
         return studio_inputs
 
+async def get_configlet_containers(
+    CVClient,
+    workspace_id: str,
+    container_ids: list[str] | None = None,
+    timeout: float = 600,
+) -> list[ConfigletAssignment]:
+    """
+    Get Configlet Containers (a.k.a. Assignments) using arista.configlet.v1.ConfigletAssignmentServiceStub.GetAll API.
+
+    Parameters:
+        workspace_id: Unique identifier of the Workspace for which the information is fetched. Use "" for mainline.
+        container_ids: Unique identifiers for Containers/Assignments.
+        timeout: Timeout in seconds.
+
+    Returns:
+        ConfigletAssignment objects.
+    """
+    request = ConfigletAssignmentStreamRequest(partial_eq_filter=[])
+    if container_ids:
+        for container_id in container_ids:
+            request.partial_eq_filter.append(
+                ConfigletAssignment(key=ConfigletAssignmentKey(workspace_id=workspace_id, configlet_assignment_id=container_id)),
+            )
+    else:
+        request.partial_eq_filter.append(ConfigletAssignment(key=ConfigletAssignmentKey(workspace_id=workspace_id)))
+
+    client = ConfigletAssignmentServiceStub(CVClient._channel)
+    try:
+        responses = client.get_all(request, metadata=CVClient._metadata, timeout=timeout)
+        configlet_assignments = [response.value async for response in responses]
+    except Exception as e:
+        raise get_cv_client_exception(e, f"Workspace ID '{workspace_id}', ConfigletAssignment ID '{container_ids}'") or e
+
+    return configlet_assignments
+
+async def get_configlets(
+        CVClient,
+        workspace_id: str,
+        configlet_ids: list[str] | None = None,
+        timeout: float = 600,
+    ) -> list[Configlet]:
+        """
+        Get Configlets using arista.configlet.v1.ConfigletServiceStub.GetAll API.
+
+        Missing objects will not produce an error.
+
+        Parameters:
+            workspace_id: Unique identifier of the Workspace for which the information is fetched. Use "" for mainline.
+            configlet_ids: Unique identifiers for Configlets. If not set the function will return all configlets.
+            timeout: Timeout in seconds.
+
+        Returns:
+            List of matching Configlet objects.
+        """
+        request = ConfigletStreamRequest(partial_eq_filter=[],filter=Filter(include_body=True))
+        if configlet_ids:
+            for configlet_id in configlet_ids:
+                request.partial_eq_filter.append(Configlet(key=ConfigletKey(workspace_id=workspace_id, configlet_id=configlet_id)))
+        else:
+            request.partial_eq_filter.append(Configlet(key=ConfigletKey(workspace_id=workspace_id)))
+
+        client = ConfigletServiceStub(CVClient._channel)
+
+        try:
+            responses = client.get_all(request, metadata=CVClient._metadata, timeout=timeout)
+            configlets = [response.value async for response in responses]
+
+        except Exception as e:
+            raise get_cv_client_exception(e, f"Workspace ID '{workspace_id}', Configlet IDs '{configlet_ids}'") or e
+
+        return configlets
+
 async def backup_studios(cloudvision: CloudVision):
     async with CloudVision as cv_client:
         result = await get_studio_inputs_all(cv_client)
+        # Static Config Studio is special and we need to get the configlets, configlet assignments in addition to
+        # the studio inputs that only contain the configletAssignmentRoots
+        configlets = await get_configlets(cv_client, workspace_id="",configlet_ids=[])
+        configlet_list = []
+        for configlet in configlets:
+            configlet_dict = {
+                "configletId": configlet.key.configlet_id,
+                "digest": configlet.digest,
+                "body": configlet.body,
+                "description": configlet.description,
+                "displayName": configlet.display_name,
+            }
+            configlet_list.append(configlet_dict)
+        assignments = await get_configlet_containers(cv_client, workspace_id="", container_ids=[])
+        assignment_list = []
+        for assignment in assignments:
+            configlet_dict = {
+                "configletAssignmentId": assignment.key.configlet_assignment_id,
+                "query": assignment.query,
+                "description": assignment.description,
+                "displayName": assignment.display_name,
+                "configletIds": assignment.configlet_ids.values,
+                "childAssignmentIds": assignment.child_assignment_ids.values,
+                "matchPolicy": assignment.match_policy.value,
+            }
+            assignment_list.append(configlet_dict)
+        # Loop through the studios and dump the inputs to a yaml file
         for studio in result:
-            # filter out SCS inputs
+
             if studio['studio_id'] == "studio-static-configlet":
-                continue
+                studio['inputs']['inputs']['configletAssignments'] = assignment_list
+                studio['inputs']['inputs']['configlets'] = configlet_list
+            logging.info(f"Backing up studio {studio['studio_id']}")
             with open(f"{studio['studio_id']}.yaml", "w") as f:
                 yaml.dump(studio['inputs'], f)
 
