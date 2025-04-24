@@ -1,23 +1,24 @@
-# Copyright (c) 2024 Arista Networks, Inc.
+# Copyright (c) 2025 Arista Networks, Inc.
 # Use of this source code is governed by the Apache License 2.0
 # that can be found in the COPYING file.
 
 import ssl
+import requests
+import json
 from getpass import getpass
-ssl._create_default_https_context = ssl._create_unverified_context
-import requests.packages.urllib3
+
+# Disable SSL warnings
 requests.packages.urllib3.disable_warnings()
-import jsonrpclib
-from getpass import getpass
 
-
-token = "<INSERT DEVICE REGISTRATION TOKEN HERE>"
+# Add the device registration token here if you want to (re)onboard devices.
+# Leave it as None if you just want to change the TA configuration.
+token = None
 
 # Get the daemon configuration from Device Registration's main page (on CVaaS) or
 # from the Onboard/Enroll with Certificates subpage (on-prem)
 daemon_config = "COPY DAEMON TERMINATTR exec line from CV UI"
 
-# Device list (copy and paste from exported inventory CSV
+# Device list (copy and paste from exported inventory CSV)
 devices = [
     "192.0.2.212",
     "192.0.2.213",
@@ -27,30 +28,67 @@ devices = [
     "192.0.2.217"
 ]
 
-# Change below variables
+# Change below variables if needed. This must be a valid user on the devices.
 username = "cvpadmin"
 password = getpass("Enter password: ")
 
-# Use TLSv1.2
-context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-context.minimum_version = ssl.TLSVersion.TLSv1_2
-context.check_hostname = False
-context.verify_mode = ssl.CERT_NONE
-# Using the EOS default ciphers
-context.set_ciphers('AES256-SHA:DHE-RSA-AES256-SHA:AES128-SHA:DHE-RSA-AES128-SHA')
+# JSON-RPC headers
+headers = {
+    "Content-Type": "application/json"
+}
 
-if 'arista.io' in daemon_config:
-    token_path = "/tmp/cv-onboarding-token"
-else:
-    token_path = "/tmp/token"
+# Function to send JSON-RPC request
+def send_rpc_request(device, commands):
+    url = f"https://{device}/command-api"
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "runCmds",
+        "params": {
+            "version": 1,
+            "cmds": commands,
+            "format": "json"
+        },
+        "id": 1
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, auth=(username, password), json=payload, verify=False)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"[ERROR] {device}: {e}")
+        return None
+
+# Run configuration commands on each device
 for dev in devices:
-    sw = jsonrpclib.Server(f"https://{username}:{password}@{dev}/command-api", context=context)
-    sw.runCmds(1,[
-        "enable",
-        {"cmd": f"copy terminal: file:{token_path}", "input": token},
-        "configure",
-        "daemon TerminAttr",
-        daemon_config,
-        "shutdown",
-        "no shutdown"
-    ])
+    print(f"[INFO] Configuring {dev}...")
+
+    if token is not None:
+        token_path = "/tmp/cv-onboarding-token" if 'arista.io' in daemon_config else "/tmp/token"
+        commands = [
+            "enable",
+            {"cmd": f"copy terminal: file:{token_path}", "input": token},
+            "configure",
+            "daemon TerminAttr",
+            daemon_config,
+            "shutdown",
+            "no shutdown"
+        ]
+    else:
+        commands = [
+            "enable",
+            "configure",
+            "daemon TerminAttr",
+            daemon_config,
+            "shutdown",
+            "no shutdown"
+        ]
+
+    result = send_rpc_request(dev, commands)
+
+    if result:
+        print(f"[SUCCESS] {dev} configured successfully!")
+    else:
+        print(f"[FAILURE] {dev} configuration failed!")
+
+print("[INFO] Configuration complete.")
