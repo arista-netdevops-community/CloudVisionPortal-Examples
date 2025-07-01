@@ -7,7 +7,7 @@
 #     "pyyaml",
 # ]
 # [tool.uv]
-# exclude-newer = "2024-08-05T00:00:00Z"
+# exclude-newer = "2025-07-01T00:00:00Z"
 # ///
 
 # Copyright (c) 2023-2025 Arista Networks, Inc.
@@ -37,7 +37,7 @@ from pyavd._cv.api.arista.configlet.v1 import (
 
 import argparse
 import logging
-
+import pyavd
 from pyavd._cv.client import CVClient
 from pyavd._cv.client.exceptions import get_cv_client_exception
 
@@ -217,6 +217,7 @@ if __name__ == "__main__":
 
     # setup logging level from args and do initial debug logging
     logging.basicConfig(level=args.log_level)
+    logging.info(f"Using pyavd version: {pyavd.__version__}")
     logging.info("Script starting")
     logging.debug("Arguments parsed")
     logging.debug(args)
