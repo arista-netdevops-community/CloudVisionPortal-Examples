@@ -7,7 +7,7 @@
 #     "pyyaml",
 # ]
 # [tool.uv]
-# exclude-newer = "2024-08-05T00:00:00Z"
+# exclude-newer = "2025-07-15T00:00:00Z"
 # ///
 
 # Copyright (c) 2023-2025 Arista Networks, Inc.
@@ -63,7 +63,7 @@ async def get_inventory(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Pushes Static Configlets to CloudVision using Static Config Studios"
+        description="Write yaml files for each device with hostname, serial_number and is_deployed keys"
     )
     parser.add_argument(
         "--token-file",
