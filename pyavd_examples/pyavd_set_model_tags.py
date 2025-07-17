@@ -7,7 +7,7 @@
 #     "pyyaml",
 # ]
 # [tool.uv]
-# exclude-newer = "2024-08-05T00:00:00Z"
+# exclude-newer = "2025-07-15T00:00:00Z"
 # ///
 
 # Copyright (c) 2023-2025 Arista Networks, Inc.
@@ -113,7 +113,7 @@ async def deploy_to_cv(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Pushes Static Configlets to CloudVision using Static Config Studios"
+        description="Sets sw_model tag based on devices SKUs that can be used in SMS and other Studios"
     )
     parser.add_argument(
         "--token-file",

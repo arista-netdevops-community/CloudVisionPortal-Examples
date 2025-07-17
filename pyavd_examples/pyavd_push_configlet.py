@@ -7,7 +7,7 @@
 #     "pyyaml",
 # ]
 # [tool.uv]
-# exclude-newer = "2024-08-05T00:00:00Z"
+# exclude-newer = "2025-07-15T00:00:00Z"
 # ///
 
 # Copyright (c) 2023-2025 Arista Networks, Inc.

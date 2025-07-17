@@ -7,7 +7,7 @@
 #     "pyyaml",
 # ]
 # [tool.uv]
-# exclude-newer = "2025-07-01T00:00:00Z"
+# exclude-newer = "2025-07-15T00:00:00Z"
 # ///
 
 # Copyright (c) 2023-2025 Arista Networks, Inc.
@@ -39,7 +39,7 @@ import argparse
 import logging
 import pyavd
 from pyavd._cv.client import CVClient
-from pyavd._cv.client.exceptions import get_cv_client_exception
+from pyavd._cv.client.exceptions import CVClientException
 
 async def get_studio_inputs_all(
         CVClient,
@@ -101,11 +101,10 @@ async def get_configlet_containers(
         request.partial_eq_filter.append(ConfigletAssignment(key=ConfigletAssignmentKey(workspace_id=workspace_id)))
 
     client = ConfigletAssignmentServiceStub(CVClient._channel)
-    try:
-        responses = client.get_all(request, metadata=CVClient._metadata, timeout=timeout)
-        configlet_assignments = [response.value async for response in responses]
-    except Exception as e:
-        raise get_cv_client_exception(e, f"Workspace ID '{workspace_id}', ConfigletAssignment ID '{container_ids}'") or e
+
+    responses = client.get_all(request, metadata=CVClient._metadata, timeout=timeout)
+    configlet_assignments = [response.value async for response in responses]
+
 
     return configlet_assignments
 
@@ -137,12 +136,8 @@ async def get_configlets(
 
         client = ConfigletServiceStub(CVClient._channel)
 
-        try:
-            responses = client.get_all(request, metadata=CVClient._metadata, timeout=timeout)
-            configlets = [response.value async for response in responses]
-
-        except Exception as e:
-            raise get_cv_client_exception(e, f"Workspace ID '{workspace_id}', Configlet IDs '{configlet_ids}'") or e
+        responses = client.get_all(request, metadata=CVClient._metadata, timeout=timeout)
+        configlets = [response.value async for response in responses]
 
         return configlets
 
@@ -187,7 +182,7 @@ async def backup_studios(cloudvision: CloudVision):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Pushes Static Configlets to CloudVision using Static Config Studios"
+        description="Backup Studio inputs"
     )
     parser.add_argument(
         "--token-file",
