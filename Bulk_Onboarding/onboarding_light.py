@@ -90,7 +90,8 @@ for dev in devices:
             "daemon TerminAttr",
             daemon_config,
             "shutdown",
-            "no shutdown"
+            "no shutdown",
+            "write memory"
         ]
 
     result = send_rpc_request(dev, commands)

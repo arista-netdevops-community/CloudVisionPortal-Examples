@@ -68,11 +68,12 @@ for dev in devices:
     sw = jsonrpclib.Server(f"https://{username}:{password}@{dev}/command-api", context=context)
     sw.runCmds(1,[
         "enable",
-        {"cmd": "copy terminal: file:/tmp/token", "input": primary_token['data']},
-        {"cmd": "copy terminal: file:/tmp/cv-onboarding-token", "input": cvaas_token[0]['enrollmentToken']['token']},
+        {"cmd": "copy terminal: file:/tmp/token", "input": primary_token},
+        {"cmd": "copy terminal: file:/tmp/cv-onboarding-token", "input": cvaas_token},
         "configure",
         "daemon TerminAttr",
         "exec /usr/bin/TerminAttr -cvopt cvaas.addr=apiserver.arista.io:443 -cvopt cvaas.auth=token-secure,/tmp/cv-onboarding-token -cvopt cvaas.vrf=MGMT -cvopt onprem.addr=192.0.2.779:9910,192.0.2.78:9910,192.0.2.79:9910 -cvopt onprem.auth=token,/tmp/token -cvopt onprem.vrf=MGMT -cvopt -taillogs",
         "shutdown",
-        "no shutdown"
+        "no shutdown",
+        "write memory"
     ])
