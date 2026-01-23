@@ -66,11 +66,12 @@ for dev in devices:
     sw = jsonrpclib.Server(f"https://{username}:{password}@{dev}/command-api", context=context)
     sw.runCmds(1,[
         "enable",
-        {"cmd": "copy terminal: file:/tmp/token", "input": primary_token['data']},
-        {"cmd": "copy terminal: file:/tmp/standby-token", "input": standby_token['data']},
+        {"cmd": "copy terminal: file:/tmp/token", "input": primary_token},
+        {"cmd": "copy terminal: file:/tmp/standby-token", "input": standby_token},
         "configure",
         "daemon TerminAttr",
         "exec /usr/bin/TerminAttr -cvopt primary.addr=192.0.2.779:9910,192.0.2.78:9910,192.0.2.79:9910 -cvopt primary.auth=token,/tmp/token -cvopt primary.vrf=MGMT -cvopt standby.addr=192.0.2.200:9910,192.0.2.201:9910,192.0.2.202:9910 -cvopt standby.auth=token-secure,/tmp/standby-token -cvopt standby.vrf=MGMT -taillogs",
         "shutdown",
-        "no shutdown"
+        "no shutdown",
+        "write memory"
     ])
