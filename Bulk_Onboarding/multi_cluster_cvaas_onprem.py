@@ -31,14 +31,14 @@ with open("onprem.tok") as f:
 clnt = CvpClient()
 clnt.connect(nodes=['www.arista.io'], username='',password='',is_cvaas=True, api_token=token)
 
-cvaas_token = clnt.api.create_enroll_token('720h')[0]['enrollmentToken']['token']
+cvaas_token = clnt.api.create_enroll_token('86400s')['enrollmentToken']['token']
 
 
 # On-prem #1
 primary = CvpClient()
 primary.connect(nodes=['192.0.2.79'], username='',password='',is_cvaas=False, api_token=token2)
 
-primary_token = primary.api.create_enroll_token('720h')['data']
+primary_token = primary.api.create_enroll_token('86400s')['enrollmentToken']['token']
 
 
 #Device list

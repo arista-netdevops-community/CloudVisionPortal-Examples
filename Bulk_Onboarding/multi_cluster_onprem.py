@@ -31,13 +31,13 @@ with open("standby.tok") as f:
 primary = CvpClient()
 primary.connect(nodes=['192.0.2.79'], username='',password='', api_token=token)
 
-primary_token = primary.api.create_enroll_token('720h')['data']
+primary_token = primary.api.create_enroll_token('86400s')['enrollmentToken']['token']
 
 # On-prem #2
 standby = CvpClient()
 standby.connect(nodes=['192.0.2.200'], username='',password='', api_token=token2)
 
-standby_token = standby.api.create_enroll_token('720h')['data']
+standby_token = standby.api.create_enroll_token('86400s')['enrollmentToken']['token']
 
 # Device list
 devices = [
