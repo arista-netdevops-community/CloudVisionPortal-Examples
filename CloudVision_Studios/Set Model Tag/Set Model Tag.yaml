@@ -1,0 +1,71 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: set-model-tag
+        workspace_id: ''
+      created_at: '2025-12-16T07:45:04.146Z'
+      created_by: onder
+      last_modified_at: '2025-12-16T12:26:13.466Z'
+      last_modified_by: onder
+      display_name: Set Model Tag
+      description: 'This Studio reads the model System Tag and automatically creates a user tag with modelname. If you are using it for the first time, please press rebuild button twice'
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |-
+          <%
+          from cloudvision.cvlib.tags import Tag
+          my_device = ctx.getDevice()
+          dev = ctx.topology.getDevices(deviceIds=[my_device.id])[0]
+          dev._assignTag(ctx, Tag('modelname', dev.modelName), replaceValue=True)
+          %>
+      input_schema:
+        fields:
+          values:
+            fab8d5b0-9f0e-488e-acfe-1578b438a93c:
+              id: fab8d5b0-9f0e-488e-acfe-1578b438a93c
+              type: INPUT_FIELD_TYPE_STRING
+              name: dummyTextBox
+              label: dummyTextBox
+              description: Requires entering any dummy text to trigger the Studio for the first time
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            root:
+              id: root
+              type: INPUT_FIELD_TYPE_GROUP
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - fab8d5b0-9f0e-488e-acfe-1578b438a93c
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+        layout:
+          value: '{}'
+      from_package: ''
