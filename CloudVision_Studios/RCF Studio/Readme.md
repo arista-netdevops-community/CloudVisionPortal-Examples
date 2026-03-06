@@ -8,7 +8,7 @@ RCF Studio allows you to define multiple code units and use them across devices 
   The first pane provides the capability to define all code units that are used across the network.
 
 - **Device Code Unit Mapping:**
-  The second pane allows you to map one or more code units to each device in the network.
+  The second pane allows you to map one or more code units to each device in the network. Version 1.0.2 supports the use of tags. 
 
 ## References
 
