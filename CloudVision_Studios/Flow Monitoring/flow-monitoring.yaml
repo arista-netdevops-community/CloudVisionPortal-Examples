@@ -27,10 +27,11 @@
                 hasSflow = True
 
             if hasIpfix and hasSflow:
-              message = "This device is assigned to both IPFIX and sFlow. Remove it from one."
-              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
-              fieldId = "ipfixConfig"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              message = "This device is assigned to both IPFIX and sFlow device sets. Remove it from either the IPFIX or sFlow resolver to resolve the conflict."
+              inputErrors = [
+                cvlib.InputError(message=message, inputPath=["ipfixDeviceSets", str(ipfixCtx.index)], fieldId="ipfixConfig", members=[]),
+                cvlib.InputError(message=message, inputPath=["sflowDeviceSets", str(sflowCtx.index)], fieldId="sflowConfig", members=[])
+              ]
               raise cvlib.InputErrorException(inputErrors=inputErrors)
 
             if not hasIpfix and not hasSflow:
@@ -39,12 +40,14 @@
           % if hasIpfix:
           <%
             cfg = ipfixCfg['ipfixConfig']
-            sourceInterface = cfg.get('sourceInterface')
-            sampleRate = cfg.get('sampleRate', 1000000)
-            collectorAddress = cfg.get('collectorAddress', '127.0.0.1')
-            trackerName = cfg.get('trackerName')
-            exporterName = cfg.get('exporterName')
-            ipfixPort = cfg.get('ipfixPort', 4739)
+            sourceInterface = (cfg.get('sourceInterface') or '').strip()
+            sampleRate = cfg.get('sampleRate')
+            if sampleRate is None:
+              sampleRate = 1000000
+            collectorAddress = cfg.get('collectorAddress') or '127.0.0.1'
+            trackerName = (cfg.get('trackerName') or '').strip()
+            exporterName = (cfg.get('exporterName') or '').strip()
+            ipfixPort = cfg.get('ipfixPort') or 4739
 
             if not sourceInterface:
               message = "Source interface is required for IPFIX (e.g. Loopback0)"
@@ -60,6 +63,13 @@
               inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
               raise cvlib.InputErrorException(inputErrors=inputErrors)
 
+            if not isinstance(sampleRate, int) or sampleRate < 1:
+              message = "Sample rate must be a positive integer (EOS range: 1-16777215)"
+              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
+              fieldId = "ipfix_sampleRate"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+
             loopbackCfg = cfg.get('loopbackConfig', {})
             createLoopback = loopbackCfg.get('createLoopback', False)
             loopbackNumber = loopbackCfg.get('loopbackNumber')
@@ -70,6 +80,13 @@
               message = "Loopback number and IP address are required when Create Loopback is enabled"
               inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
               fieldId = "ipfix_loopbackNumber"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+
+            if createLoopback and sourceInterface != 'Loopback' + str(loopbackNumber):
+              message = "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback."
+              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
+              fieldId = "ipfix_sourceInterface"
               inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
               raise cvlib.InputErrorException(inputErrors=inputErrors)
           %>
@@ -88,20 +105,32 @@
                    collector ${collectorAddress} port ${ipfixPort}
                    local interface ${sourceInterface}
              no shutdown
+          !
           % endif
           % if hasSflow:
           <%
             cfg = sflowCfg['sflowConfig']
-            sourceInterface = cfg.get('sourceInterface')
-            sampleRate = cfg.get('sampleRate', 1000000)
-            collectorAddress = cfg.get('collectorAddress', '127.0.0.1')
-            sflowPollingInterval = cfg.get('sflowPollingInterval', 10)
-            sflowPort = cfg.get('sflowPort', 6343)
+            sourceInterface = (cfg.get('sourceInterface') or '').strip()
+            sampleRate = cfg.get('sampleRate')
+            if sampleRate is None:
+              sampleRate = 1000000
+            collectorAddress = cfg.get('collectorAddress') or '127.0.0.1'
+            sflowPollingInterval = cfg.get('sflowPollingInterval')
+            if sflowPollingInterval is None:
+              sflowPollingInterval = 10
+            sflowPort = cfg.get('sflowPort') or 6343
 
             if not sourceInterface:
               message = "Source interface is required for sFlow (e.g. Loopback0)"
               inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
               fieldId = "sflow_sourceInterface"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+
+            if not isinstance(sampleRate, int) or sampleRate < 1:
+              message = "Sample rate must be a positive integer (EOS range: 1-4294967295)"
+              inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
+              fieldId = "sflow_sampleRate"
               inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
               raise cvlib.InputErrorException(inputErrors=inputErrors)
 
@@ -115,6 +144,13 @@
               message = "Loopback number and IP address are required when Create Loopback is enabled"
               inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
               fieldId = "sflow_loopbackNumber"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+
+            if createLoopback and sourceInterface != 'Loopback' + str(loopbackNumber):
+              message = "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback."
+              inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
+              fieldId = "sflow_sourceInterface"
               inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
               raise cvlib.InputErrorException(inputErrors=inputErrors)
           %>
