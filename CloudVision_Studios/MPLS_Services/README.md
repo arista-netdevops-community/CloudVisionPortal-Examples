@@ -51,12 +51,12 @@ mpls-services/
     script.py                          #   Python autofill script (152 lines, 5 functions)
 
   dashboard-mpls-service-circuits/     # Circuits-per-PE dashboard
-    config.yaml                        #   Dashboard widget definitions
-    circuits-per-switch.aql            #   AQL query for circuit status per device
+    config.yaml                        #   Dashboard widget definitions (Device, Port, Customer, Circuit columns)
+    circuits-per-switch.aql            #   AQL query — splits device/port into separate columns
 
   dashboard-mpls-service-customer-records/  # Customer records dashboard
-    config.yaml                        #   Dashboard widget definitions
-    customer-records.aql               #   AQL query for customer circuit inventory
+    config.yaml                        #   Dashboard widget definitions (Device, Port, Customer, Circuit columns)
+    customer-records.aql               #   AQL query — splits device/port into separate columns
 ```
 
 ## How It Works
@@ -89,7 +89,7 @@ When interface tagging is enabled (Global Settings), the package tags each provi
 - `Last-Modified` — timestamp of last provisioning
 - `Connection_Type` — UNI or NNI
 
-These tags power the two dashboards for circuit-per-device and customer record views.
+These tags power the two dashboards for circuit-per-device and customer record views. Both dashboards display Device and Port as separate columns for easier filtering and sorting.
 
 ## Code Architecture (action-mpls-service-manager)
 
@@ -135,14 +135,14 @@ RCF generation is currently disabled for all three functions. To enable:
 
 1. Navigate to **Studios > Packages** in CloudVision
 2. Click **Import Package**
-3. Upload `mpls-services_0.3.2.tar`
+3. Upload `mpls-services_0.3.6.tar`
 4. Verify the two studios and two dashboards appear
 
 ### Install into the arista repo (for development)
 
 ```bash
 # From the repo root
-tar xf mpls-services_0.3.2.tar -C cvp/app/changecontext/studios/
+tar xf mpls-services_0.3.6.tar -C cvp/app/changecontext/studios/
 ```
 
 The package is registered in `cvp/app/changecontext/studios/pkgs.yaml`:
@@ -173,7 +173,8 @@ policer profile <profile> input
 
 | Version | Changes |
 |---|---|
-| 0.3.2 | Current version. Reorganized code, bug fixes, performance improvements |
+| 0.3.6 | Current version. Dashboard Device/Port split into separate columns, AQL fixes |
+| 0.3.2 | Reorganized code into modular functions, bug fixes, performance improvements |
 | 0.2.65 | Service type renames, layout dependency updates |
 | 0.2.60 | Schema field reordering, YAML cleanup |
 | 0.2.58 | Initial import into arista repo with human-readable directory names |
