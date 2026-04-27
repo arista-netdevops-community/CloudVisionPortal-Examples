@@ -173,7 +173,9 @@ policer profile <profile> input
 
 | Version | Changes |
 |---|---|
-| 0.3.6 | Current version. Dashboard Device/Port split into separate columns, AQL fixes |
+| 0.5.4 | Current version. Input validation (required fields, VLAN range, sub-interface integers, duplicate sub-interfaces, Interface Type, Circuit ID format, QoS completeness, PE router ID). Service type label sanitization for VLAN names. Layout stale dependency fixes. Schema label improvements. |
+| 0.4.0 | Code reorganization: processInputs broken into modular builder functions, variable renames for clarity |
+| 0.3.6 | Dashboard Device/Port split into separate columns, AQL fixes |
 | 0.3.2 | Reorganized code into modular functions, bug fixes, performance improvements |
 | 0.2.65 | Service type renames, layout dependency updates |
 | 0.2.60 | Schema field reordering, YAML cleanup |
