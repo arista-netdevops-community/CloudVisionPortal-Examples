@@ -1,0 +1,811 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: studio-eos-event-handler
+        workspace_id: ''
+      display_name: EOS Event Handler
+      description: Configure EOS event handlers for device sets
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |
+          <%
+            if not ehDeviceSets:
+              return
+            devSetsCfg, devSetsCtx = ehDeviceSets.resolveWithContext()
+            if not devSetsCfg or not devSetsCfg.get('ehConfig'):
+              return
+            ehConfig = devSetsCfg['ehConfig']
+            handlers = ehConfig.get('eventHandlers', [])
+            if not handlers:
+              return
+          %>
+          % for h in handlers:
+          <%
+            from cloudvision import cvlib
+
+            handlerName = h.get('handlerName', '')
+            triggerType = h.get('triggerType', '')
+            actionCommand = h.get('actionCommand', '')
+            delay = h.get('delay')
+            triggerOnConfigDisabled = h.get('triggerOnConfigDisabled', False)
+
+            if not handlerName:
+              continue
+
+            if not actionCommand:
+              message = "Action command is required for event handler '%s'" % handlerName
+              inputPath = ["ehDeviceSets", str(devSetsCtx.index)]
+              fieldId = "actionCommand"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+
+            if not triggerType:
+              message = "Trigger type is required for event handler '%s'" % handlerName
+              inputPath = ["ehDeviceSets", str(devSetsCtx.index)]
+              fieldId = "triggerType"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+
+            logCfg = h.get('onLoggingConfig', {})
+            loggingRegex = logCfg.get('loggingRegex', '')
+            loggingPollInterval = logCfg.get('loggingPollInterval')
+
+            intfCfg = h.get('onIntfConfig', {})
+            intfName = intfCfg.get('intfName', '')
+            intfTriggerOn = intfCfg.get('intfTriggerOn', 'operstatus')
+
+            ctrCfg = h.get('onCountersConfig', {})
+            conditionExpr = ctrCfg.get('conditionExpr', '')
+            countersPollInterval = ctrCfg.get('countersPollInterval')
+
+            custCfg = h.get('onCustomConditionConfig', {})
+            customConditionScript = custCfg.get('customConditionScript', '')
+            customPollInterval = custCfg.get('customPollInterval')
+
+            advCfg = h.get('advancedConfig', {})
+            timeout = advCfg.get('timeout')
+            timeoutTerminate = advCfg.get('timeoutTerminate', False)
+            asynchronous = advCfg.get('asynchronous', False)
+            thresholdWindow = advCfg.get('thresholdWindow')
+            thresholdCount = advCfg.get('thresholdCount')
+            repeatInterval = advCfg.get('repeatInterval')
+            repeatCount = advCfg.get('repeatCount')
+
+            if triggerType == 'on-intf' and not intfName:
+              message = "Interface name is required for on-intf trigger in event handler '%s'" % handlerName
+              inputPath = ["ehDeviceSets", str(devSetsCtx.index)]
+              fieldId = "intfName"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+
+            if triggerType == 'on-counters' and not conditionExpr:
+              message = "Condition expression is required for on-counters trigger in event handler '%s'" % handlerName
+              inputPath = ["ehDeviceSets", str(devSetsCtx.index)]
+              fieldId = "conditionExpr"
+              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
+              raise cvlib.InputErrorException(inputErrors=inputErrors)
+          %>
+          event-handler ${handlerName}
+          % if triggerType == 'on-intf':
+             trigger on-intf ${intfName} ${intfTriggerOn}
+          % elif triggerType == 'on-logging':
+             trigger on-logging
+          % elif triggerType == 'on-counters':
+             trigger on-counters
+          % elif triggerType == 'on-custom-condition':
+             trigger on-custom-condition
+          % else:
+             trigger ${triggerType}
+          % endif
+          % if triggerType == 'on-logging' and loggingRegex:
+                regex ${loggingRegex}
+          % endif
+          % if triggerType == 'on-logging' and loggingPollInterval:
+                poll interval ${loggingPollInterval}
+          % endif
+          % if triggerType == 'on-counters' and countersPollInterval:
+                poll interval ${countersPollInterval}
+          % endif
+          % if triggerType == 'on-custom-condition' and customPollInterval:
+                poll interval ${customPollInterval}
+          % endif
+          % if triggerType == 'on-counters' and conditionExpr:
+                condition ${conditionExpr}
+          % endif
+          % if triggerType == 'on-custom-condition' and customConditionScript:
+                condition bash
+          % for line in customConditionScript.strip().split('\n'):
+                   ${line}
+          % endfor
+                   EOF
+          % endif
+             action bash ${actionCommand}
+          % if delay is not None:
+             delay ${delay}
+          % endif
+          % if timeout is not None:
+          % if timeoutTerminate:
+             timeout ${timeout} terminate
+          % else:
+             timeout ${timeout}
+          % endif
+          % endif
+          % if asynchronous:
+             asynchronous
+          % endif
+          % if triggerOnConfigDisabled:
+             trigger on-config disabled
+          % endif
+          % if thresholdWindow is not None and thresholdCount is not None:
+             threshold ${thresholdWindow} count ${thresholdCount}
+          % endif
+          % if repeatInterval is not None:
+          % if repeatCount is not None:
+             repeat interval ${repeatInterval} count ${repeatCount}
+          % else:
+             repeat interval ${repeatInterval}
+          % endif
+          % endif
+          !
+          % endfor
+      input_schema:
+        fields:
+          values:
+            root:
+              id: root
+              type: INPUT_FIELD_TYPE_GROUP
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_ehDeviceSets
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_triggerOnConfigDisabled:
+              id: inputfield_triggerOnConfigDisabled
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              name: triggerOnConfigDisabled
+              label: Disable Trigger on Config
+              description: Prevent the action from running when the event handler configuration is applied. Requires EOS 4.26.0F+.
+              required: false
+              boolean_props:
+                default_value: false
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_triggerType:
+              id: inputfield_triggerType
+              type: INPUT_FIELD_TYPE_STRING
+              name: triggerType
+              label: Trigger Type
+              description: The event type that triggers this handler. Must be explicitly selected.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options:
+                  values:
+                    - on-boot
+                    - on-startup-config
+                    - on-logging
+                    - on-intf
+                    - on-counters
+                    - on-custom-condition
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_asynchronous:
+              id: inputfield_asynchronous
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              name: asynchronous
+              label: Asynchronous
+              description: 'Run the action immediately instead of queuing. WARNING: Use with caution — disables the built-in queuing mechanism. Not recommended with on-logging triggers.'
+              required: false
+              boolean_props:
+                default_value: false
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_delay:
+              id: inputfield_delay
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: delay
+              label: Delay (seconds)
+              description: Delay in seconds between the event and the action. EOS default is 20 seconds.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: 0..3000000
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_eventHandler:
+              id: inputfield_eventHandler
+              type: INPUT_FIELD_TYPE_GROUP
+              name: eventHandler
+              label: Event Handler
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_handlerName
+                    - inputfield_triggerType
+                    - inputfield_actionCommand
+                    - inputfield_delay
+                    - inputfield_triggerOnConfigDisabled
+                    - inputfield_onLoggingConfig
+                    - inputfield_onIntfConfig
+                    - inputfield_onCountersConfig
+                    - inputfield_onCustomConditionConfig
+                    - inputfield_advancedConfig
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_ehConfig:
+              id: inputfield_ehConfig
+              type: INPUT_FIELD_TYPE_GROUP
+              name: ehConfig
+              label: Event Handler Configuration
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_eventHandlers
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_onCustomConditionConfig:
+              id: inputfield_onCustomConditionConfig
+              type: INPUT_FIELD_TYPE_GROUP
+              name: onCustomConditionConfig
+              label: on-custom-condition Settings
+              description: Settings for the on-custom-condition trigger type. Requires EOS 4.33.0F+. Only used when Trigger Type is on-custom-condition.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_customConditionScript
+                    - inputfield_customPollInterval
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_customConditionScript:
+              id: inputfield_customConditionScript
+              type: INPUT_FIELD_TYPE_STRING
+              name: customConditionScript
+              label: Condition Script
+              description: Multi-line bash or python script for the custom condition. Use exit $EVENT_DETECTED or exit $EVENT_NOT_DETECTED for return codes. Do not include the leading 'condition bash' or trailing 'EOF' — those are generated automatically.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_conditionExpr:
+              id: inputfield_conditionExpr
+              type: INPUT_FIELD_TYPE_STRING
+              name: conditionExpr
+              label: Condition Expression
+              description: Counter condition expression using Python-style operators (e.g. Fap*.Ddp2BuffCrcErrCnt.delta > 100). Use bashCmd."<command>" for custom bash counters.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_thresholdWindow:
+              id: inputfield_thresholdWindow
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: thresholdWindow
+              label: Threshold Window (seconds)
+              description: Sliding time window in seconds for the threshold. Action only triggers if the event count is met within this window.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: null
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_handlerName:
+              id: inputfield_handlerName
+              type: INPUT_FIELD_TYPE_STRING
+              name: handlerName
+              label: Handler Name
+              description: Unique name for this event handler.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_customPollInterval:
+              id: inputfield_customPollInterval
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: customPollInterval
+              label: Poll Interval (seconds)
+              description: How often to run the custom condition script.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: 1..1000000
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_intfTriggerOn:
+              id: inputfield_intfTriggerOn
+              type: INPUT_FIELD_TYPE_STRING
+              name: intfTriggerOn
+              label: Interface Trigger On
+              description: What interface change triggers the handler.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: operstatus
+                static_options:
+                  values:
+                    - operstatus
+                    - ip
+                    - operstatus ip
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_actionCommand:
+              id: inputfield_actionCommand
+              type: INPUT_FIELD_TYPE_STRING
+              name: actionCommand
+              label: Action Command
+              description: 'The bash command or script to run when triggered. For single-line: e.g. touch /tmp/test. For CLI: e.g. FastCli -p 15 -c "copy running-config startup-config"'
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_advancedConfig:
+              id: inputfield_advancedConfig
+              type: INPUT_FIELD_TYPE_GROUP
+              name: advancedConfig
+              label: Advanced Settings
+              description: Optional advanced settings for timeout, asynchronous mode, threshold, and repeat interval.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_timeout
+                    - inputfield_timeoutTerminate
+                    - inputfield_asynchronous
+                    - inputfield_thresholdWindow
+                    - inputfield_thresholdCount
+                    - inputfield_repeatInterval
+                    - inputfield_repeatCount
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_timeout:
+              id: inputfield_timeout
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: timeout
+              label: Timeout (seconds)
+              description: Maximum action duration in seconds. Default/minimum is 10 seconds.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: 10..3000000
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_intfName:
+              id: inputfield_intfName
+              type: INPUT_FIELD_TYPE_STRING
+              name: intfName
+              label: Interface Name or Range
+              description: Interface name or range (e.g. Ethernet1, Ethernet1-36, Port-Channel1).
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_loggingPollInterval:
+              id: inputfield_loggingPollInterval
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: loggingPollInterval
+              label: Poll Interval (seconds)
+              description: How often to poll for the logging event.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: 1..1000000
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_repeatCount:
+              id: inputfield_repeatCount
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: repeatCount
+              label: Repeat Count
+              description: Maximum number of action triggers within the repeat interval. Default is 1 if not specified.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: null
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_eventHandlers:
+              id: inputfield_eventHandlers
+              type: INPUT_FIELD_TYPE_COLLECTION
+              name: eventHandlers
+              label: Event Handlers
+              description: Define one or more event handlers.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props:
+                base_field_id: inputfield_eventHandler
+                key: inputfield_handlerName
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_ehDeviceSets:
+              id: inputfield_ehDeviceSets
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: ehDeviceSets
+              label: Event Handler Device Sets
+              description: Assign event handlers to a set of devices.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props:
+                base_field_id: inputfield_ehConfig
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_thresholdCount:
+              id: inputfield_thresholdCount
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: thresholdCount
+              label: Threshold Count
+              description: Number of events required within the threshold window to trigger the action.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: null
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_repeatInterval:
+              id: inputfield_repeatInterval
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: repeatInterval
+              label: Repeat Interval (seconds)
+              description: Time window in seconds to limit action triggers. No more than the repeat count actions will fire within this window.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: null
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_loggingRegex:
+              id: inputfield_loggingRegex
+              type: INPUT_FIELD_TYPE_STRING
+              name: loggingRegex
+              label: Syslog Regex
+              description: Regular expression to match against syslog messages (e.g. BGP, %REDUNDANCY-5-OTHER_STANDBY).
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_onIntfConfig:
+              id: inputfield_onIntfConfig
+              type: INPUT_FIELD_TYPE_GROUP
+              name: onIntfConfig
+              label: on-intf Settings
+              description: Settings for the on-intf trigger type. Only used when Trigger Type is on-intf.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_intfName
+                    - inputfield_intfTriggerOn
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_countersPollInterval:
+              id: inputfield_countersPollInterval
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: countersPollInterval
+              label: Poll Interval (seconds)
+              description: How often to evaluate the counter condition.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: null
+                static_options: null
+                range: 1..1000000
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_onLoggingConfig:
+              id: inputfield_onLoggingConfig
+              type: INPUT_FIELD_TYPE_GROUP
+              name: onLoggingConfig
+              label: on-logging Settings
+              description: Settings for the on-logging trigger type. Only used when Trigger Type is on-logging.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_loggingRegex
+                    - inputfield_loggingPollInterval
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_timeoutTerminate:
+              id: inputfield_timeoutTerminate
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              name: timeoutTerminate
+              label: Terminate on Timeout
+              description: Terminate the action if it exceeds the timeout. Requires EOS 4.33.1F+.
+              required: false
+              boolean_props:
+                default_value: false
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_onCountersConfig:
+              id: inputfield_onCountersConfig
+              type: INPUT_FIELD_TYPE_GROUP
+              name: onCountersConfig
+              label: on-counters Settings
+              description: Settings for the on-counters trigger type. Only used when Trigger Type is on-counters.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - inputfield_conditionExpr
+                    - inputfield_countersPollInterval
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+        layout:
+          value: '{"inputfield_ehDeviceSets":{"key":"inputfield_ehDeviceSets","type":"INPUT","showDefaultRow":false},"inputfield_eventHandlers":{"key":"inputfield_eventHandlers","type":"INPUT","isPageLayout":true}}'
+      from_package: ''
