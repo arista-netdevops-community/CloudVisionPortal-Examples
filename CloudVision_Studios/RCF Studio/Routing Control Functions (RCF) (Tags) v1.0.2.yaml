@@ -1,0 +1,264 @@
+- service: arista.studio.v1.StudioConfigService
+  method: Set
+  body:
+    value:
+      key:
+        studio_id: 1431d343-69c0-454c-a01e-15a7fca26ad3
+        workspace_id: ''
+      created_at: '2025-03-25T17:30:10.288Z'
+      created_by: jose
+      last_modified_at: '2025-04-28T19:58:53.535Z'
+      last_modified_by: jose
+      display_name: Routing Control Functions (RCF) (Tags) v1.0.2
+      description: RCF Code Unit Management
+      template:
+        type: TEMPLATE_TYPE_MAKO
+        body: |+
+          <%
+          import copy
+          # If the developer wants to see the container details of the script. 
+          # Default debug setting is False. The info can be seen in `view build details` after clicking `review Workspace`
+          debug = False
+
+          def applyIndentation(content: str, indent=3, level=0):
+              '''
+              return: formatted multiline strings with indentation
+              '''
+              contentList = content.splitlines()
+              res = ''
+              indentation = ' ' * (indent * level)
+              for l in contentList:
+                  newL = indentation + l + '\n'
+                  res += newL
+              return res.rstrip()
+
+          try:
+             codeUnitsData = {codeUnit['unitName']: applyIndentation(codeUnit['unitContent'], level=2)
+                              for codeUnit in codeUnits}
+             deviceToUnits = {}
+             for devCodeUnit in devCodeUnits.inputs:
+                for device in devCodeUnit['devices']:
+                   if device in deviceToUnits:
+                      deviceToUnits[device].extend(devCodeUnit['inputs']['devAssignments']['devAssignedUnits'])
+                   else:
+                      deviceToUnits[device] = devCodeUnit['inputs']['devAssignments']['devAssignedUnits'].copy()
+          except TypeError:
+             codeUnitsData = {}
+             deviceToUnits = {}
+          %>
+
+          %if debug:
+          ! ${codeUnitsData}
+          !
+          ! ${devCodeUnits.inputs}
+          !
+          ! ${deviceToUnits}
+          %endif
+
+
+          %if ctx.getDevice().id in deviceToUnits and len(deviceToUnits[ctx.getDevice().id]) > 0:
+          router general
+             control-functions
+          %   for unitName in deviceToUnits[ctx.getDevice().id]:
+                code unit ${ unitName }
+          ${ codeUnitsData[unitName] }
+                EOF
+          %   endfor 
+          %endif
+
+      input_schema:
+        fields:
+          values:
+            3553abca-6b79-47e8-99e0-ea39a862172f:
+              id: 3553abca-6b79-47e8-99e0-ea39a862172f
+              type: INPUT_FIELD_TYPE_STRING
+              name: unitContent
+              label: Code Unit
+              description: An RCF code unit contains RCF function definitions. Define one or more functions here.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            a4c1199e-ced0-4ed4-80b6-b6900f03f905:
+              id: a4c1199e-ced0-4ed4-80b6-b6900f03f905
+              type: INPUT_FIELD_TYPE_COLLECTION
+              name: codeUnits
+              label: Code Units
+              description: Define all code units used across all devices
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props:
+                base_field_id: ad2e5bbf-d3dd-461a-8d25-4faf3c699e12
+                key: 71bac242-81d9-4277-9789-3aa12259a742
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            eea321af-f57c-43b5-9396-c1c3fbeaabb9:
+              id: eea321af-f57c-43b5-9396-c1c3fbeaabb9
+              type: INPUT_FIELD_TYPE_COLLECTION
+              name: devAssignedUnits
+              label: Assigned Code Units
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props:
+                base_field_id: fefcf5bc-5db6-4273-9d37-733267a0429d
+                key: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            f035492e-131f-4378-bb57-678ad28a1b5d:
+              id: f035492e-131f-4378-bb57-678ad28a1b5d
+              type: INPUT_FIELD_TYPE_GROUP
+              name: devAssignments
+              label: Device Assignments
+              description: Assignments to a single devcie
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - eea321af-f57c-43b5-9396-c1c3fbeaabb9
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            fefcf5bc-5db6-4273-9d37-733267a0429d:
+              id: fefcf5bc-5db6-4273-9d37-733267a0429d
+              type: INPUT_FIELD_TYPE_STRING
+              name: code
+              label: Code Units
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options:
+                  values:
+                    - '{"fieldId":"71bac242-81d9-4277-9789-3aa12259a742"}'
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            root:
+              id: root
+              type: INPUT_FIELD_TYPE_GROUP
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - a4c1199e-ced0-4ed4-80b6-b6900f03f905
+                    - 2e151404-c66a-424e-bff8-ca912e09ad7b
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            ad2e5bbf-d3dd-461a-8d25-4faf3c699e12:
+              id: ad2e5bbf-d3dd-461a-8d25-4faf3c699e12
+              type: INPUT_FIELD_TYPE_GROUP
+              name: value
+              label: Code Unit and Content
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                    - 71bac242-81d9-4277-9789-3aa12259a742
+                    - 3553abca-6b79-47e8-99e0-ea39a862172f
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            71bac242-81d9-4277-9789-3aa12259a742:
+              id: 71bac242-81d9-4277-9789-3aa12259a742
+              type: INPUT_FIELD_TYPE_STRING
+              name: unitName
+              label: Code Unit Name
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            2e151404-c66a-424e-bff8-ca912e09ad7b:
+              id: 2e151404-c66a-424e-bff8-ca912e09ad7b
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: devCodeUnits
+              label: Device Code Units
+              description: Assign multiple code units to devices
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props:
+                base_field_id: f035492e-131f-4378-bb57-678ad28a1b5d
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+        layout:
+          value: '{"3553abca-6b79-47e8-99e0-ea39a862172f":{"key":"3553abca-6b79-47e8-99e0-ea39a862172f","isMultiLine":true,"dependencyType":"AND","type":"INPUT","syntax":"aristaConfig"},"a4c1199e-ced0-4ed4-80b6-b6900f03f905":{"key":"a4c1199e-ced0-4ed4-80b6-b6900f03f905","type":"INPUT","isPageLayout":true},"eea321af-f57c-43b5-9396-c1c3fbeaabb9":{"key":"eea321af-f57c-43b5-9396-c1c3fbeaabb9","isMultiSelect":true,"type":"INPUT"},"2e151404-c66a-424e-bff8-ca912e09ad7b":{"key":"2e151404-c66a-424e-bff8-ca912e09ad7b","isPageLayout":false,"type":"INPUT"},"71bac242-81d9-4277-9789-3aa12259a742":{"key":"71bac242-81d9-4277-9789-3aa12259a742","type":"INPUT","dependency":{}}}'
+      from_package: ''
