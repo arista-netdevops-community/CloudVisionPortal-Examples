@@ -15,6 +15,6 @@
 2. Fill the needed information to generatae the auto-certficaite using EST protocol.
 3. Optionally: Fill the Radsec information to generate general dot1x/radsec config using the auto generated certificate. 
    Note: Radsec (without AutoCert) configuration can also be generated using the built-in "Authentication" studio.
-   If you are using the built-in studio, please skill stage 3.
+   If you are using the built-in studio, please skip stage 3.
  
 # Questions: shaip@arista.com
