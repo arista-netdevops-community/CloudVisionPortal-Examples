@@ -1,45 +1,52 @@
+# File auto-generated from package for studio-flow-monitoring. DO NOT EDIT.
 - service: arista.studio.v1.StudioConfigService
   method: Set
   body:
     value:
       key:
         studio_id: studio-flow-monitoring
-        workspace_id: ''
+        workspace_id: ws-studio-flow-monitoring
       display_name: Flow Monitoring
       description: Configure IPFIX and sFlow flow monitoring for device sets
       template:
         type: TEMPLATE_TYPE_MAKO
-        body: |
+        body: |+
           <%
-            from cloudvision import cvlib
+          from cloudvision import cvlib
 
-            hasIpfix = False
-            hasSflow = False
+          def makeInputError(message, inputPath, fieldId):
+            return cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])
 
-            if ipfixDeviceSets:
-              ipfixCfg, ipfixCtx = ipfixDeviceSets.resolveWithContext()
-              if ipfixCfg and ipfixCfg.get('ipfixConfig'):
-                hasIpfix = True
+          # Template mainline start
+          hasIpfix = False
+          hasSflow = False
+          ipfixVars = {}
+          sflowVars = {}
 
-            if sflowDeviceSets:
-              sflowCfg, sflowCtx = sflowDeviceSets.resolveWithContext()
-              if sflowCfg and sflowCfg.get('sflowConfig'):
-                hasSflow = True
+          if ipfixDeviceSets:
+            ipfixCfg, ipfixCtx = ipfixDeviceSets.resolveWithContext()
+            if ipfixCfg and ipfixCfg.get('ipfixConfig'):
+              hasIpfix = True
 
-            if hasIpfix and hasSflow:
-              message = "This device is assigned to both IPFIX and sFlow device sets. Remove it from either the IPFIX or sFlow resolver to resolve the conflict."
-              inputErrors = [
-                cvlib.InputError(message=message, inputPath=["ipfixDeviceSets", str(ipfixCtx.index)], fieldId="ipfixConfig", members=[]),
-                cvlib.InputError(message=message, inputPath=["sflowDeviceSets", str(sflowCtx.index)], fieldId="sflowConfig", members=[])
-              ]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+          if sflowDeviceSets:
+            sflowCfg, sflowCtx = sflowDeviceSets.resolveWithContext()
+            if sflowCfg and sflowCfg.get('sflowConfig'):
+              hasSflow = True
 
-            if not hasIpfix and not hasSflow:
-              return
-          %>
-          % if hasIpfix:
-          <%
+          if hasIpfix and hasSflow:
+            message = "This device is assigned to both IPFIX and sFlow device sets. Remove it from either the IPFIX or sFlow resolver to resolve the conflict."
+            raise cvlib.InputErrorException(inputErrors=[
+              makeInputError(message, ["ipfixDeviceSets", str(ipfixCtx.index)], "ipfixConfig"),
+              makeInputError(message, ["sflowDeviceSets", str(sflowCtx.index)], "sflowConfig"),
+            ])
+
+          if not hasIpfix and not hasSflow:
+            return
+
+          if hasIpfix:
             cfg = ipfixCfg['ipfixConfig']
+            inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
+
             sourceInterface = (cfg.get('sourceInterface') or '').strip()
             sampleRate = cfg.get('sampleRate')
             if sampleRate is None:
@@ -47,203 +54,151 @@
             collectorAddress = cfg.get('collectorAddress') or '127.0.0.1'
             trackerName = (cfg.get('trackerName') or '').strip()
             exporterName = (cfg.get('exporterName') or '').strip()
-            ipfixPort = cfg.get('ipfixPort') or 4739
+            port = cfg.get('port') or 4739
 
             if not sourceInterface:
-              message = "Source interface is required for IPFIX (e.g. Loopback0)"
-              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
-              fieldId = "ipfix_sourceInterface"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Source interface is required for IPFIX (e.g. Loopback0)",
+                inputPath, "ipfix_sourceInterface")])
 
             if not trackerName or not exporterName:
-              message = "Tracker name and exporter name are required for IPFIX"
-              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
-              fieldId = "trackerName"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Tracker name and exporter name are required for IPFIX",
+                inputPath, "trackerName")])
 
-            if not isinstance(sampleRate, int) or sampleRate < 1:
-              message = "Sample rate must be a positive integer (EOS range: 1-16777215)"
-              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
-              fieldId = "ipfix_sampleRate"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+            if not isinstance(sampleRate, int) or sampleRate < 1 or sampleRate > 16777215:
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Sample rate must be a positive integer (EOS range: 1-16777215)",
+                inputPath, "ipfix_sampleRate")])
 
-            loopbackCfg = cfg.get('loopbackConfig', {})
+            loopbackCfg = cfg.get('loopbackConfig') or {}
             createLoopback = loopbackCfg.get('createLoopback', False)
             loopbackNumber = loopbackCfg.get('loopbackNumber')
             loopbackDescription = loopbackCfg.get('loopbackDescription', '')
             loopbackAddress = loopbackCfg.get('loopbackAddress')
 
             if createLoopback and (loopbackNumber is None or not loopbackAddress):
-              message = "Loopback number and IP address are required when Create Loopback is enabled"
-              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
-              fieldId = "ipfix_loopbackNumber"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Loopback number and IP address are required when Create Loopback is enabled",
+                inputPath, "ipfix_loopbackNumber")])
 
             if createLoopback and sourceInterface != 'Loopback' + str(loopbackNumber):
-              message = "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback."
-              inputPath = ["ipfixDeviceSets", str(ipfixCtx.index)]
-              fieldId = "ipfix_sourceInterface"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
-          %>
-          % if createLoopback:
-          interface Loopback${loopbackNumber}
-          % if loopbackDescription:
-             description ${loopbackDescription}
-          % endif
-             ip address ${loopbackAddress}
-          !
-          % endif
-          flow tracking sampled
-             sample ${sampleRate}
-             tracker ${trackerName}
-                exporter ${exporterName}
-                   collector ${collectorAddress} port ${ipfixPort}
-                   local interface ${sourceInterface}
-             no shutdown
-          !
-          % endif
-          % if hasSflow:
-          <%
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback.",
+                inputPath, "ipfix_sourceInterface")])
+
+            ipfixVars = {
+              'sourceInterface': sourceInterface,
+              'sampleRate': sampleRate,
+              'collectorAddress': collectorAddress,
+              'trackerName': trackerName,
+              'exporterName': exporterName,
+              'port': port,
+              'createLoopback': createLoopback,
+              'loopbackNumber': loopbackNumber,
+              'loopbackDescription': loopbackDescription,
+              'loopbackAddress': loopbackAddress,
+            }
+
+          if hasSflow:
             cfg = sflowCfg['sflowConfig']
+            inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
+
             sourceInterface = (cfg.get('sourceInterface') or '').strip()
             sampleRate = cfg.get('sampleRate')
             if sampleRate is None:
               sampleRate = 1000000
             collectorAddress = cfg.get('collectorAddress') or '127.0.0.1'
-            sflowPollingInterval = cfg.get('sflowPollingInterval')
-            if sflowPollingInterval is None:
-              sflowPollingInterval = 10
-            sflowPort = cfg.get('sflowPort') or 6343
+            pollingInterval = cfg.get('pollingInterval')
+            if pollingInterval is None:
+              pollingInterval = 10
+            port = cfg.get('port') or 6343
 
             if not sourceInterface:
-              message = "Source interface is required for sFlow (e.g. Loopback0)"
-              inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
-              fieldId = "sflow_sourceInterface"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Source interface is required for sFlow (e.g. Loopback0)",
+                inputPath, "sflow_sourceInterface")])
 
-            if not isinstance(sampleRate, int) or sampleRate < 1:
-              message = "Sample rate must be a positive integer (EOS range: 1-4294967295)"
-              inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
-              fieldId = "sflow_sampleRate"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+            if not isinstance(sampleRate, int) or sampleRate < 1 or sampleRate > 4294967295:
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Sample rate must be a positive integer (EOS range: 1-4294967295)",
+                inputPath, "sflow_sampleRate")])
 
-            loopbackCfg = cfg.get('loopbackConfig', {})
+            loopbackCfg = cfg.get('loopbackConfig') or {}
             createLoopback = loopbackCfg.get('createLoopback', False)
             loopbackNumber = loopbackCfg.get('loopbackNumber')
             loopbackDescription = loopbackCfg.get('loopbackDescription', '')
             loopbackAddress = loopbackCfg.get('loopbackAddress')
 
             if createLoopback and (loopbackNumber is None or not loopbackAddress):
-              message = "Loopback number and IP address are required when Create Loopback is enabled"
-              inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
-              fieldId = "sflow_loopbackNumber"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Loopback number and IP address are required when Create Loopback is enabled",
+                inputPath, "sflow_loopbackNumber")])
 
             if createLoopback and sourceInterface != 'Loopback' + str(loopbackNumber):
-              message = "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback."
-              inputPath = ["sflowDeviceSets", str(sflowCtx.index)]
-              fieldId = "sflow_sourceInterface"
-              inputErrors = [cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])]
-              raise cvlib.InputErrorException(inputErrors=inputErrors)
+              raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback.",
+                inputPath, "sflow_sourceInterface")])
+
+            sflowVars = {
+              'sourceInterface': sourceInterface,
+              'sampleRate': sampleRate,
+              'collectorAddress': collectorAddress,
+              'pollingInterval': pollingInterval,
+              'port': port,
+              'createLoopback': createLoopback,
+              'loopbackNumber': loopbackNumber,
+              'loopbackDescription': loopbackDescription,
+              'loopbackAddress': loopbackAddress,
+            }
           %>
-          % if createLoopback:
-          interface Loopback${loopbackNumber}
-          % if loopbackDescription:
-             description ${loopbackDescription}
+          % if hasIpfix:
+          <% v = ipfixVars %>
+          % if v['createLoopback']:
+          interface Loopback${v['loopbackNumber']}
+          % if v['loopbackDescription']:
+             description ${v['loopbackDescription']}
           % endif
-             ip address ${loopbackAddress}
+             ip address ${v['loopbackAddress']}
           !
           % endif
-          sflow sample ${sampleRate}
-          sflow polling-interval ${sflowPollingInterval}
-          sflow source-interface ${sourceInterface}
-          sflow destination ${collectorAddress} ${sflowPort}
+          flow tracking sampled
+             sample ${v['sampleRate']}
+             tracker ${v['trackerName']}
+                exporter ${v['exporterName']}
+                   collector ${v['collectorAddress']} port ${v['port']}
+                   local interface ${v['sourceInterface']}
+             no shutdown
+          !
+          % endif
+          % if hasSflow:
+          <% v = sflowVars %>
+          % if v['createLoopback']:
+          interface Loopback${v['loopbackNumber']}
+          % if v['loopbackDescription']:
+             description ${v['loopbackDescription']}
+          % endif
+             ip address ${v['loopbackAddress']}
+          !
+          % endif
+          sflow sample ${v['sampleRate']}
+          sflow polling-interval ${v['pollingInterval']}
+          sflow source-interface ${v['sourceInterface']}
+          sflow destination ${v['collectorAddress']} ${v['port']}
           sflow run
           % endif
+
+
       input_schema:
         fields:
           values:
-            root:
-              id: root
-              type: INPUT_FIELD_TYPE_GROUP
-              name: ''
-              label: ''
-              description: null
-              required: null
-              boolean_props: null
-              integer_props: null
-              float_props: null
-              string_props: null
-              group_props:
-                members:
-                  values:
-                    - inputfield_ipfixDeviceSets
-                    - inputfield_sflowDeviceSets
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_ipfixDeviceSets:
-              id: inputfield_ipfixDeviceSets
-              type: INPUT_FIELD_TYPE_RESOLVER
-              name: ipfixDeviceSets
-              label: IPFIX Device Sets
-              description: Assign IPFIX flow monitoring to a set of devices. Do not assign the same device to both IPFIX and sFlow.
-              required: null
-              boolean_props: null
-              integer_props: null
-              float_props: null
-              string_props: null
-              group_props: null
-              collection_props: null
-              resolver_props:
-                base_field_id: inputfield_ipfixConfig
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
-                tag_filter_query: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_ipfixConfig:
-              id: inputfield_ipfixConfig
-              type: INPUT_FIELD_TYPE_GROUP
-              name: ipfixConfig
-              label: IPFIX Configuration
-              description: null
-              required: null
-              boolean_props: null
-              integer_props: null
-              float_props: null
-              string_props: null
-              group_props:
-                members:
-                  values:
-                    - inputfield_ipfix_sourceInterface
-                    - inputfield_ipfix_sampleRate
-                    - inputfield_ipfix_collectorAddress
-                    - inputfield_trackerName
-                    - inputfield_exporterName
-                    - inputfield_ipfixPort
-                    - inputfield_ipfix_loopbackConfig
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_ipfix_sourceInterface:
-              id: inputfield_ipfix_sourceInterface
+            inputfield_exporterName:
+              id: inputfield_exporterName
               type: INPUT_FIELD_TYPE_STRING
-              name: sourceInterface
-              label: Source Interface
-              description: The interface to use as the IPFIX local interface (e.g. Loopback0).
-              required: null
+              name: exporterName
+              label: Exporter Name
+              description: Name of the flow exporter (e.g. tr1).
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -254,29 +209,8 @@
                 length: null
                 pattern: null
                 format: null
-                is_secret: null
-                extra_values_allowed: null
-              group_props: null
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_ipfix_sampleRate:
-              id: inputfield_ipfix_sampleRate
-              type: INPUT_FIELD_TYPE_INTEGER
-              name: sampleRate
-              label: Sample Rate
-              description: "Packet sample rate for IPFIX (1 in N packets sampled). WARNING: Sample rates of 65535 or less when streaming to CVP/CVaaS may cause flow rate limiting. EOS range: 1-16777215."
-              required: null
-              boolean_props: null
-              integer_props:
-                default_value: '1000000'
-                static_options: null
-                range: 1..16777215
-                dynamic_options: null
-                extra_values_allowed: null
-              float_props: null
-              string_props: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
               resolver_props: null
@@ -288,7 +222,7 @@
               name: collectorAddress
               label: Collector Address
               description: IP address of the IPFIX collector. Use 127.0.0.1 to stream to CVP/CVaaS.
-              required: null
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -299,20 +233,61 @@
                 length: null
                 pattern: null
                 format: ip
-                is_secret: null
-                extra_values_allowed: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_trackerName:
-              id: inputfield_trackerName
+            inputfield_ipfix_createLoopback:
+              id: inputfield_ipfix_createLoopback
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              name: createLoopback
+              label: Create Loopback Interface
+              description: Enable to have this studio generate the loopback interface configuration.
+              required: false
+              boolean_props:
+                default_value: false
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_ipfix_loopbackAddress:
+              id: inputfield_ipfix_loopbackAddress
               type: INPUT_FIELD_TYPE_STRING
-              name: trackerName
-              label: Tracker Name
-              description: Name of the flow tracker (e.g. tr1).
-              required: null
+              name: loopbackAddress
+              label: Loopback IP Address
+              description: IP address in CIDR notation for the loopback interface (e.g. 81.81.81.81/32).
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: cidr
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_ipfix_loopbackDescription:
+              id: inputfield_ipfix_loopbackDescription
+              type: INPUT_FIELD_TYPE_STRING
+              name: loopbackDescription
+              label: Loopback Description
+              description: Description for the loopback interface (e.g. ipfix-source).
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -323,51 +298,27 @@
                 length: null
                 pattern: null
                 format: null
-                is_secret: null
-                extra_values_allowed: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_exporterName:
-              id: inputfield_exporterName
-              type: INPUT_FIELD_TYPE_STRING
-              name: exporterName
-              label: Exporter Name
-              description: Name of the flow exporter (e.g. tr1).
-              required: null
-              boolean_props: null
-              integer_props: null
-              float_props: null
-              string_props:
-                default_value: null
-                static_options: null
-                dynamic_options: null
-                length: null
-                pattern: null
-                format: null
-                is_secret: null
-                extra_values_allowed: null
-              group_props: null
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_ipfixPort:
-              id: inputfield_ipfixPort
+            inputfield_ipfix_loopbackNumber:
+              id: inputfield_ipfix_loopbackNumber
               type: INPUT_FIELD_TYPE_INTEGER
-              name: ipfixPort
-              label: IPFIX Collector Port
-              description: Destination port for IPFIX export.
-              required: null
+              name: loopbackNumber
+              label: Loopback Number
+              description: Loopback interface number (e.g. 100 for Loopback100).
+              required: false
               boolean_props: null
               integer_props:
-                default_value: '4739'
+                default_value: null
                 static_options: null
-                range: 1..65535
+                range: 0..8191
                 dynamic_options: null
-                extra_values_allowed: null
+                extra_values_allowed: false
               float_props: null
               string_props: null
               group_props: null
@@ -389,45 +340,28 @@
               group_props:
                 members:
                   values:
-                    - inputfield_ipfix_createLoopback
-                    - inputfield_ipfix_loopbackNumber
-                    - inputfield_ipfix_loopbackDescription
-                    - inputfield_ipfix_loopbackAddress
+                  - inputfield_ipfix_createLoopback
+                  - inputfield_ipfix_loopbackNumber
+                  - inputfield_ipfix_loopbackDescription
+                  - inputfield_ipfix_loopbackAddress
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_ipfix_createLoopback:
-              id: inputfield_ipfix_createLoopback
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              name: createLoopback
-              label: Create Loopback Interface
-              description: Enable to have this studio generate the loopback interface configuration.
-              required: null
-              boolean_props:
-                default_value: false
-              integer_props: null
-              float_props: null
-              string_props: null
-              group_props: null
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_ipfix_loopbackNumber:
-              id: inputfield_ipfix_loopbackNumber
+            inputfield_ipfix_port:
+              id: inputfield_ipfix_port
               type: INPUT_FIELD_TYPE_INTEGER
-              name: loopbackNumber
-              label: Loopback Number
-              description: Loopback interface number (e.g. 100 for Loopback100).
-              required: null
+              name: port
+              label: IPFIX Collector Port
+              description: Destination port for IPFIX export.
+              required: false
               boolean_props: null
               integer_props:
-                default_value: null
+                default_value: '4739'
                 static_options: null
-                range: 0..8191
+                range: 1..65535
                 dynamic_options: null
-                extra_values_allowed: null
+                extra_values_allowed: false
               float_props: null
               string_props: null
               group_props: null
@@ -435,13 +369,34 @@
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_ipfix_loopbackDescription:
-              id: inputfield_ipfix_loopbackDescription
+            inputfield_ipfix_sampleRate:
+              id: inputfield_ipfix_sampleRate
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: sampleRate
+              label: Sample Rate
+              description: 'Packet sample rate for IPFIX (1 in N packets sampled). WARNING: Sample rates of 65535 or less when streaming to CVP/CVaaS may cause flow rate limiting. EOS range: 1-16777215.'
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: '1000000'
+                static_options: null
+                range: null
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_ipfix_sourceInterface:
+              id: inputfield_ipfix_sourceInterface
               type: INPUT_FIELD_TYPE_STRING
-              name: loopbackDescription
-              label: Loopback Description
-              description: Description for the loopback interface (e.g. ipfix-source).
-              required: null
+              name: sourceInterface
+              label: Source Interface
+              description: The interface to use as the IPFIX local interface (e.g. Loopback0).
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -452,20 +407,20 @@
                 length: null
                 pattern: null
                 format: null
-                is_secret: null
-                extra_values_allowed: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_ipfix_loopbackAddress:
-              id: inputfield_ipfix_loopbackAddress
+            inputfield_trackerName:
+              id: inputfield_trackerName
               type: INPUT_FIELD_TYPE_STRING
-              name: loopbackAddress
-              label: Loopback IP Address
-              description: IP address in CIDR notation for the loopback interface (e.g. 81.81.81.81/32).
-              required: null
+              name: trackerName
+              label: Tracker Name
+              description: Name of the flow tracker (e.g. tr1).
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -475,42 +430,21 @@
                 dynamic_options: null
                 length: null
                 pattern: null
-                format: cidr
-                is_secret: null
-                extra_values_allowed: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_sflowDeviceSets:
-              id: inputfield_sflowDeviceSets
-              type: INPUT_FIELD_TYPE_RESOLVER
-              name: sflowDeviceSets
-              label: sFlow Device Sets
-              description: Assign sFlow flow monitoring to a set of devices. Do not assign the same device to both IPFIX and sFlow.
-              required: null
-              boolean_props: null
-              integer_props: null
-              float_props: null
-              string_props: null
-              group_props: null
-              collection_props: null
-              resolver_props:
-                base_field_id: inputfield_sflowConfig
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
-                tag_filter_query: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_sflowConfig:
-              id: inputfield_sflowConfig
+            inputfield_ipfixConfig:
+              id: inputfield_ipfixConfig
               type: INPUT_FIELD_TYPE_GROUP
-              name: sflowConfig
-              label: sFlow Configuration
-              description: null
-              required: null
+              name: ipfixConfig
+              label: IPFIX Configuration
+              description: ''
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -518,59 +452,36 @@
               group_props:
                 members:
                   values:
-                    - inputfield_sflow_sourceInterface
-                    - inputfield_sflow_sampleRate
-                    - inputfield_sflow_collectorAddress
-                    - inputfield_sflowPollingInterval
-                    - inputfield_sflowPort
-                    - inputfield_sflow_loopbackConfig
+                  - inputfield_ipfix_sourceInterface
+                  - inputfield_ipfix_sampleRate
+                  - inputfield_ipfix_collectorAddress
+                  - inputfield_trackerName
+                  - inputfield_exporterName
+                  - inputfield_ipfix_port
+                  - inputfield_ipfix_loopbackConfig
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_sflow_sourceInterface:
-              id: inputfield_sflow_sourceInterface
-              type: INPUT_FIELD_TYPE_STRING
-              name: sourceInterface
-              label: Source Interface
-              description: The interface to use as the sFlow source interface (e.g. Loopback0).
-              required: null
+            inputfield_ipfixDeviceSets:
+              id: inputfield_ipfixDeviceSets
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: ipfixDeviceSets
+              label: IPFIX Device Sets
+              description: Assign IPFIX flow monitoring to a set of devices. Do not assign the same device to both IPFIX and sFlow.
+              required: false
               boolean_props: null
               integer_props: null
-              float_props: null
-              string_props:
-                default_value: null
-                static_options: null
-                dynamic_options: null
-                length: null
-                pattern: null
-                format: null
-                is_secret: null
-                extra_values_allowed: null
-              group_props: null
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_sflow_sampleRate:
-              id: inputfield_sflow_sampleRate
-              type: INPUT_FIELD_TYPE_INTEGER
-              name: sampleRate
-              label: Sample Rate
-              description: "Packet sample rate for sFlow (1 in N packets sampled). WARNING: Sample rates of 65535 or less when streaming to CVP/CVaaS may cause flow rate limiting. EOS range: 1-4294967295."
-              required: null
-              boolean_props: null
-              integer_props:
-                default_value: '1000000'
-                static_options: null
-                range: 1..4294967295
-                dynamic_options: null
-                extra_values_allowed: null
               float_props: null
               string_props: null
               group_props: null
               collection_props: null
-              resolver_props: null
+              resolver_props:
+                base_field_id: inputfield_ipfixConfig
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
               auto_fill_action_id: null
               tag_matcher_props: null
             inputfield_sflow_collectorAddress:
@@ -579,7 +490,7 @@
               name: collectorAddress
               label: Collector Address
               description: IP address of the sFlow collector. Use 127.0.0.1 to stream to CVP/CVaaS.
-              required: null
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -590,27 +501,23 @@
                 length: null
                 pattern: null
                 format: ip
-                is_secret: null
-                extra_values_allowed: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_sflowPollingInterval:
-              id: inputfield_sflowPollingInterval
-              type: INPUT_FIELD_TYPE_INTEGER
-              name: sflowPollingInterval
-              label: sFlow Polling Interval
-              description: Polling interval in seconds for sFlow counter sampling.
-              required: null
-              boolean_props: null
-              integer_props:
-                default_value: '10'
-                static_options: null
-                range: 0..3600
-                dynamic_options: null
-                extra_values_allowed: null
+            inputfield_sflow_createLoopback:
+              id: inputfield_sflow_createLoopback
+              type: INPUT_FIELD_TYPE_BOOLEAN
+              name: createLoopback
+              label: Create Loopback Interface
+              description: Enable to have this studio generate the loopback interface configuration.
+              required: false
+              boolean_props:
+                default_value: false
+              integer_props: null
               float_props: null
               string_props: null
               group_props: null
@@ -618,20 +525,68 @@
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_sflowPort:
-              id: inputfield_sflowPort
+            inputfield_sflow_loopbackAddress:
+              id: inputfield_sflow_loopbackAddress
+              type: INPUT_FIELD_TYPE_STRING
+              name: loopbackAddress
+              label: Loopback IP Address
+              description: IP address in CIDR notation for the loopback interface (e.g. 10.10.10.10/32).
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: cidr
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflow_loopbackDescription:
+              id: inputfield_sflow_loopbackDescription
+              type: INPUT_FIELD_TYPE_STRING
+              name: loopbackDescription
+              label: Loopback Description
+              description: Description for the loopback interface (e.g. sflow-source).
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflow_loopbackNumber:
+              id: inputfield_sflow_loopbackNumber
               type: INPUT_FIELD_TYPE_INTEGER
-              name: sflowPort
-              label: sFlow Collector Port
-              description: Destination port for sFlow export.
-              required: null
+              name: loopbackNumber
+              label: Loopback Number
+              description: Loopback interface number (e.g. 100 for Loopback100).
+              required: false
               boolean_props: null
               integer_props:
-                default_value: '6343'
+                default_value: null
                 static_options: null
-                range: 1..65535
+                range: 0..8191
                 dynamic_options: null
-                extra_values_allowed: null
+                extra_values_allowed: false
               float_props: null
               string_props: null
               group_props: null
@@ -653,45 +608,28 @@
               group_props:
                 members:
                   values:
-                    - inputfield_sflow_createLoopback
-                    - inputfield_sflow_loopbackNumber
-                    - inputfield_sflow_loopbackDescription
-                    - inputfield_sflow_loopbackAddress
+                  - inputfield_sflow_createLoopback
+                  - inputfield_sflow_loopbackNumber
+                  - inputfield_sflow_loopbackDescription
+                  - inputfield_sflow_loopbackAddress
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_sflow_createLoopback:
-              id: inputfield_sflow_createLoopback
-              type: INPUT_FIELD_TYPE_BOOLEAN
-              name: createLoopback
-              label: Create Loopback Interface
-              description: Enable to have this studio generate the loopback interface configuration.
-              required: null
-              boolean_props:
-                default_value: false
-              integer_props: null
-              float_props: null
-              string_props: null
-              group_props: null
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_sflow_loopbackNumber:
-              id: inputfield_sflow_loopbackNumber
+            inputfield_sflow_pollingInterval:
+              id: inputfield_sflow_pollingInterval
               type: INPUT_FIELD_TYPE_INTEGER
-              name: loopbackNumber
-              label: Loopback Number
-              description: Loopback interface number (e.g. 100 for Loopback100).
-              required: null
+              name: pollingInterval
+              label: sFlow Polling Interval
+              description: Polling interval in seconds for sFlow counter sampling.
+              required: false
               boolean_props: null
               integer_props:
-                default_value: null
+                default_value: '10'
                 static_options: null
-                range: 0..8191
+                range: 0..3600
                 dynamic_options: null
-                extra_values_allowed: null
+                extra_values_allowed: false
               float_props: null
               string_props: null
               group_props: null
@@ -699,13 +637,55 @@
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_sflow_loopbackDescription:
-              id: inputfield_sflow_loopbackDescription
+            inputfield_sflow_port:
+              id: inputfield_sflow_port
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: port
+              label: sFlow Collector Port
+              description: Destination port for sFlow export.
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: '6343'
+                static_options: null
+                range: 1..65535
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflow_sampleRate:
+              id: inputfield_sflow_sampleRate
+              type: INPUT_FIELD_TYPE_INTEGER
+              name: sampleRate
+              label: Sample Rate
+              description: 'Packet sample rate for sFlow (1 in N packets sampled). WARNING: Sample rates of 65535 or less when streaming to CVP/CVaaS may cause flow rate limiting. EOS range: 1-4294967295.'
+              required: false
+              boolean_props: null
+              integer_props:
+                default_value: '1000000'
+                static_options: null
+                range: null
+                dynamic_options: null
+                extra_values_allowed: false
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflow_sourceInterface:
+              id: inputfield_sflow_sourceInterface
               type: INPUT_FIELD_TYPE_STRING
-              name: loopbackDescription
-              label: Loopback Description
-              description: Description for the loopback interface (e.g. sflow-source).
-              required: null
+              name: sourceInterface
+              label: Source Interface
+              description: The interface to use as the sFlow source interface (e.g. Loopback0).
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -716,33 +696,74 @@
                 length: null
                 pattern: null
                 format: null
-                is_secret: null
-                extra_values_allowed: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
-            inputfield_sflow_loopbackAddress:
-              id: inputfield_sflow_loopbackAddress
-              type: INPUT_FIELD_TYPE_STRING
-              name: loopbackAddress
-              label: Loopback IP Address
-              description: IP address in CIDR notation for the loopback interface (e.g. 10.10.10.10/32).
-              required: null
+            inputfield_sflowConfig:
+              id: inputfield_sflowConfig
+              type: INPUT_FIELD_TYPE_GROUP
+              name: sflowConfig
+              label: sFlow Configuration
+              description: ''
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
-              string_props:
-                default_value: null
-                static_options: null
-                dynamic_options: null
-                length: null
-                pattern: null
-                format: cidr
-                is_secret: null
-                extra_values_allowed: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                  - inputfield_sflow_sourceInterface
+                  - inputfield_sflow_sampleRate
+                  - inputfield_sflow_collectorAddress
+                  - inputfield_sflow_pollingInterval
+                  - inputfield_sflow_port
+                  - inputfield_sflow_loopbackConfig
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflowDeviceSets:
+              id: inputfield_sflowDeviceSets
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: sflowDeviceSets
+              label: sFlow Device Sets
+              description: Assign sFlow flow monitoring to a set of devices. Do not assign the same device to both IPFIX and sFlow.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
               group_props: null
+              collection_props: null
+              resolver_props:
+                base_field_id: inputfield_sflowConfig
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            root:
+              id: root
+              type: INPUT_FIELD_TYPE_GROUP
+              name: ''
+              label: ''
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                  - inputfield_ipfixDeviceSets
+                  - inputfield_sflowDeviceSets
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
@@ -755,10 +776,69 @@
                 "type": "INPUT",
                 "showDefaultRow": false
               },
+              "inputfield_ipfix_loopbackNumber": {
+                "key": "inputfield_ipfix_loopbackNumber",
+                "type": "INPUT",
+                "dependency": {
+                  "inputfield_ipfix_createLoopback": {
+                    "value": [true],
+                    "mode": "SHOW"
+                  }
+                }
+              },
+              "inputfield_ipfix_loopbackDescription": {
+                "key": "inputfield_ipfix_loopbackDescription",
+                "type": "INPUT",
+                "dependency": {
+                  "inputfield_ipfix_createLoopback": {
+                    "value": [true],
+                    "mode": "SHOW"
+                  }
+                }
+              },
+              "inputfield_ipfix_loopbackAddress": {
+                "key": "inputfield_ipfix_loopbackAddress",
+                "type": "INPUT",
+                "dependency": {
+                  "inputfield_ipfix_createLoopback": {
+                    "value": [true],
+                    "mode": "SHOW"
+                  }
+                }
+              },
               "inputfield_sflowDeviceSets": {
                 "key": "inputfield_sflowDeviceSets",
                 "type": "INPUT",
                 "showDefaultRow": false
+              },
+              "inputfield_sflow_loopbackNumber": {
+                "key": "inputfield_sflow_loopbackNumber",
+                "type": "INPUT",
+                "dependency": {
+                  "inputfield_sflow_createLoopback": {
+                    "value": [true],
+                    "mode": "SHOW"
+                  }
+                }
+              },
+              "inputfield_sflow_loopbackDescription": {
+                "key": "inputfield_sflow_loopbackDescription",
+                "type": "INPUT",
+                "dependency": {
+                  "inputfield_sflow_createLoopback": {
+                    "value": [true],
+                    "mode": "SHOW"
+                  }
+                }
+              },
+              "inputfield_sflow_loopbackAddress": {
+                "key": "inputfield_sflow_loopbackAddress",
+                "type": "INPUT",
+                "dependency": {
+                  "inputfield_sflow_createLoopback": {
+                    "value": [true],
+                    "mode": "SHOW"
+                  }
+                }
               }
             }
-      from_package: ''

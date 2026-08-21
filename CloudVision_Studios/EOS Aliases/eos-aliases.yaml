@@ -1,85 +1,118 @@
+# File auto-generated from package for studio-eos-aliases. DO NOT EDIT.
 - service: arista.studio.v1.StudioConfigService
   method: Set
   body:
     value:
       key:
         studio_id: studio-eos-aliases
-        workspace_id: ''
+        workspace_id: ws-studio-eos-aliases
       display_name: EOS Aliases
       description: Configure EOS command aliases for device sets
       template:
         type: TEMPLATE_TYPE_MAKO
-        body: |
+        body: |+
           <%
-            if not aliasDeviceSets:
-              return
-            devSetsCfg, devSetsCtx = aliasDeviceSets.resolveWithContext()
-            if not devSetsCfg or not devSetsCfg.get('aliasConfig'):
-              return
-            aliasConfig = devSetsCfg['aliasConfig']
-            aliases = aliasConfig.get('aliases', [])
-            if not aliases:
-              return
-          %>
-          % for a in aliases:
-          <%
-            aName = a.get('aliasName', '')
-            aCommand = a.get('aliasCommand', '')
-            if not aName or not aCommand:
+          from cloudvision import cvlib
+
+          def makeInputError(message, inputPath, fieldId):
+            return cvlib.InputError(message=message, inputPath=inputPath, fieldId=fieldId, members=[])
+
+          if not deviceSets:
+            return
+
+          _, firstCtx = deviceSets.resolveWithContext()
+          if firstCtx is None:
+            return
+
+          currentDevice = firstCtx.device
+          aliasCfgs = {}
+
+          for dev, devSetsCfg, devSetsCtx in deviceSets.resolveAllWithContext(strict=True):
+            if dev != currentDevice:
               continue
+            if not devSetsCfg or not devSetsCfg.get('config'):
+              continue
+
+            inputPath = ["deviceSets", str(devSetsCtx.index)]
+
+            for aliasDef in devSetsCfg['config'].get('aliases', []):
+              name = aliasDef.get('name', '')
+              cmd = aliasDef.get('command', '')
+              if not name:
+                raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                  "Alias name is required", inputPath, "name")])
+              if not cmd:
+                raise cvlib.InputErrorException(inputErrors=[makeInputError(
+                  "Alias command is required for alias '%s'" % name, inputPath, "command")])
+              aliasCfgs[name] = cmd
+
+          if not aliasCfgs:
+            return
           %>
-          alias ${aName} ${aCommand}
+          % for name in aliasCfgs:
+          <% cmd = aliasCfgs[name] %>
+          alias ${name} ${cmd}
           % endfor
+
+
       input_schema:
         fields:
           values:
-            root:
-              id: root
-              type: INPUT_FIELD_TYPE_GROUP
-              name: ''
-              label: ''
-              description: null
-              required: null
+            inputfield_command:
+              id: inputfield_command
+              type: INPUT_FIELD_TYPE_STRING
+              name: command
+              label: Alias Command
+              description: The full command the alias expands to (e.g. show interface counter | nz). Use %1, %2 etc. for positional arguments.
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
-              string_props: null
-              group_props:
-                members:
-                  values:
-                    - inputfield_aliasDeviceSets
-              collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
-              tag_matcher_props: null
-            inputfield_aliasDeviceSets:
-              id: inputfield_aliasDeviceSets
-              type: INPUT_FIELD_TYPE_RESOLVER
-              name: aliasDeviceSets
-              label: Alias Device Sets
-              description: Assign a set of EOS aliases to a group of devices.
-              required: null
-              boolean_props: null
-              integer_props: null
-              float_props: null
-              string_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: ^[^\r\n\x00]+$
+                format: null
+                is_secret: false
+                extra_values_allowed: false
               group_props: null
               collection_props: null
-              resolver_props:
-                base_field_id: inputfield_aliasConfig
-                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
-                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
-                input_tag_label: null
-                tag_filter_query: null
-              auto_fill_action_id: null
+              resolver_props: null
+              auto_fill_action_id: ''
               tag_matcher_props: null
-            inputfield_aliasConfig:
-              id: inputfield_aliasConfig
+            inputfield_name:
+              id: inputfield_name
+              type: INPUT_FIELD_TYPE_STRING
+              name: name
+              label: Alias Name
+              description: The name of the alias (e.g. snz). Must contain only letters, numbers, underscores, or hyphens.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: null
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: ^[a-zA-Z][a-zA-Z0-9_-]*$
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: ''
+              tag_matcher_props: null
+            inputfield_alias:
+              id: inputfield_alias
               type: INPUT_FIELD_TYPE_GROUP
-              name: aliasConfig
-              label: Alias Configuration
-              description: null
-              required: null
+              name: alias
+              label: Alias
+              description: ''
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -87,10 +120,11 @@
               group_props:
                 members:
                   values:
-                    - inputfield_aliases
+                  - inputfield_name
+                  - inputfield_command
               collection_props: null
               resolver_props: null
-              auto_fill_action_id: null
+              auto_fill_action_id: ''
               tag_matcher_props: null
             inputfield_aliases:
               id: inputfield_aliases
@@ -98,7 +132,7 @@
               name: aliases
               label: Aliases
               description: Define EOS command aliases.
-              required: null
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -106,17 +140,17 @@
               group_props: null
               collection_props:
                 base_field_id: inputfield_alias
-                key: inputfield_aliasName
+                key: inputfield_name
               resolver_props: null
-              auto_fill_action_id: null
+              auto_fill_action_id: ''
               tag_matcher_props: null
-            inputfield_alias:
-              id: inputfield_alias
+            inputfield_config:
+              id: inputfield_config
               type: INPUT_FIELD_TYPE_GROUP
-              name: alias
-              label: Alias
-              description: null
-              required: null
+              name: config
+              label: Alias Configuration
+              description: ''
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
@@ -124,56 +158,47 @@
               group_props:
                 members:
                   values:
-                    - inputfield_aliasName
-                    - inputfield_aliasCommand
+                  - inputfield_aliases
               collection_props: null
               resolver_props: null
-              auto_fill_action_id: null
+              auto_fill_action_id: ''
               tag_matcher_props: null
-            inputfield_aliasName:
-              id: inputfield_aliasName
-              type: INPUT_FIELD_TYPE_STRING
-              name: aliasName
-              label: Alias Name
-              description: The name of the alias (e.g. snz). Must contain only letters, numbers, underscores, or hyphens.
-              required: null
+            inputfield_deviceSets:
+              id: inputfield_deviceSets
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: deviceSets
+              label: Alias Device Sets
+              description: Assign a set of EOS aliases to a group of devices.
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
-              string_props:
-                default_value: null
-                static_options: null
-                dynamic_options: null
-                length: null
-                pattern: '^[a-zA-Z][a-zA-Z0-9_-]*$'
-                format: null
-                is_secret: null
-                extra_values_allowed: null
+              string_props: null
               group_props: null
               collection_props: null
-              resolver_props: null
-              auto_fill_action_id: null
+              resolver_props:
+                base_field_id: inputfield_config
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: ''
               tag_matcher_props: null
-            inputfield_aliasCommand:
-              id: inputfield_aliasCommand
-              type: INPUT_FIELD_TYPE_STRING
-              name: aliasCommand
-              label: Alias Command
-              description: The full command the alias expands to (e.g. show interface counter | nz). Use %1, %2 etc. for positional arguments.
-              required: null
+            root:
+              id: root
+              type: INPUT_FIELD_TYPE_GROUP
+              name: ''
+              label: ''
+              description: ''
+              required: false
               boolean_props: null
               integer_props: null
               float_props: null
-              string_props:
-                default_value: null
-                static_options: null
-                dynamic_options: null
-                length: null
-                pattern: null
-                format: null
-                is_secret: null
-                extra_values_allowed: null
-              group_props: null
+              string_props: null
+              group_props:
+                members:
+                  values:
+                  - inputfield_deviceSets
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
@@ -181,10 +206,9 @@
         layout:
           value: |
             {
-              "inputfield_aliasDeviceSets": {
-                "key": "inputfield_aliasDeviceSets",
+              "inputfield_deviceSets": {
+                "key": "inputfield_deviceSets",
                 "type": "INPUT",
                 "showDefaultRow": false
               }
             }
-      from_package: ''
