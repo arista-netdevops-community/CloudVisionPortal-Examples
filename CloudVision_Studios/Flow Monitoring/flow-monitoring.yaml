@@ -87,6 +87,15 @@
                 "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback.",
                 inputPath, "ipfix_sourceInterface")])
 
+            ipfixInterfaces = []
+            deviceResolver = cfg.get('deviceResolver')
+            if deviceResolver:
+              devCfg, devCtx = deviceResolver.resolveWithContext()
+              if devCfg and devCfg.get('interfaceResolver'):
+                intfResolver = devCfg['interfaceResolver']
+                for idx, intf in enumerate(intfResolver.resolveAll(strict=True)):
+                  ipfixInterfaces.append(intf[0])
+
             ipfixVars = {
               'sourceInterface': sourceInterface,
               'sampleRate': sampleRate,
@@ -98,6 +107,7 @@
               'loopbackNumber': loopbackNumber,
               'loopbackDescription': loopbackDescription,
               'loopbackAddress': loopbackAddress,
+              'interfaces': ipfixInterfaces,
             }
 
           if hasSflow:
@@ -140,6 +150,15 @@
                 "Source interface must match the loopback being created (Loopback" + str(loopbackNumber) + "). Update source interface or disable Create Loopback.",
                 inputPath, "sflow_sourceInterface")])
 
+            sflowInterfaces = []
+            deviceResolver = cfg.get('deviceResolver')
+            if deviceResolver:
+              devCfg, devCtx = deviceResolver.resolveWithContext()
+              if devCfg and devCfg.get('interfaceResolver'):
+                intfResolver = devCfg['interfaceResolver']
+                for idx, intf in enumerate(intfResolver.resolveAll(strict=True)):
+                  sflowInterfaces.append(intf[0])
+
             sflowVars = {
               'sourceInterface': sourceInterface,
               'sampleRate': sampleRate,
@@ -150,6 +169,7 @@
               'loopbackNumber': loopbackNumber,
               'loopbackDescription': loopbackDescription,
               'loopbackAddress': loopbackAddress,
+              'interfaces': sflowInterfaces,
             }
           %>
           % if hasIpfix:
@@ -170,6 +190,10 @@
                    local interface ${v['sourceInterface']}
              no shutdown
           !
+          % for intfName in v['interfaces']:
+          interface ${intfName}
+             flow tracker sampled ${v['trackerName']}
+          % endfor
           % endif
           % if hasSflow:
           <% v = sflowVars %>
@@ -186,6 +210,10 @@
           sflow source-interface ${v['sourceInterface']}
           sflow destination ${v['collectorAddress']} ${v['port']}
           sflow run
+          % for intfName in v['interfaces']:
+          interface ${intfName}
+             sflow enable
+          % endfor
           % endif
 
 
@@ -459,6 +487,7 @@
                   - inputfield_exporterName
                   - inputfield_ipfix_port
                   - inputfield_ipfix_loopbackConfig
+                  - inputfield_ipfix_deviceResolver
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
@@ -723,6 +752,7 @@
                   - inputfield_sflow_pollingInterval
                   - inputfield_sflow_port
                   - inputfield_sflow_loopbackConfig
+                  - inputfield_sflow_deviceResolver
               collection_props: null
               resolver_props: null
               auto_fill_action_id: null
@@ -748,6 +778,138 @@
                 tag_filter_query: null
               auto_fill_action_id: null
               tag_matcher_props: null
+            inputfield_ipfix_deviceResolver:
+              id: inputfield_ipfix_deviceResolver
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: deviceResolver
+              label: Device Ethernets
+              description: Assign IPFIX flow tracking to device ethernets.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props:
+                base_field_id: inputfield_ipfix_interfaceResolver
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_ipfix_interfaceResolver:
+              id: inputfield_ipfix_interfaceResolver
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: interfaceResolver
+              label: Ethernets
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props:
+                base_field_id: inputfield_ipfix_interfaceEnabled
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_INTERFACE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_ipfix_interfaceEnabled:
+              id: inputfield_ipfix_interfaceEnabled
+              type: INPUT_FIELD_TYPE_STRING
+              name: interfaceEnabled
+              label: Enabled
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: ''
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflow_deviceResolver:
+              id: inputfield_sflow_deviceResolver
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: deviceResolver
+              label: Device Ethernets
+              description: Enable sFlow on device ethernets.
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props:
+                base_field_id: inputfield_sflow_interfaceResolver
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_SINGLE_DEVICE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflow_interfaceResolver:
+              id: inputfield_sflow_interfaceResolver
+              type: INPUT_FIELD_TYPE_RESOLVER
+              name: interfaceResolver
+              label: Ethernets
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props: null
+              group_props: null
+              collection_props: null
+              resolver_props:
+                base_field_id: inputfield_sflow_interfaceEnabled
+                display_mode: RESOLVER_FIELD_DISPLAY_MODE_SPARSE
+                input_mode: RESOLVER_FIELD_INPUT_MODE_MULTI_INTERFACE_TAG
+                input_tag_label: null
+                tag_filter_query: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
+            inputfield_sflow_interfaceEnabled:
+              id: inputfield_sflow_interfaceEnabled
+              type: INPUT_FIELD_TYPE_STRING
+              name: interfaceEnabled
+              label: Enabled
+              description: ''
+              required: false
+              boolean_props: null
+              integer_props: null
+              float_props: null
+              string_props:
+                default_value: ''
+                static_options: null
+                dynamic_options: null
+                length: null
+                pattern: null
+                format: null
+                is_secret: false
+                extra_values_allowed: false
+              group_props: null
+              collection_props: null
+              resolver_props: null
+              auto_fill_action_id: null
+              tag_matcher_props: null
             root:
               id: root
               type: INPUT_FIELD_TYPE_GROUP
@@ -768,6 +930,7 @@
               resolver_props: null
               auto_fill_action_id: null
               tag_matcher_props: null
+
         layout:
           value: |
             {
@@ -840,5 +1003,26 @@
                     "mode": "SHOW"
                   }
                 }
+              },
+              "inputfield_ipfix_deviceResolver": {
+                "key": "inputfield_ipfix_deviceResolver",
+                "type": "INPUT",
+                "showDefaultRow": false
+              },
+              "inputfield_ipfix_interfaceResolver": {
+                "key": "inputfield_ipfix_interfaceResolver",
+                "type": "INPUT",
+                "showDefaultRow": false
+              },
+              "inputfield_sflow_deviceResolver": {
+                "key": "inputfield_sflow_deviceResolver",
+                "type": "INPUT",
+                "showDefaultRow": false
+              },
+              "inputfield_sflow_interfaceResolver": {
+                "key": "inputfield_sflow_interfaceResolver",
+                "type": "INPUT",
+                "showDefaultRow": false
               }
             }
+
