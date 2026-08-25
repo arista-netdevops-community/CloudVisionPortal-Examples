@@ -6,6 +6,7 @@ The Flow Monitoring studio configures IPFIX and/or sFlow flow monitoring on Aris
 ## Features
 - **IPFIX Support**: Configures `flow tracking sampled` with tracker, exporter, collector, and source interface settings
 - **sFlow Support**: Configures sFlow sampling, polling interval, source interface, and collector destination
+- **Device Ethernets**: Per-interface assignment via tag-based queries — apply `sflow enable` or `flow tracker sampled` to specific interfaces instead of relying on static configlets
 - **Dual-Protocol Validation**: Prevents a device from being assigned to both IPFIX and sFlow profiles
 - **Optional Loopback Creation**: Optionally generates loopback interface configuration for use as the source interface
 - **Sensible Defaults**: Default sample rate of 1,000,000 and standard ports (IPFIX: 4739, sFlow: 6343)
@@ -74,6 +75,45 @@ sflow source-interface Loopback0
 sflow destination 127.0.0.1 6343
 sflow run
 ```
+
+### Device Ethernets (IPFIX and sFlow)
+Both IPFIX and sFlow sections include an optional Device Ethernets resolver. Use tag-based interface queries to select which interfaces receive per-interface configuration:
+
+- **sFlow**: Emits `sflow enable` on each resolved interface. Required because `sflow run` alone does not enable sampling on individual interfaces.
+- **IPFIX**: Emits `flow tracker sampled <trackerName>` on each resolved interface to apply the IPFIX flow tracker.
+
+Example interface query: `interface:* AND NOT interface:Management1@<device>` to enable on all Ethernets except Management1.
+
+#### Example Output (sFlow with Device Ethernets)
+```
+sflow sample 1000000
+sflow polling-interval 10
+sflow source-interface Loopback100
+sflow destination 127.0.0.1 6343
+sflow run
+interface Ethernet1
+   sflow enable
+interface Ethernet2
+   sflow enable
+```
+
+#### Example Output (IPFIX with Device Ethernets)
+```
+flow tracking sampled
+   sample 32768
+   tracker tr1
+      exporter tr1
+         collector 127.0.0.1 port 4739
+         local interface Loopback100
+   no shutdown
+!
+interface Ethernet1
+   flow tracker sampled tr1
+interface Ethernet2
+   flow tracker sampled tr1
+```
+
+If no interfaces are assigned in the Device Ethernets resolver, only the global configuration is generated (backward compatible with v0.0.1).
 
 ## Notes
 - Sample rates of 65,535 or less when streaming to CVP/CVaaS may cause flow rate limiting
