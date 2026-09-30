@@ -22,6 +22,6 @@ done
 
 ssh root@${SECONDARY} "
         chown cvp:cvp /data/cvpbackup/* ; \
-        su cvp -c \"export RESTORE_SYNC={}; cvpi restore cvp ${FILES} ;\"; \
+        su - cvp -c \"export RESTORE_SYNC={}; cvpi restore cvp ${FILES} ;\"; \
         /cvpi/tools/apish publish -d cvp -p /clusterManagement \
           --update '{\"key\":\"clusterName\", \"value\": \"${SECONDARY_CLUSTER}\"}'"
